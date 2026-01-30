@@ -166,12 +166,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
         </div>
       </div>
 
-      <!-- System Processes (collapsed by default) -->
-      <details class="group">
-        <summary class="cursor-pointer text-xs font-mono text-base-content/60 uppercase tracking-wider px-1 py-2 hover:text-base-content/80">
-          ▶ System Processes (<%= length(@recent_processes) %>)
-        </summary>
-        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 mt-3">
+      <!-- System Processes -->
+      <div class="space-y-3">
+        <div class="flex items-center px-1">
+          <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ System Processes (<%= length(@recent_processes) %>)</span>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
           <%= for process <- @recent_processes do %>
             <div class={"glass-panel rounded-lg p-3 border-l-4 " <> case process.status do
               "busy" -> "border-l-warning"
@@ -188,7 +188,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
             </div>
           <% end %>
         </div>
-      </details>
+      </div>
     </div>
     """
   end
