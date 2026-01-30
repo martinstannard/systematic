@@ -3,10 +3,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
   
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
+  alias DashboardPhoenix.StatsMonitor
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
       SessionBridge.subscribe()
+      StatsMonitor.subscribe()
       Process.send_after(self(), :update_processes, 100)
       :timer.send_interval(2_000, :update_processes)
     end
@@ -14,12 +16,14 @@ defmodule DashboardPhoenixWeb.HomeLive do
     processes = ProcessMonitor.list_processes()
     sessions = SessionBridge.get_sessions()
     progress = SessionBridge.get_progress()
+    stats = StatsMonitor.get_stats()
     
     socket = assign(socket,
       process_stats: ProcessMonitor.get_stats(processes),
       recent_processes: processes,
       agent_sessions: sessions,
-      agent_progress: progress
+      agent_progress: progress,
+      usage_stats: stats
     )
 
     {:ok, socket}
@@ -34,6 +38,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle session updates
   def handle_info({:sessions, sessions}, socket) do
     {:noreply, assign(socket, agent_sessions: sessions)}
+  end
+
+  # Handle stats updates
+  def handle_info({:stats_updated, stats}, socket) do
+    {:noreply, assign(socket, usage_stats: stats)}
   end
 
   def handle_info(:update_processes, socket) do
@@ -92,6 +101,82 @@ defmodule DashboardPhoenixWeb.HomeLive do
           <span class="text-base-content/60">AGENTS</span>
           <span class="text-primary font-bold"><%= length(@agent_progress) %></span>
           <span class="text-base-content/60">EVENTS</span>
+        </div>
+      </div>
+
+      <!-- Usage Stats -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <!-- OpenCode Stats -->
+        <div class="glass-panel rounded-lg p-3">
+          <div class="text-[10px] font-mono text-accent uppercase tracking-wider mb-2">📊 OpenCode (Gemini)</div>
+          <%= if @usage_stats.opencode[:error] do %>
+            <div class="text-xs text-base-content/40">Unavailable</div>
+          <% else %>
+            <div class="space-y-1 text-xs font-mono">
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Sessions</span>
+                <span class="text-white font-bold"><%= @usage_stats.opencode[:sessions] || 0 %></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Input</span>
+                <span class="text-primary"><%= @usage_stats.opencode[:input_tokens] || "0" %></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Output</span>
+                <span class="text-secondary"><%= @usage_stats.opencode[:output_tokens] || "0" %></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Cost</span>
+                <span class="text-success"><%= @usage_stats.opencode[:total_cost] || "$0" %></span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Claude Stats -->
+        <div class="glass-panel rounded-lg p-3">
+          <div class="text-[10px] font-mono text-accent uppercase tracking-wider mb-2">📊 Claude Code</div>
+          <%= if @usage_stats.claude[:error] do %>
+            <div class="text-xs text-base-content/40">Unavailable</div>
+          <% else %>
+            <div class="space-y-1 text-xs font-mono">
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Sessions</span>
+                <span class="text-white font-bold"><%= @usage_stats.claude[:sessions] || 0 %></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Input</span>
+                <span class="text-primary"><%= @usage_stats.claude[:input_tokens] || "0" %></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Output</span>
+                <span class="text-secondary"><%= @usage_stats.claude[:output_tokens] || "0" %></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Cache</span>
+                <span class="text-accent"><%= @usage_stats.claude[:cache_read] || "0" %></span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="glass-panel rounded-lg p-3 lg:col-span-2">
+          <div class="text-[10px] font-mono text-accent uppercase tracking-wider mb-2">📈 Summary</div>
+          <div class="grid grid-cols-2 gap-4 text-xs font-mono">
+            <div>
+              <div class="text-base-content/60 mb-1">Total Sessions</div>
+              <div class="text-2xl font-bold text-white">
+                <%= (@usage_stats.opencode[:sessions] || 0) + (@usage_stats.claude[:sessions] || 0) %>
+              </div>
+            </div>
+            <div>
+              <div class="text-base-content/60 mb-1">Total Messages</div>
+              <div class="text-2xl font-bold text-white">
+                <%= (@usage_stats.opencode[:messages] || 0) + (@usage_stats.claude[:messages] || 0) %>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

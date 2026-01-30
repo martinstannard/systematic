@@ -14,6 +14,8 @@ defmodule DashboardPhoenix.Application do
       {Phoenix.PubSub, name: DashboardPhoenix.PubSub},
       # Session bridge for live agent updates (tails progress files)
       DashboardPhoenix.SessionBridge,
+      # Stats monitor for OpenCode/Claude usage
+      DashboardPhoenix.StatsMonitor,
       # Start to serve requests, typically the last entry
       DashboardPhoenixWeb.Endpoint
     ]
