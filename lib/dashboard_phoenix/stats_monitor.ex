@@ -4,7 +4,7 @@ defmodule DashboardPhoenix.StatsMonitor do
   """
   use GenServer
 
-  @poll_interval 30_000  # 30 seconds
+  @poll_interval 5_000  # 5 seconds
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -12,6 +12,10 @@ defmodule DashboardPhoenix.StatsMonitor do
 
   def get_stats do
     GenServer.call(__MODULE__, :get_stats)
+  end
+
+  def refresh do
+    GenServer.cast(__MODULE__, :refresh)
   end
 
   def subscribe do
@@ -30,6 +34,13 @@ defmodule DashboardPhoenix.StatsMonitor do
   @impl true
   def handle_call(:get_stats, _from, state) do
     {:reply, state.stats, state}
+  end
+
+  @impl true
+  def handle_cast(:refresh, state) do
+    stats = fetch_all_stats()
+    broadcast_stats(stats)
+    {:noreply, %{state | stats: stats}}
   end
 
   @impl true

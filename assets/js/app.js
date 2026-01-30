@@ -26,6 +26,8 @@ import {hooks as colocatedHooks} from "phoenix-colocated/dashboard_phoenix"
 import topbar from "../vendor/topbar"
 
 // Custom hooks
+import { RelationshipGraph } from "./relationship_graph"
+
 const Hooks = {
   ScrollBottom: {
     mounted() {
@@ -37,7 +39,8 @@ const Hooks = {
     scrollToBottom() {
       this.el.scrollTop = this.el.scrollHeight
     }
-  }
+  },
+  RelationshipGraph: RelationshipGraph
 }
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
