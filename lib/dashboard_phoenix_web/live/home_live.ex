@@ -9,6 +9,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.CodingAgentMonitor
   alias DashboardPhoenix.LinearMonitor
   alias DashboardPhoenix.AgentPreferences
+  alias DashboardPhoenix.OpenCodeServer
+  alias DashboardPhoenix.OpenCodeClient
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -18,6 +20,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       AgentActivityMonitor.subscribe()
       AgentPreferences.subscribe()
       LinearMonitor.subscribe()
+      OpenCodeServer.subscribe()
       Process.send_after(self(), :update_processes, 100)
       :timer.send_interval(2_000, :update_processes)
     end
@@ -31,6 +34,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     coding_agents = CodingAgentMonitor.list_agents()
     coding_agent_pref = AgentPreferences.get_coding_agent()
     linear_data = LinearMonitor.get_tickets()
+    opencode_status = OpenCodeServer.status()
     
     graph_data = build_graph_data(sessions, coding_agents, processes)
     
@@ -59,7 +63,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
       show_work_modal: false,
       work_ticket_id: nil,
       work_ticket_details: nil,
-      work_ticket_loading: false
+      work_ticket_loading: false,
+      # OpenCode server state
+      opencode_server_status: opencode_status,
+      # Work in progress
+      work_in_progress: false,
+      work_error: nil
     )
     
     socket = if connected?(socket) do
@@ -114,6 +123,27 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_last_updated: data.last_updated,
       linear_error: data.error
     )}
+  end
+
+  # Handle OpenCode server status updates
+  def handle_info({:opencode_status, status}, socket) do
+    {:noreply, assign(socket, opencode_server_status: status)}
+  end
+
+  # Handle async work result (from OpenCode)
+  def handle_info({:work_result, result}, socket) do
+    case result do
+      {:ok, %{session_id: session_id}} ->
+        socket = socket
+        |> assign(work_in_progress: false, work_error: nil)
+        |> put_flash(:info, "Task sent to OpenCode (session: #{session_id})")
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = socket
+        |> assign(work_in_progress: false, work_error: "Failed: #{inspect(reason)}")
+        {:noreply, socket}
+    end
   end
 
   # Handle async ticket details fetch
@@ -230,6 +260,66 @@ defmodule DashboardPhoenixWeb.HomeLive do
     AgentPreferences.toggle_coding_agent()
     new_pref = AgentPreferences.get_coding_agent()
     {:noreply, assign(socket, coding_agent_pref: new_pref)}
+  end
+
+  # OpenCode server controls
+  def handle_event("start_opencode_server", _, socket) do
+    case OpenCodeServer.start_server() do
+      {:ok, port} ->
+        socket = socket
+        |> assign(opencode_server_status: OpenCodeServer.status())
+        |> put_flash(:info, "OpenCode server started on port #{port}")
+        {:noreply, socket}
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Failed to start OpenCode server: #{inspect(reason)}")
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("stop_opencode_server", _, socket) do
+    OpenCodeServer.stop_server()
+    socket = socket
+    |> assign(opencode_server_status: OpenCodeServer.status())
+    |> put_flash(:info, "OpenCode server stopped")
+    {:noreply, socket}
+  end
+
+  # Execute work on ticket using OpenCode
+  def handle_event("execute_work", _, socket) do
+    ticket_id = socket.assigns.work_ticket_id
+    ticket_details = socket.assigns.work_ticket_details
+    coding_pref = socket.assigns.coding_agent_pref
+    
+    cond do
+      # If OpenCode mode is selected
+      coding_pref == :opencode ->
+        # Build the prompt from ticket details
+        prompt = """
+        Work on ticket #{ticket_id}.
+        
+        Ticket details:
+        #{ticket_details || "No details available - use the ticket ID to look it up."}
+        
+        Please analyze this ticket and implement the required changes.
+        """
+        
+        # Start work in background
+        parent = self()
+        Task.start(fn ->
+          result = OpenCodeClient.send_task(prompt)
+          send(parent, {:work_result, result})
+        end)
+        
+        socket = socket
+        |> assign(work_in_progress: true, work_error: nil)
+        |> put_flash(:info, "Starting work with OpenCode...")
+        {:noreply, socket}
+      
+      # Claude mode - just show copy instructions
+      true ->
+        socket = put_flash(socket, :info, "Copy the command to spawn a Claude sub-agent")
+        {:noreply, socket}
+    end
   end
 
   def handle_event("dismiss_session", %{"id" => id}, socket) do
@@ -528,28 +618,62 @@ defmodule DashboardPhoenixWeb.HomeLive do
           <span class="text-[10px] text-base-content/60 font-mono">AGENT CONTROL</span>
         </div>
         
-        <!-- Coding Agent Toggle -->
-        <div class="flex items-center space-x-3">
-          <span class="text-[10px] font-mono text-base-content/50 uppercase">Coding Agent:</span>
-          <button 
-            phx-click="toggle_coding_agent"
-            class={"flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all duration-200 " <> 
-              if(@coding_agent_pref == :opencode, 
-                do: "bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30",
-                else: "bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30"
-              )}
-            title="Click to toggle between OpenCode (Gemini) and Claude sub-agents"
-          >
-            <%= if @coding_agent_pref == :opencode do %>
-              <span class="text-lg">💻</span>
-              <span class="text-xs font-mono font-bold text-blue-400">OpenCode</span>
-              <span class="text-[9px] font-mono text-blue-400/60">(Gemini)</span>
-            <% else %>
-              <span class="text-lg">🤖</span>
-              <span class="text-xs font-mono font-bold text-purple-400">Claude</span>
-              <span class="text-[9px] font-mono text-purple-400/60">(Sub-agents)</span>
-            <% end %>
-          </button>
+        <!-- Coding Agent Toggle + OpenCode Server Status -->
+        <div class="flex items-center space-x-4">
+          <!-- Coding Agent Selector -->
+          <div class="flex items-center space-x-2">
+            <span class="text-[10px] font-mono text-base-content/50 uppercase">Coding Agent:</span>
+            <button 
+              phx-click="toggle_coding_agent"
+              class={"flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all duration-200 " <> 
+                if(@coding_agent_pref == :opencode, 
+                  do: "bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30",
+                  else: "bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30"
+                )}
+              title="Click to toggle between OpenCode (Gemini) and Claude sub-agents"
+            >
+              <%= if @coding_agent_pref == :opencode do %>
+                <span class="text-lg">💻</span>
+                <span class="text-xs font-mono font-bold text-blue-400">OpenCode</span>
+                <span class="text-[9px] font-mono text-blue-400/60">(Gemini)</span>
+              <% else %>
+                <span class="text-lg">🤖</span>
+                <span class="text-xs font-mono font-bold text-purple-400">Claude</span>
+                <span class="text-[9px] font-mono text-purple-400/60">(Sub-agents)</span>
+              <% end %>
+            </button>
+          </div>
+          
+          <!-- OpenCode Server Status (shown when OpenCode mode is selected) -->
+          <%= if @coding_agent_pref == :opencode do %>
+            <div class="flex items-center space-x-2 border-l border-white/20 pl-4">
+              <span class="text-[10px] font-mono text-base-content/50 uppercase">ACP Server:</span>
+              <%= if @opencode_server_status.running do %>
+                <div class="flex items-center space-x-2">
+                  <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+                  <span class="text-[10px] font-mono text-success">Running</span>
+                  <span class="text-[9px] font-mono text-base-content/40">:<%=@opencode_server_status.port %></span>
+                  <button 
+                    phx-click="stop_opencode_server"
+                    class="text-[10px] font-mono px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40"
+                  >
+                    Stop
+                  </button>
+                </div>
+              <% else %>
+                <div class="flex items-center space-x-2">
+                  <span class="w-2 h-2 rounded-full bg-base-content/30"></span>
+                  <span class="text-[10px] font-mono text-base-content/50">Stopped</span>
+                  <button 
+                    phx-click="start_opencode_server"
+                    class="text-[10px] font-mono px-2 py-0.5 rounded bg-success/20 text-success hover:bg-success/40"
+                  >
+                    Start
+                  </button>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
         </div>
         
         <div class="flex items-center space-x-4 text-xs font-mono">
@@ -1176,38 +1300,94 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <% end %>
             </div>
             
-            <!-- Spawn Agent Section -->
+            <!-- Start Working Section -->
             <div class="border-t border-white/10 pt-4">
-              <div class="text-xs font-mono text-accent uppercase tracking-wider mb-3">Start Working</div>
-              
-              <p class="text-sm text-base-content/70 mb-4">
-                Copy the command below to spawn a sub-agent that will work on this ticket:
-              </p>
-              
-              <% spawn_command = "Work on #{@work_ticket_id}" %>
-              <div class="relative">
-                <div 
-                  id="spawn-command" 
-                  class="text-sm font-mono bg-black/50 rounded-lg p-4 pr-16 text-green-400 cursor-pointer hover:bg-black/60 transition-colors"
-                  phx-hook="CopyToClipboard"
-                  data-copy={spawn_command}
-                >
-                  <%= spawn_command %>
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-xs font-mono text-accent uppercase tracking-wider">Start Working</div>
+                <div class={"text-[10px] font-mono px-2 py-1 rounded " <> if(@coding_agent_pref == :opencode, do: "bg-blue-500/20 text-blue-400", else: "bg-purple-500/20 text-purple-400")}>
+                  Using: <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode", else: "🤖 Claude" %>
                 </div>
-                <button
-                  class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-xs font-mono"
-                  phx-click="copy_spawn_command"
-                  id="copy-btn"
-                  phx-hook="CopyToClipboard"
-                  data-copy={spawn_command}
-                >
-                  📋 Copy
-                </button>
               </div>
               
-              <p class="text-[10px] text-base-content/50 mt-3">
-                Tip: Paste this into your OpenClaw chat to spawn a sub-agent for this ticket.
-              </p>
+              <%= if @coding_agent_pref == :opencode do %>
+                <!-- OpenCode Mode -->
+                <div class="space-y-4">
+                  <!-- Work Error -->
+                  <%= if @work_error do %>
+                    <div class="bg-error/20 text-error rounded-lg p-3 text-sm font-mono">
+                      <%= @work_error %>
+                    </div>
+                  <% end %>
+                  
+                  <!-- Server Status Check -->
+                  <%= if not @opencode_server_status.running do %>
+                    <div class="bg-warning/20 text-warning rounded-lg p-3 text-sm">
+                      ⚠️ OpenCode ACP server is not running. 
+                      <button 
+                        phx-click="start_opencode_server"
+                        class="underline hover:no-underline ml-1"
+                      >
+                        Start it now
+                      </button>
+                    </div>
+                  <% end %>
+                  
+                  <!-- Execute Work Button -->
+                  <div class="flex items-center space-x-3">
+                    <button
+                      phx-click="execute_work"
+                      disabled={@work_in_progress or @work_ticket_loading}
+                      class={"flex-1 py-3 rounded-lg text-sm font-mono font-bold transition-all " <> 
+                        if(@work_in_progress, 
+                          do: "bg-blue-500/30 text-blue-300 cursor-wait",
+                          else: "bg-blue-500/20 text-blue-400 hover:bg-blue-500/40"
+                        )}
+                    >
+                      <%= if @work_in_progress do %>
+                        <span class="inline-block animate-spin mr-2">⟳</span> Sending to OpenCode...
+                      <% else %>
+                        🚀 Execute Work with OpenCode
+                      <% end %>
+                    </button>
+                  </div>
+                  
+                  <p class="text-[10px] text-base-content/50">
+                    This will send the ticket details to the OpenCode ACP server and start working automatically.
+                  </p>
+                </div>
+              <% else %>
+                <!-- Claude Mode - Copy Command -->
+                <div class="space-y-3">
+                  <p class="text-sm text-base-content/70">
+                    Copy the command below to spawn a Claude sub-agent that will work on this ticket:
+                  </p>
+                  
+                  <% spawn_command = "Work on #{@work_ticket_id}" %>
+                  <div class="relative">
+                    <div 
+                      id="spawn-command" 
+                      class="text-sm font-mono bg-black/50 rounded-lg p-4 pr-16 text-green-400 cursor-pointer hover:bg-black/60 transition-colors"
+                      phx-hook="CopyToClipboard"
+                      data-copy={spawn_command}
+                    >
+                      <%= spawn_command %>
+                    </div>
+                    <button
+                      class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-xs font-mono"
+                      phx-click="copy_spawn_command"
+                      id="copy-btn"
+                      phx-hook="CopyToClipboard"
+                      data-copy={spawn_command}
+                    >
+                      📋 Copy
+                    </button>
+                  </div>
+                  
+                  <p class="text-[10px] text-base-content/50">
+                    Tip: Paste this into your OpenClaw chat to spawn a sub-agent for this ticket.
+                  </p>
+                </div>
+              <% end %>
             </div>
             
             <!-- Actions -->

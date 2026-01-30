@@ -24,6 +24,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.AgentActivityMonitor,
       # Linear ticket monitor for COR team
       DashboardPhoenix.LinearMonitor,
+      # OpenCode ACP server manager
+      DashboardPhoenix.OpenCodeServer,
       # Start to serve requests, typically the last entry
       DashboardPhoenixWeb.Endpoint
     ]
