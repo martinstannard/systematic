@@ -109,17 +109,25 @@ defmodule DashboardPhoenixWeb.HomeLive do
             </div>
           <% else %>
             <%= for session <- @agent_sessions do %>
-              <div class="glass-panel rounded-lg p-3 border-l-4 border-l-warning">
+              <div class={"glass-panel rounded-lg p-3 border-l-4 " <> if(session.status == "running", do: "border-l-warning", else: "border-l-success")}>
                 <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-mono text-white font-bold"><%= session.label || session.id %></span>
+                  <div class="flex items-center space-x-2">
+                    <%= if session.status == "running" do %>
+                      <span class="throbber"></span>
+                    <% else %>
+                      <span class="text-success">✓</span>
+                    <% end %>
+                    <span class="text-sm font-mono text-white font-bold"><%= session.label || session.id %></span>
+                  </div>
                   <span class={"text-[10px] font-mono px-1.5 py-0.5 rounded " <> status_badge(session.status)}>
                     <%= String.upcase(session.status || "unknown") %>
                   </span>
                 </div>
                 <div class="text-xs text-base-content/70 mb-2 line-clamp-2"><%= session.task %></div>
                 <%= if session.current_action do %>
-                  <div class="text-[10px] font-mono text-warning">
-                    → <%= session.current_action %>
+                  <div class="text-[10px] font-mono text-warning flex items-center space-x-1">
+                    <span class="inline-block w-1 h-1 bg-warning rounded-full animate-ping"></span>
+                    <span>→ <%= session.current_action %></span>
                   </div>
                 <% end %>
               </div>
