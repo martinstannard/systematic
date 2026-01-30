@@ -16,9 +16,6 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
     File.rm(@progress_file)
     File.rm(@sessions_file)
     
-    # Start SessionBridge for the tests
-    start_supervised!({SessionBridge, []})
-    
     :ok
   end
 

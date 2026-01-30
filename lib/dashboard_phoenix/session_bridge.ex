@@ -5,9 +5,17 @@ defmodule DashboardPhoenix.SessionBridge do
   """
   use GenServer
   
-  @progress_file "/tmp/agent-progress.jsonl"
-  @sessions_file "/tmp/agent-sessions.json"
+  @default_progress_file "/tmp/agent-progress.jsonl"
+  @default_sessions_file "/tmp/agent-sessions.json"
   @poll_interval 500  # 500ms for snappy updates
+
+  defp progress_file do
+    Application.get_env(:dashboard_phoenix, :progress_file, @default_progress_file)
+  end
+
+  defp sessions_file do
+    Application.get_env(:dashboard_phoenix, :sessions_file, @default_sessions_file)
+  end
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -30,8 +38,8 @@ defmodule DashboardPhoenix.SessionBridge do
   @impl true
   def init(_) do
     # Ensure files exist
-    File.write(@progress_file, "", [:append])
-    File.write(@sessions_file, ~s({"sessions":[]}))
+    File.write(progress_file(), "", [:append])
+    File.write(sessions_file(), ~s({"sessions":[]}))
     
     schedule_poll()
     {:ok, %{
@@ -68,9 +76,9 @@ defmodule DashboardPhoenix.SessionBridge do
 
   # Tail the JSONL progress file for new lines
   defp poll_progress(state) do
-    case File.stat(@progress_file) do
+    case File.stat(progress_file()) do
       {:ok, %{size: size}} when size > state.progress_offset ->
-        case File.open(@progress_file, [:read]) do
+        case File.open(progress_file(), [:read]) do
           {:ok, file} ->
             :file.position(file, state.progress_offset)
             new_lines = IO.read(file, :eof)
@@ -122,9 +130,9 @@ defmodule DashboardPhoenix.SessionBridge do
 
   # Poll the sessions JSON file
   defp poll_sessions(state) do
-    case File.stat(@sessions_file) do
+    case File.stat(sessions_file()) do
       {:ok, %{mtime: mtime}} when mtime != state.last_session_mtime ->
-        case File.read(@sessions_file) do
+        case File.read(sessions_file()) do
           {:ok, content} ->
             case Jason.decode(content) do
               {:ok, %{"sessions" => sessions}} ->
@@ -143,7 +151,6 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   defp normalize_session(s) do
-    # Get recent progress for this agent
     %{
       id: s["id"] || s["label"] || "unknown",
       label: s["label"] || s["id"],
@@ -151,9 +158,16 @@ defmodule DashboardPhoenix.SessionBridge do
       task: s["task"] || "",
       started_at: s["started_at"],
       agent_type: s["agent_type"] || "subagent",
-      model: s["model"] || "claude",
+      model: s["model"] || "sonnet",
       current_action: s["current_action"],
-      last_output: s["last_output"]
+      last_output: s["last_output"],
+      # Stats
+      tokens_in: s["tokens_in"] || 0,
+      tokens_out: s["tokens_out"] || 0,
+      total_tokens: s["total_tokens"] || 0,
+      cost: s["cost"] || 0.0,
+      runtime: s["runtime"] || "0s",
+      session_key: s["session_key"]
     }
   end
 

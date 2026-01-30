@@ -60,7 +60,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   def handle_event("clear_progress", _, socket) do
-    File.write("/tmp/agent-progress.jsonl", "")
+    progress_file = Application.get_env(:dashboard_phoenix, :progress_file, "/tmp/agent-progress.jsonl")
+    File.write(progress_file, "")
     {:noreply, assign(socket, agent_progress: [])}
   end
 
@@ -86,6 +87,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp status_badge("done"), do: "bg-success/20 text-success"
   defp status_badge("error"), do: "bg-error/20 text-error"
   defp status_badge(_), do: "bg-base-content/10 text-base-content/60"
+
+  defp model_badge(model) when is_binary(model) do
+    cond do
+      String.contains?(model, "opus") -> "bg-purple-500/20 text-purple-400"
+      String.contains?(model, "sonnet") -> "bg-orange-500/20 text-orange-400"
+      String.contains?(model, "gemini") -> "bg-blue-500/20 text-blue-400"
+      String.contains?(model, "opencode") -> "bg-green-500/20 text-green-400"
+      true -> "bg-base-content/10 text-base-content/60"
+    end
+  end
+  defp model_badge(_), do: "bg-base-content/10 text-base-content/60"
+
+  defp format_tokens(n) when is_integer(n) and n >= 1_000_000, do: "#{Float.round(n / 1_000_000, 1)}M"
+  defp format_tokens(n) when is_integer(n) and n >= 1_000, do: "#{Float.round(n / 1_000, 1)}K"
+  defp format_tokens(n) when is_integer(n), do: "#{n}"
+  defp format_tokens(_), do: "0"
 
   def render(assigns) do
     ~H"""
@@ -195,6 +212,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
           <% else %>
             <%= for session <- @agent_sessions do %>
               <div class={"glass-panel rounded-lg p-3 border-l-4 " <> if(session.status == "running", do: "border-l-warning", else: "border-l-success")}>
+                <!-- Header -->
                 <div class="flex items-center justify-between mb-2">
                   <div class="flex items-center space-x-2">
                     <%= if session.status == "running" do %>
@@ -208,7 +226,37 @@ defmodule DashboardPhoenixWeb.HomeLive do
                     <%= String.upcase(session.status || "unknown") %>
                   </span>
                 </div>
+                
+                <!-- Agent Info -->
+                <div class="flex items-center space-x-2 mb-2">
+                  <span class={"text-[10px] font-mono px-1.5 py-0.5 rounded " <> model_badge(session.model)}>
+                    <%= String.upcase(to_string(session.model || "claude")) %>
+                  </span>
+                  <span class="text-[10px] font-mono text-base-content/50">
+                    <%= session.agent_type || "subagent" %>
+                  </span>
+                  <%= if session.runtime do %>
+                    <span class="text-[10px] font-mono text-base-content/50">
+                      ⏱ <%= session.runtime %>
+                    </span>
+                  <% end %>
+                </div>
+                
+                <!-- Task -->
                 <div class="text-xs text-base-content/70 mb-2 line-clamp-2"><%= session.task %></div>
+                
+                <!-- Stats -->
+                <%= if session.total_tokens && session.total_tokens > 0 do %>
+                  <div class="flex items-center space-x-3 mb-2 text-[10px] font-mono">
+                    <span class="text-primary">↓<%= format_tokens(session.tokens_in) %></span>
+                    <span class="text-secondary">↑<%= format_tokens(session.tokens_out) %></span>
+                    <%= if session.cost && session.cost > 0 do %>
+                      <span class="text-success">$<%= Float.round(session.cost, 3) %></span>
+                    <% end %>
+                  </div>
+                <% end %>
+                
+                <!-- Current Action -->
                 <%= if session.current_action do %>
                   <div class="text-[10px] font-mono text-warning flex items-center space-x-1">
                     <span class="inline-block w-1 h-1 bg-warning rounded-full animate-ping"></span>
