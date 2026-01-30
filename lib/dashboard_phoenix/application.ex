@@ -12,8 +12,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.Repo,
       {DNSCluster, query: Application.get_env(:dashboard_phoenix, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: DashboardPhoenix.PubSub},
-      # Start a worker by calling: DashboardPhoenix.Worker.start_link(arg)
-      # {DashboardPhoenix.Worker, arg},
+      # Session bridge for live agent updates (tails progress files)
+      DashboardPhoenix.SessionBridge,
       # Start to serve requests, typically the last entry
       DashboardPhoenixWeb.Endpoint
     ]

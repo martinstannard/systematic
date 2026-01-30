@@ -1,63 +1,145 @@
 defmodule DashboardPhoenix.AgentMonitor do
   @moduledoc """
-  Monitors OpenClaw exec sessions (coding agents like OpenCode, Codex, Claude).
-  Reads from a JSON file that gets updated by OpenClaw agent.
+  Monitors coding agent processes (Claude Code, OpenCode, Codex, etc.)
+  by scanning running processes and extracting their status.
   """
 
-  @sessions_file Path.expand("../../priv/agent_sessions.json", __DIR__)
+  @agent_patterns ~w(claude opencode codex pi\ coding)
 
   @doc """
-  List all exec sessions with their current state from the JSON file.
+  List all active coding agent sessions.
   """
-  def list_sessions do
-    case File.read(@sessions_file) do
-      {:ok, content} ->
-        case Jason.decode(content) do
-          {:ok, %{"sessions" => sessions}} ->
-            {:ok, Enum.map(sessions, &normalize_session/1)}
-          {:ok, _} ->
-            {:ok, []}
-          {:error, _} ->
-            {:ok, []}
-        end
-      {:error, _} ->
-        {:ok, []}
-    end
+  def list_active_agents do
+    find_agent_processes()
   end
 
-  defp normalize_session(s) do
-    %{
-      id: s["id"],
-      name: s["id"],
-      status: s["status"],
-      duration: s["duration"],
-      command: s["command"],
-      agent_type: s["agent_type"] || detect_agent_type(s["command"] || ""),
-      current_action: parse_action(s["current_action"]),
-      last_output: s["last_output"]
-    }
+  defp find_agent_processes do
+    {output, _} = System.cmd("ps", ["aux", "--sort=-start_time"])
+    
+    output
+    |> String.split("\n")
+    |> Enum.drop(1)
+    |> Enum.filter(&is_agent_process?/1)
+    |> Enum.map(&parse_agent_process/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.take(10)
   end
-  
-  defp parse_action(nil), do: nil
-  defp parse_action(%{"action" => action, "target" => target}), do: %{action: action, target: target}
-  defp parse_action(_), do: nil
+
+  defp is_agent_process?(line) do
+    line_lower = String.downcase(line)
+    Enum.any?(@agent_patterns, &String.contains?(line_lower, &1)) and
+      not String.contains?(line_lower, "grep") and
+      not String.contains?(line_lower, "ps aux")
+  end
+
+  defp parse_agent_process(line) do
+    parts = String.split(line, ~r/\s+/, parts: 11)
+    
+    case parts do
+      [_user, pid, cpu, mem, _vsz, _rss, _tty, stat, start, time, command | _] ->
+        agent_type = detect_agent_type(command)
+        %{
+          id: "agent-#{pid}",
+          pid: pid,
+          name: generate_session_name(pid),
+          status: derive_status(stat, parse_float(cpu)),
+          agent_type: agent_type,
+          command: extract_task(command),
+          cpu: "#{cpu}%",
+          memory: "#{mem}%",
+          start_time: start,
+          runtime: time,
+          current_action: nil,
+          last_output: get_recent_output(pid, agent_type)
+        }
+      _ ->
+        nil
+    end
+  end
 
   defp detect_agent_type(command) do
+    cmd_lower = String.downcase(command)
     cond do
-      String.contains?(command, "opencode") -> "opencode"
-      String.contains?(command, "codex") -> "codex"
-      String.contains?(command, "claude") -> "claude"
-      String.contains?(command, "pi ") -> "pi"
-      true -> "shell"
+      String.contains?(cmd_lower, "claude") -> "claude"
+      String.contains?(cmd_lower, "opencode") -> "opencode"
+      String.contains?(cmd_lower, "codex") -> "codex"
+      String.contains?(cmd_lower, "pi ") -> "pi"
+      true -> "unknown"
     end
   end
 
-  @doc """
-  Get all running/completed sessions (filters out failed).
-  """
-  @spec list_active_agents() :: [map()]
-  def list_active_agents do
-    {:ok, sessions} = list_sessions()
-    Enum.filter(sessions, &(&1.status in ["running", "completed"]))
+  defp extract_task(command) do
+    # Try to extract the prompt/task from the command
+    cond do
+      String.contains?(command, "\"") ->
+        case Regex.run(~r/"([^"]{1,100})"/, command) do
+          [_, task] -> truncate(task, 80)
+          _ -> truncate(command, 80)
+        end
+      String.contains?(command, "'") ->
+        case Regex.run(~r/'([^']{1,100})'/, command) do
+          [_, task] -> truncate(task, 80)
+          _ -> truncate(command, 80)
+        end
+      true ->
+        truncate(command, 80)
+    end
+  end
+
+  defp get_recent_output(pid, agent_type) do
+    # Try to get recent terminal output for this process
+    # This is a best-effort approach using /proc filesystem
+    case File.read("/proc/#{pid}/fd/1") do
+      {:ok, content} -> 
+        content |> String.split("\n") |> Enum.take(-5) |> Enum.join("\n") |> truncate(200)
+      {:error, _} -> 
+        get_output_from_pty(pid, agent_type)
+    end
+  end
+
+  defp get_output_from_pty(pid, _agent_type) do
+    # Try to find associated PTY and read recent output
+    case System.cmd("sh", ["-c", "ls -la /proc/#{pid}/fd/ 2>/dev/null | grep pts"]) do
+      {output, 0} when output != "" ->
+        "Running on PTY"
+      _ ->
+        nil
+    end
+  end
+
+  defp derive_status(stat, cpu) do
+    cond do
+      String.contains?(stat, "Z") -> "zombie"
+      String.contains?(stat, "T") -> "stopped"
+      String.contains?(stat, "R") -> "running"
+      String.contains?(stat, ["S", "D"]) and cpu > 5.0 -> "running"
+      String.contains?(stat, ["S", "D"]) -> "idle"
+      true -> "running"
+    end
+  end
+
+  defp generate_session_name(pid) do
+    adjectives = ~w(swift calm bold keen warm cool soft loud fast slow wild mild dark pale deep)
+    nouns = ~w(claw beam node wave pulse spark flame storm cloud river stone)
+    
+    pid_int = String.to_integer(pid)
+    adj = Enum.at(adjectives, rem(pid_int, length(adjectives)))
+    noun = Enum.at(nouns, rem(div(pid_int, 100), length(nouns)))
+    "#{adj}-#{noun}"
+  end
+
+  defp parse_float(str) do
+    case Float.parse(str) do
+      {val, _} -> val
+      :error -> 0.0
+    end
+  end
+
+  defp truncate(str, max) do
+    if String.length(str) > max do
+      String.slice(str, 0, max - 3) <> "..."
+    else
+      str
+    end
   end
 end
