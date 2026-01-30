@@ -130,13 +130,19 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, opencode_server_status: status)}
   end
 
-  # Handle async work result (from OpenCode)
+  # Handle async work result (from OpenCode or OpenClaw)
   def handle_info({:work_result, result}, socket) do
     case result do
       {:ok, %{session_id: session_id}} ->
         socket = socket
         |> assign(work_in_progress: false, work_error: nil)
         |> put_flash(:info, "Task sent to OpenCode (session: #{session_id})")
+        {:noreply, socket}
+      
+      {:ok, %{ticket_id: ticket_id}} ->
+        socket = socket
+        |> assign(work_in_progress: false, work_error: nil)
+        |> put_flash(:info, "Work request sent to OpenClaw for #{ticket_id}")
         {:noreply, socket}
       
       {:error, reason} ->
@@ -284,7 +290,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
-  # Execute work on ticket using OpenCode
+  # Execute work on ticket using OpenCode or OpenClaw
   def handle_event("execute_work", _, socket) do
     ticket_id = socket.assigns.work_ticket_id
     ticket_details = socket.assigns.work_ticket_details
@@ -315,9 +321,20 @@ defmodule DashboardPhoenixWeb.HomeLive do
         |> put_flash(:info, "Starting work with OpenCode...")
         {:noreply, socket}
       
-      # Claude mode - just show copy instructions
+      # Claude mode - send to OpenClaw to spawn a sub-agent
       true ->
-        socket = put_flash(socket, :info, "Copy the command to spawn a Claude sub-agent")
+        alias DashboardPhoenix.OpenClawClient
+        
+        # Start work in background
+        parent = self()
+        Task.start(fn ->
+          result = OpenClawClient.work_on_ticket(ticket_id, ticket_details)
+          send(parent, {:work_result, result})
+        end)
+        
+        socket = socket
+        |> assign(work_in_progress: true, work_error: nil, show_work_modal: false)
+        |> put_flash(:info, "Sending work request to OpenClaw...")
         {:noreply, socket}
     end
   end
@@ -614,8 +631,25 @@ defmodule DashboardPhoenixWeb.HomeLive do
       <!-- Header -->
       <div class="glass-panel rounded-lg px-4 py-2 flex items-center justify-between">
         <div class="flex items-center space-x-4">
-          <h1 class="text-sm font-bold tracking-widest text-white">SYSTEMATIC</h1>
+          <h1 class="text-sm font-bold tracking-widest text-base-content">SYSTEMATIC</h1>
           <span class="text-[10px] text-base-content/60 font-mono">AGENT CONTROL</span>
+          
+          <!-- Theme Toggle -->
+          <button
+            id="theme-toggle"
+            phx-hook="ThemeToggle"
+            class="p-1.5 rounded-lg bg-base-content/10 hover:bg-base-content/20 transition-colors"
+            title="Toggle light/dark mode"
+          >
+            <!-- Sun icon (shown in dark mode, click for light) -->
+            <svg class="sun-icon w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <!-- Moon icon (shown in light mode, click for dark) -->
+            <svg class="moon-icon w-4 h-4 text-indigo-400" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          </button>
         </div>
         
         <!-- Coding Agent Toggle + OpenCode Server Status -->

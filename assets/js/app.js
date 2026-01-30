@@ -41,6 +41,39 @@ const Hooks = {
     }
   },
   RelationshipGraph: RelationshipGraph,
+  ThemeToggle: {
+    mounted() {
+      this.updateIcon()
+      
+      // Handle click to toggle theme
+      this.el.addEventListener("click", () => {
+        const html = document.documentElement
+        const current = html.getAttribute("data-theme") || "dark"
+        const next = current === "dark" ? "light" : "dark"
+        html.setAttribute("data-theme", next)
+        localStorage.setItem("phx:theme", next)
+        this.updateIcon()
+      })
+      
+      // Listen for changes from other tabs
+      window.addEventListener("storage", (e) => {
+        if (e.key === "phx:theme") this.updateIcon()
+      })
+    },
+    updated() {
+      this.updateIcon()
+    },
+    updateIcon() {
+      const theme = localStorage.getItem("phx:theme") || "dark"
+      const isDark = theme === "dark"
+      
+      // Update icons visibility
+      const sunIcon = this.el.querySelector(".sun-icon")
+      const moonIcon = this.el.querySelector(".moon-icon")
+      if (sunIcon) sunIcon.style.display = isDark ? "block" : "none"
+      if (moonIcon) moonIcon.style.display = isDark ? "none" : "block"
+    }
+  },
   CopyToClipboard: {
     mounted() {
       this.el.addEventListener("click", () => {
