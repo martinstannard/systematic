@@ -12,10 +12,18 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.Repo,
       {DNSCluster, query: Application.get_env(:dashboard_phoenix, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: DashboardPhoenix.PubSub},
+      # Agent preferences for coding agent toggle
+      DashboardPhoenix.AgentPreferences,
       # Session bridge for live agent updates (tails progress files)
       DashboardPhoenix.SessionBridge,
       # Stats monitor for OpenCode/Claude usage
       DashboardPhoenix.StatsMonitor,
+      # Resource tracker for CPU/memory graphs
+      DashboardPhoenix.ResourceTracker,
+      # Agent activity monitor for "what's it doing" feature
+      DashboardPhoenix.AgentActivityMonitor,
+      # Linear ticket monitor for COR team
+      DashboardPhoenix.LinearMonitor,
       # Start to serve requests, typically the last entry
       DashboardPhoenixWeb.Endpoint
     ]
