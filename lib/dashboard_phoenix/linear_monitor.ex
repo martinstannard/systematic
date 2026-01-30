@@ -10,6 +10,7 @@ defmodule DashboardPhoenix.LinearMonitor do
   @poll_interval_ms 30_000  # 30 seconds
   @topic "linear_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for URLs
+  @linear_cli "/home/martins/.npm-global/bin/linear"
   @states ["Triage", "Backlog", "Todo"]
 
   # Client API
@@ -31,6 +32,18 @@ defmodule DashboardPhoenix.LinearMonitor do
   @doc "Subscribe to ticket updates"
   def subscribe do
     Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, @topic)
+  end
+
+  @doc "Get full details for a specific ticket"
+  def get_ticket_details(ticket_id) do
+    case System.cmd(@linear_cli, ["issue", "show", ticket_id], stderr_to_stdout: true) do
+      {output, 0} ->
+        {:ok, output}
+      
+      {error, _code} ->
+        Logger.warning("Linear CLI error fetching #{ticket_id}: #{error}")
+        {:error, error}
+    end
   end
 
   # Server callbacks
@@ -104,7 +117,7 @@ defmodule DashboardPhoenix.LinearMonitor do
   end
 
   defp fetch_tickets_for_state(status) do
-    case System.cmd("linear", ["issues", "--state", status], stderr_to_stdout: true) do
+    case System.cmd(@linear_cli, ["issues", "--state", status], stderr_to_stdout: true) do
       {output, 0} ->
         {:ok, parse_issues_output(output, status)}
       
@@ -195,11 +208,13 @@ defmodule DashboardPhoenix.LinearMonitor do
   end
 
   defp sort_tickets(tickets) do
-    # Sort by status priority (Triage > Todo > Backlog), then by ID
-    status_order = %{"Triage" => 0, "Todo" => 1, "Backlog" => 2}
-    
+    # Sort by ID descending (highest/newest first)
     Enum.sort_by(tickets, fn ticket ->
-      {Map.get(status_order, ticket.status, 99), ticket.id}
+      # Extract numeric part from COR-XXX
+      case Regex.run(~r/COR-(\d+)/, ticket.id) do
+        [_, num] -> -String.to_integer(num)  # Negative for descending
+        _ -> 0
+      end
     end)
   end
 end

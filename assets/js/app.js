@@ -40,7 +40,26 @@ const Hooks = {
       this.el.scrollTop = this.el.scrollHeight
     }
   },
-  RelationshipGraph: RelationshipGraph
+  RelationshipGraph: RelationshipGraph,
+  CopyToClipboard: {
+    mounted() {
+      this.el.addEventListener("click", () => {
+        const text = this.el.dataset.copy
+        if (text) {
+          navigator.clipboard.writeText(text).then(() => {
+            // Flash visual feedback
+            const originalBg = this.el.style.backgroundColor
+            this.el.style.backgroundColor = "rgba(34, 197, 94, 0.3)"
+            setTimeout(() => {
+              this.el.style.backgroundColor = originalBg
+            }, 200)
+          }).catch(err => {
+            console.error("Failed to copy:", err)
+          })
+        }
+      })
+    }
+  }
 }
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")

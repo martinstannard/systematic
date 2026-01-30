@@ -54,7 +54,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agent_pref: coding_agent_pref,  # Coding agent preference (opencode/claude)
       linear_tickets: linear_data.tickets,
       linear_last_updated: linear_data.last_updated,
-      linear_error: linear_data.error
+      linear_error: linear_data.error,
+      # Work modal state
+      show_work_modal: false,
+      work_ticket_id: nil,
+      work_ticket_details: nil,
+      work_ticket_loading: false
     )
     
     socket = if connected?(socket) do
@@ -108,6 +113,19 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_tickets: data.tickets,
       linear_last_updated: data.last_updated,
       linear_error: data.error
+    )}
+  end
+
+  # Handle async ticket details fetch
+  def handle_info({:fetch_ticket_details, ticket_id}, socket) do
+    details = case LinearMonitor.get_ticket_details(ticket_id) do
+      {:ok, output} -> output
+      {:error, reason} -> "Error fetching details: #{reason}"
+    end
+    
+    {:noreply, assign(socket,
+      work_ticket_details: details,
+      work_ticket_loading: false
     )}
   end
 
@@ -177,6 +195,35 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_event("refresh_linear", _, socket) do
     LinearMonitor.refresh()
     {:noreply, socket}
+  end
+
+  def handle_event("work_on_ticket", %{"id" => ticket_id}, socket) do
+    # Show modal immediately with loading state
+    socket = assign(socket,
+      show_work_modal: true,
+      work_ticket_id: ticket_id,
+      work_ticket_details: nil,
+      work_ticket_loading: true
+    )
+    
+    # Fetch ticket details async
+    send(self(), {:fetch_ticket_details, ticket_id})
+    
+    {:noreply, socket}
+  end
+
+  def handle_event("close_work_modal", _, socket) do
+    {:noreply, assign(socket,
+      show_work_modal: false,
+      work_ticket_id: nil,
+      work_ticket_details: nil,
+      work_ticket_loading: false
+    )}
+  end
+
+  def handle_event("copy_spawn_command", _, socket) do
+    # The actual copy happens via JS hook, this is just for feedback
+    {:noreply, put_flash(socket, :info, "Command copied to clipboard!")}
   end
 
   def handle_event("toggle_coding_agent", _, socket) do
@@ -627,6 +674,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 <table class="w-full text-xs font-mono">
                   <thead>
                     <tr class="text-base-content/50 border-b border-white/10">
+                      <th class="text-left py-2 px-2 w-16"></th>
                       <th class="text-left py-2 px-2 w-24">ID</th>
                       <th class="text-left py-2 px-2">Title</th>
                       <th class="text-left py-2 px-2 w-20">Status</th>
@@ -637,6 +685,16 @@ defmodule DashboardPhoenixWeb.HomeLive do
                   <tbody>
                     <%= for ticket <- @linear_tickets do %>
                       <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td class="py-2 px-2">
+                          <button
+                            phx-click="work_on_ticket"
+                            phx-value-id={ticket.id}
+                            class="px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-[10px] font-bold"
+                            title="Work on this ticket"
+                          >
+                            ▶ Work
+                          </button>
+                        </td>
                         <td class="py-2 px-2">
                           <a 
                             href={ticket.url} 
@@ -1065,6 +1123,91 @@ defmodule DashboardPhoenixWeb.HomeLive do
           <% end %>
         </div>
       </div>
+
+      <!-- Work on Ticket Modal -->
+      <%= if @show_work_modal do %>
+        <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" phx-click="close_work_modal">
+          <div class="glass-panel rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" phx-click-away="close_work_modal">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-3">
+                <span class="text-2xl">🎫</span>
+                <h2 class="text-lg font-bold text-white font-mono"><%= @work_ticket_id %></h2>
+              </div>
+              <button 
+                phx-click="close_work_modal" 
+                class="text-base-content/60 hover:text-white text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <!-- Ticket Details -->
+            <div class="mb-6">
+              <div class="text-xs font-mono text-accent uppercase tracking-wider mb-2">Ticket Details</div>
+              <%= if @work_ticket_loading do %>
+                <div class="flex items-center space-x-2 text-base-content/60">
+                  <span class="throbber"></span>
+                  <span class="text-sm">Fetching ticket details...</span>
+                </div>
+              <% else %>
+                <pre class="text-xs font-mono text-base-content/80 bg-black/40 rounded-lg p-4 whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto"><%= @work_ticket_details %></pre>
+              <% end %>
+            </div>
+            
+            <!-- Spawn Agent Section -->
+            <div class="border-t border-white/10 pt-4">
+              <div class="text-xs font-mono text-accent uppercase tracking-wider mb-3">Start Working</div>
+              
+              <p class="text-sm text-base-content/70 mb-4">
+                Copy the command below to spawn a sub-agent that will work on this ticket:
+              </p>
+              
+              <% spawn_command = "Work on #{@work_ticket_id}" %>
+              <div class="relative">
+                <div 
+                  id="spawn-command" 
+                  class="text-sm font-mono bg-black/50 rounded-lg p-4 pr-16 text-green-400 cursor-pointer hover:bg-black/60 transition-colors"
+                  phx-hook="CopyToClipboard"
+                  data-copy={spawn_command}
+                >
+                  <%= spawn_command %>
+                </div>
+                <button
+                  class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-xs font-mono"
+                  phx-click="copy_spawn_command"
+                  id="copy-btn"
+                  phx-hook="CopyToClipboard"
+                  data-copy={spawn_command}
+                >
+                  📋 Copy
+                </button>
+              </div>
+              
+              <p class="text-[10px] text-base-content/50 mt-3">
+                Tip: Paste this into your OpenClaw chat to spawn a sub-agent for this ticket.
+              </p>
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex items-center justify-end space-x-3 mt-6 pt-4 border-t border-white/10">
+              <a 
+                href={"https://linear.app/fresh-clinics/issue/#{@work_ticket_id}"} 
+                target="_blank"
+                class="px-4 py-2 rounded bg-base-content/10 text-base-content/70 hover:bg-base-content/20 transition-colors text-sm font-mono"
+              >
+                Open in Linear ↗
+              </a>
+              <button 
+                phx-click="close_work_modal"
+                class="px-4 py-2 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-sm font-mono"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      <% end %>
     </div>
     """
   end
