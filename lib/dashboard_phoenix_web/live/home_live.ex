@@ -878,14 +878,14 @@ defmodule DashboardPhoenixWeb.HomeLive do
                   </div>
                 </div>
                 
-                <!-- Agent Info -->
+                <!-- Agent Info Row -->
                 <div class="flex items-center flex-wrap gap-2 mb-2">
                   <span class={"text-[10px] font-mono px-1.5 py-0.5 rounded " <> model_badge(Map.get(session, :model))}>
                     <%= String.upcase(to_string(Map.get(session, :model, "claude"))) %>
                   </span>
                   <%= if Map.get(session, :runtime) do %>
-                    <span class="text-[10px] font-mono text-base-content/50">
-                      ⏱ <%= Map.get(session, :runtime) %>
+                    <span class={"text-[10px] font-mono " <> if(is_completed, do: "text-base-content/50", else: "text-warning")}>
+                      ⏱ <%= Map.get(session, :runtime) %><%= if !is_completed, do: " so far" %>
                     </span>
                   <% end %>
                   <%= if is_completed && Map.get(session, :completed_at) do %>
@@ -893,9 +893,14 @@ defmodule DashboardPhoenixWeb.HomeLive do
                       @ <%= Map.get(session, :completed_at) %>
                     </span>
                   <% end %>
+                  <%= if !is_completed && Map.get(session, :completed_at) do %>
+                    <span class="text-[10px] font-mono text-base-content/40">
+                      started <%= Map.get(session, :completed_at) %>
+                    </span>
+                  <% end %>
                 </div>
                 
-                <!-- Task Summary -->
+                <!-- Task Summary (shown for all sessions) -->
                 <%= if Map.get(session, :task_summary) do %>
                   <div class="mb-2">
                     <div class="text-[10px] font-mono text-base-content/50 mb-0.5">Task:</div>
@@ -903,7 +908,32 @@ defmodule DashboardPhoenixWeb.HomeLive do
                   </div>
                 <% end %>
                 
-                <!-- Result Snippet (for completed) -->
+                <!-- Current Action (for running sessions) -->
+                <% current_action = Map.get(session, :current_action) %>
+                <%= if !is_completed && current_action do %>
+                  <div class="mb-2">
+                    <div class="text-[10px] font-mono text-base-content/50 mb-0.5">Currently:</div>
+                    <div class="text-xs text-warning flex items-center space-x-1">
+                      <span class="inline-block w-1.5 h-1.5 bg-warning rounded-full animate-ping"></span>
+                      <span class="truncate"><%= current_action %></span>
+                    </div>
+                  </div>
+                <% end %>
+                
+                <!-- Recent Actions (for running sessions) -->
+                <% recent_actions = Map.get(session, :recent_actions, []) %>
+                <%= if !is_completed && length(recent_actions) > 0 do %>
+                  <div class="mb-2">
+                    <div class="text-[10px] font-mono text-base-content/50 mb-0.5">Recent (<%= length(recent_actions) %> calls):</div>
+                    <div class="text-[10px] font-mono text-base-content/50 space-y-0.5 max-h-16 overflow-y-auto">
+                      <%= for action <- Enum.take(recent_actions, -3) do %>
+                        <div class="truncate">✓ <%= action %></div>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+                
+                <!-- Result Snippet (for completed only) -->
                 <%= if is_completed && Map.get(session, :result_snippet) do %>
                   <div class="mb-2">
                     <div class="text-[10px] font-mono text-base-content/50 mb-0.5">Result:</div>
@@ -911,7 +941,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                   </div>
                 <% end %>
                 
-                <!-- Token Stats -->
+                <!-- Token Stats (shown for all sessions with usage) -->
                 <% tokens_in = Map.get(session, :tokens_in, 0) %>
                 <% tokens_out = Map.get(session, :tokens_out, 0) %>
                 <% cost = Map.get(session, :cost, 0) %>
@@ -920,17 +950,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
                     <span class="text-primary">↓<%= format_tokens(tokens_in) %></span>
                     <span class="text-secondary">↑<%= format_tokens(tokens_out) %></span>
                     <%= if cost && cost > 0 do %>
-                      <span class="text-success">$<%= Float.round(cost, 3) %></span>
+                      <span class="text-success">$<%= Float.round(cost, 3) %><%= if !is_completed, do: " so far" %></span>
                     <% end %>
-                  </div>
-                <% end %>
-                
-                <!-- Current Action (for running) -->
-                <% current_action = Map.get(session, :current_action) %>
-                <%= if current_action do %>
-                  <div class="text-[10px] font-mono text-warning flex items-center space-x-1 mt-2">
-                    <span class="inline-block w-1 h-1 bg-warning rounded-full animate-ping"></span>
-                    <span>→ <%= current_action %></span>
                   </div>
                 <% end %>
               </div>

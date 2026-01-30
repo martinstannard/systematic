@@ -423,13 +423,10 @@ defmodule DashboardPhoenix.SessionBridge do
 
     session_id = s["sessionId"] || key
     
-    # Extract additional details from transcript for completed sessions
-    {task_summary, result_snippet, runtime, tokens_in, tokens_out, cost, completed_at} = 
-      if status == "completed" do
-        extract_transcript_details(session_id)
-      else
-        {nil, nil, nil, 0, 0, 0, nil}
-      end
+    # Extract details from transcript for all sessions (running and completed)
+    # Running sessions get live progress data, completed get final summary
+    {task_summary, result_snippet, runtime, tokens_in, tokens_out, cost, time_info, current_action, recent_actions} = 
+      extract_transcript_details(session_id, status)
 
     %{
       id: session_id,
@@ -443,19 +440,21 @@ defmodule DashboardPhoenix.SessionBridge do
       updated_at: updated_at,
       age: format_age(age_ms),
       transcript_path: s["transcriptPath"],
-      # New fields for completed sessions
+      # Details from transcript (works for both running and completed)
       task_summary: task_summary,
       result_snippet: result_snippet,
       runtime: runtime,
       tokens_in: tokens_in,
       tokens_out: tokens_out,
       cost: cost,
-      completed_at: completed_at
+      completed_at: time_info,  # For completed: completion time, for running: start time
+      current_action: current_action,  # What's happening right now (for running)
+      recent_actions: recent_actions   # Last few tool calls (for running)
     }
   end
 
-  # Extract details from transcript file for completed sessions
-  defp extract_transcript_details(session_id) do
+  # Extract details from transcript file for all sessions (running and completed)
+  defp extract_transcript_details(session_id, status) do
     transcript_path = Path.join(@transcripts_dir, "#{session_id}.jsonl")
     
     case File.read(transcript_path) do
@@ -484,19 +483,23 @@ defmodule DashboardPhoenix.SessionBridge do
             |> truncate_text(150)
         end
         
-        # Find last assistant text message (result)
-        result_snippet = parsed
-        |> Enum.filter(fn entry ->
-          entry["type"] == "message" && 
-          get_in(entry, ["message", "role"]) == "assistant"
-        end)
-        |> List.last()
-        |> case do
-          nil -> nil
-          entry ->
-            get_in(entry, ["message", "content"])
-            |> extract_text_content()
-            |> truncate_text(100)
+        # Find last assistant text message (result) - only for completed sessions
+        result_snippet = if status == "completed" do
+          parsed
+          |> Enum.filter(fn entry ->
+            entry["type"] == "message" && 
+            get_in(entry, ["message", "role"]) == "assistant"
+          end)
+          |> List.last()
+          |> case do
+            nil -> nil
+            entry ->
+              get_in(entry, ["message", "content"])
+              |> extract_text_content()
+              |> truncate_text(100)
+          end
+        else
+          nil
         end
         
         # Calculate runtime from first and last timestamps
@@ -512,17 +515,27 @@ defmodule DashboardPhoenix.SessionBridge do
           list -> {List.first(list), List.last(list)}
         end
         
-        runtime = if start_time && end_time do
-          diff_ms = DateTime.diff(end_time, start_time, :millisecond)
-          format_runtime(diff_ms)
-        else
-          nil
+        # For running sessions, calculate elapsed time from start to now
+        # For completed sessions, calculate total runtime
+        runtime = cond do
+          status in ["running", "idle"] && start_time ->
+            diff_ms = DateTime.diff(DateTime.utc_now(), start_time, :millisecond)
+            format_runtime(diff_ms)
+          start_time && end_time ->
+            diff_ms = DateTime.diff(end_time, start_time, :millisecond)
+            format_runtime(diff_ms)
+          true ->
+            nil
         end
         
-        completed_at = if end_time do
-          Calendar.strftime(end_time, "%H:%M:%S")
-        else
-          nil
+        # Time info: for completed = completion time, for running = start time
+        time_info = cond do
+          status == "completed" && end_time ->
+            Calendar.strftime(end_time, "%H:%M:%S")
+          status in ["running", "idle"] && start_time ->
+            Calendar.strftime(start_time, "%H:%M:%S")
+          true ->
+            nil
         end
         
         # Sum up token usage from all assistant messages
@@ -540,11 +553,67 @@ defmodule DashboardPhoenix.SessionBridge do
           {in_acc + input, out_acc + output, cost_acc + cost}
         end)
         
-        {task_summary, result_snippet, runtime, tokens_in, tokens_out, total_cost, completed_at}
+        # For running sessions, extract current action and recent tool calls
+        {current_action, recent_actions} = if status in ["running", "idle"] do
+          extract_running_session_status(parsed)
+        else
+          {nil, []}
+        end
+        
+        {task_summary, result_snippet, runtime, tokens_in, tokens_out, total_cost, time_info, current_action, recent_actions}
         
       {:error, _} ->
-        {nil, nil, nil, 0, 0, 0, nil}
+        {nil, nil, nil, 0, 0, 0, nil, nil, []}
     end
+  end
+  
+  # Extract current action and recent tool calls for running sessions
+  defp extract_running_session_status(parsed) do
+    # Get all tool calls from assistant messages
+    tool_calls = parsed
+    |> Enum.flat_map(fn entry ->
+      if entry["type"] == "message" && get_in(entry, ["message", "role"]) == "assistant" do
+        content = get_in(entry, ["message", "content"]) || []
+        content
+        |> Enum.filter(fn item -> is_map(item) && item["type"] == "toolCall" end)
+        |> Enum.map(fn tc ->
+          args = tc["arguments"] || %{}
+          target = args["path"] || args["file_path"] || args["command"] || args["query"] || ""
+          %{
+            id: tc["id"],
+            name: tc["name"] || "unknown",
+            target: truncate_target(target)
+          }
+        end)
+      else
+        []
+      end
+    end)
+    
+    # Get all tool results
+    tool_results = parsed
+    |> Enum.filter(fn entry ->
+      entry["type"] == "message" && get_in(entry, ["message", "role"]) == "toolResult"
+    end)
+    |> Enum.map(fn entry -> get_in(entry, ["message", "toolCallId"]) end)
+    |> MapSet.new()
+    
+    # Find tool calls without results (currently running)
+    pending_calls = Enum.reject(tool_calls, fn tc -> MapSet.member?(tool_results, tc.id) end)
+    
+    # Current action is the last pending tool call
+    current_action = case List.last(pending_calls) do
+      nil -> nil
+      tc -> "#{tc.name}: #{tc.target}"
+    end
+    
+    # Recent actions are the last 5 completed tool calls
+    recent_actions = tool_calls
+    |> Enum.filter(fn tc -> MapSet.member?(tool_results, tc.id) end)
+    |> Enum.take(-5)
+    |> Enum.map(fn tc -> "#{tc.name}: #{tc.target}" end)
+    
+    {current_action, recent_actions}
   end
 
   defp extract_text_content(content) when is_list(content) do
