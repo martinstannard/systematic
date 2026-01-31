@@ -38,17 +38,17 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
   def render(assigns) do
     ~H"""
     <div class="glass-panel rounded-lg overflow-hidden flex-1 min-h-[200px]">
-      <div 
-        class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
-        phx-click="toggle_panel"
-        phx-target={@myself}
-      >
-        <div class="flex items-center space-x-2">
+      <div class="flex items-center justify-between px-3 py-2">
+        <div 
+          class="flex items-center space-x-2 cursor-pointer select-none hover:bg-white/5 transition-colors flex-1 py-1 -mx-1 px-1 rounded"
+          phx-click="toggle_panel"
+          phx-target={@myself}
+        >
           <span class={"text-xs transition-transform duration-200 " <> if(@live_progress_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
           <span class="text-xs font-mono text-accent uppercase tracking-wider">📡 Live Feed</span>
           <span class="text-[10px] font-mono text-base-content/50"><%= @agent_progress_count %></span>
         </div>
-        <button phx-click="clear_progress" phx-target={@myself} class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">Clear</button>
+        <button phx-click="clear_progress" phx-target={@myself} class="text-[10px] text-base-content/40 hover:text-accent px-2 py-1">Clear</button>
       </div>
       
       <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0", else: "max-h-[400px] flex-1")}>
