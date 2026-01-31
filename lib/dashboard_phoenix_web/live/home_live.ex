@@ -2,6 +2,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   use DashboardPhoenixWeb, :live_view
   
   alias DashboardPhoenixWeb.Live.Components.LinearComponent
+  alias DashboardPhoenixWeb.Live.Components.ChainlinkComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -9,6 +10,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.AgentActivityMonitor
   alias DashboardPhoenix.CodingAgentMonitor
   alias DashboardPhoenix.LinearMonitor
+  alias DashboardPhoenix.ChainlinkMonitor
   alias DashboardPhoenix.PRMonitor
   alias DashboardPhoenix.BranchMonitor
   alias DashboardPhoenix.AgentPreferences
@@ -24,6 +26,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       AgentActivityMonitor.subscribe()
       AgentPreferences.subscribe()
       LinearMonitor.subscribe()
+      ChainlinkMonitor.subscribe()
       PRMonitor.subscribe()
       BranchMonitor.subscribe()
       OpenCodeServer.subscribe()
@@ -33,6 +36,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       :timer.send_interval(5_000, :refresh_opencode_sessions)
       # Async load Linear tickets to avoid blocking mount
       send(self(), :load_linear_tickets)
+      # Async load Chainlink issues
+      send(self(), :load_chainlink_issues)
       # Async load GitHub PRs
       send(self(), :load_github_prs)
       # Async load unmerged branches
@@ -92,6 +97,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
       tickets_in_progress: tickets_in_progress,
       pr_created_tickets: pr_created_tickets,
       prs_in_progress: prs_in_progress,
+      # Chainlink issues - loaded async to avoid blocking mount
+      chainlink_issues: [],
+      chainlink_last_updated: nil,
+      chainlink_error: nil,
+      chainlink_loading: true,
+      chainlink_work_in_progress: %{},
       # GitHub PRs - loaded async to avoid blocking mount
       github_prs: [],
       github_prs_last_updated: nil,
@@ -127,6 +138,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # Panel collapse states
       config_collapsed: false,
       linear_collapsed: false,
+      chainlink_collapsed: false,
       prs_collapsed: false,
       branches_collapsed: false,
       opencode_collapsed: false,
@@ -262,6 +274,64 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_last_updated: data.last_updated,
       linear_error: data.error,
       linear_loading: false
+    )}
+  end
+
+  # Handle ChainlinkComponent messages
+  def handle_info({:chainlink_component, :toggle_panel}, socket) do
+    socket = assign(socket, chainlink_collapsed: !socket.assigns.chainlink_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:chainlink_component, :refresh}, socket) do
+    DashboardPhoenix.ChainlinkMonitor.refresh()
+    {:noreply, socket}
+  end
+
+  def handle_info({:chainlink_component, :work_on_issue, issue_id}, socket) do
+    # Spawn a sub-agent to work on the chainlink issue
+    spawn_chainlink_work(socket, issue_id)
+  end
+
+  # Handle Chainlink issue updates (from PubSub)
+  def handle_info({:chainlink_update, data}, socket) do
+    {:noreply, assign(socket,
+      chainlink_issues: data.issues,
+      chainlink_last_updated: data.last_updated,
+      chainlink_error: data.error,
+      chainlink_loading: false
+    )}
+  end
+
+  # Handle async Chainlink issue loading (initial mount)
+  def handle_info(:load_chainlink_issues, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        chainlink_data = ChainlinkMonitor.get_issues()
+        send(parent, {:chainlink_loaded, chainlink_data})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load Chainlink issues: #{inspect(e)}")
+          send(parent, {:chainlink_loaded, %{issues: [], last_updated: nil, error: "Load failed: #{inspect(e)}"}})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Chainlink issues load exited: #{inspect(reason)}")
+          send(parent, {:chainlink_loaded, %{issues: [], last_updated: nil, error: "Load timeout"}})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle Chainlink issues loaded result
+  def handle_info({:chainlink_loaded, data}, socket) do
+    {:noreply, assign(socket,
+      chainlink_issues: data.issues,
+      chainlink_last_updated: data.last_updated,
+      chainlink_error: data.error,
+      chainlink_loading: false
     )}
   end
 
@@ -987,6 +1057,69 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
   end
 
+  # Spawn a sub-agent to work on a Chainlink issue
+  defp spawn_chainlink_work(socket, issue_id) do
+    # Get issue details
+    details = case ChainlinkMonitor.get_issue_details(issue_id) do
+      {:ok, output} -> output
+      {:error, _} -> "Issue ##{issue_id}"
+    end
+
+    # Build prompt with worktree instructions
+    prompt = """
+    Work on chainlink ticket ##{issue_id} in ~/code/systematic: #{details}
+
+    **Use a worktree:**
+    ```bash
+    cd ~/code/systematic
+    git fetch origin
+    git worktree add ../systematic-ticket-#{issue_id} -b ticket-#{issue_id} main
+    cd ../systematic-ticket-#{issue_id}
+    ```
+
+    Implement the required changes based on the ticket description.
+    Run `mix test` to verify your changes work.
+    Commit with a clear message describing what was done.
+
+    When done:
+    ```bash
+    cd ~/code/systematic
+    git merge ticket-#{issue_id}
+    git worktree remove ../systematic-ticket-#{issue_id}
+    chainlink close #{issue_id}
+    ```
+    """
+
+    alias DashboardPhoenix.OpenClawClient
+
+    # Spawn sub-agent with the task
+    case OpenClawClient.spawn_subagent(prompt,
+      name: "ticket-#{issue_id}",
+      thinking: "low",
+      post_mode: "summary"
+    ) do
+      {:ok, %{job_id: job_id}} ->
+        # Track that this issue is being worked on
+        work_info = %{
+          type: :subagent,
+          label: "ticket-#{issue_id}",
+          job_id: job_id
+        }
+        chainlink_work = Map.put(socket.assigns.chainlink_work_in_progress, issue_id, work_info)
+
+        socket = socket
+        |> assign(chainlink_work_in_progress: chainlink_work)
+        |> put_flash(:info, "Sub-agent spawned for ticket ##{issue_id}")
+        {:noreply, socket}
+
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Sub-agent spawned for ticket ##{issue_id}")}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to spawn agent: #{inspect(reason)}")}
+    end
+  end
+
   # Actually execute the work when no duplicate exists
   defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model) do
     # Build the prompt from ticket details
@@ -1076,6 +1209,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     panels = %{
       "config" => socket.assigns.config_collapsed,
       "linear" => socket.assigns.linear_collapsed,
+      "chainlink" => socket.assigns.chainlink_collapsed,
       "prs" => socket.assigns.prs_collapsed,
       "branches" => socket.assigns.branches_collapsed,
       "opencode" => socket.assigns.opencode_collapsed,
@@ -1836,6 +1970,17 @@ defmodule DashboardPhoenixWeb.HomeLive do
             linear_collapsed={@linear_collapsed}
             linear_status_filter={@linear_status_filter}
             tickets_in_progress={@tickets_in_progress}
+          />
+
+          <!-- Chainlink Issues Panel (LiveComponent) -->
+          <.live_component
+            module={ChainlinkComponent}
+            id="chainlink-issues"
+            chainlink_issues={@chainlink_issues}
+            chainlink_loading={@chainlink_loading}
+            chainlink_error={@chainlink_error}
+            chainlink_collapsed={@chainlink_collapsed}
+            chainlink_work_in_progress={@chainlink_work_in_progress}
           />
 
           <!-- GitHub Pull Requests Panel -->
