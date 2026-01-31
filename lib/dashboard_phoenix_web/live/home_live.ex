@@ -653,9 +653,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   defp determine_agent_type(session) do
+    session_key = Map.get(session, :session_key)
     cond do
-      session.session_key && String.contains?(session.session_key, "main:main") -> :openclaw
-      session.session_key && String.contains?(session.session_key, "subagent") -> :openclaw
+      session_key && String.contains?(session_key, "main:main") -> :openclaw
+      session_key && String.contains?(session_key, "subagent") -> :openclaw
       true -> :openclaw
     end
   end
