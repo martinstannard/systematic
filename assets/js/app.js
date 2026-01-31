@@ -126,6 +126,49 @@ const Hooks = {
         }
       })
     }
+  },
+  ChatIframe: {
+    mounted() {
+      const iframe = this.el
+      const loadingOverlay = document.getElementById("iframe-loading")
+      let loadTimeout = null
+      
+      // Hide loading overlay when iframe loads
+      iframe.addEventListener("load", () => {
+        if (loadingOverlay) {
+          loadingOverlay.style.display = "none"
+        }
+        if (loadTimeout) {
+          clearTimeout(loadTimeout)
+        }
+      })
+      
+      // Handle iframe errors - fall back to simple input
+      iframe.addEventListener("error", () => {
+        console.error("ChatIframe: Failed to load iframe")
+        this.pushEvent("chat_iframe_error", {})
+      })
+      
+      // Set a timeout - if iframe doesn't load in 10 seconds, fall back
+      loadTimeout = setTimeout(() => {
+        // Check if iframe actually loaded by trying to access it
+        try {
+          // This will throw if cross-origin blocked without load
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document
+          if (!iframeDoc || iframeDoc.body.innerHTML === "") {
+            console.warn("ChatIframe: Iframe appears empty after timeout")
+            this.pushEvent("chat_iframe_error", {})
+          }
+        } catch (e) {
+          // Cross-origin is expected, but if we got here AND loading overlay 
+          // is still visible, the iframe might be blocked
+          if (loadingOverlay && loadingOverlay.style.display !== "none") {
+            console.warn("ChatIframe: Iframe may be blocked, falling back")
+            this.pushEvent("chat_iframe_error", {})
+          }
+        }
+      }, 10000)
+    }
   }
 }
 

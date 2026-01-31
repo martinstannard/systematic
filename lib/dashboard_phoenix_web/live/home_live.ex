@@ -96,7 +96,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
       live_progress_collapsed: false,
       agent_activity_collapsed: false,
       system_processes_collapsed: false,
-      process_relationships_collapsed: false
+      process_relationships_collapsed: false,
+      chat_collapsed: false,
+      # Chat panel state
+      chat_message: "",
+      chat_sending: false,
+      chat_iframe_error: false
     )
     
     socket = if connected?(socket) do
@@ -190,6 +195,23 @@ defmodule DashboardPhoenixWeb.HomeLive do
       {:error, reason} ->
         socket = socket
         |> assign(work_in_progress: false, work_sent: false, work_error: "Failed: #{inspect(reason)}")
+        {:noreply, socket}
+    end
+  end
+
+  # Handle chat result
+  def handle_info({:chat_result, result}, socket) do
+    case result do
+      {:ok, _} ->
+        socket = socket
+        |> assign(chat_sending: false)
+        |> put_flash(:info, "Message sent to OpenClaw")
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = socket
+        |> assign(chat_sending: false)
+        |> put_flash(:error, "Failed to send message: #{inspect(reason)}")
         {:noreply, socket}
     end
   end
@@ -539,6 +561,30 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
   end
 
+  # Chat panel events
+  def handle_event("chat_submit", %{"message" => message}, socket) when message != "" do
+    socket = assign(socket, chat_sending: true, chat_message: "")
+    
+    # Send message to OpenClaw
+    parent = self()
+    Task.start(fn ->
+      result = DashboardPhoenix.OpenClawClient.send_message(message, channel: "webchat")
+      send(parent, {:chat_result, result})
+    end)
+    
+    {:noreply, socket}
+  end
+
+  def handle_event("chat_submit", _, socket), do: {:noreply, socket}
+
+  def handle_event("chat_input_change", %{"message" => message}, socket) do
+    {:noreply, assign(socket, chat_message: message)}
+  end
+
+  def handle_event("chat_iframe_error", _, socket) do
+    {:noreply, assign(socket, chat_iframe_error: true)}
+  end
+
   def handle_event("clear_completed", _, socket) do
     # Get all completed session IDs and add them to dismissed
     completed_ids = socket.assigns.agent_sessions
@@ -608,7 +654,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "live_progress" => socket.assigns.live_progress_collapsed,
       "agent_activity" => socket.assigns.agent_activity_collapsed,
       "system_processes" => socket.assigns.system_processes_collapsed,
-      "process_relationships" => socket.assigns.process_relationships_collapsed
+      "process_relationships" => socket.assigns.process_relationships_collapsed,
+      "chat" => socket.assigns.chat_collapsed
     }
     push_event(socket, "save_panel_state", %{panels: panels})
   end
@@ -2142,6 +2189,120 @@ defmodule DashboardPhoenixWeb.HomeLive do
         <div class="glass-panel rounded-lg p-4">
           <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[300px]"></div>
         </div>
+        </div>
+      </div>
+
+      <!-- Chat Panel -->
+      <div class="space-y-3" id="chat-panel">
+        <div 
+          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+          phx-click="toggle_panel"
+          phx-value-panel="chat"
+        >
+          <div class="flex items-center space-x-3">
+            <span class={"text-xs transition-transform duration-200 " <> if(@chat_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+            <span class="text-xs font-mono text-accent uppercase tracking-wider">💬 OpenClaw Chat</span>
+            <%= if @chat_sending do %>
+              <span class="text-[10px] font-mono text-warning animate-pulse">Sending...</span>
+            <% end %>
+          </div>
+          <div class="flex items-center space-x-2">
+            <%= if @chat_iframe_error do %>
+              <span class="text-[10px] font-mono text-warning">Using fallback input</span>
+            <% else %>
+              <span class="text-[10px] font-mono text-base-content/40">Embedded UI</span>
+            <% end %>
+          </div>
+        </div>
+        
+        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@chat_collapsed, do: "max-h-0 opacity-0", else: "max-h-[800px] opacity-100")}>
+          <div class="glass-panel rounded-lg overflow-hidden">
+            <%= if @chat_iframe_error do %>
+              <!-- Fallback: Simple chat input -->
+              <div class="p-4">
+                <div class="text-xs text-warning/70 mb-3">
+                  ⚠️ Iframe embed unavailable. Using direct message input instead.
+                </div>
+                
+                <form phx-submit="chat_submit" phx-change="chat_input_change" class="space-y-3">
+                  <div class="flex flex-col space-y-2">
+                    <textarea
+                      name="message"
+                      value={@chat_message}
+                      placeholder="Type a message to OpenClaw..."
+                      class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-sm font-mono text-white placeholder-base-content/40 focus:outline-none focus:border-accent/50 resize-none"
+                      rows="3"
+                      disabled={@chat_sending}
+                    ></textarea>
+                    
+                    <div class="flex items-center justify-between">
+                      <div class="text-[10px] font-mono text-base-content/50">
+                        Press Enter or click Send to send message
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={@chat_sending or @chat_message == ""}
+                        class={"px-4 py-2 rounded-lg text-sm font-mono font-bold transition-all " <> 
+                          if(@chat_sending, 
+                            do: "bg-accent/20 text-accent/50 cursor-wait",
+                            else: "bg-accent/20 text-accent hover:bg-accent/40"
+                          )}
+                      >
+                        <%= if @chat_sending, do: "Sending...", else: "Send 📤" %>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+                
+                <div class="mt-4 pt-4 border-t border-white/10">
+                  <div class="text-[10px] font-mono text-base-content/50 mb-2">Quick Actions:</div>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      phx-click="chat_submit"
+                      phx-value-message="What are you working on?"
+                      class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
+                    >
+                      📋 Status
+                    </button>
+                    <button
+                      phx-click="chat_submit"
+                      phx-value-message="Check my calendar for today"
+                      class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
+                    >
+                      📅 Calendar
+                    </button>
+                    <button
+                      phx-click="chat_submit"
+                      phx-value-message="Check my unread emails"
+                      class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
+                    >
+                      📧 Emails
+                    </button>
+                  </div>
+                </div>
+              </div>
+            <% else %>
+              <!-- Primary: iframe embed -->
+              <div class="relative">
+                <iframe
+                  id="openclaw-iframe"
+                  src="https://balgownie.tail1b57dd.ts.net:8443/"
+                  class="w-full h-[500px] border-0"
+                  title="OpenClaw Chat"
+                  sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                  phx-hook="ChatIframe"
+                ></iframe>
+                
+                <!-- Loading overlay -->
+                <div id="iframe-loading" class="absolute inset-0 bg-base-300/80 flex items-center justify-center">
+                  <div class="text-center">
+                    <div class="throbber mb-2"></div>
+                    <div class="text-sm font-mono text-base-content/60">Loading OpenClaw...</div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
         </div>
       </div>
 
