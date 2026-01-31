@@ -3,6 +3,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   
   alias DashboardPhoenixWeb.Live.Components.LinearComponent
   alias DashboardPhoenixWeb.Live.Components.ChainlinkComponent
+  alias DashboardPhoenixWeb.Live.Components.PRsComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -312,6 +313,131 @@ defmodule DashboardPhoenixWeb.HomeLive do
       chainlink_error: data.error,
       chainlink_loading: false
     )}
+  end
+
+  # PRsComponent handlers
+  def handle_info({:prs_component, :toggle_panel}, socket) do
+    socket = assign(socket, prs_collapsed: !socket.assigns.prs_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:prs_component, :refresh}, socket) do
+    PRMonitor.refresh()
+    {:noreply, socket}
+  end
+
+  def handle_info({:prs_component, :fix_pr_issues, params}, socket) do
+    %{"url" => pr_url, "number" => pr_number, "repo" => repo, "branch" => branch} = params
+    pr_number_int = String.to_integer(pr_number)
+    has_conflicts = params["has-conflicts"] == "true"
+    ci_failing = params["ci-failing"] == "true"
+
+    # Set pending state immediately for instant UI feedback
+    socket = assign(socket, pr_fix_pending: pr_number_int)
+
+    issues = []
+    issues = if ci_failing, do: ["CI failures" | issues], else: issues
+    issues = if has_conflicts, do: ["merge conflicts" | issues], else: issues
+    issues_text = Enum.join(issues, " and ")
+
+    fix_prompt = """
+    🔧 **Fix #{issues_text} for PR ##{pr_number}**
+
+    This Pull Request has #{issues_text}. Please fix them:
+    URL: #{pr_url}
+    Repository: #{repo}
+    Branch: #{branch}
+
+    Steps:
+    1. First, check out the branch: `cd ~/code/core-platform && git fetch origin && git checkout #{branch}`
+    #{if has_conflicts, do: "2. Resolve merge conflicts: `git fetch origin main && git merge origin/main` - fix any conflicts, then commit", else: ""}
+    #{if ci_failing, do: "#{if has_conflicts, do: "3", else: "2"}. Get CI failure details: `gh pr checks #{pr_number} --repo #{repo}`", else: ""}
+    #{if ci_failing, do: "#{if has_conflicts, do: "4", else: "3"}. Review the failing checks and fix the issues (tests, linting, type errors, etc.)", else: ""}
+    #{if ci_failing, do: "#{if has_conflicts, do: "5", else: "4"}. Run tests locally to verify: `mix test`", else: ""}
+    - Commit and push the fixes
+
+    Focus on fixing the issues, not refactoring unrelated code.
+    """
+
+    alias DashboardPhoenix.OpenClawClient
+
+    case OpenClawClient.spawn_subagent(fix_prompt,
+      name: "pr-fix-#{pr_number}",
+      thinking: "low",
+      post_mode: "summary"
+    ) do
+      {:ok, %{job_id: job_id}} ->
+        socket = socket
+        |> assign(pr_fix_pending: nil)
+        |> put_flash(:info, "Fix sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")
+        {:noreply, socket}
+
+      {:ok, _} ->
+        socket = socket
+        |> assign(pr_fix_pending: nil)
+        |> put_flash(:info, "Fix sub-agent spawned for PR ##{pr_number}")
+        {:noreply, socket}
+
+      {:error, reason} ->
+        socket = socket
+        |> assign(pr_fix_pending: nil)
+        |> put_flash(:error, "Failed to spawn fix agent: #{inspect(reason)}")
+        {:noreply, socket}
+    end
+  end
+
+  def handle_info({:prs_component, :verify_pr, %{"url" => pr_url, "number" => pr_number, "repo" => repo}}, socket) do
+    PRVerification.mark_verified(pr_url, "manual",
+      pr_number: String.to_integer(pr_number),
+      repo: repo,
+      status: "clean"
+    )
+    {:noreply, put_flash(socket, :info, "PR ##{pr_number} marked as verified")}
+  end
+
+  def handle_info({:prs_component, :clear_verification, %{"url" => pr_url}}, socket) do
+    PRVerification.clear_verification(pr_url)
+    {:noreply, socket}
+  end
+
+  def handle_info({:prs_component, :super_review, %{"url" => pr_url, "number" => pr_number, "repo" => repo}}, socket) do
+    review_prompt = """
+    🔍 **Super Review Request for PR ##{pr_number}**
+
+    Please perform a comprehensive code review for this Pull Request:
+    URL: #{pr_url}
+    Repository: #{repo}
+
+    1. Fetch and review the PR using `gh pr view #{pr_number} --repo #{repo}`
+    2. Review the diff using `gh pr diff #{pr_number} --repo #{repo}`
+    3. Check all code changes for:
+       - Code quality and best practices
+       - Potential bugs or edge cases
+       - Performance implications
+       - Security concerns
+       - Test coverage
+    4. Leave detailed review comments on the PR
+    5. Approve or request changes as appropriate using `gh pr review`
+
+    Be thorough but constructive in your feedback.
+    """
+
+    alias DashboardPhoenix.OpenClawClient
+
+    case OpenClawClient.spawn_subagent(review_prompt,
+      name: "pr-review-#{pr_number}",
+      thinking: "medium",
+      post_mode: "summary"
+    ) do
+      {:ok, %{job_id: job_id}} ->
+        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")}
+
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for PR ##{pr_number}")}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to spawn review agent: #{inspect(reason)}")}
+    end
   end
 
   # Handle async Linear ticket loading (initial mount)
@@ -654,8 +780,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # NOTE: refresh_linear now handled via LinearComponent -> handle_info({:linear_component, :refresh}, ...)
+  # NOTE: refresh_prs now handled via PRsComponent -> handle_info({:prs_component, :refresh}, ...)
 
   def handle_event("refresh_prs", _, socket) do
+    # Kept for backward compatibility with direct phx-click usage
     PRMonitor.refresh()
     {:noreply, socket}
   end
@@ -967,7 +1095,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, put_flash(socket, :error, "Missing ticket ID for super review request")}
   end
 
-  # Request super review for a GitHub PR
+  # NOTE: request_pr_super_review now handled via PRsComponent -> handle_info({:prs_component, :super_review, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("request_pr_super_review", %{"url" => pr_url, "number" => pr_number, "repo" => repo}, socket) do
     review_prompt = """
     🔍 **Super Review Request for PR ##{pr_number}**
@@ -1009,7 +1138,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
-  # Fix PR issues (CI failures and/or merge conflicts)
+  # NOTE: fix_pr_issues now handled via PRsComponent -> handle_info({:prs_component, :fix_pr_issues, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("fix_pr_issues", params, socket) do
     %{"url" => pr_url, "number" => pr_number, "repo" => repo, "branch" => branch} = params
     pr_number_int = String.to_integer(pr_number)
@@ -1071,7 +1201,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
-  # Mark a PR as verified
+  # NOTE: verify_pr now handled via PRsComponent -> handle_info({:prs_component, :verify_pr, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("verify_pr", %{"url" => pr_url, "number" => pr_number, "repo" => repo}, socket) do
     PRVerification.mark_verified(pr_url, "manual",
       pr_number: String.to_integer(pr_number),
@@ -1081,7 +1212,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, put_flash(socket, :info, "PR ##{pr_number} marked as verified")}
   end
 
-  # Clear PR verification status
+  # NOTE: clear_pr_verification now handled via PRsComponent -> handle_info({:prs_component, :clear_verification, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("clear_pr_verification", %{"url" => pr_url}, socket) do
     PRVerification.clear_verification(pr_url)
     {:noreply, socket}
@@ -1810,67 +1942,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
   defp parse_runtime_to_ms(_), do: 0
 
-  # PR CI status badges
-  defp pr_ci_badge(:success), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px]"
-  defp pr_ci_badge(:failure), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
-  defp pr_ci_badge(:pending), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px] animate-pulse"
-  defp pr_ci_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+  # NOTE: PR helper functions (pr_ci_badge, pr_ci_icon, pr_review_badge, pr_review_text,
+  # pr_status_bg, format_pr_time) moved to PRsComponent
 
-  defp pr_ci_icon(:success), do: "✓"
-  defp pr_ci_icon(:failure), do: "✗"
-  defp pr_ci_icon(:pending), do: "○"
-  defp pr_ci_icon(_), do: "?"
-
-  # PR review status badges
-  defp pr_review_badge(:approved), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px]"
-  defp pr_review_badge(:changes_requested), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
-  defp pr_review_badge(:commented), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
-  defp pr_review_badge(:pending), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
-  defp pr_review_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
-
-  defp pr_review_text(:approved), do: "Approved"
-  defp pr_review_text(:changes_requested), do: "Changes"
-  defp pr_review_text(:commented), do: "Comments"
-  defp pr_review_text(:pending), do: "Pending"
-  defp pr_review_text(_), do: "—"
-
-  # PR row background color based on overall status
-  # Green: approved + CI passing = ready to merge
-  # Red: CI failing or changes requested
-  # Yellow: pending review, has conflicts, or draft
-  # Default: open PR without specific status
-  defp pr_status_bg(pr) do
-    cond do
-      # Red: CI failing or changes requested
-      pr.ci_status == :failure -> "bg-red-500/10"
-      pr.review_status == :changes_requested -> "bg-red-500/10"
-      # Green: approved AND CI passing = ready to merge
-      pr.review_status == :approved and pr.ci_status == :success -> "bg-green-500/10"
-      # Yellow: has conflicts
-      pr.has_conflicts -> "bg-yellow-500/10"
-      # Yellow: CI pending (still running)
-      pr.ci_status == :pending -> "bg-yellow-500/10"
-      # Default: no special background
-      true -> ""
-    end
-  end
-
-  # Format PR creation time
-  defp format_pr_time(nil), do: ""
-  defp format_pr_time(%DateTime{} = dt) do
-    now = DateTime.utc_now()
-    diff = DateTime.diff(now, dt, :second)
-    cond do
-      diff < 60 -> "#{diff}s ago"
-      diff < 3600 -> "#{div(diff, 60)}m ago"
-      diff < 86400 -> "#{div(diff, 3600)}h ago"
-      diff < 604800 -> "#{div(diff, 86400)}d ago"
-      true -> Calendar.strftime(dt, "%b %d")
-    end
-  end
-  defp format_pr_time(_), do: ""
-
-  # Format branch time (same as PR time)
+  # Format branch time
   defp format_branch_time(nil), do: ""
   defp format_branch_time(%DateTime{} = dt) do
     now = DateTime.utc_now()
