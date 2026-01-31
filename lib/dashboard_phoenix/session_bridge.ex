@@ -9,7 +9,9 @@ defmodule DashboardPhoenix.SessionBridge do
   alias DashboardPhoenix.FileUtils
   
   @default_progress_file "/tmp/agent-progress.jsonl"
-  @poll_interval 500  # 500ms for snappy updates
+  @base_poll_interval 500    # Start responsive at 500ms
+  @max_poll_interval 2000    # Back off to 2s when idle
+  @backoff_increment 250     # Increase by 250ms each idle poll
   @max_progress_events 100
 
   defp progress_file do
@@ -47,14 +49,15 @@ defmodule DashboardPhoenix.SessionBridge do
     # Ensure progress file exists (don't overwrite sessions - it's managed by OpenClaw)
     FileUtils.ensure_exists(progress_file())
     
-    schedule_poll()
+    schedule_poll(@base_poll_interval)
     {:ok, %{
       sessions: [],
       progress: [],
       progress_offset: 0,
       last_session_mtime: nil,
       transcript_offsets: %{},  # Track read positions per transcript file
-      last_transcript_poll: 0
+      last_transcript_poll: 0,
+      current_poll_interval: @base_poll_interval  # Adaptive polling interval
     }}
   end
 
@@ -70,17 +73,38 @@ defmodule DashboardPhoenix.SessionBridge do
 
   @impl true
   def handle_info(:poll, state) do
+    # Track state before polling to detect changes
+    old_progress_offset = state.progress_offset
+    old_session_mtime = state.last_session_mtime
+    old_transcript_offsets = state.transcript_offsets
+    
     new_state = state
     |> poll_progress()
     |> poll_transcripts()
     |> poll_sessions()
     
-    schedule_poll()
+    # Check if any changes occurred
+    changes_detected = 
+      new_state.progress_offset != old_progress_offset ||
+      new_state.last_session_mtime != old_session_mtime ||
+      new_state.transcript_offsets != old_transcript_offsets
+    
+    # Adaptive polling: fast when active, back off when idle
+    new_interval = if changes_detected do
+      # Reset to fast polling when changes detected
+      @base_poll_interval
+    else
+      # Gradually back off, capped at max interval
+      min(new_state.current_poll_interval + @backoff_increment, @max_poll_interval)
+    end
+    
+    new_state = %{new_state | current_poll_interval: new_interval}
+    schedule_poll(new_interval)
     {:noreply, new_state}
   end
 
-  defp schedule_poll do
-    Process.send_after(self(), :poll, @poll_interval)
+  defp schedule_poll(interval) do
+    Process.send_after(self(), :poll, interval)
   end
 
   # Tail the JSONL progress file for new lines
