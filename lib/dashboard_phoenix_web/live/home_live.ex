@@ -8,6 +8,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.AgentActivityMonitor
   alias DashboardPhoenix.CodingAgentMonitor
   alias DashboardPhoenix.LinearMonitor
+  alias DashboardPhoenix.PRMonitor
   alias DashboardPhoenix.AgentPreferences
   alias DashboardPhoenix.OpenCodeServer
   alias DashboardPhoenix.OpenCodeClient
@@ -20,12 +21,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
       AgentActivityMonitor.subscribe()
       AgentPreferences.subscribe()
       LinearMonitor.subscribe()
+      PRMonitor.subscribe()
       OpenCodeServer.subscribe()
       Process.send_after(self(), :update_processes, 100)
       :timer.send_interval(2_000, :update_processes)
       :timer.send_interval(5_000, :refresh_opencode_sessions)
       # Async load Linear tickets to avoid blocking mount
       send(self(), :load_linear_tickets)
+      # Async load GitHub PRs
+      send(self(), :load_github_prs)
     end
 
     processes = ProcessMonitor.list_processes()
@@ -75,6 +79,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_status_filter: "Todo",
       tickets_in_progress: tickets_in_progress,
       pr_created_tickets: pr_created_tickets,
+      # GitHub PRs - loaded async to avoid blocking mount
+      github_prs: [],
+      github_prs_last_updated: nil,
+      github_prs_error: nil,
+      github_prs_loading: true,
       # Work modal state
       show_work_modal: false,
       work_ticket_id: nil,
@@ -93,6 +102,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # Panel collapse states
       config_collapsed: false,
       linear_collapsed: false,
+      prs_collapsed: false,
       opencode_collapsed: false,
       coding_agents_collapsed: false,
       subagents_collapsed: false,
@@ -181,6 +191,37 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_last_updated: data.last_updated,
       linear_error: data.error,
       linear_loading: false
+    )}
+  end
+
+  # Handle GitHub PR updates (from PubSub)
+  def handle_info({:pr_update, data}, socket) do
+    {:noreply, assign(socket,
+      github_prs: data.prs,
+      github_prs_last_updated: data.last_updated,
+      github_prs_error: data.error,
+      github_prs_loading: false
+    )}
+  end
+
+  # Handle async GitHub PR loading (initial mount)
+  def handle_info(:load_github_prs, socket) do
+    # Fetch in a Task to avoid blocking the LiveView process
+    parent = self()
+    Task.start(fn ->
+      pr_data = PRMonitor.get_prs()
+      send(parent, {:github_prs_loaded, pr_data})
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle GitHub PRs loaded result
+  def handle_info({:github_prs_loaded, data}, socket) do
+    {:noreply, assign(socket,
+      github_prs: data.prs,
+      github_prs_last_updated: data.last_updated,
+      github_prs_error: data.error,
+      github_prs_loading: false
     )}
   end
 
@@ -327,6 +368,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("refresh_linear", _, socket) do
     LinearMonitor.refresh()
+    {:noreply, socket}
+  end
+
+  def handle_event("refresh_prs", _, socket) do
+    PRMonitor.refresh()
     {:noreply, socket}
   end
 
@@ -553,6 +599,43 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, put_flash(socket, :error, "Missing ticket ID for super review request")}
   end
 
+  # Request super review for a GitHub PR
+  def handle_event("request_pr_super_review", %{"url" => pr_url, "number" => pr_number, "repo" => repo}, socket) do
+    review_prompt = """
+    🔍 **Super Review Request for PR ##{pr_number}**
+    
+    Please perform a comprehensive code review for this Pull Request:
+    URL: #{pr_url}
+    Repository: #{repo}
+    
+    1. Fetch and review the PR using `gh pr view #{pr_number} --repo #{repo}`
+    2. Review the diff using `gh pr diff #{pr_number} --repo #{repo}`
+    3. Check all code changes for:
+       - Code quality and best practices
+       - Potential bugs or edge cases
+       - Performance implications
+       - Security concerns
+       - Test coverage
+    4. Leave detailed review comments on the PR
+    5. Approve or request changes as appropriate using `gh pr review`
+    
+    Be thorough but constructive in your feedback.
+    """
+
+    # Send to main agent to spawn a review sub-agent
+    alias DashboardPhoenix.OpenClawClient
+    
+    try do
+      OpenClawClient.send_message(review_prompt, channel: "webchat")
+      {:noreply, put_flash(socket, :info, "Super review requested for PR ##{pr_number}")}
+    catch
+      :exit, reason ->
+        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(reason)}")}
+      error ->
+        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(error)}")}
+    end
+  end
+
   # Clear PR state for a ticket (e.g., when PR is merged)
   def handle_event("clear_ticket_pr", %{"id" => ticket_id}, socket) do
     pr_created = MapSet.delete(socket.assigns.pr_created_tickets, ticket_id)
@@ -677,6 +760,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     panels = %{
       "config" => socket.assigns.config_collapsed,
       "linear" => socket.assigns.linear_collapsed,
+      "prs" => socket.assigns.prs_collapsed,
       "opencode" => socket.assigns.opencode_collapsed,
       "coding_agents" => socket.assigns.coding_agents_collapsed,
       "subagents" => socket.assigns.subagents_collapsed,
@@ -1061,6 +1145,45 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
   defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
 
+  # PR CI status badges
+  defp pr_ci_badge(:success), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px]"
+  defp pr_ci_badge(:failure), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
+  defp pr_ci_badge(:pending), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px] animate-pulse"
+  defp pr_ci_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+
+  defp pr_ci_icon(:success), do: "✓"
+  defp pr_ci_icon(:failure), do: "✗"
+  defp pr_ci_icon(:pending), do: "○"
+  defp pr_ci_icon(_), do: "?"
+
+  # PR review status badges
+  defp pr_review_badge(:approved), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px]"
+  defp pr_review_badge(:changes_requested), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
+  defp pr_review_badge(:commented), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
+  defp pr_review_badge(:pending), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+  defp pr_review_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+
+  defp pr_review_text(:approved), do: "Approved"
+  defp pr_review_text(:changes_requested), do: "Changes"
+  defp pr_review_text(:commented), do: "Comments"
+  defp pr_review_text(:pending), do: "Pending"
+  defp pr_review_text(_), do: "—"
+
+  # Format PR creation time
+  defp format_pr_time(nil), do: ""
+  defp format_pr_time(%DateTime{} = dt) do
+    now = DateTime.utc_now()
+    diff = DateTime.diff(now, dt, :second)
+    cond do
+      diff < 60 -> "#{diff}s ago"
+      diff < 3600 -> "#{div(diff, 60)}m ago"
+      diff < 86400 -> "#{div(diff, 3600)}h ago"
+      diff < 604800 -> "#{div(diff, 86400)}d ago"
+      true -> Calendar.strftime(dt, "%b %d")
+    end
+  end
+  defp format_pr_time(_), do: ""
+
   # PR state persistence - stores which tickets have PRs created
   @pr_state_file Path.expand("~/.openclaw/systematic-pr-state.json")
 
@@ -1373,6 +1496,112 @@ defmodule DashboardPhoenixWeb.HomeLive do
                     <% end %>
                   <% end %>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- GitHub Pull Requests Panel -->
+          <div class="glass-panel rounded-lg overflow-hidden">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="prs"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@prs_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-accent uppercase tracking-wider">🔀 Pull Requests</span>
+                <%= if @github_prs_loading do %>
+                  <span class="throbber-small"></span>
+                <% else %>
+                  <span class="text-[10px] font-mono text-base-content/50"><%= length(@github_prs) %></span>
+                <% end %>
+              </div>
+              <button phx-click="refresh_prs" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">↻</button>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@prs_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+              <div class="px-3 pb-3">
+                <!-- PR List -->
+                <div class="space-y-2 max-h-[350px] overflow-y-auto">
+                  <%= if @github_prs_loading do %>
+                    <div class="flex items-center justify-center py-4 space-x-2">
+                      <span class="throbber-small"></span>
+                      <span class="text-xs text-base-content/50 font-mono">Loading PRs...</span>
+                    </div>
+                  <% else %>
+                    <%= if @github_prs_error do %>
+                      <div class="text-xs text-error/70 py-2 px-2"><%= @github_prs_error %></div>
+                    <% end %>
+                    <%= if @github_prs == [] do %>
+                      <div class="text-xs text-base-content/50 py-4 text-center font-mono">No open PRs</div>
+                    <% end %>
+                    <%= for pr <- @github_prs do %>
+                      <div class="px-2 py-2 rounded hover:bg-white/5 text-xs font-mono border border-white/5">
+                        <!-- PR Title and Number -->
+                        <div class="flex items-start justify-between mb-1">
+                          <div class="flex-1 min-w-0">
+                            <a href={pr.url} target="_blank" class="text-white hover:text-accent flex items-center space-x-1">
+                              <span class="text-accent font-bold">#<%= pr.number %></span>
+                              <span class="truncate"><%= pr.title %></span>
+                            </a>
+                          </div>
+                          <!-- Super Review Button -->
+                          <button
+                            phx-click="request_pr_super_review"
+                            phx-value-url={pr.url}
+                            phx-value-number={pr.number}
+                            phx-value-repo={pr.repo}
+                            class="ml-2 px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 text-[10px] whitespace-nowrap"
+                            title="Request Super Review"
+                          >
+                            🔍 Review
+                          </button>
+                        </div>
+                        
+                        <!-- Author and Branch -->
+                        <div class="flex items-center space-x-2 text-[10px] text-base-content/50 mb-1.5">
+                          <span>by <span class="text-base-content/70"><%= pr.author %></span></span>
+                          <span>•</span>
+                          <span class="truncate text-blue-400" title={pr.branch}><%= pr.branch %></span>
+                          <span>•</span>
+                          <span><%= format_pr_time(pr.created_at) %></span>
+                        </div>
+                        
+                        <!-- Status Row: CI, Review, and Tickets -->
+                        <div class="flex items-center space-x-2 flex-wrap gap-1">
+                          <!-- CI Status -->
+                          <span class={pr_ci_badge(pr.ci_status)} title="CI Status">
+                            <%= pr_ci_icon(pr.ci_status) %> CI
+                          </span>
+                          
+                          <!-- Review Status -->
+                          <span class={pr_review_badge(pr.review_status)} title="Review Status">
+                            <%= pr_review_text(pr.review_status) %>
+                          </span>
+                          
+                          <!-- Associated Tickets -->
+                          <%= for ticket_id <- pr.ticket_ids do %>
+                            <a 
+                              href={PRMonitor.build_ticket_url(ticket_id)} 
+                              target="_blank"
+                              class="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 hover:bg-orange-500/40 text-[10px]"
+                              title="View in Linear"
+                            >
+                              <%= ticket_id %>
+                            </a>
+                          <% end %>
+                        </div>
+                      </div>
+                    <% end %>
+                  <% end %>
+                </div>
+                
+                <!-- Last Updated -->
+                <%= if @github_prs_last_updated do %>
+                  <div class="text-[9px] text-base-content/30 mt-2 text-right font-mono">
+                    Updated <%= format_pr_time(@github_prs_last_updated) %>
+                  </div>
+                <% end %>
               </div>
             </div>
           </div>
