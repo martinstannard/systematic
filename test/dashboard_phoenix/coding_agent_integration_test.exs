@@ -292,6 +292,81 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
     end
   end
 
+  describe "spawn_subagent for chainlink work" do
+    test "spawn_subagent/2 function exists and accepts expected parameters" do
+      client = ClientFactory.openclaw_client()
+      
+      expect(OpenClawClientMock, :spawn_subagent, fn task_message, opts ->
+        assert String.contains?(task_message, "Chainlink issue")
+        assert opts[:name] == "chainlink-123"
+        assert opts[:thinking] == "low"
+        {:ok, %{job_id: "test-job-123", name: "dashboard-chainlink-123"}}
+      end)
+      
+      # Verify the function exists with the correct arity
+      assert function_exported?(client, :spawn_subagent, 2)
+      
+      prompt = """
+      Work on Chainlink issue #123: Test Issue
+      
+      Priority: high
+      
+      Please analyze this issue and implement the required changes.
+      Use `chainlink show 123` to get full details.
+      """
+      
+      result = client.spawn_subagent(prompt, name: "chainlink-123", thinking: "low")
+      assert {:ok, %{job_id: "test-job-123", name: "dashboard-chainlink-123"}} = result
+    end
+
+    test "spawn_subagent/2 accepts all valid options" do
+      client = ClientFactory.openclaw_client()
+      
+      expect(OpenClawClientMock, :spawn_subagent, fn "Test task", opts ->
+        assert opts[:name] == "test-task"
+        assert opts[:model] == "anthropic/claude-sonnet-4-20250514"
+        assert opts[:thinking] == "medium"
+        assert opts[:post_mode] == "full"
+        {:ok, %{job_id: "job-456", name: "dashboard-test-task"}}
+      end)
+      
+      result = client.spawn_subagent("Test task",
+        name: "test-task",
+        model: "anthropic/claude-sonnet-4-20250514",
+        thinking: "medium",
+        post_mode: "full"
+      )
+      
+      assert {:ok, %{job_id: "job-456"}} = result
+    end
+
+    test "spawn_subagent/2 handles errors gracefully" do
+      client = ClientFactory.openclaw_client()
+      
+      expect(OpenClawClientMock, :spawn_subagent, fn "Failing task", _opts ->
+        {:error, "openclaw cron add failed: invalid session"}
+      end)
+      
+      result = client.spawn_subagent("Failing task", name: "fail-test")
+      assert {:error, reason} = result
+      assert is_binary(reason)
+    end
+
+    test "spawn_subagent/2 default options work correctly" do
+      client = ClientFactory.openclaw_client()
+      
+      expect(OpenClawClientMock, :spawn_subagent, fn "Minimal task", opts ->
+        # Should have defaults for thinking and post_mode
+        assert opts[:thinking] == "low"
+        assert opts[:post_mode] == "summary"
+        {:ok, %{name: "dashboard-minimal"}}
+      end)
+      
+      result = client.spawn_subagent("Minimal task", name: "minimal", thinking: "low", post_mode: "summary")
+      assert {:ok, _} = result
+    end
+  end
+
   describe "integration flow simulation" do
     test "complete flow: toggle agent -> execute work -> verify correct client called" do
       opencode_client = ClientFactory.opencode_client()

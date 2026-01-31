@@ -13,8 +13,6 @@ defmodule DashboardPhoenix.OpenClawClient do
 
   @behaviour DashboardPhoenix.Behaviours.OpenClawClientBehaviour
 
-  @default_timeout 30_000
-
   @doc """
   Send a work request to OpenClaw to spawn a coding agent for a ticket.
   
@@ -22,10 +20,8 @@ defmodule DashboardPhoenix.OpenClawClient do
   - :ticket_id - Linear ticket ID (e.g., "COR-123")
   - :details - Ticket description/details
   - :model - Model to use for the sub-agent (e.g., "anthropic/claude-opus-4-5")
-  - :timeout - Command timeout in ms (default: 30s)
   """
   def work_on_ticket(ticket_id, details, opts \\ []) do
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
     model = Keyword.get(opts, :model, nil)
     
     # Build the message for the agent
@@ -41,7 +37,7 @@ defmodule DashboardPhoenix.OpenClawClient do
     
     Logger.info("[OpenClawClient] Sending work request for #{ticket_id} with model: #{model || "default"}")
     
-    case System.cmd("openclaw", args, stderr_to_stdout: true, timeout: timeout) do
+    case System.cmd("openclaw", args, stderr_to_stdout: true) do
       {output, 0} ->
         Logger.info("[OpenClawClient] Success: #{String.slice(output, 0, 200)}")
         {:ok, %{ticket_id: ticket_id, output: output}}
@@ -96,14 +92,12 @@ defmodule DashboardPhoenix.OpenClawClient do
   - :model - Model to use (e.g., "anthropic/claude-sonnet-4-20250514")
   - :thinking - Thinking level (off|minimal|low|medium|high)
   - :post_mode - What to post back to main ("summary"|"full")
-  - :timeout - Command timeout in ms (default: 30s)
   """
   def spawn_subagent(task_message, opts \\ []) do
     name = Keyword.get(opts, :name, "task-#{:rand.uniform(999_999)}")
     model = Keyword.get(opts, :model)
     thinking = Keyword.get(opts, :thinking, "low")
     post_mode = Keyword.get(opts, :post_mode, "summary")
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
     
     # Build the cron add command
     args = [
@@ -124,7 +118,7 @@ defmodule DashboardPhoenix.OpenClawClient do
     
     Logger.info("[OpenClawClient] Spawning isolated sub-agent: dashboard-#{name}")
     
-    case System.cmd("openclaw", args, stderr_to_stdout: true, timeout: timeout) do
+    case System.cmd("openclaw", args, stderr_to_stdout: true) do
       {output, 0} ->
         case Jason.decode(output) do
           {:ok, %{"id" => job_id}} ->
