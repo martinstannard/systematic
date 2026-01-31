@@ -1,0 +1,156 @@
+defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
+  @moduledoc """
+  LiveComponent for displaying and interacting with Linear tickets.
+  
+  Extracted from HomeLive to improve code organization and maintainability.
+  """
+  use DashboardPhoenixWeb, :live_component
+
+  @impl true
+  def update(assigns, socket) do
+    {:ok, assign(socket, assigns)}
+  end
+
+  @impl true
+  def handle_event("set_linear_filter", %{"status" => status}, socket) do
+    send(self(), {:linear_component, :set_filter, status})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_panel", _, socket) do
+    send(self(), {:linear_component, :toggle_panel})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("refresh_linear", _, socket) do
+    send(self(), {:linear_component, :refresh})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("work_on_ticket", %{"id" => ticket_id}, socket) do
+    send(self(), {:linear_component, :work_on_ticket, ticket_id})
+    {:noreply, socket}
+  end
+
+  # Helper functions
+  defp format_linear_time(nil), do: ""
+  defp format_linear_time(%DateTime{} = dt) do
+    now = DateTime.utc_now()
+    diff = DateTime.diff(now, dt, :second)
+    cond do
+      diff < 60 -> "#{diff}s ago"
+      diff < 3600 -> "#{div(diff, 60)}m ago"
+      diff < 86400 -> "#{div(diff, 3600)}h ago"
+      true -> Calendar.strftime(dt, "%H:%M")
+    end
+  end
+  defp format_linear_time(_), do: ""
+
+  defp linear_status_badge("Triage"), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
+  defp linear_status_badge("Todo"), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px]"
+  defp linear_status_badge("Backlog"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
+  defp linear_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+
+  defp linear_filter_button_active("Triage"), do: "bg-red-500/30 text-red-400 border border-red-500/50"
+  defp linear_filter_button_active("Backlog"), do: "bg-blue-500/30 text-blue-400 border border-blue-500/50"
+  defp linear_filter_button_active("Todo"), do: "bg-yellow-500/30 text-yellow-400 border border-yellow-500/50"
+  defp linear_filter_button_active("In Review"), do: "bg-purple-500/30 text-purple-400 border border-purple-500/50"
+  defp linear_filter_button_active(_), do: "bg-accent/30 text-accent border border-accent/50"
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <div class="glass-panel rounded-lg overflow-hidden">
+      <div 
+        class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+        phx-click="toggle_panel"
+        phx-target={@myself}
+      >
+        <div class="flex items-center space-x-2">
+          <span class={"text-xs transition-transform duration-200 " <> if(@linear_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+          <span class="text-xs font-mono text-accent uppercase tracking-wider">🎫 Linear</span>
+          <%= if @linear_loading do %>
+            <span class="throbber-small"></span>
+          <% else %>
+            <span class="text-[10px] font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
+          <% end %>
+        </div>
+        <button 
+          phx-click="refresh_linear" 
+          phx-target={@myself}
+          class="text-[10px] text-base-content/40 hover:text-accent" 
+          onclick="event.stopPropagation()"
+        >
+          ↻
+        </button>
+      </div>
+      
+      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@linear_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+        <div class="px-3 pb-3">
+          <!-- Status Filter -->
+          <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
+            <%= for status <- ["Triage", "Backlog", "Todo", "In Review"] do %>
+              <% count = Enum.count(@linear_tickets, & &1.status == status) %>
+              <button
+                phx-click="set_linear_filter"
+                phx-value-status={status}
+                phx-target={@myself}
+                class={"px-2 py-0.5 rounded text-[10px] font-mono transition-all " <> 
+                  if(@linear_status_filter == status,
+                    do: linear_filter_button_active(status),
+                    else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
+                  )}
+              >
+                <%= status %> (<%= count %>)
+              </button>
+            <% end %>
+          </div>
+          
+          <!-- Ticket List -->
+          <div class="space-y-1 max-h-[300px] overflow-y-auto">
+            <%= if @linear_loading do %>
+              <div class="flex items-center justify-center py-4 space-x-2">
+                <span class="throbber-small"></span>
+                <span class="text-xs text-base-content/50 font-mono">Loading tickets...</span>
+              </div>
+            <% else %>
+              <%= if @linear_error do %>
+                <div class="text-xs text-error/70 py-2 px-2"><%= @linear_error %></div>
+              <% end %>
+              <%= for ticket <- Enum.filter(@linear_tickets, & &1.status == @linear_status_filter) |> Enum.take(10) do %>
+                <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
+                <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono " <> if(work_info, do: "bg-accent/10", else: "hover:bg-white/5")}>
+                  <%= if work_info do %>
+                    <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
+                  <% else %>
+                    <button
+                      phx-click="work_on_ticket"
+                      phx-value-id={ticket.id}
+                      phx-target={@myself}
+                      class="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
+                    >
+                      ▶
+                    </button>
+                  <% end %>
+                  <a href={ticket.url} target="_blank" class="text-accent hover:underline"><%= ticket.id %></a>
+                  <span class="text-white truncate flex-1" title={ticket.title}><%= ticket.title %></span>
+                </div>
+              <% end %>
+            <% end %>
+          </div>
+          
+          <!-- Last Updated -->
+          <%= if @linear_last_updated do %>
+            <div class="text-[9px] text-base-content/30 mt-2 text-right font-mono">
+              Updated <%= format_linear_time(@linear_last_updated) %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    """
+  end
+end

@@ -1,6 +1,7 @@
 defmodule DashboardPhoenixWeb.HomeLive do
   use DashboardPhoenixWeb, :live_view
   
+  alias DashboardPhoenixWeb.Live.Components.LinearComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -952,9 +953,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
     cond do
       # If OpenCode mode is selected
       coding_pref == :opencode ->
-        # Start work in background, passing selected model
+        # Start work in supervised task
         parent = self()
-        Task.start(fn ->
+        Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
           result = OpenCodeClient.send_task(prompt, model: opencode_model)
           send(parent, {:work_result, result})
         end)
@@ -1007,9 +1008,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       true ->
         alias DashboardPhoenix.OpenClawClient
         
-        # Start work in background, passing selected model
+        # Start work in supervised task
         parent = self()
-        Task.start(fn ->
+        Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
           result = OpenClawClient.work_on_ticket(ticket_id, ticket_details, model: claude_model)
           send(parent, {:work_result, result})
         end)
