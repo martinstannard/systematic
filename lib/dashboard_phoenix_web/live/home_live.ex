@@ -283,18 +283,17 @@ defmodule DashboardPhoenixWeb.HomeLive do
         thinking: "low",
         post_mode: "summary"
       ) do
-        {:ok, %{job_id: job_id}} ->
-          # Track that work is in progress
-          work_info = %{label: "chainlink-#{issue_id}", job_id: job_id}
+        {:ok, result} ->
+          # Track that work is in progress (handle both job_id and name-only responses)
+          job_id = Map.get(result, :job_id, "unknown")
+          name = Map.get(result, :name, "chainlink-#{issue_id}")
+          work_info = %{label: name, job_id: job_id}
           chainlink_wip = Map.put(socket.assigns.chainlink_work_in_progress, issue_id, work_info)
           
           socket = socket
           |> assign(chainlink_work_in_progress: chainlink_wip)
           |> put_flash(:info, "Started work on Chainlink ##{issue_id}")
           {:noreply, socket}
-        
-        {:ok, _} ->
-          {:noreply, put_flash(socket, :info, "Started work on Chainlink ##{issue_id}")}
         
         {:error, reason} ->
           {:noreply, put_flash(socket, :error, "Failed to start work: #{inspect(reason)}")}
