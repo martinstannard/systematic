@@ -10,6 +10,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.CodingAgentMonitor
   alias DashboardPhoenix.LinearMonitor
   alias DashboardPhoenix.PRMonitor
+  alias DashboardPhoenix.PRVerification
   alias DashboardPhoenix.BranchMonitor
   alias DashboardPhoenix.AgentPreferences
   alias DashboardPhoenix.OpenCodeServer
@@ -25,6 +26,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       AgentPreferences.subscribe()
       LinearMonitor.subscribe()
       PRMonitor.subscribe()
+      PRVerification.subscribe()
       BranchMonitor.subscribe()
       OpenCodeServer.subscribe()
       GeminiServer.subscribe()
@@ -65,6 +67,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Load persisted PR state (tickets that have PRs created)
     pr_created_tickets = load_pr_state()
     
+    # Load PR verification status
+    pr_verifications = PRVerification.get_all_verifications()
+    
     socket = assign(socket,
       process_stats: ProcessMonitor.get_stats(processes),
       recent_processes: processes,
@@ -97,6 +102,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       github_prs_last_updated: nil,
       github_prs_error: nil,
       github_prs_loading: true,
+      # PR verifications - which PRs have been checked by an agent
+      pr_verifications: pr_verifications,
       # Unmerged branches - loaded async
       unmerged_branches: [],
       branches_worktrees: %{},
@@ -273,6 +280,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
       github_prs_error: data.error,
       github_prs_loading: false
     )}
+  end
+
+  # Handle PR verification updates (from PubSub)
+  def handle_info({:pr_verification_update, verifications}, socket) do
+    {:noreply, assign(socket, pr_verifications: verifications)}
   end
 
   # Handle async GitHub PR loading (initial mount)
@@ -537,6 +549,27 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_event("refresh_prs", _, socket) do
     PRMonitor.refresh()
     {:noreply, socket}
+  end
+
+  # Mark a PR as verified (typically called after an agent reviews it)
+  def handle_event("mark_pr_verified", %{"url" => pr_url, "number" => pr_number, "repo" => repo}, socket) do
+    # For manual verification, use "dashboard-user" as the agent name
+    case PRVerification.mark_verified(pr_url, "dashboard-user",
+      pr_number: String.to_integer(pr_number),
+      repo: repo,
+      status: "clean"
+    ) do
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "PR ##{pr_number} marked as verified")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to mark verified: #{inspect(reason)}")}
+    end
+  end
+
+  # Clear verification status for a PR
+  def handle_event("clear_pr_verification", %{"url" => pr_url, "number" => pr_number}, socket) do
+    PRVerification.clear_verification(pr_url)
+    {:noreply, put_flash(socket, :info, "Verification cleared for PR ##{pr_number}")}
   end
 
   def handle_event("refresh_branches", _, socket) do
@@ -1659,6 +1692,29 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
   defp parse_runtime_to_ms(_), do: 0
 
+  # PR verification helpers
+  defp get_pr_verification(pr_url, verifications) do
+    Map.get(verifications, pr_url)
+  end
+
+  defp format_verification_time(nil), do: ""
+  defp format_verification_time(iso_string) when is_binary(iso_string) do
+    case DateTime.from_iso8601(iso_string) do
+      {:ok, dt, _offset} ->
+        now = DateTime.utc_now()
+        diff = DateTime.diff(now, dt, :second)
+        cond do
+          diff < 60 -> "#{diff}s ago"
+          diff < 3600 -> "#{div(diff, 60)}m ago"
+          diff < 86400 -> "#{div(diff, 3600)}h ago"
+          diff < 604800 -> "#{div(diff, 86400)}d ago"
+          true -> Calendar.strftime(dt, "%b %d")
+        end
+      _ -> ""
+    end
+  end
+  defp format_verification_time(_), do: ""
+
   # PR CI status badges
   defp pr_ci_badge(:success), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px]"
   defp pr_ci_badge(:failure), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
@@ -1988,6 +2044,38 @@ defmodule DashboardPhoenixWeb.HomeLive do
                                   title={"#{if pr_work_info.type == :opencode, do: "OpenCode", else: "Sub-agent"} working on this PR"}>
                               🤖 <%= pr_work_info[:label] || pr_work_info[:slug] || "Working..." %>
                             </span>
+                          <% end %>
+                          
+                          <!-- Verification Status -->
+                          <% verification = get_pr_verification(pr.url, @pr_verifications) %>
+                          <%= if verification do %>
+                            <span 
+                              class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] flex items-center space-x-1"
+                              title={"Verified by #{verification["verified_by"]} • #{format_verification_time(verification["verified_at"])}"}
+                            >
+                              <span>✓</span>
+                              <span>Verified</span>
+                            </span>
+                            <button
+                              phx-click="clear_pr_verification"
+                              phx-value-url={pr.url}
+                              phx-value-number={pr.number}
+                              class="px-1 py-0.5 rounded bg-base-content/10 text-base-content/40 hover:text-base-content/60 text-[10px]"
+                              title="Clear verification"
+                            >
+                              ✗
+                            </button>
+                          <% else %>
+                            <button
+                              phx-click="mark_pr_verified"
+                              phx-value-url={pr.url}
+                              phx-value-number={pr.number}
+                              phx-value-repo={pr.repo}
+                              class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/40 hover:bg-emerald-500/20 hover:text-emerald-400 text-[10px]"
+                              title="Mark as verified"
+                            >
+                              ☐ Verify
+                            </button>
                           <% end %>
                         </div>
                       </div>
