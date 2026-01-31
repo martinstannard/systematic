@@ -13,8 +13,18 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
   def update(assigns, socket) do
     main_agent_session = find_main_agent_session(assigns.agent_sessions)
     
+    # Pre-calculate recent actions to avoid template computation
+    recent_actions = case main_agent_session do
+      nil -> []
+      session -> 
+        session
+        |> Map.get(:recent_actions, [])
+        |> Enum.take(-5)
+    end
+    
     socket = assign(socket,
       main_agent_session: main_agent_session,
+      recent_actions: recent_actions,
       dave_collapsed: assigns.dave_collapsed
     )
     
@@ -53,7 +63,6 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
         <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@dave_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
           <div class="px-3 pb-3">
             <% current_action = Map.get(@main_agent_session, :current_action) %>
-            <% recent_actions = Map.get(@main_agent_session, :recent_actions, []) %>
             
             <!-- Current Activity -->
             <div class="py-2">
@@ -80,9 +89,9 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
               <% end %>
               
               <!-- Recent Actions -->
-              <%= if recent_actions != [] do %>
+              <%= if @recent_actions != [] do %>
                 <div class="text-[10px] text-base-content/40 space-y-0.5 max-h-[100px] overflow-y-auto">
-                  <%= for action <- Enum.take(recent_actions, -5) do %>
+                  <%= for action <- @recent_actions do %>
                     <div class="truncate" title={action}>✓ <%= action %></div>
                   <% end %>
                 </div>

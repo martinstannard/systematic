@@ -8,7 +8,11 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
   @impl true
   def update(assigns, socket) do
-    {:ok, assign(socket, assigns)}
+    # Pre-calculate empty state to avoid template computation
+    issues_empty = Enum.empty?(assigns.chainlink_issues)
+    
+    assigns_with_computed = Map.put(assigns, :chainlink_issues_empty, issues_empty)
+    {:ok, assign(socket, assigns_with_computed)}
   end
 
   @impl true
@@ -96,7 +100,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
               <%= if @chainlink_error do %>
                 <div class="text-xs text-error/70 py-2 px-2"><%= @chainlink_error %></div>
               <% end %>
-              <%= if Enum.empty?(@chainlink_issues) and is_nil(@chainlink_error) do %>
+              <%= if @chainlink_issues_empty and is_nil(@chainlink_error) do %>
                 <div class="text-xs text-base-content/50 py-2 px-2 font-mono">No open issues</div>
               <% end %>
               <%= for issue <- @chainlink_issues do %>

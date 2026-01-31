@@ -17,6 +17,14 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
     visible_sessions = sub_agent_sessions
     |> Enum.reject(fn s -> MapSet.member?(assigns.dismissed_sessions, s.id) end)
     |> Enum.reject(fn s -> !assigns.show_completed && s.status == "completed" end)
+    |> Enum.map(fn session ->
+      # Pre-calculate recent actions to avoid template computation
+      recent_actions = session
+      |> Map.get(:recent_actions, [])
+      |> Enum.take(-3)
+      
+      Map.put(session, :limited_recent_actions, recent_actions)
+    end)
 
     running_count = Enum.count(sub_agent_sessions, fn s -> s.status == "running" end)
     completed_count = Enum.count(visible_sessions, fn s -> s.status == "completed" end)
@@ -161,6 +169,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
             <% task = Map.get(session, :task_summary) %>
             <% current_action = Map.get(session, :current_action) %>
             <% recent_actions = Map.get(session, :recent_actions, []) %>
+            <% limited_recent_actions = Map.get(session, :limited_recent_actions, []) %>
             <% start_time = session_start_timestamp(session) %>
             
             <div class={"rounded-lg border text-xs font-mono " <> 
@@ -234,9 +243,9 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                     </div>
                   <% end %>
                   
-                  <%= if recent_actions != [] do %>
+                  <%= if limited_recent_actions != [] do %>
                     <div class="text-[10px] text-base-content/40 space-y-0.5">
-                      <%= for action <- Enum.take(recent_actions, -3) do %>
+                      <%= for action <- limited_recent_actions do %>
                         <div class="truncate" title={action}>✓ <%= action %></div>
                       <% end %>
                     </div>

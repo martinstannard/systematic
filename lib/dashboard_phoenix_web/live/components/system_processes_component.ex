@@ -20,11 +20,15 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
   use DashboardPhoenixWeb, :live_component
 
   def update(assigns, socket) do
+    # Pre-calculate limited recent processes to avoid template computation
+    limited_recent_processes = Enum.take(assigns.recent_processes, 4)
+    
     socket = assign(socket,
       coding_agents: assigns.coding_agents,
       coding_agents_count: assigns.coding_agents_count,
       coding_agents_collapsed: assigns.coding_agents_collapsed,
       recent_processes: assigns.recent_processes,
+      limited_recent_processes: limited_recent_processes,
       recent_processes_count: assigns.recent_processes_count,
       system_processes_collapsed: assigns.system_processes_collapsed,
       process_relationships_collapsed: assigns.process_relationships_collapsed,
@@ -110,7 +114,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
           
           <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@system_processes_collapsed, do: "max-h-0", else: "max-h-[150px]")}>
             <div class="px-3 pb-3 grid grid-cols-2 gap-1">
-              <%= for process <- Enum.take(@recent_processes, 4) do %>
+              <%= for process <- @limited_recent_processes do %>
                 <div class="px-2 py-1 rounded bg-white/5 text-[10px] font-mono">
                   <div class="text-white truncate"><%= process.name %></div>
                   <div class="text-base-content/50">CPU: <%= Map.get(process, :cpu_usage, "?") %> | MEM: <%= Map.get(process, :memory_usage, "?") %></div>
