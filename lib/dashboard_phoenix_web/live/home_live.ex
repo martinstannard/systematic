@@ -81,10 +81,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
       opencode_sessions: opencode_sessions,
       # Work in progress
       work_in_progress: false,
+      work_sent: false,
       work_error: nil,
       # Model selections
       claude_model: "anthropic/claude-sonnet-4-20250514",  # Default to sonnet
-      opencode_model: "gemini-2.5-pro",  # Default to gemini pro
+      opencode_model: "gemini-3-pro",  # Default to gemini 3 pro
       # Panel collapse states
       config_collapsed: false,
       linear_collapsed: false,
@@ -175,19 +176,19 @@ defmodule DashboardPhoenixWeb.HomeLive do
     case result do
       {:ok, %{session_id: session_id}} ->
         socket = socket
-        |> assign(work_in_progress: false, work_error: nil)
+        |> assign(work_in_progress: false, work_sent: true, work_error: nil)
         |> put_flash(:info, "Task sent to OpenCode (session: #{session_id})")
         {:noreply, socket}
       
       {:ok, %{ticket_id: ticket_id}} ->
         socket = socket
-        |> assign(work_in_progress: false, work_error: nil)
+        |> assign(work_in_progress: false, work_sent: true, work_error: nil)
         |> put_flash(:info, "Work request sent to OpenClaw for #{ticket_id}")
         {:noreply, socket}
       
       {:error, reason} ->
         socket = socket
-        |> assign(work_in_progress: false, work_error: "Failed: #{inspect(reason)}")
+        |> assign(work_in_progress: false, work_sent: false, work_error: "Failed: #{inspect(reason)}")
         {:noreply, socket}
     end
   end
@@ -323,7 +324,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       show_work_modal: false,
       work_ticket_id: nil,
       work_ticket_details: nil,
-      work_ticket_loading: false
+      work_ticket_loading: false,
+      work_sent: false
     )}
   end
 
@@ -1235,6 +1237,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
                     name="model"
                     class="w-full text-sm font-mono bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-blue-400 focus:outline-none focus:border-blue-500/50 hover:bg-blue-500/20 transition-colors"
                   >
+                    <option value="gemini-3-pro" selected={@opencode_model == "gemini-3-pro"}>Gemini 3 Pro</option>
+                    <option value="gemini-3-flash" selected={@opencode_model == "gemini-3-flash"}>Gemini 3 Flash</option>
                     <option value="gemini-2.5-pro" selected={@opencode_model == "gemini-2.5-pro"}>Gemini 2.5 Pro</option>
                     <option value="gemini-2.5-flash" selected={@opencode_model == "gemini-2.5-flash"}>Gemini 2.5 Flash</option>
                   </select>
