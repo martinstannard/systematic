@@ -1,6 +1,8 @@
 defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.InputValidator
+
   def mount(socket) do
     {:ok, socket}
   end
@@ -26,13 +28,27 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
   end
 
   def handle_event("set_progress_filter", %{"filter" => filter}, socket) do
-    send(self(), {:live_progress_component, :set_progress_filter, filter})
-    {:noreply, socket}
+    case InputValidator.validate_filter_string(filter) do
+      {:ok, validated_filter} ->
+        send(self(), {:live_progress_component, :set_progress_filter, validated_filter})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid filter: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   def handle_event("toggle_output", %{"ts" => ts_str}, socket) do
-    send(self(), {:live_progress_component, :toggle_output, ts_str})
-    {:noreply, socket}
+    case InputValidator.validate_timestamp_string(ts_str) do
+      {:ok, validated_ts} ->
+        send(self(), {:live_progress_component, :toggle_output, validated_ts})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid timestamp: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   def render(assigns) do

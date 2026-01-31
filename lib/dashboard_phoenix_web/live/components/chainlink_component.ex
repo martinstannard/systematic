@@ -6,6 +6,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.InputValidator
+
   @impl true
   def update(assigns, socket) do
     # Pre-calculate empty state to avoid template computation
@@ -29,8 +31,15 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
   @impl true
   def handle_event("work_on_chainlink", %{"id" => issue_id}, socket) do
-    send(self(), {:chainlink_component, :work_on_issue, String.to_integer(issue_id)})
-    {:noreply, socket}
+    case InputValidator.validate_chainlink_issue_id(issue_id) do
+      {:ok, validated_issue_id} ->
+        send(self(), {:chainlink_component, :work_on_issue, validated_issue_id})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid issue ID: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   # Helper functions

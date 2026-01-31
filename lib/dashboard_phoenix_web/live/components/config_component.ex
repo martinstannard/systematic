@@ -7,6 +7,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.InputValidator
+
   @impl true
   def update(assigns, socket) do
     {:ok, assign(socket, assigns)}
@@ -20,20 +22,41 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
 
   @impl true
   def handle_event("set_coding_agent", %{"agent" => agent}, socket) do
-    send(self(), {:config_component, :set_coding_agent, agent})
-    {:noreply, socket}
+    case InputValidator.validate_agent_name(agent) do
+      {:ok, validated_agent} ->
+        send(self(), {:config_component, :set_coding_agent, validated_agent})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid agent name: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_event("select_claude_model", %{"model" => model}, socket) do
-    send(self(), {:config_component, :select_claude_model, model})
-    {:noreply, socket}
+    case InputValidator.validate_model_name(model) do
+      {:ok, validated_model} ->
+        send(self(), {:config_component, :select_claude_model, validated_model})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid Claude model: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_event("select_opencode_model", %{"model" => model}, socket) do
-    send(self(), {:config_component, :select_opencode_model, model})
-    {:noreply, socket}
+    case InputValidator.validate_model_name(model) do
+      {:ok, validated_model} ->
+        send(self(), {:config_component, :select_opencode_model, validated_model})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid OpenCode model: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   @impl true

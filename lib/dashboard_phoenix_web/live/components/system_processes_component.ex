@@ -19,6 +19,8 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.InputValidator
+
   def update(assigns, socket) do
     # Pre-calculate limited recent processes to avoid template computation
     limited_recent_processes = Enum.take(assigns.recent_processes, 4)
@@ -54,8 +56,15 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
   end
 
   def handle_event("kill_process", %{"pid" => pid}, socket) do
-    send(self(), {:system_processes_component, :kill_process, pid})
-    {:noreply, socket}
+    case DashboardPhoenix.InputValidator.validate_pid(pid) do
+      {:ok, validated_pid} ->
+        send(self(), {:system_processes_component, :kill_process, validated_pid})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid PID: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   def render(assigns) do

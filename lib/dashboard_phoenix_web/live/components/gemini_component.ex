@@ -7,6 +7,8 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.InputValidator
+
   @impl true
   def update(assigns, socket) do
     {:ok, assign(socket, assigns)}
@@ -32,8 +34,15 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
 
   @impl true
   def handle_event("send_prompt", %{"prompt" => prompt}, socket) when prompt != "" do
-    send(self(), {:gemini_component, :send_prompt, prompt})
-    {:noreply, socket}
+    case InputValidator.validate_prompt(prompt) do
+      {:ok, validated_prompt} ->
+        send(self(), {:gemini_component, :send_prompt, validated_prompt})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid prompt: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   @impl true

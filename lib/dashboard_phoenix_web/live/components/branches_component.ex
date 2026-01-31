@@ -7,6 +7,8 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.InputValidator
+
   @impl true
   def update(assigns, socket) do
     {:ok, assign(socket, assigns)}
@@ -26,8 +28,15 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
 
   @impl true
   def handle_event("confirm_merge_branch", %{"name" => branch_name}, socket) do
-    send(self(), {:branches_component, :confirm_merge, branch_name})
-    {:noreply, socket}
+    case InputValidator.validate_branch_name(branch_name) do
+      {:ok, validated_branch_name} ->
+        send(self(), {:branches_component, :confirm_merge, validated_branch_name})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid branch name: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   @impl true
@@ -38,14 +47,28 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
 
   @impl true
   def handle_event("execute_merge_branch", %{"name" => branch_name}, socket) do
-    send(self(), {:branches_component, :execute_merge, branch_name})
-    {:noreply, socket}
+    case InputValidator.validate_branch_name(branch_name) do
+      {:ok, validated_branch_name} ->
+        send(self(), {:branches_component, :execute_merge, validated_branch_name})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid branch name: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_event("confirm_delete_branch", %{"name" => branch_name}, socket) do
-    send(self(), {:branches_component, :confirm_delete, branch_name})
-    {:noreply, socket}
+    case InputValidator.validate_branch_name(branch_name) do
+      {:ok, validated_branch_name} ->
+        send(self(), {:branches_component, :confirm_delete, validated_branch_name})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid branch name: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   @impl true
@@ -56,8 +79,15 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
 
   @impl true
   def handle_event("execute_delete_branch", %{"name" => branch_name}, socket) do
-    send(self(), {:branches_component, :execute_delete, branch_name})
-    {:noreply, socket}
+    case InputValidator.validate_branch_name(branch_name) do
+      {:ok, validated_branch_name} ->
+        send(self(), {:branches_component, :execute_delete, validated_branch_name})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid branch name: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   # Helper functions

@@ -6,6 +6,8 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.InputValidator
+
   @impl true
   def update(assigns, socket) do
     # Pre-calculate filtered tickets to avoid template computation
@@ -19,8 +21,15 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   @impl true
   def handle_event("set_linear_filter", %{"status" => status}, socket) do
-    send(self(), {:linear_component, :set_filter, status})
-    {:noreply, socket}
+    case InputValidator.validate_filter_string(status) do
+      {:ok, validated_status} ->
+        send(self(), {:linear_component, :set_filter, validated_status})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid status filter: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   @impl true
@@ -37,8 +46,23 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   @impl true
   def handle_event("work_on_ticket", %{"id" => ticket_id}, socket) do
-    send(self(), {:linear_component, :work_on_ticket, ticket_id})
-    {:noreply, socket}
+    case InputValidator.validate_linear_ticket_id(ticket_id) do
+      {:ok, validated_ticket_id} ->
+        send(self(), {:linear_component, :work_on_ticket, validated_ticket_id})
+        {:noreply, socket}
+      
+      {:error, _reason} ->
+        # Fall back to general ID validation for tickets that don't follow Linear format
+        case InputValidator.validate_general_id(ticket_id) do
+          {:ok, validated_ticket_id} ->
+            send(self(), {:linear_component, :work_on_ticket, validated_ticket_id})
+            {:noreply, socket}
+          
+          {:error, reason} ->
+            socket = put_flash(socket, :error, "Invalid ticket ID: #{reason}")
+            {:noreply, socket}
+        end
+    end
   end
 
   # Helper functions

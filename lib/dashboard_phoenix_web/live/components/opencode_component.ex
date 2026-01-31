@@ -8,6 +8,8 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.InputValidator
+
   @impl true
   def update(assigns, socket) do
     {:ok, assign(socket, assigns)}
@@ -39,14 +41,28 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
 
   @impl true
   def handle_event("close_opencode_session", %{"id" => session_id}, socket) do
-    send(self(), {:opencode_component, :close_session, session_id})
-    {:noreply, socket}
+    case InputValidator.validate_session_id(session_id) do
+      {:ok, validated_session_id} ->
+        send(self(), {:opencode_component, :close_session, validated_session_id})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid session ID: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_event("request_opencode_pr", %{"id" => session_id}, socket) do
-    send(self(), {:opencode_component, :request_pr, session_id})
-    {:noreply, socket}
+    case InputValidator.validate_session_id(session_id) do
+      {:ok, validated_session_id} ->
+        send(self(), {:opencode_component, :request_pr, validated_session_id})
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid session ID: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   # Helper functions

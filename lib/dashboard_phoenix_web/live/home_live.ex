@@ -18,6 +18,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
+  alias DashboardPhoenix.InputValidator
   alias DashboardPhoenix.ResourceTracker
   alias DashboardPhoenix.AgentActivityMonitor
   alias DashboardPhoenix.CodingAgentMonitor
@@ -1118,15 +1119,28 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   def handle_event("toggle_panel", %{"panel" => panel}, socket) do
-    # Skip panels now handled by SystemProcessesComponent
-    case panel do
-      "coding_agents" -> {:noreply, socket}
-      "system_processes" -> {:noreply, socket}
-      "process_relationships" -> {:noreply, socket}
-      _ ->
-        key = String.to_existing_atom(panel <> "_collapsed")
-        socket = assign(socket, key, !Map.get(socket.assigns, key))
-        {:noreply, push_panel_state(socket)}
+    case InputValidator.validate_panel_name(panel) do
+      {:ok, validated_panel} ->
+        # Skip panels now handled by SystemProcessesComponent
+        case validated_panel do
+          "coding_agents" -> {:noreply, socket}
+          "system_processes" -> {:noreply, socket}
+          "process_relationships" -> {:noreply, socket}
+          _ ->
+            try do
+              key = String.to_existing_atom(validated_panel <> "_collapsed")
+              socket = assign(socket, key, !Map.get(socket.assigns, key))
+              {:noreply, push_panel_state(socket)}
+            rescue
+              ArgumentError ->
+                socket = put_flash(socket, :error, "Unknown panel: #{validated_panel}")
+                {:noreply, socket}
+            end
+        end
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid panel name: #{reason}")
+        {:noreply, socket}
     end
   end
 
@@ -1144,20 +1158,27 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # NOTE: work_on_ticket now handled via LinearComponent -> handle_info({:linear_component, :work_on_ticket, ticket_id}, ...)
   # But we keep handle_event for backward compatibility with tests and direct phx-click usage
   def handle_event("work_on_ticket", %{"id" => ticket_id}, socket) do
-    # Show modal immediately with loading state
-    socket = assign(socket,
-      show_work_modal: true,
-      work_ticket_id: ticket_id,
-      work_ticket_details: nil,
-      work_ticket_loading: true,
-      work_sent: false,
-      work_error: nil
-    )
-    
-    # Fetch ticket details async
-    send(self(), {:fetch_ticket_details, ticket_id})
-    
-    {:noreply, socket}
+    case InputValidator.validate_general_id(ticket_id) do
+      {:ok, validated_ticket_id} ->
+        # Show modal immediately with loading state
+        socket = assign(socket,
+          show_work_modal: true,
+          work_ticket_id: validated_ticket_id,
+          work_ticket_details: nil,
+          work_ticket_loading: true,
+          work_sent: false,
+          work_error: nil
+        )
+        
+        # Fetch ticket details async
+        send(self(), {:fetch_ticket_details, validated_ticket_id})
+        
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid ticket ID: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   def handle_event("close_work_modal", _, socket) do
@@ -1339,13 +1360,27 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Config model selection - kept for backward compatibility with tests
   def handle_event("select_claude_model", %{"model" => model}, socket) do
-    socket = assign(socket, claude_model: model)
-    {:noreply, push_model_selections(socket)}
+    case InputValidator.validate_model_name(model) do
+      {:ok, validated_model} ->
+        socket = assign(socket, claude_model: validated_model)
+        {:noreply, push_model_selections(socket)}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid Claude model: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   def handle_event("select_opencode_model", %{"model" => model}, socket) do
-    socket = assign(socket, opencode_model: model)
-    {:noreply, push_model_selections(socket)}
+    case InputValidator.validate_model_name(model) do
+      {:ok, validated_model} ->
+        socket = assign(socket, opencode_model: validated_model)
+        {:noreply, push_model_selections(socket)}
+      
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Invalid OpenCode model: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   # Execute work for the ticket (duplicate check already done by component)
