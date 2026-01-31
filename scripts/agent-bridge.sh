@@ -24,7 +24,8 @@ log_progress() {
 update_session() {
     local status="$1"
     local current_action="$2"
-    echo "{\"sessions\":[{\"id\":\"$LABEL\",\"label\":\"$LABEL\",\"status\":\"$status\",\"task\":\"${TASK:0:100}\",\"agent_type\":\"$AGENT\",\"current_action\":\"$current_action\"}]}" > "$SESSIONS_FILE"
+    local tmp_file="$SESSIONS_FILE.tmp.$$"
+    echo "{\"sessions\":[{\"id\":\"$LABEL\",\"label\":\"$LABEL\",\"status\":\"$status\",\"task\":\"${TASK:0:100}\",\"agent_type\":\"$AGENT\",\"current_action\":\"$current_action\"}]}" > "$tmp_file" && mv "$tmp_file" "$SESSIONS_FILE"
 }
 
 # Register session

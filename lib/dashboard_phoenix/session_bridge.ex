@@ -6,6 +6,7 @@ defmodule DashboardPhoenix.SessionBridge do
   use GenServer
 
   alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.FileUtils
   
   @default_progress_file "/tmp/agent-progress.jsonl"
   @poll_interval 500  # 500ms for snappy updates
@@ -44,7 +45,7 @@ defmodule DashboardPhoenix.SessionBridge do
   @impl true
   def init(_) do
     # Ensure progress file exists (don't overwrite sessions - it's managed by OpenClaw)
-    File.write(progress_file(), "", [:append])
+    FileUtils.ensure_exists(progress_file())
     
     schedule_poll()
     {:ok, %{

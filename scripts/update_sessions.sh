@@ -52,4 +52,4 @@ BEGIN {
 END { 
     print ""
     print "]}"
-}' > "$OUTPUT_FILE"
+}' > "$OUTPUT_FILE.tmp.$$" && mv "$OUTPUT_FILE.tmp.$$" "$OUTPUT_FILE"
