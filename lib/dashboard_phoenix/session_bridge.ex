@@ -4,10 +4,10 @@ defmodule DashboardPhoenix.SessionBridge do
   Tails JSONL progress files written by sub-agents.
   """
   use GenServer
+
+  alias DashboardPhoenix.Paths
   
   @default_progress_file "/tmp/agent-progress.jsonl"
-  @default_sessions_file Path.expand("~/.openclaw/agents/main/sessions/sessions.json")
-  @transcripts_dir Path.expand("~/.openclaw/agents/main/sessions")
   @poll_interval 500  # 500ms for snappy updates
   @max_progress_events 100
 
@@ -16,7 +16,11 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   defp sessions_file do
-    Application.get_env(:dashboard_phoenix, :sessions_file, @default_sessions_file)
+    Application.get_env(:dashboard_phoenix, :sessions_file) || Paths.sessions_file()
+  end
+
+  defp transcripts_dir do
+    Paths.openclaw_sessions_dir()
   end
 
   def start_link(_opts) do
@@ -144,7 +148,8 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   defp do_poll_transcripts(state) do
-    case File.ls(@transcripts_dir) do
+    dir = transcripts_dir()
+    case File.ls(dir) do
       {:ok, files} ->
         cutoff = System.system_time(:second) - 600  # Last 10 minutes
         
@@ -152,7 +157,7 @@ defmodule DashboardPhoenix.SessionBridge do
         |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
         |> Enum.reject(&(&1 == "sessions.json"))
         |> Enum.map(fn file ->
-          path = Path.join(@transcripts_dir, file)
+          path = Path.join(dir, file)
           case File.stat(path) do
             {:ok, %{mtime: mtime, size: size}} ->
               epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
@@ -455,7 +460,7 @@ defmodule DashboardPhoenix.SessionBridge do
 
   # Extract details from transcript file for all sessions (running and completed)
   defp extract_transcript_details(session_id, status) do
-    transcript_path = Path.join(@transcripts_dir, "#{session_id}.jsonl")
+    transcript_path = Path.join(transcripts_dir(), "#{session_id}.jsonl")
     
     case File.read(transcript_path) do
       {:ok, content} ->

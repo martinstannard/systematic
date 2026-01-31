@@ -14,6 +14,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   @behaviour DashboardPhoenix.Behaviours.OpenCodeClientBehaviour
 
   alias DashboardPhoenix.OpenCodeServer
+  alias DashboardPhoenix.Paths
 
   @default_timeout 120_000
 
@@ -32,7 +33,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   - :timeout - request timeout in ms
   """
   def send_task(prompt, opts \\ []) do
-    cwd = Keyword.get(opts, :cwd, "/home/martins/work/core-platform")
+    cwd = Keyword.get(opts, :cwd) || Paths.default_work_dir()
     model = Keyword.get(opts, :model, nil)
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     

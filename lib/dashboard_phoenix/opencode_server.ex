@@ -14,12 +14,14 @@ defmodule DashboardPhoenix.OpenCodeServer do
   use GenServer
   require Logger
 
+  alias DashboardPhoenix.Paths
+
   @default_port 9100
-  @opencode_bin "/usr/bin/opencode"
-  @default_cwd "/home/martins/work/core-platform"
-  
   @pubsub DashboardPhoenix.PubSub
   @topic "opencode_server"
+
+  defp opencode_bin, do: Paths.opencode_bin()
+  defp default_cwd, do: Paths.default_work_dir()
 
   # Client API
 
@@ -30,8 +32,8 @@ defmodule DashboardPhoenix.OpenCodeServer do
   @doc """
   Start the OpenCode ACP server if not already running.
   """
-  def start_server(cwd \\ @default_cwd) do
-    GenServer.call(__MODULE__, {:start_server, cwd}, 30_000)
+  def start_server(cwd \\ nil) do
+    GenServer.call(__MODULE__, {:start_server, cwd || default_cwd()}, 30_000)
   end
 
   @doc """
@@ -115,7 +117,7 @@ defmodule DashboardPhoenix.OpenCodeServer do
     ]
     
     try do
-      port_ref = Port.open({:spawn_executable, @opencode_bin}, port_opts)
+      port_ref = Port.open({:spawn_executable, opencode_bin()}, port_opts)
       {:os_pid, os_pid} = Port.info(port_ref, :os_pid)
       
       Logger.info("[OpenCodeServer] Started with OS PID: #{os_pid}")

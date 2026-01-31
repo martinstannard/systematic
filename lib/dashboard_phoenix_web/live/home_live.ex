@@ -18,6 +18,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.OpenCodeServer
   alias DashboardPhoenix.OpenCodeClient
   alias DashboardPhoenix.GeminiServer
+  alias DashboardPhoenix.Paths
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -1885,10 +1886,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp format_branch_time(_), do: ""
 
   # PR state persistence - stores which tickets have PRs created
-  @pr_state_file Path.expand("~/.openclaw/systematic-pr-state.json")
+  defp pr_state_file, do: Paths.pr_state_file()
 
   defp load_pr_state do
-    case File.read(@pr_state_file) do
+    file = pr_state_file()
+    case File.read(file) do
       {:ok, content} ->
         case Jason.decode(content) do
           {:ok, %{"pr_created" => tickets}} when is_list(tickets) ->
@@ -1902,9 +1904,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   defp save_pr_state(pr_created) do
+    file = pr_state_file()
     content = Jason.encode!(%{"pr_created" => MapSet.to_list(pr_created)})
-    File.mkdir_p!(Path.dirname(@pr_state_file))
-    File.write!(@pr_state_file, content)
+    File.mkdir_p!(Path.dirname(file))
+    File.write!(file, content)
   end
 
   # Linear filter button styling moved to LinearComponent

@@ -14,6 +14,17 @@ if auth_token = System.get_env("DASHBOARD_AUTH_TOKEN") do
   config :dashboard_phoenix, :auth_token, auth_token
 end
 
+# Path configuration (all optional - defaults use System.user_home!)
+# See DashboardPhoenix.Paths for full documentation
+#
+# OPENCLAW_HOME - Base directory for OpenClaw data (default: ~/.openclaw)
+# OPENCLAW_SESSIONS_DIR - Sessions directory (default: $OPENCLAW_HOME/agents/main/sessions)
+# GEMINI_BIN - Path to Gemini CLI binary
+# LINEAR_CLI - Path to Linear CLI binary
+# OPENCODE_BIN - Path to OpenCode binary
+# DEFAULT_WORK_DIR - Default working directory for coding tasks
+# CLAWD_DIR - Clawd workspace directory (default: ~/clawd)
+
 # ## Using releases
 #
 # If you use `mix release`, you need to explicitly enable the server

@@ -14,11 +14,13 @@ defmodule DashboardPhoenix.GeminiServer do
   use GenServer
   require Logger
 
-  @gemini_bin "/home/martins/.npm-global/bin/gemini"
-  @default_cwd "/home/martins/work/core-platform"
-  
+  alias DashboardPhoenix.Paths
+
   @pubsub DashboardPhoenix.PubSub
   @topic "gemini_server"
+
+  defp gemini_bin, do: Paths.gemini_bin()
+  defp default_cwd, do: Paths.default_work_dir()
 
   # Client API
 
@@ -29,8 +31,8 @@ defmodule DashboardPhoenix.GeminiServer do
   @doc """
   Enable the Gemini server (verify binary exists, set running: true).
   """
-  def start_server(cwd \\ @default_cwd) do
-    GenServer.call(__MODULE__, {:start_server, cwd}, 10_000)
+  def start_server(cwd \\ nil) do
+    GenServer.call(__MODULE__, {:start_server, cwd || default_cwd()}, 10_000)
   end
 
   @doc """
@@ -74,7 +76,7 @@ defmodule DashboardPhoenix.GeminiServer do
 
   @impl true
   def init(opts) do
-    cwd = Keyword.get(opts, :cwd, @default_cwd)
+    cwd = Keyword.get(opts, :cwd) || default_cwd()
     
     state = %{
       running: false,
@@ -122,7 +124,7 @@ defmodule DashboardPhoenix.GeminiServer do
       end
     else
       Logger.error("[GeminiServer] Gemini CLI not found")
-      {:reply, {:error, "Gemini CLI not found at #{@gemini_bin}"}, state}
+      {:reply, {:error, "Gemini CLI not found at #{gemini_bin()}"}, state}
     end
   end
 
@@ -210,8 +212,9 @@ defmodule DashboardPhoenix.GeminiServer do
   # Private functions
 
   defp find_gemini_binary do
+    path = gemini_bin()
     cond do
-      File.exists?(@gemini_bin) -> @gemini_bin
+      File.exists?(path) -> path
       File.exists?("/usr/local/bin/gemini") -> "/usr/local/bin/gemini"
       true ->
         # Try to find it in PATH

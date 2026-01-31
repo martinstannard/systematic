@@ -7,11 +7,14 @@ defmodule DashboardPhoenix.LinearMonitor do
   use GenServer
   require Logger
 
+  alias DashboardPhoenix.Paths
+
   @poll_interval_ms 30_000  # 30 seconds
   @topic "linear_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for URLs
-  @linear_cli "/home/martins/.npm-global/bin/linear"
   @states ["Triage", "Backlog", "Todo", "In Review"]
+
+  defp linear_cli, do: Paths.linear_cli()
 
   # Client API
 
@@ -36,7 +39,7 @@ defmodule DashboardPhoenix.LinearMonitor do
 
   @doc "Get full details for a specific ticket"
   def get_ticket_details(ticket_id) do
-    case System.cmd(@linear_cli, ["issue", "show", ticket_id], stderr_to_stdout: true) do
+    case System.cmd(linear_cli(), ["issue", "show", ticket_id], stderr_to_stdout: true) do
       {output, 0} ->
         {:ok, output}
       
@@ -125,7 +128,7 @@ defmodule DashboardPhoenix.LinearMonitor do
   end
 
   defp fetch_tickets_for_state(status) do
-    case System.cmd(@linear_cli, ["issues", "--state", status], stderr_to_stdout: true) do
+    case System.cmd(linear_cli(), ["issues", "--state", status], stderr_to_stdout: true) do
       {output, 0} ->
         {:ok, parse_issues_output(output, status)}
       

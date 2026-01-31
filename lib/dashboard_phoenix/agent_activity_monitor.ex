@@ -5,9 +5,12 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   """
   use GenServer
 
+  alias DashboardPhoenix.Paths
+
   @poll_interval 1_000  # 1 second for responsive updates
-  @openclaw_sessions_dir Path.expand("~/.openclaw/agents/main/sessions")
   @max_recent_actions 10
+
+  defp openclaw_sessions_dir, do: Paths.openclaw_sessions_dir()
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -74,7 +77,8 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   end
 
   defp parse_openclaw_sessions(state) do
-    case File.ls(@openclaw_sessions_dir) do
+    sessions_dir = openclaw_sessions_dir()
+    case File.ls(sessions_dir) do
       {:ok, files} ->
         # Get the most recent sessions (modified in last 30 minutes)
         cutoff = System.system_time(:second) - 30 * 60
@@ -82,7 +86,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
         files
         |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
         |> Enum.map(fn file ->
-          path = Path.join(@openclaw_sessions_dir, file)
+          path = Path.join(sessions_dir, file)
           case File.stat(path) do
             {:ok, %{mtime: mtime}} ->
               epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()

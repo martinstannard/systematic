@@ -3,6 +3,8 @@ defmodule DashboardPhoenix.ProcessMonitor do
   Fetches real process data from the system.
   """
 
+  alias DashboardPhoenix.Paths
+
   @interesting_patterns ~w(opencode openclaw-tui openclaw-gateway)
 
   def list_processes do
@@ -91,8 +93,8 @@ defmodule DashboardPhoenix.ProcessMonitor do
 
   defp extract_directory(command) do
     cond do
-      String.contains?(command, "dashboard_phoenix") -> "/home/martins/clawd/dashboard_phoenix"
-      String.contains?(command, "/home/martins/clawd") -> "/home/martins/clawd"
+      String.contains?(command, "dashboard_phoenix") -> Paths.dashboard_phoenix_dir()
+      String.contains?(command, "clawd") -> Paths.clawd_dir()
       String.contains?(command, "opencode") -> "~"
       true -> "/"
     end

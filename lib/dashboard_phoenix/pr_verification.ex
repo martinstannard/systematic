@@ -8,7 +8,8 @@ defmodule DashboardPhoenix.PRVerification do
   
   ## Storage Format
   
-  The verification data is stored in a JSON file at `~/.openclaw/pr-verified.json`:
+  The verification data is stored in a JSON file (configurable via `Paths.pr_verification_file/0`,
+  default: `~/.openclaw/pr-verified.json`):
   
       {
         "verified": {
@@ -33,8 +34,11 @@ defmodule DashboardPhoenix.PRVerification do
 
   require Logger
 
-  @verification_file Path.expand("~/.openclaw/pr-verified.json")
+  alias DashboardPhoenix.Paths
+
   @topic "pr_verification"
+
+  defp verification_file, do: Paths.pr_verification_file()
 
   # Client API
 
@@ -161,13 +165,14 @@ defmodule DashboardPhoenix.PRVerification do
   Get the path to the verification file.
   """
   def verification_file_path do
-    @verification_file
+    verification_file()
   end
 
   # Private functions
 
   defp load_verifications do
-    case File.read(@verification_file) do
+    file = verification_file()
+    case File.read(file) do
       {:ok, content} ->
         case Jason.decode(content) do
           {:ok, %{"verified" => verifications}} when is_map(verifications) ->
@@ -188,11 +193,12 @@ defmodule DashboardPhoenix.PRVerification do
 
   defp save_verifications(verifications) do
     content = Jason.encode!(%{"verified" => verifications}, pretty: true)
+    file = verification_file()
     
     # Ensure directory exists
-    File.mkdir_p!(Path.dirname(@verification_file))
+    File.mkdir_p!(Path.dirname(file))
     
-    case File.write(@verification_file, content) do
+    case File.write(file, content) do
       :ok ->
         :ok
       {:error, reason} ->
