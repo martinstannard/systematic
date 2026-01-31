@@ -118,7 +118,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       work_sent: false,
       work_error: nil,
       # Model selections
-      claude_model: "anthropic/claude-sonnet-4-20250514",  # Default to sonnet
+      claude_model: "anthropic/claude-opus-4-5",  # Default to opus
       opencode_model: "gemini-3-pro",  # Default to gemini 3 pro
       # Panel collapse states
       config_collapsed: false,
