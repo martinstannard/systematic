@@ -1327,6 +1327,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 <!-- Status Filter -->
                 <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
                   <%= for status <- ["Triage", "Backlog", "Todo", "In Review"] do %>
+                    <% count = Enum.count(@linear_tickets, & &1.status == status) %>
                     <button
                       phx-click="set_linear_filter"
                       phx-value-status={status}
@@ -1336,7 +1337,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                           else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
                         )}
                     >
-                      <%= status %>
+                      <%= status %> (<%= count %>)
                     </button>
                   <% end %>
                 </div>
