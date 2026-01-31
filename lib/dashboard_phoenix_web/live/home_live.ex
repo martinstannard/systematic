@@ -76,6 +76,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       opencode_sessions: opencode_sessions,
       # Work in progress
       work_in_progress: false,
+      work_sent: false,
       work_error: nil,
       # Panel collapse states
       linear_collapsed: false,
