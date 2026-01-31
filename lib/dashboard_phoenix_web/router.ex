@@ -14,8 +14,22 @@ defmodule DashboardPhoenixWeb.Router do
     plug(:accepts, ["json"])
   end
 
+  pipeline :authenticated do
+    plug(DashboardPhoenixWeb.Plugs.Auth)
+  end
+
+  # Public routes (no auth required)
   scope "/", DashboardPhoenixWeb do
     pipe_through(:browser)
+
+    get("/login", AuthController, :login)
+    post("/login", AuthController, :authenticate)
+    get("/logout", AuthController, :logout)
+  end
+
+  # Protected routes (auth required when DASHBOARD_AUTH_TOKEN is set)
+  scope "/", DashboardPhoenixWeb do
+    pipe_through([:browser, :authenticated])
 
     live("/", HomeLive)
   end
