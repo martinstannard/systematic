@@ -11,6 +11,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.ConfigComponent
   alias DashboardPhoenixWeb.Live.Components.DaveComponent
   alias DashboardPhoenixWeb.Live.Components.LiveProgressComponent
+  alias DashboardPhoenixWeb.Live.Components.SystemProcessesComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -928,6 +929,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
       MapSet.put(expanded, ts)
     end
     {:noreply, assign(socket, expanded_outputs: new_expanded)}
+  end
+
+  # Handle SystemProcessesComponent messages
+  def handle_info({:system_processes_component, :toggle_panel}, socket) do
+    socket = assign(socket, system_processes_collapsed: !socket.assigns.system_processes_collapsed)
+    {:noreply, push_panel_state(socket)}
   end
 
   # Handle OpenCode server status updates
