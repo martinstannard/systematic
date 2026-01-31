@@ -308,3 +308,19 @@
     transform: rotate(360deg);
   }
 }
+
+/* Subtle pulse animation for PR work indicator */
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    border-color: rgba(232, 121, 249, 0.5); /* accent color */
+  }
+  50% {
+    opacity: 0.9;
+    border-color: rgba(232, 121, 249, 0.3);
+  }
+}

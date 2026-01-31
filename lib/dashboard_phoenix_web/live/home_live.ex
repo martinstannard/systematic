@@ -54,6 +54,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Build map of ticket_id -> work session info
     tickets_in_progress = build_tickets_in_progress(opencode_sessions, sessions)
     
+    # Build map of pr_number -> work session info for PRs being worked on
+    prs_in_progress = build_prs_in_progress(opencode_sessions, sessions)
+    
     graph_data = build_graph_data(sessions, coding_agents, processes, opencode_sessions, gemini_status)
     
     # Calculate main session activity count for warning
@@ -88,6 +91,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_status_filter: "Todo",
       tickets_in_progress: tickets_in_progress,
       pr_created_tickets: pr_created_tickets,
+      prs_in_progress: prs_in_progress,
       # GitHub PRs - loaded async to avoid blocking mount
       github_prs: [],
       github_prs_last_updated: nil,
@@ -157,7 +161,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:sessions, sessions}, socket) do
     activity = build_agent_activity(sessions, socket.assigns.agent_progress)
     tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
-    {:noreply, assign(socket, agent_sessions: sessions, agent_activity: activity, tickets_in_progress: tickets_in_progress)}
+    prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
+    {:noreply, assign(socket, agent_sessions: sessions, agent_activity: activity, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
   end
 
   # Handle stats updates
@@ -384,7 +389,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:opencode_status, status}, socket) do
     sessions = fetch_opencode_sessions(status)
     tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-    {:noreply, assign(socket, opencode_server_status: status, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)}
+    prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+    {:noreply, assign(socket, opencode_server_status: status, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
   end
 
   # Handle Gemini server status updates
@@ -409,7 +415,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     if socket.assigns.opencode_server_status.running do
       sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
       tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-      {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)}
+      prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+      {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
     else
       {:noreply, socket}
     end
@@ -675,7 +682,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_event("refresh_opencode_sessions", _, socket) do
     sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
     tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-    {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)}
+    prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+    {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
   end
 
   # Gemini server controls
@@ -720,8 +728,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       :ok ->
         sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
         tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+        prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
         socket = socket
-        |> assign(opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)
+        |> assign(opencode_sessions: sessions, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)
         |> put_flash(:info, "Session closed")
         {:noreply, socket}
       {:error, reason} ->
@@ -1195,6 +1204,87 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end)
     
     # Combine - OpenCode takes precedence if both are working on same ticket
+    Map.new(subagent_work ++ opencode_work)
+  end
+
+  # Build map of pr_number -> work session info from OpenCode and sub-agent sessions
+  # Parses PR numbers (like #123, PR-123, pr-244, fix-pr-244) from session titles and labels
+  defp build_prs_in_progress(opencode_sessions, agent_sessions) do
+    # Multiple patterns to match PR references:
+    # - #123 (GitHub-style)
+    # - PR-123, pr-123, PR#123 (explicit PR prefix)
+    # - fix-pr-244, review-pr-123 (prefixed patterns)
+    pr_regex = ~r/(?:#(\d+)|(?:PR[-#]?)(\d+)|(?:fix|review|update|work-on)[-_]?pr[-_]?(\d+))/i
+    
+    # Build from OpenCode sessions (look at title)
+    opencode_work = opencode_sessions
+    |> Enum.filter(fn session -> 
+      # Only include active/running sessions
+      session.status in ["active", "idle"]
+    end)
+    |> Enum.flat_map(fn session ->
+      title = session.title || ""
+      case Regex.scan(pr_regex, title) do
+        [] -> []
+        matches -> 
+          Enum.map(matches, fn match_groups ->
+            # Get the first non-nil, non-empty capture group (since we have alternatives)
+            pr_number = match_groups
+            |> Enum.drop(1)  # Skip the full match
+            |> Enum.find(fn g -> g != nil and g != "" end)  # Find first valid capture
+            
+            if pr_number do
+              {String.to_integer(pr_number), %{
+                type: :opencode,
+                slug: session.slug,
+                session_id: session.id,
+                status: session.status,
+                title: session.title
+              }}
+            else
+              nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+      end
+    end)
+    
+    # Build from sub-agent sessions (look at label and task_summary)
+    subagent_work = agent_sessions
+    |> Enum.filter(fn session -> 
+      # Only include running/idle sessions (not completed)
+      session.status in ["running", "idle"]
+    end)
+    |> Enum.flat_map(fn session ->
+      label = Map.get(session, :label) || ""
+      task = Map.get(session, :task_summary) || ""
+      text_to_search = "#{label} #{task}"
+      
+      case Regex.scan(pr_regex, text_to_search) do
+        [] -> []
+        matches -> 
+          Enum.map(matches, fn match_groups ->
+            pr_number = match_groups
+            |> Enum.drop(1)
+            |> Enum.find(fn g -> g != nil and g != "" end)  # Find first valid capture
+            
+            if pr_number do
+              {String.to_integer(pr_number), %{
+                type: :subagent,
+                label: label,
+                session_id: session.id,
+                status: session.status,
+                task_summary: Map.get(session, :task_summary)
+              }}
+            else
+              nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+      end
+    end)
+    
+    # Combine - OpenCode takes precedence if both are working on same PR
     Map.new(subagent_work ++ opencode_work)
   end
 
@@ -1782,11 +1872,18 @@ defmodule DashboardPhoenixWeb.HomeLive do
                       <div class="text-xs text-base-content/50 py-4 text-center font-mono">No open PRs</div>
                     <% end %>
                     <%= for pr <- @github_prs do %>
-                      <div class="px-2 py-2 rounded hover:bg-white/5 text-xs font-mono border border-white/5">
+                      <% pr_work_info = Map.get(@prs_in_progress, pr.number) %>
+                      <div class={"px-2 py-2 rounded text-xs font-mono " <> 
+                        if(pr_work_info, 
+                          do: "bg-accent/10 border-2 border-accent/50 animate-pulse-subtle",
+                          else: "hover:bg-white/5 border border-white/5")}>
                         <!-- PR Title and Number -->
                         <div class="flex items-start justify-between mb-1">
                           <div class="flex-1 min-w-0">
                             <a href={pr.url} target="_blank" class="text-white hover:text-accent flex items-center space-x-1">
+                              <%= if pr_work_info do %>
+                                <span class="w-2 h-2 bg-success rounded-full animate-pulse flex-shrink-0" title={"Agent working: #{pr_work_info[:label] || pr_work_info[:slug]}"}></span>
+                              <% end %>
                               <span class="text-accent font-bold">#<%= pr.number %></span>
                               <span class="truncate"><%= pr.title %></span>
                             </a>
@@ -1859,6 +1956,14 @@ defmodule DashboardPhoenixWeb.HomeLive do
                             >
                               <%= ticket_id %>
                             </a>
+                          <% end %>
+                          
+                          <!-- Agent Working Indicator -->
+                          <%= if pr_work_info do %>
+                            <span class="px-1.5 py-0.5 rounded bg-success/20 text-success text-[10px] animate-pulse" 
+                                  title={"#{if pr_work_info.type == :opencode, do: "OpenCode", else: "Sub-agent"} working on this PR"}>
+                              🤖 <%= pr_work_info[:label] || pr_work_info[:slug] || "Working..." %>
+                            </span>
                           <% end %>
                         </div>
                       </div>
