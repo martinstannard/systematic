@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- Remove hardcoded paths throughout codebase (#19)
 - Fix race conditions in file operations (#22)
 - Add timeouts to all external CLI calls (#23)
 - Add authentication to dashboard (#20)

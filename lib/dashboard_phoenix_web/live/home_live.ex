@@ -1345,6 +1345,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Request super review for a ticket that has a PR
   def handle_event("request_super_review", %{"id" => ticket_id}, socket) do
+    # Reject obviously test/placeholder ticket IDs
+    if Regex.match?(~r/^(TEST|REVIEW|VERIFY|DUMMY|FAKE|EXAMPLE)/i, ticket_id) do
+      {:noreply, put_flash(socket, :error, "Invalid ticket ID: #{ticket_id} looks like a test placeholder")}
+    else
+      handle_super_review_request(ticket_id, socket)
+    end
+  end
+
+  defp handle_super_review_request(ticket_id, socket) do
     review_prompt = """
     🔍 **Super Review Request for #{ticket_id}**
     
