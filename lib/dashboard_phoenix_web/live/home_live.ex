@@ -1766,7 +1766,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <div class={"py-1 border-b border-white/5 last:border-0 " <> if(is_main, do: "opacity-50", else: "")}>
                 <div class="flex items-start space-x-2">
                   <span class="text-base-content/40 w-14 flex-shrink-0"><%= format_time(event.ts) %></span>
-                  <span class={"w-28 flex-shrink-0 truncate " <> agent_color(event.agent)} title={event.agent}>
+                  <span class={"w-32 flex-shrink-0 truncate " <> agent_color(event.agent)} title={event.agent}>
                     <%= if is_main, do: "⚠️ ", else: "" %><%= event.agent %>
                   </span>
                   <span class={"w-14 flex-shrink-0 font-bold " <> action_color(event.action)}><%= event.action %></span>
