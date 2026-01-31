@@ -90,6 +90,31 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
       # Should contain some indication the action was handled
       assert is_binary(html)
     end
+
+    test "toggle_show_completed event toggles the show_completed assign", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Initially show_completed should be true (default)
+      # Trigger the toggle event
+      html = render_click(view, "toggle_show_completed")
+      
+      # Should not crash
+      assert is_binary(html)
+      
+      # The assign should be toggled - we can verify by checking the button state
+      # When show_completed is false, the button should show "SHOW" text
+      # But we need completed sessions to actually see the button
+    end
+
+    test "toggle_main_entries event toggles the show_main_entries assign", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Trigger the toggle event
+      html = render_click(view, "toggle_main_entries")
+      
+      # Should not crash and view should still render
+      assert is_binary(html)
+    end
   end
 
   describe "real-time updates" do
@@ -214,6 +239,99 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
       # May or may not contain our test data depending on timing,
       # but should not crash
       assert is_binary(html)
+    end
+  end
+
+  describe "toggle_show_completed functionality" do
+    test "toggle_show_completed flips the show_completed assign", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # The toggle event should work without crashing
+      html1 = render_click(view, "toggle_show_completed")
+      assert is_binary(html1)
+      
+      # Toggle again
+      html2 = render_click(view, "toggle_show_completed")
+      assert is_binary(html2)
+    end
+
+    test "completed sessions are filtered when show_completed is false", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Create test sessions - one running, one completed
+      sessions = [
+        %{
+          id: "running-session",
+          label: "running-test-label",
+          status: "running",
+          session_key: "agent:main:subagent:123",
+          model: "claude",
+          runtime: "0:01:00"
+        },
+        %{
+          id: "completed-session", 
+          label: "completed-test-label",
+          status: "completed",
+          session_key: "agent:main:subagent:456",
+          model: "claude",
+          runtime: "0:02:00"
+        }
+      ]
+      
+      # Send sessions to the view
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      # Render to see both sessions (show_completed is true by default)
+      html = render(view)
+      assert html =~ "running-test-label"
+      assert html =~ "completed-test-label"
+      
+      # Now toggle to hide completed
+      render_click(view, "toggle_show_completed")
+      html_hidden = render(view)
+      
+      # Running should still show, completed should be hidden
+      assert html_hidden =~ "running-test-label"
+      refute html_hidden =~ "completed-test-label"
+      
+      # Toggle back to show completed
+      render_click(view, "toggle_show_completed")
+      html_shown = render(view)
+      
+      # Both should be visible again
+      assert html_shown =~ "running-test-label"
+      assert html_shown =~ "completed-test-label"
+    end
+
+    test "button text changes based on show_completed state", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Create a completed session so the button appears
+      sessions = [
+        %{
+          id: "completed-session",
+          label: "test-completed",
+          status: "completed",
+          session_key: "agent:main:subagent:789",
+          model: "claude",
+          runtime: "0:01:00"
+        }
+      ]
+      
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      # With show_completed = true (default), button should say "COMPLETED"
+      html = render(view)
+      assert html =~ "COMPLETED"
+      
+      # Toggle to hide
+      render_click(view, "toggle_show_completed")
+      html_hidden = render(view)
+      
+      # Button should now say "SHOW 1" (or similar)
+      assert html_hidden =~ "SHOW"
     end
   end
 

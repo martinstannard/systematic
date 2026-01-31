@@ -1329,13 +1329,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
             <%= if completed_count > 0 do %>
               <button 
                 phx-click="toggle_show_completed"
+                onclick="event.stopPropagation()"
                 class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@show_completed, do: "bg-success/20 text-success", else: "bg-base-content/10 text-base-content/40")}
                 title={if @show_completed, do: "Click to hide completed sub-agents", else: "Click to show completed sub-agents"}
               >
                 <%= if @show_completed, do: "👁 COMPLETED", else: "👁‍🗨 SHOW " <> Integer.to_string(completed_count) %> 
               </button>
               <button 
-                phx-click="clear_completed" 
+                phx-click="clear_completed"
+                onclick="event.stopPropagation()"
                 class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
               >
                 CLEAR (<%= completed_count %>)
