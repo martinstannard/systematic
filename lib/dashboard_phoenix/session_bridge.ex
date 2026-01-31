@@ -8,7 +8,7 @@ defmodule DashboardPhoenix.SessionBridge do
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
   
-  @base_poll_interval 500    # Start responsive at 500ms
+  @base_poll_interval 1000   # Start responsive at 1s 
   @max_poll_interval 2000    # Back off to 2s when idle
   @backoff_increment 250     # Increase by 250ms each idle poll
   @max_progress_events 100
@@ -159,8 +159,9 @@ defmodule DashboardPhoenix.SessionBridge do
   # Poll recent transcripts for tool calls (Live Progress)
   defp poll_transcripts(state) do
     now = System.system_time(:millisecond)
-    # Only poll transcripts every 500ms to reduce overhead
-    if now - state.last_transcript_poll < 500 do
+    # Use adaptive polling interval for transcripts to reduce overhead
+    min_interval = max(state.current_poll_interval, @base_poll_interval)
+    if now - state.last_transcript_poll < min_interval do
       state
     else
       do_poll_transcripts(%{state | last_transcript_poll: now})
