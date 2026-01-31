@@ -25,11 +25,11 @@
     <div class="flex items-center space-x-6 text-xs font-mono">
       <div class="flex items-center space-x-2">
         <span class="text-base-content/50">Agents:</span>
-        <span class="text-success font-bold"><%= length(@agent_sessions) %></span>
+        <span class="text-success font-bold"><%= @agent_sessions_count %></span>
       </div>
       <div class="flex items-center space-x-2">
         <span class="text-base-content/50">Events:</span>
-        <span class="text-primary font-bold"><%= length(@agent_progress) %></span>
+        <span class="text-primary font-bold"><%= @agent_progress_count %></span>
       </div>
       <%= if @coding_agent_pref == :opencode do %>
         <div class="flex items-center space-x-2">
@@ -321,7 +321,7 @@
           <div class="flex items-center space-x-2">
             <span class={"text-xs transition-transform duration-200 " <> if(@live_progress_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
             <span class="text-xs font-mono text-accent uppercase tracking-wider">📡 Live Feed</span>
-            <span class="text-[10px] font-mono text-base-content/50"><%= length(@agent_progress) %></span>
+            <span class="text-[10px] font-mono text-base-content/50"><%= @agent_progress_count %></span>
           </div>
           <button phx-click="clear_progress" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">Clear</button>
         </div>
@@ -498,7 +498,7 @@
           <div class="flex items-center space-x-2">
             <span class={"text-xs transition-transform duration-200 " <> if(@coding_agents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
             <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">💻 Coding Agents</span>
-            <span class="text-[10px] font-mono text-base-content/50"><%= length(@coding_agents) %></span>
+            <span class="text-[10px] font-mono text-base-content/50"><%= @coding_agents_count %></span>
           </div>
         </div>
         
@@ -534,7 +534,7 @@
           <div class="flex items-center space-x-2">
             <span class={"text-xs transition-transform duration-200 " <> if(@system_processes_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
             <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ System</span>
-            <span class="text-[10px] font-mono text-base-content/50"><%= length(@recent_processes) %></span>
+            <span class="text-[10px] font-mono text-base-content/50"><%= @recent_processes_count %></span>
           </div>
         </div>
         

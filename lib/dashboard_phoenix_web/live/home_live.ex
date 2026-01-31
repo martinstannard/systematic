@@ -78,6 +78,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Load persisted PR state (tickets that have PRs created)
     pr_created_tickets = load_pr_state()
     
+    # Pre-calculate counts to improve template performance
+    agent_sessions_count = length(sessions)
+    agent_progress_count = length(progress)
+    coding_agents_count = length(coding_agents)
+    recent_processes_count = length(processes)
+
     socket = assign(socket,
       process_stats: ProcessMonitor.get_stats(processes),
       recent_processes: processes,
@@ -87,6 +93,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
       resource_history: resource_history,
       agent_activity: agent_activity,
       coding_agents: coding_agents,
+      # Pre-calculated counts
+      agent_sessions_count: agent_sessions_count,
+      agent_progress_count: agent_progress_count,
+      coding_agents_count: coding_agents_count,
+      recent_processes_count: recent_processes_count,
       graph_data: graph_data,
       dismissed_sessions: MapSet.new(),  # Track dismissed session IDs
       show_main_entries: true,            # Toggle for main session visibility (legacy)
@@ -97,6 +108,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agent_pref: coding_agent_pref,  # Coding agent preference (opencode/claude)
       # Linear tickets - loaded async to avoid blocking mount
       linear_tickets: [],
+      linear_tickets_count: 0,
+      linear_filtered_tickets: [],  # Pre-filtered tickets for current status
       linear_counts: %{},
       linear_last_updated: nil,
       linear_error: nil,
@@ -107,6 +120,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       prs_in_progress: prs_in_progress,
       # Chainlink issues - loaded async to avoid blocking mount
       chainlink_issues: [],
+      chainlink_issues_count: 0,
       chainlink_last_updated: nil,
       chainlink_error: nil,
       chainlink_loading: true,
@@ -114,11 +128,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
       chainlink_work_in_progress: %{},  # Map of issue_id -> work session info
       # GitHub PRs - loaded async to avoid blocking mount
       github_prs: [],
+      github_prs_count: 0,
       github_prs_last_updated: nil,
       github_prs_error: nil,
       github_prs_loading: true,
       # Unmerged branches - loaded async
       unmerged_branches: [],
+      unmerged_branches_count: 0,
       branches_worktrees: %{},
       branches_last_updated: nil,
       branches_error: nil,
@@ -138,6 +154,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # OpenCode server state
       opencode_server_status: opencode_status,
       opencode_sessions: opencode_sessions,
+      opencode_sessions_count: length(opencode_sessions),
       # Gemini server state
       gemini_server_status: gemini_status,
       gemini_output: "",
@@ -179,7 +196,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     updated = (socket.assigns.agent_progress ++ events) |> Enum.take(-100)
     activity = build_agent_activity(socket.assigns.agent_sessions, updated)
     main_activity_count = Enum.count(updated, & &1.agent == "main")
-    {:noreply, assign(socket, agent_progress: updated, agent_activity: activity, main_activity_count: main_activity_count)}
+    agent_progress_count = length(updated)
+    {:noreply, assign(socket, agent_progress: updated, agent_progress_count: agent_progress_count, agent_activity: activity, main_activity_count: main_activity_count)}
   end
 
   # Handle session updates
@@ -187,7 +205,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     activity = build_agent_activity(sessions, socket.assigns.agent_progress)
     tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
     prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
-    {:noreply, assign(socket, agent_sessions: sessions, agent_activity: activity, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
+    agent_sessions_count = length(sessions)
+    {:noreply, assign(socket, agent_sessions: sessions, agent_sessions_count: agent_sessions_count, agent_activity: activity, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
   end
 
   # Handle stats updates
@@ -214,7 +233,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle LinearComponent messages
   def handle_info({:linear_component, :set_filter, status}, socket) do
-    {:noreply, assign(socket, linear_status_filter: status)}
+    # Recalculate filtered tickets when status filter changes
+    linear_filtered_tickets = socket.assigns.linear_tickets
+    |> Enum.filter(& &1.status == status)
+    |> Enum.take(10)
+    
+    {:noreply, assign(socket, linear_status_filter: status, linear_filtered_tickets: linear_filtered_tickets)}
   end
 
   def handle_info({:linear_component, :toggle_panel}, socket) do
@@ -533,8 +557,16 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle Linear tickets loaded result
   def handle_info({:linear_loaded, data}, socket) do
     linear_counts = Enum.frequencies_by(data.tickets, & &1.status)
+    linear_tickets_count = length(data.tickets)
+    # Pre-filter tickets for current status and limit to 10
+    linear_filtered_tickets = data.tickets
+    |> Enum.filter(& &1.status == socket.assigns.linear_status_filter)
+    |> Enum.take(10)
+    
     {:noreply, assign(socket,
       linear_tickets: data.tickets,
+      linear_tickets_count: linear_tickets_count,
+      linear_filtered_tickets: linear_filtered_tickets,
       linear_counts: linear_counts,
       linear_last_updated: data.last_updated,
       linear_error: data.error,
@@ -566,8 +598,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle Chainlink issues loaded result
   def handle_info({:chainlink_loaded, data}, socket) do
+    chainlink_issues_count = length(data.issues)
     {:noreply, assign(socket,
       chainlink_issues: data.issues,
+      chainlink_issues_count: chainlink_issues_count,
       chainlink_last_updated: data.last_updated,
       chainlink_error: data.error,
       chainlink_loading: false
@@ -576,8 +610,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle GitHub PR updates (from PubSub)
   def handle_info({:pr_update, data}, socket) do
+    github_prs_count = length(data.prs)
     {:noreply, assign(socket,
       github_prs: data.prs,
+      github_prs_count: github_prs_count,
       github_prs_last_updated: data.last_updated,
       github_prs_error: data.error,
       github_prs_loading: false
@@ -614,8 +650,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle GitHub PRs loaded result
   def handle_info({:github_prs_loaded, data}, socket) do
+    github_prs_count = length(data.prs)
     {:noreply, assign(socket,
       github_prs: data.prs,
+      github_prs_count: github_prs_count,
       github_prs_last_updated: data.last_updated,
       github_prs_error: data.error,
       github_prs_loading: false
@@ -624,8 +662,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle branch updates (from PubSub)
   def handle_info({:branch_update, data}, socket) do
+    unmerged_branches_count = length(data.branches)
     {:noreply, assign(socket,
       unmerged_branches: data.branches,
+      unmerged_branches_count: unmerged_branches_count,
       branches_worktrees: data.worktrees,
       branches_last_updated: data.last_updated,
       branches_error: data.error,
@@ -657,8 +697,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle branches loaded result
   def handle_info({:branches_loaded, data}, socket) do
+    unmerged_branches_count = length(data.branches)
     {:noreply, assign(socket,
       unmerged_branches: data.branches,
+      unmerged_branches_count: unmerged_branches_count,
       branches_worktrees: data.worktrees,
       branches_last_updated: data.last_updated,
       branches_error: data.error,
@@ -798,7 +840,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
       tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
       prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
-      {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
+      opencode_sessions_count = length(sessions)
+      {:noreply, assign(socket, opencode_sessions: sessions, opencode_sessions_count: opencode_sessions_count, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
     else
       {:noreply, socket}
     end
@@ -848,11 +891,17 @@ defmodule DashboardPhoenixWeb.HomeLive do
     gemini_status = socket.assigns.gemini_server_status
     graph_data = build_graph_data(sessions, coding_agents, processes, opencode_sessions, gemini_status)
     
+    # Pre-calculate counts
+    recent_processes_count = length(processes)
+    coding_agents_count = length(coding_agents)
+    
     socket = socket
     |> assign(
       process_stats: ProcessMonitor.get_stats(processes),
       recent_processes: processes,
+      recent_processes_count: recent_processes_count,
       coding_agents: coding_agents,
+      coding_agents_count: coding_agents_count,
       graph_data: graph_data
     )
     |> push_event("graph_update", graph_data)
@@ -1086,7 +1135,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
     tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
     prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
-    {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
+    opencode_sessions_count = length(sessions)
+    {:noreply, assign(socket, opencode_sessions: sessions, opencode_sessions_count: opencode_sessions_count, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
   end
 
   # Gemini server controls

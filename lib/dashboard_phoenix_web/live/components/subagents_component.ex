@@ -9,7 +9,27 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
 
   @impl true
   def update(assigns, socket) do
-    {:ok, assign(socket, assigns)}
+    # Pre-calculate filtered sessions and counts to improve template performance
+    sub_agent_sessions = Enum.reject(assigns.agent_sessions, fn s -> 
+      Map.get(s, :session_key) == "agent:main:main" 
+    end)
+
+    visible_sessions = sub_agent_sessions
+    |> Enum.reject(fn s -> MapSet.member?(assigns.dismissed_sessions, s.id) end)
+    |> Enum.reject(fn s -> !assigns.show_completed && s.status == "completed" end)
+
+    running_count = Enum.count(sub_agent_sessions, fn s -> s.status == "running" end)
+    completed_count = Enum.count(visible_sessions, fn s -> s.status == "completed" end)
+    sub_agent_sessions_count = length(sub_agent_sessions)
+
+    updated_assigns = assigns
+    |> Map.put(:sub_agent_sessions, sub_agent_sessions)
+    |> Map.put(:visible_sessions, visible_sessions)
+    |> Map.put(:running_count, running_count)
+    |> Map.put(:completed_count, completed_count)
+    |> Map.put(:sub_agent_sessions_count, sub_agent_sessions_count)
+
+    {:ok, assign(socket, updated_assigns)}
   end
 
   @impl true
@@ -99,27 +119,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
 
   @impl true
   def render(assigns) do
-    # Filter sub-agent sessions (exclude main)
-    sub_agent_sessions = Enum.reject(assigns.agent_sessions, fn s -> 
-      Map.get(s, :session_key) == "agent:main:main" 
-    end)
-
-    # Filter visible sessions (not dismissed, optionally hide completed)
-    visible_sessions = sub_agent_sessions
-    |> Enum.reject(fn s -> MapSet.member?(assigns.dismissed_sessions, s.id) end)
-    |> Enum.reject(fn s -> !assigns.show_completed && s.status == "completed" end)
-
-    # Count various session states
-    running_count = Enum.count(sub_agent_sessions, fn s -> s.status == "running" end)
-    # Only count completed sessions that are actually visible 
-    completed_count = Enum.count(visible_sessions, fn s -> s.status == "completed" end)
-
-    assigns = assign(assigns, 
-      sub_agent_sessions: sub_agent_sessions,
-      visible_sessions: visible_sessions,
-      running_count: running_count,
-      completed_count: completed_count
-    )
+    # Pre-calculated values are already available in assigns from update/2
 
     ~H"""
     <div class="glass-panel rounded-lg overflow-hidden" id="subagents">
@@ -131,7 +131,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
         <div class="flex items-center space-x-2">
           <span class={"text-xs transition-transform duration-200 " <> if(@subagents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
           <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
-          <span class="text-[10px] font-mono text-base-content/50"><%= length(@sub_agent_sessions) %></span>
+          <span class="text-[10px] font-mono text-base-content/50"><%= @sub_agent_sessions_count %></span>
           <%= if @running_count > 0 do %>
             <span class="px-1.5 py-0.5 rounded bg-warning/20 text-warning text-[10px] animate-pulse">
               <%= @running_count %> active

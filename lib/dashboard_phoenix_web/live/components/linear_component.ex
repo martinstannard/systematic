@@ -63,7 +63,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
           <%= if @linear_loading do %>
             <span class="throbber-small"></span>
           <% else %>
-            <span class="text-[10px] font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
+            <span class="text-[10px] font-mono text-base-content/50"><%= @linear_tickets_count %></span>
           <% end %>
         </div>
         <button 
@@ -108,7 +108,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
               <%= if @linear_error do %>
                 <div class="text-xs text-error/70 py-2 px-2"><%= @linear_error %></div>
               <% end %>
-              <%= for ticket <- Enum.filter(@linear_tickets, & &1.status == @linear_status_filter) |> Enum.take(10) do %>
+              <%= for ticket <- @linear_filtered_tickets do %>
                 <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
                 <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono " <> if(work_info, do: "bg-accent/10", else: "hover:bg-white/5")}>
                   <%= if work_info do %>
