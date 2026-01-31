@@ -6,6 +6,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.PRsComponent
   alias DashboardPhoenixWeb.Live.Components.BranchesComponent
   alias DashboardPhoenixWeb.Live.Components.OpenCodeComponent
+  alias DashboardPhoenixWeb.Live.Components.SubagentsComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -484,6 +485,25 @@ defmodule DashboardPhoenixWeb.HomeLive do
       send(parent, {:branch_delete_result, branch_name, result})
     end)
     {:noreply, assign(socket, branch_delete_pending: nil)}
+  end
+
+  # Handle SubagentsComponent messages
+  def handle_info({:subagents_component, :toggle_panel}, socket) do
+    socket = assign(socket, subagents_collapsed: !socket.assigns.subagents_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:subagents_component, :clear_completed}, socket) do
+    # Get all completed session IDs and add them to dismissed
+    completed_ids = socket.assigns.agent_sessions
+    |> Enum.filter(fn s -> s.status == "completed" end)
+    |> Enum.map(fn s -> s.id end)
+    
+    dismissed = Enum.reduce(completed_ids, socket.assigns.dismissed_sessions, fn id, acc ->
+      MapSet.put(acc, id)
+    end)
+    
+    {:noreply, assign(socket, dismissed_sessions: dismissed)}
   end
 
   # Handle async Linear ticket loading (initial mount)
@@ -1392,6 +1412,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Chat mode toggle removed
 
+  # Keep backward compatibility for tests - delegate to component handler
   def handle_event("clear_completed", _, socket) do
     # Get all completed session IDs and add them to dismissed
     completed_ids = socket.assigns.agent_sessions
@@ -1880,6 +1901,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp action_color("Error"), do: "text-error"
   defp action_color(_), do: "text-base-content/70"
 
+  # Status badge styles (also used in main agent display)
   defp status_badge("running"), do: "bg-warning/20 text-warning animate-pulse"
   defp status_badge("idle"), do: "bg-info/20 text-info"
   defp status_badge("completed"), do: "bg-success/20 text-success/60"
@@ -1898,6 +1920,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
   defp model_badge(_), do: "bg-base-content/10 text-base-content/60"
 
+  # Token formatting (also used in main agent display)
   defp format_tokens(n) when is_integer(n) and n >= 1_000_000, do: "#{Float.round(n / 1_000_000, 1)}M"
   defp format_tokens(n) when is_integer(n) and n >= 1_000, do: "#{Float.round(n / 1_000, 1)}K"
   defp format_tokens(n) when is_integer(n), do: "#{n}"
@@ -2020,65 +2043,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp coding_agent_name(:gemini), do: "Gemini"
   defp coding_agent_name(_), do: "Unknown"
 
-  # Sub-agent type helpers - parse model string to determine agent type
+  # Agent type helpers (also used in main agent display)
+  defp agent_type_from_model("anthropic/" <> _), do: {:claude, "Claude", "🤖"}
+  defp agent_type_from_model("google/" <> _), do: {:gemini, "Gemini", "✨"}
+  defp agent_type_from_model("openai/" <> _), do: {:openai, "OpenAI", "🔥"}
   defp agent_type_from_model(model) when is_binary(model) do
     cond do
-      String.contains?(model, "opus") -> {:claude, "Opus", "🤖"}
-      String.contains?(model, "sonnet") -> {:claude, "Sonnet", "🤖"}
       String.contains?(model, "claude") -> {:claude, "Claude", "🤖"}
       String.contains?(model, "gemini") -> {:gemini, "Gemini", "✨"}
+      String.contains?(model, "gpt") -> {:openai, "OpenAI", "🔥"}
       String.contains?(model, "opencode") -> {:opencode, "OpenCode", "💻"}
-      String.contains?(model, "gpt") -> {:openai, "GPT", "🧠"}
-      true -> {:unknown, model, "⚡"}
+      true -> {:unknown, "Unknown", "⚡"}
     end
   end
   defp agent_type_from_model(_), do: {:unknown, "Unknown", "⚡"}
 
-  defp agent_type_badge_class(:claude), do: "bg-purple-500/20 text-purple-400"
-  defp agent_type_badge_class(:gemini), do: "bg-green-500/20 text-green-400"
-  defp agent_type_badge_class(:opencode), do: "bg-blue-500/20 text-blue-400"
-  defp agent_type_badge_class(:openai), do: "bg-emerald-500/20 text-emerald-400"
-  defp agent_type_badge_class(_), do: "bg-base-content/10 text-base-content/60"
-
-  # Get start timestamp from session for live duration
-  defp session_start_timestamp(%{updated_at: updated_at, runtime: runtime}) when is_binary(runtime) do
-    # Parse runtime to get approximate start time
-    # Runtime format: "Xm Ys" or "Xh Ym" or "Xs"
-    ms = parse_runtime_to_ms(runtime)
-    if ms > 0 do
-      updated_at - ms + (System.system_time(:millisecond) - updated_at)
-    else
-      updated_at
-    end
-  end
-  defp session_start_timestamp(%{updated_at: updated_at}), do: updated_at - 60_000  # Default to 1 min ago
-  defp session_start_timestamp(_), do: System.system_time(:millisecond)
-
-  defp parse_runtime_to_ms(runtime) when is_binary(runtime) do
-    cond do
-      String.contains?(runtime, "h") ->
-        case Regex.run(~r/(\d+)h\s*(\d+)m/, runtime) do
-          [_, hours, mins] -> 
-            (String.to_integer(hours) * 3_600_000) + (String.to_integer(mins) * 60_000)
-          _ -> 0
-        end
-      String.contains?(runtime, "m") ->
-        case Regex.run(~r/(\d+)m\s*(\d+)?s?/, runtime) do
-          [_, mins, secs] -> 
-            (String.to_integer(mins) * 60_000) + (String.to_integer(secs || "0") * 1_000)
-          [_, mins] ->
-            String.to_integer(mins) * 60_000
-          _ -> 0
-        end
-      String.contains?(runtime, "s") ->
-        case Regex.run(~r/(\d+)s/, runtime) do
-          [_, secs] -> String.to_integer(secs) * 1_000
-          _ -> 0
-        end
-      true -> 0
-    end
-  end
-  defp parse_runtime_to_ms(_), do: 0
+  # NOTE: session_start_timestamp/1 and parse_runtime_to_ms/1 moved to SubagentsComponent
 
   # NOTE: PR helper functions (pr_ci_badge, pr_ci_icon, pr_review_badge, pr_review_text,
   # pr_status_bg, format_pr_time) moved to PRsComponent
