@@ -9,6 +9,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.SubagentsComponent
   alias DashboardPhoenixWeb.Live.Components.GeminiComponent
   alias DashboardPhoenixWeb.Live.Components.ConfigComponent
+  alias DashboardPhoenixWeb.Live.Components.DaveComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -883,6 +884,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:config_component, :stop_gemini_server}, socket) do
     DashboardPhoenix.GeminiServer.stop_server()
     {:noreply, assign(socket, gemini_output: "")}
+  end
+
+  # Handle DaveComponent messages
+  def handle_info({:dave_component, :toggle_panel}, socket) do
+    socket = assign(socket, dave_collapsed: !socket.assigns.dave_collapsed)
+    {:noreply, push_panel_state(socket)}
   end
 
   # Handle OpenCode server status updates
