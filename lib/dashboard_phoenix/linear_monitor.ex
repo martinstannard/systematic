@@ -46,15 +46,15 @@ defmodule DashboardPhoenix.LinearMonitor do
       
       {:error, {:exit, _code, error}} ->
         Logger.warning("Linear CLI error fetching #{ticket_id}: #{error}")
-        {:error, error}
+        {:error, String.trim(error)}
       
       {:error, :timeout} ->
         Logger.warning("Linear CLI timeout fetching #{ticket_id}")
-        {:error, "Command timed out"}
+        {:error, :timeout}
       
       {:error, reason} ->
         Logger.warning("Linear CLI error fetching #{ticket_id}: #{inspect(reason)}")
-        {:error, inspect(reason)}
+        {:error, format_error(reason)}
     end
   end
 
@@ -143,15 +143,15 @@ defmodule DashboardPhoenix.LinearMonitor do
       
       {:error, {:exit, _code, error}} ->
         Logger.warning("Linear CLI error for state #{status}: #{error}")
-        {:error, error}
+        {:error, String.trim(error)}
       
       {:error, :timeout} ->
         Logger.warning("Linear CLI timeout for state #{status}")
-        {:error, "Command timed out"}
+        {:error, :timeout}
       
       {:error, reason} ->
         Logger.warning("Linear CLI error for state #{status}: #{inspect(reason)}")
-        {:error, inspect(reason)}
+        {:error, format_error(reason)}
     end
   end
 
@@ -271,4 +271,11 @@ defmodule DashboardPhoenix.LinearMonitor do
       end
     end)
   end
+
+  # Format error reasons into human-readable strings
+  defp format_error(%{reason: reason}) when is_atom(reason), do: to_string(reason)
+  defp format_error(%{original: original}) when is_atom(original), do: to_string(original)
+  defp format_error(reason) when is_atom(reason), do: to_string(reason)
+  defp format_error(reason) when is_binary(reason), do: reason
+  defp format_error(reason), do: inspect(reason)
 end

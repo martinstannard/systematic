@@ -125,11 +125,11 @@ defmodule DashboardPhoenix.GeminiServer do
         
         {:error, {:exit, code, error}} ->
           Logger.error("[GeminiServer] Gemini CLI check failed (exit #{code}): #{error}")
-          {:reply, {:error, "Gemini CLI check failed: #{error}"}, state}
+          {:reply, {:error, "Gemini CLI check failed (exit #{code}): #{String.trim(error)}"}, state}
         
         {:error, reason} ->
           Logger.error("[GeminiServer] Gemini CLI check error: #{inspect(reason)}")
-          {:reply, {:error, "Gemini CLI check failed: #{inspect(reason)}"}, state}
+          {:reply, {:error, "Gemini CLI check failed: #{format_error(reason)}"}, state}
       end
     else
       Logger.error("[GeminiServer] Gemini CLI not found")
@@ -200,6 +200,19 @@ defmodule DashboardPhoenix.GeminiServer do
   end
 
   @impl true
+  def handle_info({:prompt_complete, {:error, :timeout}}, state) do
+    Logger.error("[GeminiServer] Prompt timed out")
+    
+    # Broadcast the error as output
+    error_msg = "\n[ERROR] Command timed out after 2 minutes\n"
+    Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_output, error_msg})
+    
+    new_state = %{state | busy: false}
+    broadcast_status(new_state)
+    {:noreply, new_state}
+  end
+
+  @impl true
   def handle_info({:prompt_complete, {:error, error}}, state) do
     Logger.error("[GeminiServer] Prompt failed: #{error}")
     
@@ -252,7 +265,7 @@ defmodule DashboardPhoenix.GeminiServer do
         {:ok, output}
       
       {:error, :timeout} ->
-        {:error, "Gemini command timed out after 2 minutes"}
+        {:error, :timeout}
       
       {:error, {:exit, exit_code, output}} ->
         # Still return output even on non-zero exit (might be useful info)
@@ -260,7 +273,7 @@ defmodule DashboardPhoenix.GeminiServer do
         {:ok, output <> "\n[Exit code: #{exit_code}]"}
       
       {:error, reason} ->
-        {:error, "Gemini command failed: #{inspect(reason)}"}
+        {:error, "Gemini command failed: #{format_error(reason)}"}
     end
   end
 
@@ -273,4 +286,11 @@ defmodule DashboardPhoenix.GeminiServer do
     }
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_status, status})
   end
+
+  # Format error reasons into human-readable strings
+  defp format_error(%{reason: reason}) when is_atom(reason), do: to_string(reason)
+  defp format_error(%{original: original}) when is_atom(original), do: to_string(original)
+  defp format_error(reason) when is_atom(reason), do: to_string(reason)
+  defp format_error(reason) when is_binary(reason), do: reason
+  defp format_error(reason), do: inspect(reason)
 end

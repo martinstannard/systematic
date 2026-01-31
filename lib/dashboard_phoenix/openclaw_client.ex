@@ -53,12 +53,12 @@ defmodule DashboardPhoenix.OpenClawClient do
       
       {:error, reason} ->
         Logger.error("[OpenClawClient] Command error: #{inspect(reason)}")
-        {:error, "openclaw agent failed: #{inspect(reason)}"}
+        {:error, "openclaw agent failed: #{format_error(reason)}"}
     end
   rescue
     e ->
-      Logger.error("[OpenClawClient] Exception: #{inspect(e)}")
-      {:error, "Exception: #{inspect(e)}"}
+      Logger.error("[OpenClawClient] Exception: #{Exception.message(e)}")
+      {:error, "openclaw agent exception: #{Exception.message(e)}"}
   end
 
   @doc """
@@ -157,13 +157,20 @@ defmodule DashboardPhoenix.OpenClawClient do
       
       {:error, reason} ->
         Logger.error("[OpenClawClient] Spawn error: #{inspect(reason)}")
-        {:error, "openclaw cron add failed: #{inspect(reason)}"}
+        {:error, "openclaw cron add failed: #{format_error(reason)}"}
     end
   rescue
     e ->
-      Logger.error("[OpenClawClient] Exception spawning sub-agent: #{inspect(e)}")
-      {:error, "Exception: #{inspect(e)}"}
+      Logger.error("[OpenClawClient] Exception spawning sub-agent: #{Exception.message(e)}")
+      {:error, "openclaw cron add exception: #{Exception.message(e)}"}
   end
+
+  # Format error reasons into human-readable strings
+  defp format_error(%{reason: reason}) when is_atom(reason), do: to_string(reason)
+  defp format_error(%{original: original}) when is_atom(original), do: to_string(original)
+  defp format_error(reason) when is_atom(reason), do: to_string(reason)
+  defp format_error(reason) when is_binary(reason), do: reason
+  defp format_error(reason), do: inspect(reason)
 
   # Build the work message that tells the agent to spawn a coding sub-agent
   defp build_work_message(ticket_id, details, model) do

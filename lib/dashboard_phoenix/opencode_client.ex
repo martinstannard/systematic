@@ -52,7 +52,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
         end
         
       {:error, reason} ->
-        {:error, "Failed to start OpenCode server: #{inspect(reason)}"}
+        {:error, "Failed to start OpenCode server: #{format_error(reason)}"}
     end
   end
 
@@ -65,8 +65,9 @@ defmodule DashboardPhoenix.OpenCodeClient do
         base_url = "http://127.0.0.1:#{port}"
         case Req.get("#{base_url}/session", receive_timeout: 5000) do
           {:ok, %{status: 200}} -> :ok
-          {:ok, %{status: code}} -> {:error, "Unexpected status: #{code}"}
-          {:error, reason} -> {:error, reason}
+          {:ok, %{status: code}} -> {:error, "HTTP #{code}: unexpected status"}
+          {:error, %{reason: reason}} -> {:error, "Connection failed: #{reason}"}
+          {:error, reason} -> {:error, "Connection failed: #{format_error(reason)}"}
         end
       _ ->
         {:error, :not_running}
@@ -81,10 +82,17 @@ defmodule DashboardPhoenix.OpenCodeClient do
       %{running: true, port: port} ->
         base_url = "http://127.0.0.1:#{port}"
         case Req.get("#{base_url}/session", receive_timeout: 5000) do
-          {:ok, %{status: 200, body: body}} when is_list(body) -> {:ok, body}
+          {:ok, %{status: 200, body: body}} when is_list(body) -> 
+            {:ok, body}
           {:ok, %{status: 200, body: body}} when is_binary(body) -> 
-            Jason.decode(body)
-          {:error, reason} -> {:error, reason}
+            case Jason.decode(body) do
+              {:ok, data} -> {:ok, data}
+              {:error, _} -> {:error, "Invalid JSON response from server"}
+            end
+          {:ok, %{status: code}} ->
+            {:error, "HTTP #{code}: failed to list sessions"}
+          {:error, reason} -> 
+            {:error, "Connection failed: #{format_error(reason)}"}
         end
       _ ->
         {:error, :not_running}
@@ -123,7 +131,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
         base_url = "http://127.0.0.1:#{port}"
         send_message_to_session(base_url, session_id, prompt)
       _ ->
-        {:error, "Server not running"}
+        {:error, :not_running}
     end
   end
 
@@ -137,8 +145,8 @@ defmodule DashboardPhoenix.OpenCodeClient do
         case Req.delete("#{base_url}/session/#{session_id}", receive_timeout: 5000) do
           {:ok, %{status: code}} when code in [200, 204] -> :ok
           {:ok, %{status: 404}} -> {:error, "Session not found"}
-          {:ok, %{status: code, body: body}} -> {:error, "HTTP #{code}: #{inspect(body)}"}
-          {:error, reason} -> {:error, inspect(reason)}
+          {:ok, %{status: code}} -> {:error, "HTTP #{code}: failed to delete session"}
+          {:error, reason} -> {:error, "Connection failed: #{format_error(reason)}"}
         end
       _ ->
         {:error, "Server not running"}
@@ -271,10 +279,17 @@ defmodule DashboardPhoenix.OpenCodeClient do
         {:ok, %{status: code, body: body}} ->
           Logger.warning("[OpenCodeClient] OpenCode returned #{code}: #{inspect(body)}")
         {:error, reason} ->
-          Logger.warning("[OpenCodeClient] OpenCode request failed: #{inspect(reason)}")
+          Logger.warning("[OpenCodeClient] OpenCode request failed: #{format_error(reason)}")
       end
     end)
     
     {:ok, :sent}
   end
+
+  # Format error reasons into human-readable strings
+  defp format_error(%{reason: reason}) when is_atom(reason), do: to_string(reason)
+  defp format_error(%{original: original}) when is_atom(original), do: to_string(original)
+  defp format_error(reason) when is_atom(reason), do: to_string(reason)
+  defp format_error(reason) when is_binary(reason), do: reason
+  defp format_error(reason), do: inspect(reason)
 end
