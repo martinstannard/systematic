@@ -92,7 +92,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
           <%= if @branches_loading do %>
             <span class="throbber-small"></span>
           <% else %>
-            <span class="text-[10px] font-mono text-base-content/50"><%= @unmerged_branches_count %></span>
+            <span class="text-[10px] font-mono text-base-content/50"><%= length(@unmerged_branches) %></span>
           <% end %>
         </div>
         <button

@@ -118,7 +118,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
           <%= if @github_prs_loading do %>
             <span class="throbber-small"></span>
           <% else %>
-            <span class="text-[10px] font-mono text-base-content/50"><%= @github_prs_count %></span>
+            <span class="text-[10px] font-mono text-base-content/50"><%= length(@github_prs) %></span>
           <% end %>
         </div>
         <button

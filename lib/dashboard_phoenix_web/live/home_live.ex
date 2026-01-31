@@ -114,7 +114,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agent_pref: coding_agent_pref,  # Coding agent preference (opencode/claude)
       # Linear tickets - loaded async to avoid blocking mount
       linear_tickets: [],
-      linear_tickets_count: 0,
       linear_filtered_tickets: [],  # Pre-filtered tickets for current status
       linear_counts: %{},
       linear_last_updated: nil,
@@ -126,7 +125,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
       prs_in_progress: prs_in_progress,
       # Chainlink issues - loaded async to avoid blocking mount
       chainlink_issues: [],
-      chainlink_issues_count: 0,
       chainlink_last_updated: nil,
       chainlink_error: nil,
       chainlink_loading: true,
@@ -134,13 +132,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
       chainlink_work_in_progress: %{},  # Map of issue_id -> work session info
       # GitHub PRs - loaded async to avoid blocking mount
       github_prs: [],
-      github_prs_count: 0,
       github_prs_last_updated: nil,
       github_prs_error: nil,
       github_prs_loading: true,
       # Unmerged branches - loaded async
       unmerged_branches: [],
-      unmerged_branches_count: 0,
       branches_worktrees: %{},
       branches_last_updated: nil,
       branches_error: nil,
@@ -572,7 +568,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle Linear tickets loaded result
   def handle_info({:linear_loaded, data}, socket) do
     linear_counts = Enum.frequencies_by(data.tickets, & &1.status)
-    linear_tickets_count = length(data.tickets)
     # Pre-filter tickets for current status and limit to 10
     linear_filtered_tickets = data.tickets
     |> Enum.filter(& &1.status == socket.assigns.linear_status_filter)
@@ -580,7 +575,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
     
     {:noreply, assign(socket,
       linear_tickets: data.tickets,
-      linear_tickets_count: linear_tickets_count,
       linear_filtered_tickets: linear_filtered_tickets,
       linear_counts: linear_counts,
       linear_last_updated: data.last_updated,
@@ -613,10 +607,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle Chainlink issues loaded result
   def handle_info({:chainlink_loaded, data}, socket) do
-    chainlink_issues_count = length(data.issues)
     {:noreply, assign(socket,
       chainlink_issues: data.issues,
-      chainlink_issues_count: chainlink_issues_count,
       chainlink_last_updated: data.last_updated,
       chainlink_error: data.error,
       chainlink_loading: false
@@ -625,10 +617,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle GitHub PR updates (from PubSub)
   def handle_info({:pr_update, data}, socket) do
-    github_prs_count = length(data.prs)
     {:noreply, assign(socket,
       github_prs: data.prs,
-      github_prs_count: github_prs_count,
       github_prs_last_updated: data.last_updated,
       github_prs_error: data.error,
       github_prs_loading: false
@@ -665,10 +655,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle GitHub PRs loaded result
   def handle_info({:github_prs_loaded, data}, socket) do
-    github_prs_count = length(data.prs)
     {:noreply, assign(socket,
       github_prs: data.prs,
-      github_prs_count: github_prs_count,
       github_prs_last_updated: data.last_updated,
       github_prs_error: data.error,
       github_prs_loading: false
@@ -677,10 +665,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle branch updates (from PubSub)
   def handle_info({:branch_update, data}, socket) do
-    unmerged_branches_count = length(data.branches)
     {:noreply, assign(socket,
       unmerged_branches: data.branches,
-      unmerged_branches_count: unmerged_branches_count,
       branches_worktrees: data.worktrees,
       branches_last_updated: data.last_updated,
       branches_error: data.error,
@@ -712,10 +698,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle branches loaded result
   def handle_info({:branches_loaded, data}, socket) do
-    unmerged_branches_count = length(data.branches)
     {:noreply, assign(socket,
       unmerged_branches: data.branches,
-      unmerged_branches_count: unmerged_branches_count,
       branches_worktrees: data.worktrees,
       branches_last_updated: data.last_updated,
       branches_error: data.error,
@@ -984,11 +968,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # NOTE: refresh_linear now handled via LinearComponent -> handle_info({:linear_component, :refresh}, ...)
   # NOTE: refresh_prs now handled via PRsComponent -> handle_info({:prs_component, :refresh}, ...)
 
-  def handle_event("refresh_prs", _, socket) do
-    # Kept for backward compatibility with direct phx-click usage
-    PRMonitor.refresh()
-    {:noreply, socket}
-  end
+  # NOTE: refresh_prs now handled via PRsComponent
 
   # NOTE: refresh_branches now handled via BranchesComponent -> handle_info({:branches_component, :refresh}, ...)
   # Kept for backward compatibility with direct phx-click usage
@@ -1321,129 +1301,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, put_flash(socket, :error, "Missing ticket ID for super review request")}
   end
 
-  # NOTE: request_pr_super_review now handled via PRsComponent -> handle_info({:prs_component, :super_review, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("request_pr_super_review", %{"url" => pr_url, "number" => pr_number, "repo" => repo}, socket) do
-    review_prompt = """
-    🔍 **Super Review Request for PR ##{pr_number}**
-    
-    Please perform a comprehensive code review for this Pull Request:
-    URL: #{pr_url}
-    Repository: #{repo}
-    
-    1. Fetch and review the PR using `gh pr view #{pr_number} --repo #{repo}`
-    2. Review the diff using `gh pr diff #{pr_number} --repo #{repo}`
-    3. Check all code changes for:
-       - Code quality and best practices
-       - Potential bugs or edge cases
-       - Performance implications
-       - Security concerns
-       - Test coverage
-    4. Leave detailed review comments on the PR
-    5. Approve or request changes as appropriate using `gh pr review`
-    
-    Be thorough but constructive in your feedback.
-    """
+  # NOTE: request_pr_super_review now handled via PRsComponent
 
-    # Spawn an isolated sub-agent to do the review
-    alias DashboardPhoenix.OpenClawClient
-    
-    case OpenClawClient.spawn_subagent(review_prompt,
-      name: "pr-review-#{pr_number}",
-      thinking: "medium",
-      post_mode: "summary"
-    ) do
-      {:ok, %{job_id: job_id}} ->
-        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")}
-      
-      {:ok, _} ->
-        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for PR ##{pr_number}")}
-      
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to spawn review agent: #{inspect(reason)}")}
-    end
-  end
+  # NOTE: fix_pr_issues now handled via PRsComponent
 
-  # NOTE: fix_pr_issues now handled via PRsComponent -> handle_info({:prs_component, :fix_pr_issues, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("fix_pr_issues", params, socket) do
-    %{"url" => pr_url, "number" => pr_number, "repo" => repo, "branch" => branch} = params
-    pr_number_int = String.to_integer(pr_number)
-    has_conflicts = params["has-conflicts"] == "true"
-    ci_failing = params["ci-failing"] == "true"
-    
-    # Set pending state immediately for instant UI feedback
-    socket = assign(socket, pr_fix_pending: pr_number_int)
-    
-    issues = []
-    issues = if ci_failing, do: ["CI failures" | issues], else: issues
-    issues = if has_conflicts, do: ["merge conflicts" | issues], else: issues
-    issues_text = Enum.join(issues, " and ")
-    
-    fix_prompt = """
-    🔧 **Fix #{issues_text} for PR ##{pr_number}**
-    
-    This Pull Request has #{issues_text}. Please fix them:
-    URL: #{pr_url}
-    Repository: #{repo}
-    Branch: #{branch}
-    
-    Steps:
-    1. First, check out the branch: `cd #{Paths.core_platform_repo()} && git fetch origin && git checkout #{branch}`
-    #{if has_conflicts, do: "2. Resolve merge conflicts: `git fetch origin main && git merge origin/main` - fix any conflicts, then commit", else: ""}
-    #{if ci_failing, do: "#{if has_conflicts, do: "3", else: "2"}. Get CI failure details: `gh pr checks #{pr_number} --repo #{repo}`", else: ""}
-    #{if ci_failing, do: "#{if has_conflicts, do: "4", else: "3"}. Review the failing checks and fix the issues (tests, linting, type errors, etc.)", else: ""}
-    #{if ci_failing, do: "#{if has_conflicts, do: "5", else: "4"}. Run tests locally to verify: `mix test`", else: ""}
-    - Commit and push the fixes
-    
-    Focus on fixing the issues, not refactoring unrelated code.
-    """
-
-    # Spawn an isolated sub-agent to fix the issues
-    alias DashboardPhoenix.OpenClawClient
-    
-    case OpenClawClient.spawn_subagent(fix_prompt,
-      name: "pr-fix-#{pr_number}",
-      thinking: "low",
-      post_mode: "summary"
-    ) do
-      {:ok, %{job_id: job_id}} ->
-        socket = socket
-        |> assign(pr_fix_pending: nil)
-        |> put_flash(:info, "Fix sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")
-        {:noreply, socket}
-      
-      {:ok, _} ->
-        socket = socket
-        |> assign(pr_fix_pending: nil)
-        |> put_flash(:info, "Fix sub-agent spawned for PR ##{pr_number}")
-        {:noreply, socket}
-      
-      {:error, reason} ->
-        socket = socket
-        |> assign(pr_fix_pending: nil)
-        |> put_flash(:error, "Failed to spawn fix agent: #{inspect(reason)}")
-        {:noreply, socket}
-    end
-  end
-
-  # NOTE: verify_pr now handled via PRsComponent -> handle_info({:prs_component, :verify_pr, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("verify_pr", %{"url" => pr_url, "number" => pr_number, "repo" => repo}, socket) do
-    PRVerification.mark_verified(pr_url, "manual",
-      pr_number: String.to_integer(pr_number),
-      repo: repo,
-      status: "clean"
-    )
-    {:noreply, put_flash(socket, :info, "PR ##{pr_number} marked as verified")}
-  end
-
-  # NOTE: clear_pr_verification now handled via PRsComponent -> handle_info({:prs_component, :clear_verification, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("clear_pr_verification", %{"url" => pr_url}, socket) do
-    PRVerification.clear_verification(pr_url)
-    {:noreply, socket}
-  end
+  # NOTE: verify_pr and clear_pr_verification now handled via PRsComponent
 
   # Clear PR state for a ticket (e.g., when PR is merged)
   def handle_event("clear_ticket_pr", %{"id" => ticket_id}, socket) do

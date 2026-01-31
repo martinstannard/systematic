@@ -63,7 +63,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
           <%= if @chainlink_loading do %>
             <span class="throbber-small"></span>
           <% else %>
-            <span class="text-[10px] font-mono text-base-content/50"><%= @chainlink_issues_count %></span>
+            <span class="text-[10px] font-mono text-base-content/50"><%= length(@chainlink_issues) %></span>
           <% end %>
         </div>
         <button
