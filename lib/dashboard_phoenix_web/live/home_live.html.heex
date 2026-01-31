@@ -170,34 +170,14 @@
         show_completed={@show_completed}
       />
 
-      <!-- Live Progress Panel -->
-      <div class="glass-panel rounded-lg overflow-hidden flex-1 min-h-[200px]">
-        <div 
-          class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
-          phx-click="toggle_panel"
-          phx-value-panel="live_progress"
-        >
-          <div class="flex items-center space-x-2">
-            <span class={"text-xs transition-transform duration-200 " <> if(@live_progress_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">📡 Live Feed</span>
-            <span class="text-[10px] font-mono text-base-content/50"><%= @agent_progress_count %></span>
-          </div>
-          <button phx-click="clear_progress" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">Clear</button>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0", else: "max-h-[400px] flex-1")}>
-          <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-[10px]" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream">
-            <%= for {id, event} <- @streams.progress_events do %>
-              <div id={id} class="py-0.5 flex items-start space-x-1">
-                <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
-                <span class={agent_color(event.agent) <> " w-20 flex-shrink-0 truncate"}><%= event.agent %></span>
-                <span class={action_color(event.action) <> " font-bold w-10 flex-shrink-0"}><%= event.action %></span>
-                <span class="text-base-content/70 truncate flex-1"><%= event.target %></span>
-              </div>
-            <% end %>
-          </div>
-        </div>
-      </div>
+      <!-- Live Progress Panel (LiveComponent) -->
+      <.live_component
+        module={LiveProgressComponent}
+        id="live-progress-panel"
+        live_progress_collapsed={@live_progress_collapsed}
+        agent_progress_count={@agent_progress_count}
+        progress_events={@streams.progress_events}
+      />
     </div>
   </div>
 

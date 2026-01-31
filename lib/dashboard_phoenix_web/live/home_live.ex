@@ -10,6 +10,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.GeminiComponent
   alias DashboardPhoenixWeb.Live.Components.ConfigComponent
   alias DashboardPhoenixWeb.Live.Components.DaveComponent
+  alias DashboardPhoenixWeb.Live.Components.LiveProgressComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -892,6 +893,43 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, push_panel_state(socket)}
   end
 
+  # Handle LiveProgressComponent messages
+  def handle_info({:live_progress_component, :toggle_panel}, socket) do
+    socket = assign(socket, live_progress_collapsed: !socket.assigns.live_progress_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:live_progress_component, :clear_progress}, socket) do
+    # Use atomic write to prevent race conditions with readers
+    alias DashboardPhoenix.FileUtils
+    alias DashboardPhoenix.Paths
+    FileUtils.atomic_write(Paths.progress_file(), "")
+    # Reset the stream by re-initializing it with empty data
+    socket = socket
+    |> assign(agent_progress: [], main_activity_count: 0)
+    |> stream(:progress_events, [], reset: true)
+    {:noreply, socket}
+  end
+
+  def handle_info({:live_progress_component, :toggle_main_entries}, socket) do
+    {:noreply, assign(socket, show_main_entries: !socket.assigns.show_main_entries)}
+  end
+
+  def handle_info({:live_progress_component, :set_progress_filter, filter}, socket) do
+    {:noreply, assign(socket, progress_filter: filter)}
+  end
+
+  def handle_info({:live_progress_component, :toggle_output, ts_str}, socket) do
+    ts = String.to_integer(ts_str)
+    expanded = socket.assigns.expanded_outputs
+    new_expanded = if MapSet.member?(expanded, ts) do
+      MapSet.delete(expanded, ts)
+    else
+      MapSet.put(expanded, ts)
+    end
+    {:noreply, assign(socket, expanded_outputs: new_expanded)}
+  end
+
   # Handle OpenCode server status updates
   def handle_info({:opencode_status, status}, socket) do
     sessions = fetch_opencode_sessions(status)
@@ -1011,37 +1049,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
-  def handle_event("clear_progress", _, socket) do
-    # Use atomic write to prevent race conditions with readers
-    FileUtils.atomic_write(Paths.progress_file(), "")
-    # Reset the stream by re-initializing it with empty data
-    socket = socket
-    |> assign(agent_progress: [], main_activity_count: 0)
-    |> stream(:progress_events, [], reset: true)
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle_main_entries", _, socket) do
-    {:noreply, assign(socket, show_main_entries: !socket.assigns.show_main_entries)}
-  end
-
-  def handle_event("set_progress_filter", %{"filter" => filter}, socket) do
-    {:noreply, assign(socket, progress_filter: filter)}
-  end
-
   def handle_event("toggle_show_completed", _, socket) do
     {:noreply, assign(socket, show_completed: !socket.assigns.show_completed)}
-  end
-
-  def handle_event("toggle_output", %{"ts" => ts_str}, socket) do
-    ts = String.to_integer(ts_str)
-    expanded = socket.assigns.expanded_outputs
-    new_expanded = if MapSet.member?(expanded, ts) do
-      MapSet.delete(expanded, ts)
-    else
-      MapSet.put(expanded, ts)
-    end
-    {:noreply, assign(socket, expanded_outputs: new_expanded)}
   end
 
   def handle_event("refresh_stats", _, socket) do
@@ -1652,35 +1661,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
   defp fetch_opencode_sessions(_), do: []
 
-  defp format_time(nil), do: ""
-  defp format_time(ts) when is_integer(ts) do
-    ts
-    |> DateTime.from_unix!(:millisecond)
-    |> Calendar.strftime("%H:%M:%S")
-  end
-  defp format_time(_), do: ""
-
-  defp agent_color("main"), do: "text-yellow-500 font-semibold"  # Yellow to indicate "should offload"
-  defp agent_color("cron"), do: "text-gray-400"
-  defp agent_color(name) when is_binary(name) do
-    cond do
-      String.contains?(name, "systematic") -> "text-purple-400"
-      String.contains?(name, "dashboard") -> "text-purple-400"
-      String.contains?(name, "cor-") or String.contains?(name, "fre-") -> "text-orange-400"
-      true -> "text-accent"
-    end
-  end
-  defp agent_color(_), do: "text-accent"
-
-  defp action_color("Read"), do: "text-info"
-  defp action_color("Edit"), do: "text-warning"
-  defp action_color("Write"), do: "text-warning"
-  defp action_color("Bash"), do: "text-accent"
-  defp action_color("Search"), do: "text-primary"
-  defp action_color("Think"), do: "text-secondary"
-  defp action_color("Done"), do: "text-success"
-  defp action_color("Error"), do: "text-error"
-  defp action_color(_), do: "text-base-content/70"
+  # NOTE: format_time, agent_color, and action_color helper functions moved to LiveProgressComponent
 
   # NOTE: status_badge/1 moved to DaveComponent
 

@@ -28,9 +28,8 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
 
   def render(assigns) do
     ~H"""
-    <!-- Dave Panel (Main Agent) -->
-    <%= if @main_agent_session do %>
-      <div class="glass-panel rounded-lg overflow-hidden border-2 border-purple-500/30" id="dave">
+    <div class={"glass-panel rounded-lg overflow-hidden" <> if(@main_agent_session, do: " border-2 border-purple-500/30", else: " border border-base-content/10")} id="dave">
+      <%= if @main_agent_session do %>
         <div 
           class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
           phx-click="toggle_panel"
@@ -105,8 +104,21 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             </div>
           </div>
         </div>
-      </div>
-    <% end %>
+      <% else %>
+        <div class="flex items-center justify-between px-3 py-2 bg-base-content/5">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs">▼</span>
+            <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">🐙 Dave</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] bg-base-content/20 text-base-content/60">
+              offline
+            </span>
+          </div>
+        </div>
+        <div class="px-3 py-2">
+          <div class="text-xs text-base-content/50 italic">No main agent session found</div>
+        </div>
+      <% end %>
+    </div>
     """
   end
 
