@@ -323,10 +323,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     )}
   end
 
-  def handle_event("copy_spawn_command", _, socket) do
-    # The actual copy happens via JS hook, this is just for feedback
-    {:noreply, put_flash(socket, :info, "Command copied to clipboard!")}
-  end
+  # Removed: copy_spawn_command handler no longer needed
+  # Both OpenCode and Claude modes now use execute_work directly
 
   def handle_event("toggle_coding_agent", _, socket) do
     AgentPreferences.toggle_coding_agent()
@@ -2043,35 +2041,36 @@ defmodule DashboardPhoenixWeb.HomeLive do
                   </p>
                 </div>
               <% else %>
-                <!-- Claude Mode - Copy Command -->
-                <div class="space-y-3">
-                  <p class="text-sm text-base-content/70">
-                    Copy the command below to spawn a Claude sub-agent that will work on this ticket:
-                  </p>
-                  
-                  <% spawn_command = "Work on #{@work_ticket_id}" %>
-                  <div class="relative">
-                    <div 
-                      id="spawn-command" 
-                      class="text-sm font-mono bg-black/50 rounded-lg p-4 pr-16 text-green-400 cursor-pointer hover:bg-black/60 transition-colors"
-                      phx-hook="CopyToClipboard"
-                      data-copy={spawn_command}
-                    >
-                      <%= spawn_command %>
+                <!-- Claude Mode -->
+                <div class="space-y-4">
+                  <!-- Work Error -->
+                  <%= if @work_error do %>
+                    <div class="bg-error/20 text-error rounded-lg p-3 text-sm font-mono">
+                      <%= @work_error %>
                     </div>
+                  <% end %>
+                  
+                  <!-- Execute Work Button -->
+                  <div class="flex items-center space-x-3">
                     <button
-                      class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-xs font-mono"
-                      phx-click="copy_spawn_command"
-                      id="copy-btn"
-                      phx-hook="CopyToClipboard"
-                      data-copy={spawn_command}
+                      phx-click="execute_work"
+                      disabled={@work_in_progress or @work_ticket_loading}
+                      class={"flex-1 py-3 rounded-lg text-sm font-mono font-bold transition-all " <> 
+                        if(@work_in_progress, 
+                          do: "bg-purple-500/30 text-purple-300 cursor-wait",
+                          else: "bg-purple-500/20 text-purple-400 hover:bg-purple-500/40"
+                        )}
                     >
-                      📋 Copy
+                      <%= if @work_in_progress do %>
+                        <span class="inline-block animate-spin mr-2">⟳</span> Sending to OpenClaw...
+                      <% else %>
+                        🤖 Execute Work with Claude
+                      <% end %>
                     </button>
                   </div>
                   
                   <p class="text-[10px] text-base-content/50">
-                    Tip: Paste this into your OpenClaw chat to spawn a sub-agent for this ticket.
+                    This will send the ticket details to OpenClaw to spawn a Claude sub-agent automatically.
                   </p>
                 </div>
               <% end %>
