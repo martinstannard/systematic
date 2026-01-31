@@ -66,42 +66,95 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
   
   # Private functions
   
-  defp get_cached(key) do
-    case :ets.lookup(@table_name, key) do
-      [{^key, result, inserted_at}] ->
-        if System.monotonic_time(:millisecond) - inserted_at < @ttl_ms do
-          {:hit, result}
-        else
-          :ets.delete(@table_name, key)
-          :miss
+  defp ensure_table_exists do
+    case :ets.whereis(@table_name) do
+      :undefined ->
+        # Table doesn't exist, try to recreate it
+        try do
+          :ets.new(@table_name, [:set, :public, :named_table])
+          :ok
+        rescue
+          ArgumentError ->
+            # Another process might have created it between whereis and new
+            case :ets.whereis(@table_name) do
+              :undefined -> :error
+              _ -> :ok
+            end
         end
-      [] ->
+      _ ->
+        # Table exists
+        :ok
+    end
+  end
+  
+  defp safe_ets_insert(data) do
+    try do
+      :ets.insert(@table_name, data)
+    rescue
+      ArgumentError -> :ok  # Table doesn't exist, skip caching
+    end
+  end
+  
+  defp safe_ets_delete(key) do
+    try do
+      :ets.delete(@table_name, key)
+    rescue
+      ArgumentError -> :ok  # Table doesn't exist, that's fine
+    end
+  end
+  
+  defp get_cached(key) do
+    case ensure_table_exists() do
+      :ok ->
+        case :ets.lookup(@table_name, key) do
+          [{^key, result, inserted_at}] ->
+            if System.monotonic_time(:millisecond) - inserted_at < @ttl_ms do
+              {:hit, result}
+            else
+              safe_ets_delete(key)
+              :miss
+            end
+          [] ->
+            :miss
+        end
+      :error ->
+        # If we can't ensure the table exists, skip caching and return miss
         :miss
     end
   end
   
   defp cache_result(key, result) do
-    # Cleanup old entries if cache is getting too big
-    cleanup_cache_if_needed()
-    
-    # Insert new entry with timestamp
-    :ets.insert(@table_name, {key, result, System.monotonic_time(:millisecond)})
+    case ensure_table_exists() do
+      :ok ->
+        # Cleanup old entries if cache is getting too big
+        cleanup_cache_if_needed()
+        
+        # Insert new entry with timestamp
+        safe_ets_insert({key, result, System.monotonic_time(:millisecond)})
+      :error ->
+        # If we can't ensure the table exists, skip caching
+        :ok
+    end
   end
   
   defp cleanup_cache_if_needed do
-    case :ets.info(@table_name, :size) do
-      size when size >= @max_cache_size ->
-        # Remove oldest entries (this is a simple cleanup strategy)
-        all_entries = :ets.tab2list(@table_name)
-        sorted_by_time = Enum.sort_by(all_entries, fn {_, _, time} -> time end)
-        
-        # Remove oldest 25% of entries
-        to_remove = Enum.take(sorted_by_time, div(size, 4))
-        Enum.each(to_remove, fn {key, _, _} ->
-          :ets.delete(@table_name, key)
-        end)
-      _ ->
-        :ok
+    try do
+      case :ets.info(@table_name, :size) do
+        size when size >= @max_cache_size ->
+          # Remove oldest entries (this is a simple cleanup strategy)
+          all_entries = :ets.tab2list(@table_name)
+          sorted_by_time = Enum.sort_by(all_entries, fn {_, _, time} -> time end)
+          
+          # Remove oldest 25% of entries
+          to_remove = Enum.take(sorted_by_time, div(size, 4))
+          Enum.each(to_remove, fn {key, _, _} ->
+            safe_ets_delete(key)
+          end)
+        _ ->
+          :ok
+      end
+    rescue
+      ArgumentError -> :ok  # Table doesn't exist, nothing to clean up
     end
   end
   
@@ -324,7 +377,11 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
   
   @impl true
   def handle_call(:clear, _from, state) do
-    :ets.delete_all_objects(@table_name)
+    try do
+      :ets.delete_all_objects(@table_name)
+    rescue
+      ArgumentError -> :ok  # Table doesn't exist, nothing to clear
+    end
     {:reply, :ok, state}
   end
 end
