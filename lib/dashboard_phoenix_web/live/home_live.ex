@@ -1,6 +1,7 @@
 defmodule DashboardPhoenixWeb.HomeLive do
   use DashboardPhoenixWeb, :live_view
   
+  alias DashboardPhoenixWeb.Live.Components.HeaderComponent
   alias DashboardPhoenixWeb.Live.Components.LinearComponent
   alias DashboardPhoenixWeb.Live.Components.ChainlinkComponent
   alias DashboardPhoenixWeb.Live.Components.PRsComponent
@@ -1827,16 +1828,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
   defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
 
-  # Coding agent badge helpers
-  defp coding_agent_badge_class(:opencode), do: "bg-blue-500/20 text-blue-400"
-  defp coding_agent_badge_class(:claude), do: "bg-purple-500/20 text-purple-400"
-  defp coding_agent_badge_class(:gemini), do: "bg-green-500/20 text-green-400"
-  defp coding_agent_badge_class(_), do: "bg-base-content/10 text-base-content/60"
-
-  defp coding_agent_badge_text(:opencode), do: "💻 OpenCode"
-  defp coding_agent_badge_text(:claude), do: "🤖 Claude"
-  defp coding_agent_badge_text(:gemini), do: "✨ Gemini"
-  defp coding_agent_badge_text(_), do: "❓ Unknown"
+  # NOTE: Coding agent badge helpers moved to HeaderComponent
 
   defp coding_agent_button_class(:opencode), do: "bg-blue-500/20 text-blue-400"
   defp coding_agent_button_class(:claude), do: "bg-purple-500/20 text-purple-400"
