@@ -69,6 +69,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_tickets: linear_data.tickets,
       linear_last_updated: linear_data.last_updated,
       linear_error: linear_data.error,
+      linear_status_filter: "Todo",
       tickets_in_progress: tickets_in_progress,
       pr_created_tickets: pr_created_tickets,
       # Work modal state
@@ -280,6 +281,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_event("refresh_linear", _, socket) do
     LinearMonitor.refresh()
     {:noreply, socket}
+  end
+
+  def handle_event("set_linear_filter", %{"status" => status}, socket) do
+    {:noreply, assign(socket, linear_status_filter: status)}
   end
 
   def handle_event("toggle_linear_panel", _, socket) do
@@ -994,6 +999,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
     File.write!(@pr_state_file, content)
   end
 
+  # Linear filter button styling helpers
+  defp linear_filter_button_active("Triage"), do: "bg-red-500/30 text-red-400 border border-red-500/50"
+  defp linear_filter_button_active("Backlog"), do: "bg-blue-500/30 text-blue-400 border border-blue-500/50"
+  defp linear_filter_button_active("Todo"), do: "bg-yellow-500/30 text-yellow-400 border border-yellow-500/50"
+  defp linear_filter_button_active("In Review"), do: "bg-purple-500/30 text-purple-400 border border-purple-500/50"
+  defp linear_filter_button_active(_), do: "bg-accent/30 text-accent border border-accent/50"
+
   def render(assigns) do
     ~H"""
     <div class="space-y-4" id="panel-state-container" phx-hook="PanelState">
@@ -1290,6 +1302,23 @@ defmodule DashboardPhoenixWeb.HomeLive do
         </div>
         
         <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@linear_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
+          <!-- Status Filter Buttons -->
+          <div class="flex items-center space-x-2 px-1 mb-2">
+            <%= for status <- ["Triage", "Backlog", "Todo", "In Review"] do %>
+              <button
+                phx-click="set_linear_filter"
+                phx-value-status={status}
+                class={"px-3 py-1 rounded-lg text-xs font-mono transition-all " <> 
+                  if(@linear_status_filter == status,
+                    do: linear_filter_button_active(status),
+                    else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
+                  )}
+              >
+                <%= status %> (<%= length(Enum.filter(@linear_tickets, & &1.status == status)) %>)
+              </button>
+            <% end %>
+          </div>
+          
           <%= if @linear_error do %>
             <div class="glass-panel rounded-lg p-4 text-center">
               <div class="text-error text-xs"><%= @linear_error %></div>
@@ -1317,7 +1346,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                       </tr>
                     </thead>
                     <tbody>
-                      <%= for ticket <- @linear_tickets do %>
+                      <%= for ticket <- Enum.filter(@linear_tickets, & &1.status == @linear_status_filter) do %>
                         <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
                         <tr class={"border-b border-white/5 hover:bg-white/5 transition-colors " <> if(work_info, do: "bg-accent/5", else: "")}>
                           <td class="py-2 px-2">
