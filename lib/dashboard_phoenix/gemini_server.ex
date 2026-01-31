@@ -1,15 +1,15 @@
 defmodule DashboardPhoenix.GeminiServer do
   @moduledoc """
-  GenServer that manages a Gemini CLI interactive process.
+  GenServer that manages Gemini CLI one-shot commands.
   
-  The Gemini CLI is Google's AI coding assistant that runs in interactive mode.
+  The Gemini CLI doesn't support interactive mode via Elixir Port (no TTY),
+  so this server runs one-shot commands: `gemini "prompt" --cwd <cwd>`
   
   This GenServer:
-  - Starts the Gemini CLI in interactive mode
-  - Monitors the process health
-  - Provides status information
-  - Handles cleanup on shutdown
-  - Allows sending prompts to the running session
+  - Verifies the Gemini CLI is available
+  - Runs prompts as one-shot commands
+  - Captures and broadcasts output via PubSub
+  - Tracks whether the server is "enabled" (ready to accept prompts)
   """
   use GenServer
   require Logger
@@ -27,14 +27,14 @@ defmodule DashboardPhoenix.GeminiServer do
   end
 
   @doc """
-  Start the Gemini CLI if not already running.
+  Enable the Gemini server (verify binary exists, set running: true).
   """
   def start_server(cwd \\ @default_cwd) do
-    GenServer.call(__MODULE__, {:start_server, cwd}, 30_000)
+    GenServer.call(__MODULE__, {:start_server, cwd}, 10_000)
   end
 
   @doc """
-  Stop the Gemini CLI.
+  Disable the Gemini server (set running: false).
   """
   def stop_server do
     GenServer.call(__MODULE__, :stop_server)
@@ -42,42 +42,29 @@ defmodule DashboardPhoenix.GeminiServer do
 
   @doc """
   Get current server status.
-  Returns a map with :running, :cwd, :pid, :started_at
+  Returns a map with :running, :cwd, :started_at, :busy
   """
   def status do
     GenServer.call(__MODULE__, :status)
   end
 
   @doc """
-  Check if the server is running.
+  Check if the server is enabled and ready for prompts.
   """
   def running? do
     status().running
   end
 
   @doc """
-  Send a prompt to the running Gemini session.
+  Send a prompt to Gemini CLI as a one-shot command.
+  Returns :ok immediately; output is broadcast via PubSub.
   """
   def send_prompt(prompt) when is_binary(prompt) do
-    GenServer.call(__MODULE__, {:send_prompt, prompt}, 60_000)
+    GenServer.call(__MODULE__, {:send_prompt, prompt}, 5_000)
   end
 
   @doc """
-  Get recent output from the Gemini session.
-  """
-  def get_output(lines \\ 100) do
-    GenServer.call(__MODULE__, {:get_output, lines})
-  end
-
-  @doc """
-  List sessions (Gemini stores session history).
-  """
-  def list_sessions do
-    GenServer.call(__MODULE__, :list_sessions, 10_000)
-  end
-
-  @doc """
-  Subscribe to server status changes.
+  Subscribe to server status changes and output.
   """
   def subscribe do
     Phoenix.PubSub.subscribe(@pubsub, @topic)
@@ -91,12 +78,10 @@ defmodule DashboardPhoenix.GeminiServer do
     
     state = %{
       running: false,
-      os_pid: nil,
-      port_ref: nil,
       cwd: cwd,
       started_at: nil,
-      output_buffer: "",
-      output_lines: []
+      busy: false,
+      gemini_path: nil
     }
     
     {:ok, state}
@@ -104,99 +89,49 @@ defmodule DashboardPhoenix.GeminiServer do
 
   @impl true
   def handle_call({:start_server, _cwd}, _from, %{running: true} = state) do
-    Logger.info("[GeminiServer] Server already running")
+    Logger.info("[GeminiServer] Already enabled")
     {:reply, {:ok, :already_running}, state}
   end
 
   @impl true
   def handle_call({:start_server, cwd}, _from, state) do
-    Logger.info("[GeminiServer] Starting Gemini CLI with cwd: #{cwd}")
+    Logger.info("[GeminiServer] Enabling Gemini CLI with cwd: #{cwd}")
     
     # Check if gemini binary exists
     gemini_path = find_gemini_binary()
     
     if gemini_path do
-      # Start Gemini in interactive mode with sandbox disabled for full functionality
-      # Using --yolo for auto-approval in controlled dashboard environment
-      args = ["--sandbox", "false"]
-      
-      port_opts = [
-        :binary,
-        :exit_status,
-        :use_stdio,
-        :stderr_to_stdout,
-        {:args, args},
-        {:cd, cwd},
-        {:env, [
-          {~c"TERM", ~c"dumb"},
-          {~c"NO_COLOR", ~c"1"}
-        ]}
-      ]
-      
-      try do
-        port_ref = Port.open({:spawn_executable, gemini_path}, port_opts)
-        {:os_pid, os_pid} = Port.info(port_ref, :os_pid)
+      # Verify it runs (quick version check)
+      case System.cmd(gemini_path, ["--version"], stderr_to_stdout: true) do
+        {output, 0} ->
+          Logger.info("[GeminiServer] Gemini CLI available: #{String.trim(output)}")
+          
+          new_state = %{state |
+            running: true,
+            cwd: cwd,
+            started_at: DateTime.utc_now(),
+            gemini_path: gemini_path
+          }
+          
+          broadcast_status(new_state)
+          {:reply, {:ok, :started}, new_state}
         
-        Logger.info("[GeminiServer] Started with OS PID: #{os_pid}")
-        
-        new_state = %{state |
-          running: true,
-          os_pid: os_pid,
-          port_ref: port_ref,
-          cwd: cwd,
-          started_at: DateTime.utc_now(),
-          output_buffer: "",
-          output_lines: []
-        }
-        
-        broadcast_status(new_state)
-        {:reply, {:ok, os_pid}, new_state}
-      rescue
-        e ->
-          Logger.error("[GeminiServer] Failed to start: #{inspect(e)}")
-          {:reply, {:error, inspect(e)}, state}
+        {error, code} ->
+          Logger.error("[GeminiServer] Gemini CLI check failed (exit #{code}): #{error}")
+          {:reply, {:error, "Gemini CLI check failed: #{error}"}, state}
       end
     else
       Logger.error("[GeminiServer] Gemini CLI not found")
-      {:reply, {:error, "Gemini CLI not found. Install with: npm install -g @anthropic-ai/claude-code"}, state}
+      {:reply, {:error, "Gemini CLI not found at #{@gemini_bin}"}, state}
     end
-  end
-
-  @impl true
-  def handle_call(:stop_server, _from, %{running: false} = state) do
-    {:reply, :ok, state}
   end
 
   @impl true
   def handle_call(:stop_server, _from, state) do
-    Logger.info("[GeminiServer] Stopping server (PID: #{state.os_pid})")
-    
-    if state.port_ref do
-      # Send quit command first
-      try do
-        Port.command(state.port_ref, "/quit\n")
-        Process.sleep(500)
-      catch
-        _, _ -> :ok
-      end
-      
-      # Then close the port
-      try do
-        Port.close(state.port_ref)
-      catch
-        _, _ -> :ok
-      end
-    end
-    
-    # Also kill the OS process to be sure
-    if state.os_pid do
-      System.cmd("kill", ["-9", "#{state.os_pid}"], stderr_to_stdout: true)
-    end
+    Logger.info("[GeminiServer] Disabling server")
     
     new_state = %{state |
       running: false,
-      os_pid: nil,
-      port_ref: nil,
       started_at: nil
     }
     
@@ -209,82 +144,59 @@ defmodule DashboardPhoenix.GeminiServer do
     status = %{
       running: state.running,
       cwd: state.cwd,
-      pid: state.os_pid,
       started_at: state.started_at,
-      output_lines: length(state.output_lines)
+      busy: state.busy
     }
     {:reply, status, state}
   end
 
   @impl true
-  def handle_call({:send_prompt, prompt}, _from, %{running: false} = state) do
+  def handle_call({:send_prompt, _prompt}, _from, %{running: false} = state) do
     {:reply, {:error, :not_running}, state}
   end
 
   @impl true
+  def handle_call({:send_prompt, _prompt}, _from, %{busy: true} = state) do
+    {:reply, {:error, :busy}, state}
+  end
+
+  @impl true
   def handle_call({:send_prompt, prompt}, _from, state) do
-    try do
-      # Send the prompt followed by newline
-      Port.command(state.port_ref, prompt <> "\n")
-      {:reply, :ok, state}
-    catch
-      kind, reason ->
-        Logger.error("[GeminiServer] Failed to send prompt: #{inspect({kind, reason})}")
-        {:reply, {:error, {kind, reason}}, state}
-    end
+    # Mark as busy and run async
+    new_state = %{state | busy: true}
+    broadcast_status(new_state)
+    
+    # Spawn a task to run the command and send output back
+    parent = self()
+    Task.start(fn ->
+      result = run_gemini_prompt(state.gemini_path, prompt, state.cwd)
+      send(parent, {:prompt_complete, result})
+    end)
+    
+    {:reply, :ok, new_state}
   end
 
   @impl true
-  def handle_call({:get_output, lines}, _from, state) do
-    output = state.output_lines
-    |> Enum.take(-lines)
-    |> Enum.join("\n")
-    {:reply, output, state}
+  def handle_info({:prompt_complete, {:ok, output}}, state) do
+    Logger.info("[GeminiServer] Prompt completed successfully")
+    
+    # Broadcast the output
+    Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_output, output})
+    
+    new_state = %{state | busy: false}
+    broadcast_status(new_state)
+    {:noreply, new_state}
   end
 
   @impl true
-  def handle_call(:list_sessions, _from, state) do
-    # Run gemini --list-sessions to get available sessions
-    case System.cmd("gemini", ["--list-sessions"], stderr_to_stdout: true, cd: state.cwd) do
-      {output, 0} ->
-        sessions = parse_session_list(output)
-        {:reply, {:ok, sessions}, state}
-      {error, _} ->
-        {:reply, {:error, error}, state}
-    end
-  catch
-    _, reason ->
-      {:reply, {:error, reason}, state}
-  end
-
-  # Handle port messages (stdout/stderr from the process)
-  @impl true
-  def handle_info({port_ref, {:data, data}}, %{port_ref: port_ref} = state) when is_port(port_ref) do
-    # Log output from the Gemini process
-    lines = String.split(data, "\n", trim: false)
-    new_lines = state.output_lines ++ lines
-    # Keep only last 1000 lines to avoid memory issues
-    new_lines = Enum.take(new_lines, -1000)
+  def handle_info({:prompt_complete, {:error, error}}, state) do
+    Logger.error("[GeminiServer] Prompt failed: #{error}")
     
-    Logger.debug("[GeminiServer] #{String.trim(data)}")
+    # Broadcast the error as output
+    error_msg = "\n[ERROR] #{error}\n"
+    Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_output, error_msg})
     
-    # Broadcast output update
-    Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_output, data})
-    
-    {:noreply, %{state | output_buffer: state.output_buffer <> data, output_lines: new_lines}}
-  end
-
-  # Handle process exit
-  @impl true
-  def handle_info({port_ref, {:exit_status, status}}, %{port_ref: port_ref} = state) when is_port(port_ref) do
-    Logger.warning("[GeminiServer] Process exited with status: #{status}")
-    
-    new_state = %{state |
-      running: false,
-      os_pid: nil,
-      port_ref: nil
-    }
-    
+    new_state = %{state | busy: false}
     broadcast_status(new_state)
     {:noreply, new_state}
   end
@@ -293,25 +205,6 @@ defmodule DashboardPhoenix.GeminiServer do
   def handle_info(msg, state) do
     Logger.debug("[GeminiServer] Unhandled message: #{inspect(msg)}")
     {:noreply, state}
-  end
-
-  @impl true
-  def terminate(_reason, %{port_ref: port_ref, os_pid: os_pid}) do
-    Logger.info("[GeminiServer] Terminating, cleaning up...")
-    
-    if port_ref && Port.info(port_ref) do
-      try do
-        Port.close(port_ref)
-      catch
-        _, _ -> :ok
-      end
-    end
-    
-    if os_pid do
-      System.cmd("kill", ["-9", "#{os_pid}"], stderr_to_stdout: true)
-    end
-    
-    :ok
   end
 
   # Private functions
@@ -329,29 +222,41 @@ defmodule DashboardPhoenix.GeminiServer do
     end
   end
 
+  defp run_gemini_prompt(gemini_path, prompt, cwd) do
+    Logger.info("[GeminiServer] Running gemini in #{cwd}: #{String.slice(prompt, 0, 50)}...")
+    
+    # Broadcast that we're starting
+    Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_output, "\n> #{prompt}\n\n"})
+    
+    # Run the gemini command with the prompt
+    # The gemini CLI accepts the prompt as a positional argument
+    # Use cd: option to set working directory
+    try do
+      case System.cmd(gemini_path, [prompt],
+             cd: cwd,
+             stderr_to_stdout: true,
+             env: [{"NO_COLOR", "1"}, {"TERM", "dumb"}]) do
+        {output, 0} ->
+          {:ok, output}
+        
+        {output, exit_code} ->
+          # Still return output even on non-zero exit (might be useful info)
+          Logger.warning("[GeminiServer] Command exited with code #{exit_code}")
+          {:ok, output <> "\n[Exit code: #{exit_code}]"}
+      end
+    rescue
+      e ->
+        {:error, Exception.message(e)}
+    end
+  end
+
   defp broadcast_status(state) do
     status = %{
       running: state.running,
       cwd: state.cwd,
-      pid: state.os_pid,
-      started_at: state.started_at
+      started_at: state.started_at,
+      busy: state.busy
     }
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_status, status})
-  end
-
-  defp parse_session_list(output) do
-    # Parse the output of gemini --list-sessions
-    # Format is typically: "1. Session title (date)"
-    output
-    |> String.split("\n", trim: true)
-    |> Enum.filter(&String.match?(&1, ~r/^\d+\./))
-    |> Enum.map(fn line ->
-      # Extract session number and title
-      case Regex.run(~r/^(\d+)\.\s+(.+)$/, line) do
-        [_, num, title] -> %{index: String.to_integer(num), title: String.trim(title)}
-        _ -> nil
-      end
-    end)
-    |> Enum.filter(& &1)
   end
 end

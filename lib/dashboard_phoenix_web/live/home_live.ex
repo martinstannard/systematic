@@ -131,11 +131,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       agent_activity_collapsed: false,
       system_processes_collapsed: false,
       process_relationships_collapsed: false,
-      chat_collapsed: false,
-      # Chat panel state
-      chat_message: "",
-      chat_sending: false,
-      chat_iframe_error: false
+      chat_collapsed: true
     )
     
     socket = if connected?(socket) do
@@ -370,23 +366,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # Handle chat result
-  def handle_info({:chat_result, result}, socket) do
-    case result do
-      {:ok, _} ->
-        socket = socket
-        |> assign(chat_sending: false)
-        |> put_flash(:info, "Message sent to OpenClaw")
-        {:noreply, socket}
-      
-      {:error, reason} ->
-        socket = socket
-        |> assign(chat_sending: false)
-        |> put_flash(:error, "Failed to send message: #{inspect(reason)}")
-        {:noreply, socket}
-    end
-  end
-
-  # Handle async ticket details fetch
+    # Handle async ticket details fetch
   def handle_info({:fetch_ticket_details, ticket_id}, socket) do
     details = case LinearMonitor.get_ticket_details(ticket_id) do
       {:ok, output} -> output
@@ -914,29 +894,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
   end
 
-  # Chat panel events
-  def handle_event("chat_submit", %{"message" => message}, socket) when message != "" do
-    socket = assign(socket, chat_sending: true, chat_message: "")
-    
-    # Send message to OpenClaw
-    parent = self()
-    Task.start(fn ->
-      result = DashboardPhoenix.OpenClawClient.send_message(message, channel: "webchat")
-      send(parent, {:chat_result, result})
-    end)
-    
-    {:noreply, socket}
-  end
-
-  def handle_event("chat_submit", _, socket), do: {:noreply, socket}
-
-  def handle_event("chat_input_change", %{"message" => message}, socket) do
-    {:noreply, assign(socket, chat_message: message)}
-  end
-
-  def handle_event("chat_iframe_error", _, socket) do
-    {:noreply, assign(socket, chat_iframe_error: true)}
-  end
+  # Chat panel removed - using OpenClaw Control UI instead
 
   def handle_event("toggle_chat_mode", _, socket) do
     {:noreply, assign(socket, chat_iframe_error: !socket.assigns.chat_iframe_error)}
@@ -1597,132 +1555,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       <!-- Main Two-Column Layout -->
       <div class="flex-1 flex flex-col lg:flex-row gap-3 min-h-0">
         
-        <!-- LEFT: Chat Panel (Primary Focus) -->
-        <div class="lg:w-1/2 flex flex-col min-h-[500px] lg:min-h-0">
-          <div class="glass-panel rounded-lg flex-1 flex flex-col overflow-hidden">
-            <!-- Chat Header -->
-            <div class="px-4 py-2 border-b border-white/10 flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <span class="text-lg">💬</span>
-                <span class="text-sm font-mono font-bold text-white">OpenClaw Chat</span>
-                <%= if @chat_sending do %>
-                  <span class="text-[10px] font-mono text-warning animate-pulse">Sending...</span>
-                <% end %>
-              </div>
-              <div class="flex items-center space-x-2">
-                <%= if @chat_iframe_error do %>
-                  <span class="text-[10px] font-mono text-warning">Fallback mode</span>
-                <% else %>
-                  <span class="text-[10px] font-mono text-base-content/40">Embedded UI</span>
-                <% end %>
-                <button
-                  phx-click="toggle_chat_mode"
-                  class="text-[10px] font-mono px-2 py-1 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
-                  title="Toggle between iframe and input mode"
-                >
-                  ↻ Mode
-                </button>
-              </div>
-            </div>
-            
-            <!-- Chat Content -->
-            <div class="flex-1 min-h-0">
-              <%= if @chat_iframe_error do %>
-                <!-- Fallback: Simple chat input -->
-                <div class="h-full flex flex-col p-4">
-                  <div class="text-xs text-warning/70 mb-3">
-                    ⚠️ Iframe embed unavailable. Using direct message input.
-                  </div>
-                  
-                  <!-- Quick Actions -->
-                  <div class="mb-4">
-                    <div class="text-[10px] font-mono text-base-content/50 mb-2">Quick Actions:</div>
-                    <div class="flex flex-wrap gap-2">
-                      <button
-                        phx-click="chat_submit"
-                        phx-value-message="What are you working on?"
-                        class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
-                      >
-                        📋 Status
-                      </button>
-                      <button
-                        phx-click="chat_submit"
-                        phx-value-message="Check my calendar for today"
-                        class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
-                      >
-                        📅 Calendar
-                      </button>
-                      <button
-                        phx-click="chat_submit"
-                        phx-value-message="Check my unread emails"
-                        class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
-                      >
-                        📧 Emails
-                      </button>
-                      <button
-                        phx-click="chat_submit"
-                        phx-value-message="What's the weather like today?"
-                        class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
-                      >
-                        🌤️ Weather
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <!-- Message Input -->
-                  <form phx-submit="chat_submit" phx-change="chat_input_change" class="flex-1 flex flex-col">
-                    <textarea
-                      name="message"
-                      value={@chat_message}
-                      placeholder="Type a message to OpenClaw... (Shift+Enter to send)"
-                      class="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-sm font-mono text-white placeholder-base-content/40 focus:outline-none focus:border-accent/50 resize-none"
-                      disabled={@chat_sending}
-                      phx-hook="ChatInput"
-                      id="chat-input"
-                    ></textarea>
-                    
-                    <div class="flex items-center justify-between mt-3">
-                      <div class="text-[10px] font-mono text-base-content/50">
-                        Messages are sent to your OpenClaw agent
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={@chat_sending or @chat_message == ""}
-                        class={"px-4 py-2 rounded-lg text-sm font-mono font-bold transition-all " <> 
-                          if(@chat_sending, 
-                            do: "bg-accent/20 text-accent/50 cursor-wait",
-                            else: "bg-accent/20 text-accent hover:bg-accent/40"
-                          )}
-                      >
-                        <%= if @chat_sending, do: "Sending...", else: "Send 📤" %>
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              <% else %>
-                <!-- Primary: iframe embed -->
-                <div class="relative h-full">
-                  <iframe
-                    id="openclaw-iframe"
-                    src="https://balgownie.tail1b57dd.ts.net:8443/"
-                    class="w-full h-full border-0"
-                    title="OpenClaw Chat"
-                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-                    phx-hook="ChatIframe"
-                  ></iframe>
-                  
-                  <!-- Loading overlay -->
-                  <div id="iframe-loading" class="absolute inset-0 bg-base-300/80 flex items-center justify-center">
-                    <div class="text-center">
-                      <div class="throbber mb-2"></div>
-                      <div class="text-sm font-mono text-base-content/60">Loading OpenClaw...</div>
-                    </div>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          </div>
-        </div>
+        <!-- LEFT: Removed chat panel - use OpenClaw Control UI at https://balgownie.tail1b57dd.ts.net:8443/ -->
 
         <!-- RIGHT: Sidebar Panels -->
         <div class="lg:w-1/2 flex flex-col gap-3 overflow-y-auto">
@@ -2174,8 +2007,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
                   <!-- Status -->
                   <div class="flex items-center justify-between mb-2 text-[10px] font-mono">
                     <div class="flex items-center space-x-2">
-                      <span class="text-base-content/50">PID:</span>
-                      <span class="text-green-400"><%= @gemini_server_status.pid %></span>
+                      <span class="text-base-content/50">Status:</span>
+                      <%= if @gemini_server_status[:busy] do %>
+                        <span class="text-warning animate-pulse">Running...</span>
+                      <% else %>
+                        <span class="text-green-400">Ready</span>
+                      <% end %>
                       <span class="text-base-content/30">|</span>
                       <span class="text-base-content/50">Dir:</span>
                       <span class="text-blue-400 truncate max-w-[150px]" title={@gemini_server_status.cwd}><%= @gemini_server_status.cwd %></span>
@@ -2408,7 +2245,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
                       <div class="flex items-center space-x-2 text-xs font-mono">
                         <span class="text-base-content/50">Gemini CLI:</span>
                         <%= if @gemini_server_status.running do %>
-                          <span class="text-success">Running (PID: <%= @gemini_server_status.pid %>)</span>
+                          <%= if @gemini_server_status[:busy] do %>
+                            <span class="text-warning animate-pulse">Running prompt...</span>
+                          <% else %>
+                            <span class="text-success">Ready</span>
+                          <% end %>
                         <% else %>
                           <span class="text-base-content/40">Stopped</span>
                         <% end %>
