@@ -585,6 +585,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, chat_iframe_error: true)}
   end
 
+  def handle_event("toggle_chat_mode", _, socket) do
+    {:noreply, assign(socket, chat_iframe_error: !socket.assigns.chat_iframe_error)}
+  end
+
   def handle_event("clear_completed", _, socket) do
     # Get all completed session IDs and add them to dismissed
     completed_ids = socket.assigns.agent_sessions
@@ -1064,9 +1068,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def render(assigns) do
     ~H"""
-    <div class="space-y-4" id="panel-state-container" phx-hook="PanelState">
-      <!-- Header -->
-      <div class="glass-panel rounded-lg px-4 py-2 flex items-center justify-between">
+    <div class="min-h-screen flex flex-col" id="panel-state-container" phx-hook="PanelState">
+      <!-- Compact Header -->
+      <div class="glass-panel rounded-lg px-4 py-2 flex items-center justify-between mb-3">
         <div class="flex items-center space-x-4">
           <h1 class="text-sm font-bold tracking-widest text-base-content">SYSTEMATIC</h1>
           <span class="text-[10px] text-base-content/60 font-mono">AGENT CONTROL</span>
@@ -1078,1166 +1082,131 @@ defmodule DashboardPhoenixWeb.HomeLive do
             class="p-1.5 rounded-lg bg-base-content/10 hover:bg-base-content/20 transition-colors"
             title="Toggle light/dark mode"
           >
-            <!-- Sun icon (shown in dark mode, click for light) -->
             <svg class="sun-icon w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            <!-- Moon icon (shown in light mode, click for dark) -->
             <svg class="moon-icon w-4 h-4 text-indigo-400" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
             </svg>
           </button>
         </div>
         
-        <!-- Status Info -->
-        <div class="flex items-center space-x-4">
-          <!-- OpenCode Server Status (shown when OpenCode mode is selected) -->
+        <!-- Compact Stats -->
+        <div class="flex items-center space-x-6 text-xs font-mono">
+          <div class="flex items-center space-x-2">
+            <span class="text-base-content/50">Agents:</span>
+            <span class="text-success font-bold"><%= length(@agent_sessions) %></span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-base-content/50">Events:</span>
+            <span class="text-primary font-bold"><%= length(@agent_progress) %></span>
+          </div>
           <%= if @coding_agent_pref == :opencode do %>
             <div class="flex items-center space-x-2">
-              <span class="text-[10px] font-mono text-base-content/50 uppercase">ACP Server:</span>
+              <span class="text-base-content/50">ACP:</span>
               <%= if @opencode_server_status.running do %>
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                  <span class="text-[10px] font-mono text-success">Running</span>
-                  <span class="text-[9px] font-mono text-base-content/40">:<%=@opencode_server_status.port %></span>
-                </div>
+                <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
               <% else %>
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-base-content/30"></span>
-                  <span class="text-[10px] font-mono text-base-content/50">Stopped</span>
-                </div>
+                <span class="w-2 h-2 rounded-full bg-base-content/30"></span>
               <% end %>
             </div>
           <% end %>
-        </div>
-        
-        <div class="flex items-center space-x-4 text-xs font-mono">
-          <span class="text-success font-bold"><%= length(@agent_sessions) %></span>
-          <span class="text-base-content/60">AGENTS</span>
-          <span class="text-primary font-bold"><%= length(@agent_progress) %></span>
-          <span class="text-base-content/60">EVENTS</span>
-        </div>
-      </div>
-
-      <!-- Usage Stats -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <!-- OpenCode Stats -->
-        <div class="glass-panel rounded-lg p-3">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] font-mono text-accent uppercase tracking-wider">📊 OpenCode (Gemini)</span>
-            <button phx-click="refresh_stats" class="text-[10px] text-base-content/40 hover:text-accent">↻</button>
-          </div>
-          <%= if @usage_stats.opencode[:error] do %>
-            <div class="text-xs text-base-content/40">Unavailable</div>
-          <% else %>
-            <div class="space-y-1 text-xs font-mono">
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Sessions</span>
-                <span class="text-white font-bold"><%= @usage_stats.opencode[:sessions] || 0 %></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Input</span>
-                <span class="text-primary"><%= @usage_stats.opencode[:input_tokens] || "0" %></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Output</span>
-                <span class="text-secondary"><%= @usage_stats.opencode[:output_tokens] || "0" %></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Cost</span>
-                <span class="text-success"><%= @usage_stats.opencode[:total_cost] || "$0" %></span>
-              </div>
-            </div>
-          <% end %>
-        </div>
-
-        <!-- Claude Stats -->
-        <div class="glass-panel rounded-lg p-3">
-          <div class="text-[10px] font-mono text-accent uppercase tracking-wider mb-2">📊 Claude Code</div>
-          <%= if @usage_stats.claude[:error] do %>
-            <div class="text-xs text-base-content/40">Unavailable</div>
-          <% else %>
-            <div class="space-y-1 text-xs font-mono">
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Sessions</span>
-                <span class="text-white font-bold"><%= @usage_stats.claude[:sessions] || 0 %></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Input</span>
-                <span class="text-primary"><%= @usage_stats.claude[:input_tokens] || "0" %></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Output</span>
-                <span class="text-secondary"><%= @usage_stats.claude[:output_tokens] || "0" %></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Cache</span>
-                <span class="text-accent"><%= @usage_stats.claude[:cache_read] || "0" %></span>
-              </div>
-            </div>
-          <% end %>
-        </div>
-
-        <!-- Quick Stats -->
-        <div class="glass-panel rounded-lg p-3 lg:col-span-2">
-          <div class="text-[10px] font-mono text-accent uppercase tracking-wider mb-2">📈 Summary</div>
-          <div class="grid grid-cols-2 gap-4 text-xs font-mono">
-            <div>
-              <div class="text-base-content/60 mb-1">Total Sessions</div>
-              <div class="text-2xl font-bold text-white">
-                <%= (@usage_stats.opencode[:sessions] || 0) + (@usage_stats.claude[:sessions] || 0) %>
-              </div>
-            </div>
-            <div>
-              <div class="text-base-content/60 mb-1">Total Messages</div>
-              <div class="text-2xl font-bold text-white">
-                <%= (@usage_stats.opencode[:messages] || 0) + (@usage_stats.claude[:messages] || 0) %>
-              </div>
-            </div>
+          <div class="flex items-center space-x-1">
+            <span class={"px-2 py-0.5 rounded text-[10px] " <> if(@coding_agent_pref == :opencode, do: "bg-blue-500/20 text-blue-400", else: "bg-purple-500/20 text-purple-400")}>
+              <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode", else: "🤖 Claude" %>
+            </span>
           </div>
         </div>
       </div>
 
-      <!-- Config Panel -->
-      <div class="space-y-3">
-        <div 
-          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-          phx-click="toggle_panel"
-          phx-value-panel="config"
-        >
-          <div class="flex items-center space-x-3">
-            <span class={"text-xs transition-transform duration-200 " <> if(@config_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">⚙️ Config</span>
-          </div>
-        </div>
+      <!-- Main Two-Column Layout -->
+      <div class="flex-1 flex flex-col lg:flex-row gap-3 min-h-0">
         
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@config_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-          <div class="glass-panel rounded-lg p-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              <!-- Coding Agent Selection -->
-              <div class="space-y-3">
-                <div class="text-xs font-mono text-accent uppercase tracking-wider">Coding Agent</div>
-                <div class="space-y-2">
-                  <button 
-                    phx-click="toggle_coding_agent"
-                    class={"flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 w-full text-left " <> 
-                      if(@coding_agent_pref == :opencode, 
-                        do: "bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30",
-                        else: "bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30"
-                      )}
-                    title="Click to toggle between OpenCode (Gemini) and Claude sub-agents"
-                  >
-                    <%= if @coding_agent_pref == :opencode do %>
-                      <span class="text-2xl">💻</span>
-                      <div class="flex-1">
-                        <div class="text-sm font-mono font-bold text-blue-400">OpenCode</div>
-                        <div class="text-xs text-blue-400/70">Gemini-powered coding agent</div>
-                      </div>
-                    <% else %>
-                      <span class="text-2xl">🤖</span>
-                      <div class="flex-1">
-                        <div class="text-sm font-mono font-bold text-purple-400">Claude</div>
-                        <div class="text-xs text-purple-400/70">Claude sub-agents</div>
-                      </div>
-                    <% end %>
-                  </button>
+        <!-- LEFT: Chat Panel (Primary Focus) -->
+        <div class="lg:w-[60%] xl:w-[65%] flex flex-col min-h-[500px] lg:min-h-0">
+          <div class="glass-panel rounded-lg flex-1 flex flex-col overflow-hidden">
+            <!-- Chat Header -->
+            <div class="px-4 py-2 border-b border-white/10 flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <span class="text-lg">💬</span>
+                <span class="text-sm font-mono font-bold text-white">OpenClaw Chat</span>
+                <%= if @chat_sending do %>
+                  <span class="text-[10px] font-mono text-warning animate-pulse">Sending...</span>
+                <% end %>
+              </div>
+              <div class="flex items-center space-x-2">
+                <%= if @chat_iframe_error do %>
+                  <span class="text-[10px] font-mono text-warning">Fallback mode</span>
+                <% else %>
+                  <span class="text-[10px] font-mono text-base-content/40">Embedded UI</span>
+                <% end %>
+                <button
+                  phx-click="toggle_chat_mode"
+                  class="text-[10px] font-mono px-2 py-1 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
+                  title="Toggle between iframe and input mode"
+                >
+                  ↻ Mode
+                </button>
+              </div>
+            </div>
+            
+            <!-- Chat Content -->
+            <div class="flex-1 min-h-0">
+              <%= if @chat_iframe_error do %>
+                <!-- Fallback: Simple chat input -->
+                <div class="h-full flex flex-col p-4">
+                  <div class="text-xs text-warning/70 mb-3">
+                    ⚠️ Iframe embed unavailable. Using direct message input.
+                  </div>
                   
-                  <!-- OpenCode Server Controls -->
-                  <%= if @coding_agent_pref == :opencode do %>
-                    <div class="pl-4 space-y-2 border-l-2 border-blue-500/30">
-                      <div class="text-xs font-mono text-base-content/60">ACP Server Status</div>
-                      <%= if @opencode_server_status.running do %>
-                        <div class="flex items-center justify-between">
-                          <div class="flex items-center space-x-2">
-                            <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                            <span class="text-xs font-mono text-success">Running on port <%= @opencode_server_status.port %></span>
-                          </div>
-                          <button 
-                            phx-click="stop_opencode_server"
-                            class="text-xs font-mono px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40"
-                          >
-                            Stop
-                          </button>
-                        </div>
-                      <% else %>
-                        <div class="flex items-center justify-between">
-                          <div class="flex items-center space-x-2">
-                            <span class="w-2 h-2 rounded-full bg-base-content/30"></span>
-                            <span class="text-xs font-mono text-base-content/50">Stopped</span>
-                          </div>
-                          <button 
-                            phx-click="start_opencode_server"
-                            class="text-xs font-mono px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40"
-                          >
-                            Start
-                          </button>
-                        </div>
-                      <% end %>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-              
-              <!-- Model Selection -->
-              <div class="space-y-3">
-                <div class="text-xs font-mono text-accent uppercase tracking-wider">Model Selection</div>
-                
-                <!-- Claude Model Selector -->
-                <div class="space-y-2">
-                  <div class="text-xs font-mono text-purple-400 font-semibold">🤖 Claude Model</div>
-                  <select 
-                    phx-change="select_claude_model"
-                    name="model"
-                    class="w-full text-sm font-mono bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-400 focus:outline-none focus:border-purple-500/50 hover:bg-purple-500/20 transition-colors"
-                  >
-                    <option value="anthropic/claude-opus-4-5" selected={@claude_model == "anthropic/claude-opus-4-5"}>Claude Opus (opus)</option>
-                    <option value="anthropic/claude-sonnet-4-20250514" selected={@claude_model == "anthropic/claude-sonnet-4-20250514"}>Claude Sonnet (sonnet)</option>
-                  </select>
-                  <div class="text-xs text-base-content/50">Used when spawning Claude sub-agents</div>
-                </div>
-                
-                <!-- OpenCode Model Selector -->
-                <div class="space-y-2">
-                  <div class="text-xs font-mono text-blue-400 font-semibold">💻 OpenCode Model</div>
-                  <select 
-                    phx-change="select_opencode_model"
-                    name="model"
-                    class="w-full text-sm font-mono bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-blue-400 focus:outline-none focus:border-blue-500/50 hover:bg-blue-500/20 transition-colors"
-                  >
-                    <option value="gemini-3-pro" selected={@opencode_model == "gemini-3-pro"}>Gemini 3 Pro</option>
-                    <option value="gemini-3-flash" selected={@opencode_model == "gemini-3-flash"}>Gemini 3 Flash</option>
-                    <option value="gemini-2.5-pro" selected={@opencode_model == "gemini-2.5-pro"}>Gemini 2.5 Pro</option>
-                    <option value="gemini-2.5-flash" selected={@opencode_model == "gemini-2.5-flash"}>Gemini 2.5 Flash</option>
-                  </select>
-                  <div class="text-xs text-base-content/50">Used for OpenCode sessions <span class="text-base-content/40">(interface ready, not yet supported by ACP)</span></div>
-                </div>
-                
-                <!-- Current Selection Summary -->
-                <div class="pt-2 border-t border-white/10">
-                  <div class="text-xs text-base-content/60 mb-1">Active Configuration:</div>
-                  <div class="text-sm font-mono">
-                    <%= if @coding_agent_pref == :opencode do %>
-                      <span class="text-blue-400">💻 OpenCode</span>
-                      <span class="text-base-content/40"> with </span>
-                      <span class="text-blue-300"><%= @opencode_model %></span>
-                    <% else %>
-                      <span class="text-purple-400">🤖 Claude</span>
-                      <span class="text-base-content/40"> with </span>
-                      <span class="text-purple-300"><%= @claude_model |> String.replace("anthropic/claude-", "") |> String.replace("-4-5", "") |> String.replace("-4-20250514", "") %></span>
-                    <% end %>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Linear Tickets Panel -->
-      <div class="space-y-3">
-        <div 
-          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-          phx-click="toggle_linear_panel"
-        >
-          <div class="flex items-center space-x-3">
-            <span class={"text-xs transition-transform duration-200 " <> if(@linear_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">🎫 Linear Tickets (COR)</span>
-            <span class="text-[10px] font-mono text-base-content/50">
-              <%= length(@linear_tickets) %> tickets
-            </span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <%= if @linear_last_updated do %>
-              <span class="text-[10px] font-mono text-base-content/40">
-                Updated <%= format_linear_time(@linear_last_updated) %>
-              </span>
-            <% end %>
-            <button phx-click="refresh_linear" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">↻</button>
-          </div>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@linear_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-          <!-- Status Filter Buttons -->
-          <div class="flex items-center space-x-2 px-1 mb-2">
-            <%= for status <- ["Triage", "Backlog", "Todo", "In Review"] do %>
-              <button
-                phx-click="set_linear_filter"
-                phx-value-status={status}
-                class={"px-3 py-1 rounded-lg text-xs font-mono transition-all " <> 
-                  if(@linear_status_filter == status,
-                    do: linear_filter_button_active(status),
-                    else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
-                  )}
-              >
-                <%= status %> (<%= length(Enum.filter(@linear_tickets, & &1.status == status)) %>)
-              </button>
-            <% end %>
-          </div>
-          
-          <%= if @linear_error do %>
-            <div class="glass-panel rounded-lg p-4 text-center">
-              <div class="text-error text-xs"><%= @linear_error %></div>
-            </div>
-          <% else %>
-            <%= if @linear_tickets == [] do %>
-              <div class="glass-panel rounded-lg p-4 text-center">
-                <div class="text-base-content/40 font-mono text-xs">[NO TICKETS]</div>
-                <div class="text-base-content/60 text-xs">No tickets in Triage, Backlog, or Todo</div>
-              </div>
-            <% else %>
-              <div class="glass-panel rounded-lg p-3">
-                <div class="overflow-x-auto">
-                  <table class="w-full text-xs font-mono">
-                    <thead>
-                      <tr class="text-base-content/50 border-b border-white/10">
-                        <th class="text-left py-2 px-2 w-16"></th>
-                        <th class="text-left py-2 px-2 w-24">ID</th>
-                        <th class="text-left py-2 px-2">Title</th>
-                        <th class="text-left py-2 px-2 w-20">Status</th>
-                        <th class="text-left py-2 px-2 w-36">Work</th>
-                        <th class="text-left py-2 px-2 w-28">Actions</th>
-                        <th class="text-left py-2 px-2 w-20">PR</th>
-                        <th class="text-left py-2 px-2 w-28">Project</th>
-                        <th class="text-left py-2 px-2 w-24">Assignee</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <%= for ticket <- Enum.filter(@linear_tickets, & &1.status == @linear_status_filter) do %>
-                        <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
-                        <tr class={"border-b border-white/5 hover:bg-white/5 transition-colors " <> if(work_info, do: "bg-accent/5", else: "")}>
-                          <td class="py-2 px-2">
-                            <%= if work_info do %>
-                              <span class="px-4 py-1 rounded bg-success/20 text-success text-[10px] font-bold animate-pulse whitespace-nowrap" title="Work in progress">
-                                ⚡ Active
-                              </span>
-                            <% else %>
-                              <button
-                                phx-click="work_on_ticket"
-                                phx-value-id={ticket.id}
-                                class="px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-[10px] font-bold"
-                                title="Work on this ticket"
-                              >
-                                ▶ Work
-                              </button>
-                            <% end %>
-                          </td>
-                          <td class="py-2 px-2">
-                            <a 
-                              href={ticket.url} 
-                              target="_blank" 
-                              class="text-accent hover:text-accent/80 hover:underline"
-                            >
-                              <%= ticket.id %>
-                            </a>
-                          </td>
-                          <td class="py-2 px-2 text-white truncate max-w-xs" title={ticket.title}>
-                            <%= ticket.title %>
-                          </td>
-                          <td class="py-2 px-2">
-                            <span class={linear_status_badge(ticket.status)}>
-                              <%= ticket.status %>
-                            </span>
-                          </td>
-                          <td class="py-2 px-2">
-                            <%= if work_info do %>
-                              <%= if work_info.type == :opencode do %>
-                                <a 
-                                  href="#opencode-sessions"
-                                  class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors text-[10px]"
-                                  title={"OpenCode: #{work_info.title}"}
-                                >
-                                  <span>💻</span>
-                                  <span class="truncate max-w-[80px]"><%= work_info.slug %></span>
-                                  <%= if work_info.status == "active" do %>
-                                    <span class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping"></span>
-                                  <% end %>
-                                </a>
-                              <% else %>
-                                <a
-                                  href="#subagents"
-                                  class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors text-[10px]"
-                                  title={"Sub-agent: #{work_info.task_summary}"}
-                                >
-                                  <span>🤖</span>
-                                  <span class="truncate max-w-[80px]"><%= work_info.label %></span>
-                                  <%= if work_info.status == "running" do %>
-                                    <span class="w-1.5 h-1.5 bg-purple-400 rounded-full animate-ping"></span>
-                                  <% end %>
-                                </a>
-                              <% end %>
-                            <% else %>
-                              <span class="text-base-content/30 text-[10px]">-</span>
-                            <% end %>
-                          </td>
-                          <td class="py-2 px-2">
-                            <% has_pr = MapSet.member?(@pr_created_tickets, ticket.id) %>
-                            <%= cond do %>
-                              <% has_pr -> %>
-                                <%!-- PR exists - show Super Review button --%>
-                                <div class="flex items-center space-x-1">
-                                  <button
-                                    phx-click="request_super_review"
-                                    phx-value-id={ticket.id}
-                                    class="px-2 py-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 transition-colors text-[10px] font-bold"
-                                    title="Request super review for PR"
-                                  >
-                                    🔍 Review
-                                  </button>
-                                  <button
-                                    phx-click="clear_ticket_pr"
-                                    phx-value-id={ticket.id}
-                                    class="px-1 py-1 rounded bg-base-content/10 text-base-content/40 hover:text-error hover:bg-error/20 transition-colors text-[10px]"
-                                    title="Clear PR state"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              <% work_info != nil -> %>
-                                <%!-- Work in progress - show PR button --%>
-                                <button
-                                  phx-click="request_ticket_pr"
-                                  phx-value-id={ticket.id}
-                                  class="px-2 py-1 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 transition-colors text-[10px] font-bold"
-                                  title="Request PR creation"
-                                >
-                                  📝 PR
-                                </button>
-                              <% true -> %>
-                                <%!-- No work - show dash --%>
-                                <span class="text-base-content/30 text-[10px]">-</span>
-                            <% end %>
-                          </td>
-                          <td class="py-2 px-2">
-                            <%= if ticket.pr_url do %>
-                              <a 
-                                href={ticket.pr_url} 
-                                target="_blank"
-                                class="inline-flex items-center space-x-1 px-2 py-1 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 transition-colors text-[10px] font-bold"
-                                title="Open PR in GitHub"
-                              >
-                                <span>📄</span>
-                                <span>PR</span>
-                              </a>
-                            <% else %>
-                              <span class="text-base-content/30 text-[10px]">-</span>
-                            <% end %>
-                          </td>
-                          <td class="py-2 px-2 text-base-content/60 truncate max-w-[120px]" title={ticket.project}>
-                            <%= ticket.project || "-" %>
-                          </td>
-                          <td class="py-2 px-2">
-                            <%= if ticket.assignee == "you" do %>
-                              <span class="text-success font-semibold">you</span>
-                            <% else %>
-                              <span class="text-base-content/50"><%= ticket.assignee || "-" %></span>
-                            <% end %>
-                          </td>
-                        </tr>
-                      <% end %>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            <% end %>
-          <% end %>
-        </div>
-      </div>
-
-      <!-- OpenCode Sessions Panel -->
-      <div class="space-y-3" id="opencode-sessions">
-        <div 
-          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-          phx-click="toggle_panel"
-          phx-value-panel="opencode"
-        >
-          <div class="flex items-center space-x-3">
-            <span class={"text-xs transition-transform duration-200 " <> if(@opencode_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">💻 OpenCode Sessions</span>
-            <span class="text-[10px] font-mono text-base-content/50">
-              <%= length(@opencode_sessions) %> sessions
-            </span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <button phx-click="refresh_opencode_sessions" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">↻</button>
-          </div>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@opencode_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-        <%= if not @opencode_server_status.running do %>
-          <div class="glass-panel rounded-lg p-4 text-center">
-            <div class="text-base-content/40 font-mono text-xs mb-2">[SERVER NOT RUNNING]</div>
-            <div class="text-base-content/60 text-xs mb-3">Start the OpenCode ACP server to see sessions</div>
-            <button 
-              phx-click="start_opencode_server"
-              class="px-3 py-1.5 rounded bg-success/20 text-success hover:bg-success/40 text-xs font-mono"
-            >
-              Start Server
-            </button>
-          </div>
-        <% else %>
-          <%= if @opencode_sessions == [] do %>
-            <div class="glass-panel rounded-lg p-4 text-center">
-              <div class="text-base-content/40 font-mono text-xs">[NO SESSIONS]</div>
-              <div class="text-base-content/60 text-xs">No active OpenCode sessions</div>
-            </div>
-          <% else %>
-            <div class="glass-panel rounded-lg p-3">
-              <div class="overflow-x-auto">
-                <table class="w-full text-xs font-mono">
-                  <thead>
-                    <tr class="text-base-content/50 border-b border-white/10">
-                      <th class="text-left py-2 px-2 w-28">Slug</th>
-                      <th class="text-left py-2 px-2">Title</th>
-                      <th class="text-left py-2 px-2 w-20">Status</th>
-                      <th class="text-left py-2 px-2 w-24">Created</th>
-                      <th class="text-left py-2 px-2 w-28">Changes</th>
-                      <th class="text-left py-2 px-2 w-20"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <%= for session <- @opencode_sessions do %>
-                      <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td class="py-2 px-2">
-                          <span class={"font-semibold " <> if(session.parent_id, do: "text-purple-400", else: "text-blue-400")}>
-                            <%= if session.parent_id do %>↳ <% end %><%= session.slug %>
-                          </span>
-                        </td>
-                        <td class="py-2 px-2 text-white truncate max-w-xs" title={session.title}>
-                          <%= session.title || "-" %>
-                        </td>
-                        <td class="py-2 px-2">
-                          <span class={opencode_status_badge(session.status)}>
-                            <%= session.status %>
-                          </span>
-                        </td>
-                        <td class="py-2 px-2 text-base-content/60">
-                          <%= format_linear_time(session.created_at) %>
-                        </td>
-                        <td class="py-2 px-2">
-                          <%= if session.file_changes.files > 0 do %>
-                            <span class="text-green-400">+<%= session.file_changes.additions %></span>
-                            <span class="text-red-400">-<%= session.file_changes.deletions %></span>
-                            <span class="text-base-content/50">(<%= session.file_changes.files %> files)</span>
-                          <% else %>
-                            <span class="text-base-content/40">-</span>
-                          <% end %>
-                        </td>
-                        <td class="py-2 px-2">
-                          <div class="flex items-center space-x-2">
-                            <a 
-                              href={"http://localhost:9100/session/#{session.id}"} 
-                              target="_blank" 
-                              class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors text-[10px]"
-                            >
-                              View ↗
-                            </a>
-                            <button
-                              phx-click="close_opencode_session"
-                              phx-value-id={session.id}
-                              data-confirm="Close this OpenCode session?"
-                              class="px-2 py-1 rounded bg-error/20 text-error/70 hover:text-error hover:bg-error/40 transition-colors text-[10px]"
-                              title="Close session"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    <% end %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          <% end %>
-        <% end %>
-        </div>
-      </div>
-
-      <!-- Coding Agents (OpenCode, Claude Code, etc.) -->
-      <%= if @coding_agents != [] do %>
-        <div class="space-y-3">
-          <div 
-            class="flex items-center px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-            phx-click="toggle_panel"
-            phx-value-panel="coding_agents"
-          >
-            <div class="flex items-center space-x-3">
-              <span class={"text-xs transition-transform duration-200 " <> if(@coding_agents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-              <span class="text-xs font-mono text-accent uppercase tracking-wider">💻 Coding Agents</span>
-              <span class="text-[10px] font-mono text-base-content/50">
-                <%= length(@coding_agents) %> agents
-              </span>
-            </div>
-          </div>
-          <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@coding_agents_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-          <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-            <%= for agent <- @coding_agents do %>
-              <% matched_session = if agent.type == "OpenCode", do: find_opencode_session(agent, @opencode_sessions), else: nil %>
-              <div class={"glass-panel rounded-lg p-3 border-l-4 " <> if(agent.status == "running", do: "border-l-warning", else: "border-l-success")}>
-                <!-- Header -->
-                <div class="flex items-center justify-between mb-2">
-                  <div class="flex items-center space-x-2">
-                    <%= if agent.status == "running" do %>
-                      <span class="throbber"></span>
-                    <% else %>
-                      <span class="text-base-content/50">○</span>
-                    <% end %>
-                    <span class="text-sm font-mono text-white font-bold"><%= agent.type %></span>
-                    <%= if matched_session do %>
-                      <span class={"text-[10px] font-mono px-1.5 py-0.5 rounded " <> opencode_status_badge(matched_session.status)}>
-                        <%= matched_session.status %>
-                      </span>
-                    <% end %>
-                  </div>
-                  <button 
-                    phx-click="kill_process" 
-                    phx-value-pid={agent.pid}
-                    class="text-[10px] font-mono px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40 transition-colors"
-                  >
-                    KILL
-                  </button>
-                </div>
-                
-                <!-- Session Title (for OpenCode with matched session) -->
-                <%= if matched_session && matched_session.title do %>
-                  <div class="mb-2">
-                    <div class="text-xs text-white font-medium truncate" title={matched_session.title}>
-                      📝 <%= truncate_title(matched_session.title) %>
-                    </div>
-                    <%= if matched_session.slug do %>
-                      <div class="text-[10px] font-mono text-blue-400/70">
-                        <%= matched_session.slug %>
-                      </div>
-                    <% end %>
-                  </div>
-                <% end %>
-                
-                <!-- Project / Working Dir -->
-                <%= if agent.project do %>
-                  <div class="text-xs font-mono text-accent mb-1">📁 <%= agent.project %></div>
-                <% end %>
-                <%= if agent.working_dir && !matched_session do %>
-                  <div class="text-[10px] font-mono text-base-content/50 mb-2 truncate" title={agent.working_dir}>
-                    <%= agent.working_dir %>
-                  </div>
-                <% end %>
-                
-                <!-- File Changes (for matched OpenCode sessions) -->
-                <%= if matched_session && matched_session.file_changes.files > 0 do %>
-                  <div class="text-[10px] font-mono mb-2">
-                    <span class="text-green-400">+<%= matched_session.file_changes.additions %></span>
-                    <span class="text-red-400 ml-1">-<%= matched_session.file_changes.deletions %></span>
-                    <span class="text-base-content/50 ml-1">(<%= matched_session.file_changes.files %> files)</span>
-                  </div>
-                <% end %>
-                
-                <!-- Stats -->
-                <div class="flex items-center justify-between text-[10px] font-mono text-base-content/60">
-                  <span>PID: <%= agent.pid %></span>
-                  <span class="text-blue-400">CPU: <%= agent.cpu %>%</span>
-                  <span class="text-green-400">MEM: <%= agent.memory %>%</span>
-                </div>
-                
-                <!-- Runtime -->
-                <div class="flex items-center justify-between text-[10px] font-mono text-base-content/50 mt-1">
-                  <span>Started: <%= agent.started %></span>
-                  <span>⏱ <%= agent.runtime %></span>
-                </div>
-              </div>
-            <% end %>
-          </div>
-          </div>
-        </div>
-      <% end %>
-
-      <!-- Agent Sessions Panel -->
-      <div class="space-y-3" id="subagents">
-        <div 
-          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-          phx-click="toggle_panel"
-          phx-value-panel="subagents"
-        >
-          <div class="flex items-center space-x-3">
-            <span class={"text-xs transition-transform duration-200 " <> if(@subagents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
-            <span class="text-[10px] font-mono text-base-content/50">
-              <%= length(@agent_sessions) %> sessions
-            </span>
-          </div>
-          <div class="flex items-center space-x-2" onclick="event.stopPropagation()">
-            <% completed_count = Enum.count(@agent_sessions, fn s -> 
-              s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) 
-            end) %>
-            <!-- Toggle show/hide completed -->
-            <%= if completed_count > 0 do %>
-              <button 
-                phx-click="toggle_show_completed"
-                onclick="event.stopPropagation()"
-                class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@show_completed, do: "bg-success/20 text-success", else: "bg-base-content/10 text-base-content/40")}
-                title={if @show_completed, do: "Click to hide completed sub-agents", else: "Click to show completed sub-agents"}
-              >
-                <%= if @show_completed, do: "👁 COMPLETED", else: "👁‍🗨 SHOW " <> Integer.to_string(completed_count) %> 
-              </button>
-              <button 
-                phx-click="clear_completed"
-                onclick="event.stopPropagation()"
-                class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
-              >
-                CLEAR (<%= completed_count %>)
-              </button>
-            <% end %>
-          </div>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-        <% visible_sessions = @agent_sessions
-          |> Enum.reject(fn s -> MapSet.member?(@dismissed_sessions, s.id) end)
-          |> Enum.reject(fn s -> !@show_completed && s.status == "completed" end) %>
-        <%= if visible_sessions == [] do %>
-          <div class="glass-panel rounded-lg p-4 text-center">
-            <div class="text-base-content/40 font-mono text-xs mb-2">[NO ACTIVE AGENTS]</div>
-            <div class="text-base-content/60 text-xs">Spawn a sub-agent to begin</div>
-          </div>
-        <% else %>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            <%= for session <- visible_sessions do %>
-              <% status = Map.get(session, :status, "unknown") %>
-              <% is_completed = status == "completed" %>
-              <div class={"glass-panel rounded-lg p-3 border-l-4 " <> cond do
-                status == "running" -> "border-l-warning"
-                status == "idle" -> "border-l-info"
-                true -> "border-l-success/50"
-              end}>
-                <!-- Header -->
-                <div class="flex items-center justify-between mb-2">
-                  <div class="flex items-center space-x-2">
-                    <%= if status == "running" do %>
-                      <span class="throbber"></span>
-                    <% else %>
-                      <span class={if is_completed, do: "text-success/60", else: "text-info"}>
-                        <%= if is_completed, do: "✓", else: "○" %>
-                      </span>
-                    <% end %>
-                    <span class={"text-sm font-mono font-bold " <> if(is_completed, do: "text-white/60", else: "text-white")}>
-                      <%= Map.get(session, :label) || Map.get(session, :id, "unknown") %>
-                    </span>
-                  </div>
-                  <div class="flex items-center space-x-2">
-                    <span class={"text-[10px] font-mono px-1.5 py-0.5 rounded " <> status_badge(status)}>
-                      <%= String.upcase(status) %>
-                    </span>
-                    <%= if is_completed do %>
-                      <button 
-                        phx-click="dismiss_session" 
-                        phx-value-id={session.id}
-                        class="text-base-content/40 hover:text-error text-sm leading-none"
-                        title="Dismiss"
-                      >✕</button>
-                    <% end %>
-                  </div>
-                </div>
-                
-                <!-- Agent Info Row -->
-                <div class="flex items-center flex-wrap gap-2 mb-2">
-                  <span class={"text-[10px] font-mono px-1.5 py-0.5 rounded " <> model_badge(Map.get(session, :model))}>
-                    <%= String.upcase(to_string(Map.get(session, :model, "claude"))) %>
-                  </span>
-                  <%= if Map.get(session, :runtime) do %>
-                    <span class={"text-[10px] font-mono " <> if(is_completed, do: "text-base-content/50", else: "text-warning")}>
-                      ⏱ <%= Map.get(session, :runtime) %><%= if !is_completed, do: " so far" %>
-                    </span>
-                  <% end %>
-                  <%= if is_completed && Map.get(session, :completed_at) do %>
-                    <span class="text-[10px] font-mono text-base-content/40">
-                      @ <%= Map.get(session, :completed_at) %>
-                    </span>
-                  <% end %>
-                  <%= if !is_completed && Map.get(session, :completed_at) do %>
-                    <span class="text-[10px] font-mono text-base-content/40">
-                      started <%= Map.get(session, :completed_at) %>
-                    </span>
-                  <% end %>
-                </div>
-                
-                <!-- Task Summary (shown for all sessions) -->
-                <%= if Map.get(session, :task_summary) do %>
-                  <div class="mb-2">
-                    <div class="text-[10px] font-mono text-base-content/50 mb-0.5">Task:</div>
-                    <div class="text-xs text-base-content/70 line-clamp-2"><%= Map.get(session, :task_summary) %></div>
-                  </div>
-                <% end %>
-                
-                <!-- Current Action (for running sessions) -->
-                <% current_action = Map.get(session, :current_action) %>
-                <%= if !is_completed && current_action do %>
-                  <div class="mb-2">
-                    <div class="text-[10px] font-mono text-base-content/50 mb-0.5">Currently:</div>
-                    <div class="text-xs text-warning flex items-center space-x-1">
-                      <span class="inline-block w-1.5 h-1.5 bg-warning rounded-full animate-ping"></span>
-                      <span class="truncate"><%= current_action %></span>
+                  <!-- Quick Actions -->
+                  <div class="mb-4">
+                    <div class="text-[10px] font-mono text-base-content/50 mb-2">Quick Actions:</div>
+                    <div class="flex flex-wrap gap-2">
+                      <button
+                        phx-click="chat_submit"
+                        phx-value-message="What are you working on?"
+                        class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
+                      >
+                        📋 Status
+                      </button>
+                      <button
+                        phx-click="chat_submit"
+                        phx-value-message="Check my calendar for today"
+                        class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
+                      >
+                        📅 Calendar
+                      </button>
+                      <button
+                        phx-click="chat_submit"
+                        phx-value-message="Check my unread emails"
+                        class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
+                      >
+                        📧 Emails
+                      </button>
+                      <button
+                        phx-click="chat_submit"
+                        phx-value-message="What's the weather like today?"
+                        class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
+                      >
+                        🌤️ Weather
+                      </button>
                     </div>
                   </div>
-                <% end %>
-                
-                <!-- Recent Actions (for running sessions) -->
-                <% recent_actions = Map.get(session, :recent_actions, []) %>
-                <%= if !is_completed && length(recent_actions) > 0 do %>
-                  <div class="mb-2">
-                    <div class="text-[10px] font-mono text-base-content/50 mb-0.5">Recent (<%= length(recent_actions) %> calls):</div>
-                    <div class="text-[10px] font-mono text-base-content/50 space-y-0.5 max-h-16 overflow-y-auto">
-                      <%= for action <- Enum.take(recent_actions, -3) do %>
-                        <div class="truncate">✓ <%= action %></div>
-                      <% end %>
-                    </div>
-                  </div>
-                <% end %>
-                
-                <!-- Result Snippet (for completed only) -->
-                <%= if is_completed && Map.get(session, :result_snippet) do %>
-                  <div class="mb-2">
-                    <div class="text-[10px] font-mono text-base-content/50 mb-0.5">Result:</div>
-                    <div class="text-xs text-success/70 line-clamp-2 italic"><%= Map.get(session, :result_snippet) %></div>
-                  </div>
-                <% end %>
-                
-                <!-- Token Stats (shown for all sessions with usage) -->
-                <% tokens_in = Map.get(session, :tokens_in, 0) %>
-                <% tokens_out = Map.get(session, :tokens_out, 0) %>
-                <% cost = Map.get(session, :cost, 0) %>
-                <%= if (tokens_in > 0 || tokens_out > 0) do %>
-                  <div class="flex items-center space-x-3 text-[10px] font-mono">
-                    <span class="text-primary">↓<%= format_tokens(tokens_in) %></span>
-                    <span class="text-secondary">↑<%= format_tokens(tokens_out) %></span>
-                    <%= if cost && cost > 0 do %>
-                      <span class="text-success">$<%= Float.round(cost, 3) %><%= if !is_completed, do: " so far" %></span>
-                    <% end %>
-                  </div>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
-        <% end %>
-        </div>
-      </div>
-
-      <!-- Live Progress Feed -->
-      <div class="space-y-3">
-        <div 
-          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-          phx-click="toggle_panel"
-          phx-value-panel="live_progress"
-        >
-          <div class="flex items-center space-x-3">
-            <span class={"text-xs transition-transform duration-200 " <> if(@live_progress_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">📡 Live Progress</span>
-            <span class="text-[10px] font-mono text-base-content/50">
-              <%= length(@agent_progress) %> events
-            </span>
-            <!-- Main session warning -->
-            <%= if @main_activity_count > 10 do %>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-warning/20 text-warning animate-pulse" title="Main session has lots of activity - consider offloading work to sub-agents">
-                ⚠️ main: <%= @main_activity_count %> actions
-              </span>
-            <% end %>
-          </div>
-          <div class="flex items-center space-x-2" onclick="event.stopPropagation()">
-            <button phx-click="clear_progress" class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20">
-              CLEAR
-            </button>
-          </div>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-        <!-- Agent Filter Bar -->
-        <% unique_agents = @agent_progress |> Enum.map(& &1.agent) |> Enum.uniq() |> Enum.sort() %>
-        <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
-          <span class="text-[10px] font-mono text-base-content/50 mr-1">Filter:</span>
-          <button 
-            phx-click="set_progress_filter" 
-            phx-value-filter="all"
-            class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@progress_filter == "all", do: "bg-accent/30 text-accent font-bold", else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
-          >
-            All
-          </button>
-          <%= for agent <- unique_agents do %>
-            <button 
-              phx-click="set_progress_filter" 
-              phx-value-filter={agent}
-              class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> 
-                if(@progress_filter == agent, 
-                  do: "bg-accent/30 text-accent font-bold", 
-                  else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
-                ) <> " " <> agent_color(agent)}
-              title={"Filter by #{agent}"}
-            >
-              <%= agent %>
-            </button>
-          <% end %>
-        </div>
-        <div class="glass-panel rounded-lg p-3 h-[400px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom">
-          <%= if @agent_progress == [] do %>
-            <div class="text-base-content/40 text-center py-8">
-              Waiting for agent activity...
-            </div>
-          <% else %>
-            <% filtered_progress = if @progress_filter == "all", do: @agent_progress, else: Enum.filter(@agent_progress, & &1.agent == @progress_filter) %>
-            <%= for event <- filtered_progress do %>
-              <% is_main = event.agent == "main" %>
-              <% has_output = event.output != "" and event.output != nil %>
-              <% ts_int = if is_integer(event.ts), do: event.ts, else: 0 %>
-              <% is_expanded = MapSet.member?(@expanded_outputs, ts_int) %>
-              <div class={"py-1 border-b border-white/5 last:border-0 " <> if(is_main, do: "opacity-50", else: "")}>
-                <div class="flex items-start space-x-2">
-                  <span class="text-base-content/40 w-14 flex-shrink-0"><%= format_time(event.ts) %></span>
-                  <span class={"w-32 flex-shrink-0 truncate " <> agent_color(event.agent)} title={event.agent}>
-                    <%= if is_main, do: "⚠️ ", else: "" %><%= event.agent %>
-                  </span>
-                  <span class={"w-14 flex-shrink-0 font-bold " <> action_color(event.action)}><%= event.action %></span>
-                  <span class="text-base-content/70 truncate flex-1" title={event.target}><%= event.target %></span>
-                  <!-- Output summary + expand button -->
-                  <%= if has_output do %>
-                    <button 
-                      phx-click="toggle_output" 
-                      phx-value-ts={ts_int}
-                      class="text-[9px] px-1.5 py-0.5 rounded bg-base-content/10 hover:bg-base-content/20 text-base-content/60 flex-shrink-0"
-                      title="Click to expand/collapse output"
-                    >
-                      <%= if is_expanded, do: "▼", else: "▶" %> <%= event[:output_summary] || "output" %>
-                    </button>
-                  <% else %>
-                    <%= if event.status == "running" do %>
-                      <span class="text-[9px] text-warning animate-pulse flex-shrink-0">⏳</span>
-                    <% end %>
-                  <% end %>
-                  <%= if event.status == "error" do %>
-                    <span class="text-error flex-shrink-0">✗</span>
-                  <% end %>
-                </div>
-                <!-- Expanded output -->
-                <%= if has_output and is_expanded do %>
-                  <div class="mt-1 ml-16 p-2 rounded bg-black/30 text-[10px] text-base-content/70 whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
-                    <%= event.output %>
-                  </div>
-                <% end %>
-              </div>
-            <% end %>
-          <% end %>
-        </div>
-        </div>
-      </div>
-
-      <!-- Agent Activity - What's it doing? -->
-      <%= if @agent_activity != [] do %>
-        <div class="space-y-3">
-          <div 
-            class="flex items-center px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-            phx-click="toggle_panel"
-            phx-value-panel="agent_activity"
-          >
-            <div class="flex items-center space-x-3">
-              <span class={"text-xs transition-transform duration-200 " <> if(@agent_activity_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-              <span class="text-xs font-mono text-accent uppercase tracking-wider">🔍 What's it doing?</span>
-              <span class="text-[10px] font-mono text-base-content/50">
-                <%= length(@agent_activity) %> agents
-              </span>
-            </div>
-          </div>
-          <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@agent_activity_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <%= for activity <- @agent_activity do %>
-              <div class="glass-panel rounded-lg p-3 border-l-4 border-l-accent">
-                <!-- Header -->
-                <div class="flex items-center justify-between mb-2">
-                  <div class="flex items-center space-x-2">
-                    <span class="text-lg"><%= agent_type_icon(activity.type) %></span>
-                    <span class="text-sm font-mono text-white font-bold truncate"><%= activity.model || "Agent" %></span>
-                  </div>
-                  <span class={"text-[10px] font-mono font-bold " <> activity_status_color(activity.status)}>
-                    <%= String.upcase(to_string(activity.status)) %>
-                  </span>
-                </div>
-                
-                <!-- Working directory -->
-                <%= if activity.cwd do %>
-                  <div class="text-[10px] font-mono text-base-content/50 mb-2 truncate">
-                    📁 <%= activity.cwd %>
-                  </div>
-                <% end %>
-                
-                <!-- Last action -->
-                <%= if activity.last_action do %>
-                  <div class="text-xs font-mono mb-2 flex items-center space-x-2">
-                    <span class={"font-bold " <> action_color(activity.last_action.action)}><%= activity.last_action.action %></span>
-                    <%= if activity.last_action.target do %>
-                      <span class="text-base-content/70 truncate flex-1"><%= activity.last_action.target %></span>
-                    <% end %>
-                  </div>
-                <% end %>
-                
-                <!-- Files being worked on -->
-                <%= if activity.files_worked != [] do %>
-                  <div class="mb-2">
-                    <div class="text-[10px] font-mono text-base-content/50 mb-1">Recent files:</div>
-                    <div class="flex flex-wrap gap-1">
-                      <%= for file <- Enum.take(activity.files_worked, 4) do %>
-                        <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/20 text-primary truncate max-w-[150px]">
-                          <%= Path.basename(file) %>
-                        </span>
-                      <% end %>
-                      <%= if length(activity.files_worked) > 4 do %>
-                        <span class="text-[9px] font-mono text-base-content/40">+<%= length(activity.files_worked) - 4 %></span>
-                      <% end %>
-                    </div>
-                  </div>
-                <% end %>
-                
-                <!-- Stats row -->
-                <div class="flex items-center justify-between text-[10px] font-mono text-base-content/50">
-                  <span><%= activity.tool_call_count || 0 %> tool calls</span>
-                  <span><%= format_activity_time(activity.last_activity) %></span>
-                </div>
-              </div>
-            <% end %>
-          </div>
-          </div>
-        </div>
-      <% end %>
-
-      <!-- System Processes with Sparklines -->
-      <div class="space-y-3">
-        <div 
-          class="flex items-center px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-          phx-click="toggle_panel"
-          phx-value-panel="system_processes"
-        >
-          <div class="flex items-center space-x-3">
-            <span class={"text-xs transition-transform duration-200 " <> if(@system_processes_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ System Processes (<%= length(@recent_processes) %>)</span>
-          </div>
-        </div>
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@system_processes_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-          <%= for process <- @recent_processes do %>
-            <% history = Map.get(@resource_history, process.pid, []) %>
-            <div class={"glass-panel rounded-lg p-3 border-l-4 " <> case process.status do
-              "busy" -> "border-l-warning"
-              "idle" -> "border-l-success"
-              _ -> "border-l-base-content/20"
-            end}>
-              <div class="text-xs font-mono text-white bg-black/30 rounded px-2 py-1 mb-2 truncate">
-                <span class="text-accent">$</span> <%= process.command %>
-              </div>
-              <div class="flex items-center justify-between text-[10px] font-mono mb-2">
-                <span class="text-base-content/60"><%= process.name %></span>
-                <span class="text-base-content/60">PID: <%= process.pid %></span>
-              </div>
-              <!-- Resource stats with sparklines -->
-              <div class="flex items-center justify-between text-[10px] font-mono">
-                <div class="flex items-center space-x-2">
-                  <span class="text-blue-400">CPU:</span>
-                  <span class="text-white"><%= Map.get(process, :cpu_usage, "?") %></span>
-                  <%= if history != [] do %>
-                    <%= Phoenix.HTML.raw(sparkline(history, :cpu)) %>
-                  <% end %>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <span class="text-green-400">MEM:</span>
-                  <span class="text-white"><%= Map.get(process, :memory_usage, "?") %></span>
-                  <%= if history != [] do %>
-                    <%= Phoenix.HTML.raw(sparkline(history, :memory)) %>
-                  <% end %>
-                </div>
-              </div>
-            </div>
-          <% end %>
-        </div>
-        </div>
-      </div>
-
-      <!-- Relationship Graph -->
-      <div class="space-y-3">
-        <div 
-          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-          phx-click="toggle_panel"
-          phx-value-panel="process_relationships"
-        >
-          <div class="flex items-center space-x-3">
-            <span class={"text-xs transition-transform duration-200 " <> if(@process_relationships_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">🔗 Process Relationships</span>
-          </div>
-          <div class="flex items-center space-x-4 text-[10px] font-mono">
-            <span class="flex items-center space-x-1">
-              <span class="w-3 h-3 rounded-full bg-green-600"></span>
-              <span class="text-base-content/60">Main</span>
-            </span>
-            <span class="flex items-center space-x-1">
-              <span class="w-3 h-3 rounded-full bg-purple-600"></span>
-              <span class="text-base-content/60">Sub-Agent</span>
-            </span>
-            <span class="flex items-center space-x-1">
-              <span class="w-3 h-3 rounded-full bg-orange-500"></span>
-              <span class="text-base-content/60">Coding Agent</span>
-            </span>
-            <span class="flex items-center space-x-1">
-              <span class="w-3 h-3 rounded-full bg-gray-500"></span>
-              <span class="text-base-content/60">System</span>
-            </span>
-          </div>
-        </div>
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@process_relationships_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-        <div class="glass-panel rounded-lg p-4">
-          <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[300px]"></div>
-        </div>
-        </div>
-      </div>
-
-      <!-- Chat Panel -->
-      <div class="space-y-3" id="chat-panel">
-        <div 
-          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
-          phx-click="toggle_panel"
-          phx-value-panel="chat"
-        >
-          <div class="flex items-center space-x-3">
-            <span class={"text-xs transition-transform duration-200 " <> if(@chat_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">💬 OpenClaw Chat</span>
-            <%= if @chat_sending do %>
-              <span class="text-[10px] font-mono text-warning animate-pulse">Sending...</span>
-            <% end %>
-          </div>
-          <div class="flex items-center space-x-2">
-            <%= if @chat_iframe_error do %>
-              <span class="text-[10px] font-mono text-warning">Using fallback input</span>
-            <% else %>
-              <span class="text-[10px] font-mono text-base-content/40">Embedded UI</span>
-            <% end %>
-          </div>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@chat_collapsed, do: "max-h-0 opacity-0", else: "max-h-[800px] opacity-100")}>
-          <div class="glass-panel rounded-lg overflow-hidden">
-            <%= if @chat_iframe_error do %>
-              <!-- Fallback: Simple chat input -->
-              <div class="p-4">
-                <div class="text-xs text-warning/70 mb-3">
-                  ⚠️ Iframe embed unavailable. Using direct message input instead.
-                </div>
-                
-                <form phx-submit="chat_submit" phx-change="chat_input_change" class="space-y-3">
-                  <div class="flex flex-col space-y-2">
+                  
+                  <!-- Message Input -->
+                  <form phx-submit="chat_submit" phx-change="chat_input_change" class="flex-1 flex flex-col">
                     <textarea
                       name="message"
                       value={@chat_message}
                       placeholder="Type a message to OpenClaw..."
-                      class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-sm font-mono text-white placeholder-base-content/40 focus:outline-none focus:border-accent/50 resize-none"
-                      rows="3"
+                      class="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-sm font-mono text-white placeholder-base-content/40 focus:outline-none focus:border-accent/50 resize-none"
                       disabled={@chat_sending}
                     ></textarea>
                     
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between mt-3">
                       <div class="text-[10px] font-mono text-base-content/50">
-                        Press Enter or click Send to send message
+                        Messages are sent to your OpenClaw agent
                       </div>
                       <button
                         type="submit"
@@ -2251,57 +1220,404 @@ defmodule DashboardPhoenixWeb.HomeLive do
                         <%= if @chat_sending, do: "Sending...", else: "Send 📤" %>
                       </button>
                     </div>
-                  </div>
-                </form>
-                
-                <div class="mt-4 pt-4 border-t border-white/10">
-                  <div class="text-[10px] font-mono text-base-content/50 mb-2">Quick Actions:</div>
-                  <div class="flex flex-wrap gap-2">
-                    <button
-                      phx-click="chat_submit"
-                      phx-value-message="What are you working on?"
-                      class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
-                    >
-                      📋 Status
-                    </button>
-                    <button
-                      phx-click="chat_submit"
-                      phx-value-message="Check my calendar for today"
-                      class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
-                    >
-                      📅 Calendar
-                    </button>
-                    <button
-                      phx-click="chat_submit"
-                      phx-value-message="Check my unread emails"
-                      class="px-3 py-1.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs font-mono transition-colors"
-                    >
-                      📧 Emails
-                    </button>
+                  </form>
+                </div>
+              <% else %>
+                <!-- Primary: iframe embed -->
+                <div class="relative h-full">
+                  <iframe
+                    id="openclaw-iframe"
+                    src="https://balgownie.tail1b57dd.ts.net:8443/"
+                    class="w-full h-full border-0"
+                    title="OpenClaw Chat"
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                    phx-hook="ChatIframe"
+                  ></iframe>
+                  
+                  <!-- Loading overlay -->
+                  <div id="iframe-loading" class="absolute inset-0 bg-base-300/80 flex items-center justify-center">
+                    <div class="text-center">
+                      <div class="throbber mb-2"></div>
+                      <div class="text-sm font-mono text-base-content/60">Loading OpenClaw...</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            <% else %>
-              <!-- Primary: iframe embed -->
-              <div class="relative">
-                <iframe
-                  id="openclaw-iframe"
-                  src="https://balgownie.tail1b57dd.ts.net:8443/"
-                  class="w-full h-[500px] border-0"
-                  title="OpenClaw Chat"
-                  sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-                  phx-hook="ChatIframe"
-                ></iframe>
-                
-                <!-- Loading overlay -->
-                <div id="iframe-loading" class="absolute inset-0 bg-base-300/80 flex items-center justify-center">
-                  <div class="text-center">
-                    <div class="throbber mb-2"></div>
-                    <div class="text-sm font-mono text-base-content/60">Loading OpenClaw...</div>
-                  </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Sidebar Panels -->
+        <div class="lg:w-[40%] xl:w-[35%] flex flex-col gap-3 overflow-y-auto">
+          
+          <!-- Compact Usage Stats -->
+          <div class="glass-panel rounded-lg p-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-mono text-accent uppercase tracking-wider">📊 Usage</span>
+              <button phx-click="refresh_stats" class="text-[10px] text-base-content/40 hover:text-accent">↻</button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-xs font-mono">
+              <div>
+                <div class="text-base-content/50 mb-1">OpenCode</div>
+                <div class="flex items-center space-x-2">
+                  <span class="text-white font-bold"><%= @usage_stats.opencode[:sessions] || 0 %></span>
+                  <span class="text-base-content/40">sess</span>
+                  <span class="text-success"><%= @usage_stats.opencode[:total_cost] || "$0" %></span>
                 </div>
               </div>
-            <% end %>
+              <div>
+                <div class="text-base-content/50 mb-1">Claude</div>
+                <div class="flex items-center space-x-2">
+                  <span class="text-white font-bold"><%= @usage_stats.claude[:sessions] || 0 %></span>
+                  <span class="text-base-content/40">sess</span>
+                  <span class="text-success"><%= @usage_stats.claude[:cost] || "$0" %></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Linear Tickets Panel -->
+          <div class="glass-panel rounded-lg overflow-hidden">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="linear"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@linear_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-accent uppercase tracking-wider">🎫 Linear</span>
+                <span class="text-[10px] font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
+              </div>
+              <button phx-click="refresh_linear" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">↻</button>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@linear_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+              <div class="px-3 pb-3">
+                <!-- Status Filter -->
+                <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
+                  <%= for status <- ["Triage", "Backlog", "Todo", "In Review"] do %>
+                    <button
+                      phx-click="set_linear_filter"
+                      phx-value-status={status}
+                      class={"px-2 py-0.5 rounded text-[10px] font-mono transition-all " <> 
+                        if(@linear_status_filter == status,
+                          do: linear_filter_button_active(status),
+                          else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
+                        )}
+                    >
+                      <%= status %>
+                    </button>
+                  <% end %>
+                </div>
+                
+                <!-- Ticket List -->
+                <div class="space-y-1 max-h-[300px] overflow-y-auto">
+                  <%= for ticket <- Enum.filter(@linear_tickets, & &1.status == @linear_status_filter) |> Enum.take(10) do %>
+                    <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
+                    <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono " <> if(work_info, do: "bg-accent/10", else: "hover:bg-white/5")}>
+                      <%= if work_info do %>
+                        <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
+                      <% else %>
+                        <button
+                          phx-click="work_on_ticket"
+                          phx-value-id={ticket.id}
+                          class="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
+                        >
+                          ▶
+                        </button>
+                      <% end %>
+                      <a href={ticket.url} target="_blank" class="text-accent hover:underline"><%= ticket.id %></a>
+                      <span class="text-white truncate flex-1" title={ticket.title}><%= ticket.title %></span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- OpenCode Sessions Panel -->
+          <div class="glass-panel rounded-lg overflow-hidden">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="opencode"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@opencode_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-accent uppercase tracking-wider">💻 OpenCode</span>
+                <span class="text-[10px] font-mono text-base-content/50"><%= length(@opencode_sessions) %></span>
+              </div>
+              <button phx-click="refresh_opencode_sessions" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">↻</button>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@opencode_collapsed, do: "max-h-0", else: "max-h-[300px]")}>
+              <div class="px-3 pb-3 space-y-1 max-h-[250px] overflow-y-auto">
+                <%= if not @opencode_server_status.running do %>
+                  <div class="text-center py-2">
+                    <div class="text-[10px] text-base-content/40 mb-1">Server not running</div>
+                    <button phx-click="start_opencode_server" class="text-[10px] px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">
+                      Start
+                    </button>
+                  </div>
+                <% else %>
+                  <%= for session <- @opencode_sessions do %>
+                    <div class="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-white/5 text-xs font-mono">
+                      <span class={opencode_status_badge(session.status)}><%= session.status %></span>
+                      <span class="text-white truncate flex-1" title={session.title}><%= session.slug %></span>
+                      <%= if session.file_changes.files > 0 do %>
+                        <span class="text-green-400 text-[10px]">+<%= session.file_changes.additions %></span>
+                        <span class="text-red-400 text-[10px]">-<%= session.file_changes.deletions %></span>
+                      <% end %>
+                    </div>
+                  <% end %>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-Agents Panel -->
+          <div class="glass-panel rounded-lg overflow-hidden" id="subagents">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="subagents"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@subagents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
+                <span class="text-[10px] font-mono text-base-content/50"><%= length(@agent_sessions) %></span>
+              </div>
+              <% completed_count = Enum.count(@agent_sessions, fn s -> s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) end) %>
+              <%= if completed_count > 0 do %>
+                <button phx-click="clear_completed" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">
+                  Clear <%= completed_count %>
+                </button>
+              <% end %>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[300px]")}>
+              <div class="px-3 pb-3 space-y-1 max-h-[250px] overflow-y-auto">
+                <% visible_sessions = @agent_sessions
+                  |> Enum.reject(fn s -> MapSet.member?(@dismissed_sessions, s.id) end)
+                  |> Enum.reject(fn s -> !@show_completed && s.status == "completed" end) %>
+                <%= for session <- visible_sessions do %>
+                  <% status = Map.get(session, :status, "unknown") %>
+                  <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono " <> if(status == "running", do: "bg-warning/10", else: "hover:bg-white/5")}>
+                    <%= if status == "running" do %>
+                      <span class="throbber-small"></span>
+                    <% else %>
+                      <span class={if status == "completed", do: "text-success/60", else: "text-info"}>
+                        <%= if status == "completed", do: "✓", else: "○" %>
+                      </span>
+                    <% end %>
+                    <span class="text-white truncate flex-1"><%= Map.get(session, :label) || Map.get(session, :id) %></span>
+                    <span class={status_badge(status)}><%= status %></span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Progress Panel -->
+          <div class="glass-panel rounded-lg overflow-hidden flex-1 min-h-[200px]">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="live_progress"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@live_progress_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-accent uppercase tracking-wider">📡 Live Feed</span>
+                <span class="text-[10px] font-mono text-base-content/50"><%= length(@agent_progress) %></span>
+              </div>
+              <button phx-click="clear_progress" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">Clear</button>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0", else: "max-h-[400px] flex-1")}>
+              <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-[10px]" id="progress-feed" phx-hook="ScrollBottom">
+                <%= for event <- Enum.take(@agent_progress, -50) do %>
+                  <div class="py-0.5 flex items-start space-x-1">
+                    <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
+                    <span class={agent_color(event.agent) <> " w-20 flex-shrink-0 truncate"}><%= event.agent %></span>
+                    <span class={action_color(event.action) <> " font-bold w-10 flex-shrink-0"}><%= event.action %></span>
+                    <span class="text-base-content/70 truncate flex-1"><%= event.target %></span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Panels Row (Less Important - Collapsed by Default) -->
+      <div class="mt-3 space-y-2">
+        
+        <!-- Config Panel (Compact) -->
+        <div class="glass-panel rounded-lg overflow-hidden">
+          <div 
+            class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+            phx-click="toggle_panel"
+            phx-value-panel="config"
+          >
+            <div class="flex items-center space-x-2">
+              <span class={"text-xs transition-transform duration-200 " <> if(@config_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ Config</span>
+            </div>
+            <div class="flex items-center space-x-2 text-[10px] font-mono text-base-content/40">
+              <span><%= if @coding_agent_pref == :opencode, do: "OpenCode + #{@opencode_model}", else: "Claude + #{String.replace(@claude_model, "anthropic/claude-", "")}" %></span>
+            </div>
+          </div>
+          
+          <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@config_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+            <div class="px-4 py-3 border-t border-white/5">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Coding Agent Toggle -->
+                <div>
+                  <div class="text-[10px] font-mono text-base-content/50 mb-2">Coding Agent</div>
+                  <button 
+                    phx-click="toggle_coding_agent"
+                    class={"flex items-center space-x-2 px-3 py-2 rounded-lg w-full text-left text-sm " <> 
+                      if(@coding_agent_pref == :opencode, 
+                        do: "bg-blue-500/20 text-blue-400",
+                        else: "bg-purple-500/20 text-purple-400"
+                      )}
+                  >
+                    <span><%= if @coding_agent_pref == :opencode, do: "💻", else: "🤖" %></span>
+                    <span class="font-mono font-bold"><%= if @coding_agent_pref == :opencode, do: "OpenCode", else: "Claude" %></span>
+                  </button>
+                </div>
+                
+                <!-- Claude Model -->
+                <div>
+                  <div class="text-[10px] font-mono text-base-content/50 mb-2">Claude Model</div>
+                  <select 
+                    phx-change="select_claude_model"
+                    name="model"
+                    class="w-full text-sm font-mono bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-400"
+                  >
+                    <option value="anthropic/claude-opus-4-5" selected={@claude_model == "anthropic/claude-opus-4-5"}>Opus</option>
+                    <option value="anthropic/claude-sonnet-4-20250514" selected={@claude_model == "anthropic/claude-sonnet-4-20250514"}>Sonnet</option>
+                  </select>
+                </div>
+                
+                <!-- OpenCode Model -->
+                <div>
+                  <div class="text-[10px] font-mono text-base-content/50 mb-2">OpenCode Model</div>
+                  <select 
+                    phx-change="select_opencode_model"
+                    name="model"
+                    class="w-full text-sm font-mono bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-blue-400"
+                  >
+                    <option value="gemini-3-pro" selected={@opencode_model == "gemini-3-pro"}>Gemini 3 Pro</option>
+                    <option value="gemini-3-flash" selected={@opencode_model == "gemini-3-flash"}>Gemini 3 Flash</option>
+                    <option value="gemini-2.5-pro" selected={@opencode_model == "gemini-2.5-pro"}>Gemini 2.5 Pro</option>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- OpenCode Server Controls -->
+              <%= if @coding_agent_pref == :opencode do %>
+                <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+                  <div class="flex items-center space-x-2 text-xs font-mono">
+                    <span class="text-base-content/50">ACP Server:</span>
+                    <%= if @opencode_server_status.running do %>
+                      <span class="text-success">Running on :<%= @opencode_server_status.port %></span>
+                    <% else %>
+                      <span class="text-base-content/40">Stopped</span>
+                    <% end %>
+                  </div>
+                  <%= if @opencode_server_status.running do %>
+                    <button phx-click="stop_opencode_server" class="text-xs px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40">Stop</button>
+                  <% else %>
+                    <button phx-click="start_opencode_server" class="text-xs px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">Start</button>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coding Agents Panel -->
+        <%= if @coding_agents != [] do %>
+          <div class="glass-panel rounded-lg overflow-hidden">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="coding_agents"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@coding_agents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">💻 Coding Agents</span>
+                <span class="text-[10px] font-mono text-base-content/50"><%= length(@coding_agents) %></span>
+              </div>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@coding_agents_collapsed, do: "max-h-0", else: "max-h-[200px]")}>
+              <div class="px-3 pb-3">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  <%= for agent <- @coding_agents do %>
+                    <div class={"px-2 py-1.5 rounded text-xs font-mono " <> if(agent.status == "running", do: "bg-warning/10", else: "bg-white/5")}>
+                      <div class="flex items-center justify-between">
+                        <span class="text-white font-bold"><%= agent.type %></span>
+                        <button phx-click="kill_process" phx-value-pid={agent.pid} class="text-error/50 hover:text-error">✕</button>
+                      </div>
+                      <div class="text-[10px] text-base-content/50 mt-1">
+                        CPU: <%= agent.cpu %>% | MEM: <%= agent.memory %>%
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- System & Relationships Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
+          <!-- System Processes -->
+          <div class="glass-panel rounded-lg overflow-hidden">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="system_processes"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@system_processes_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ System</span>
+                <span class="text-[10px] font-mono text-base-content/50"><%= length(@recent_processes) %></span>
+              </div>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@system_processes_collapsed, do: "max-h-0", else: "max-h-[150px]")}>
+              <div class="px-3 pb-3 grid grid-cols-2 gap-1">
+                <%= for process <- Enum.take(@recent_processes, 4) do %>
+                  <div class="px-2 py-1 rounded bg-white/5 text-[10px] font-mono">
+                    <div class="text-white truncate"><%= process.name %></div>
+                    <div class="text-base-content/50">CPU: <%= Map.get(process, :cpu_usage, "?") %> | MEM: <%= Map.get(process, :memory_usage, "?") %></div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Process Relationships -->
+          <div class="glass-panel rounded-lg overflow-hidden">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="process_relationships"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@process_relationships_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">🔗 Relationships</span>
+              </div>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@process_relationships_collapsed, do: "max-h-0", else: "max-h-[200px]")}>
+              <div class="p-2">
+                <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[150px]"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2316,12 +1632,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 <span class="text-2xl">🎫</span>
                 <h2 class="text-lg font-bold text-white font-mono"><%= @work_ticket_id %></h2>
               </div>
-              <button 
-                phx-click="close_work_modal" 
-                class="text-base-content/60 hover:text-white text-xl leading-none"
-              >
-                ✕
-              </button>
+              <button phx-click="close_work_modal" class="text-base-content/60 hover:text-white text-xl">✕</button>
             </div>
             
             <!-- Ticket Details -->
@@ -2337,119 +1648,44 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <% end %>
             </div>
             
-            <!-- Start Working Section -->
+            <!-- Execute Work -->
             <div class="border-t border-white/10 pt-4">
               <div class="flex items-center justify-between mb-3">
                 <div class="text-xs font-mono text-accent uppercase tracking-wider">Start Working</div>
                 <div class={"text-[10px] font-mono px-2 py-1 rounded " <> if(@coding_agent_pref == :opencode, do: "bg-blue-500/20 text-blue-400", else: "bg-purple-500/20 text-purple-400")}>
-                  Using: <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode (#{@opencode_model})", else: "🤖 Claude (#{@claude_model |> String.replace("anthropic/claude-", "") |> String.replace("-4-5", "") |> String.replace("-4-20250514", "")})" %>
+                  Using: <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode", else: "🤖 Claude" %>
                 </div>
               </div>
               
-              <div class="text-xs text-base-content/60 mb-4">
-                Configure coding agent and models in the ⚙️ Config panel above.
-              </div>
-              
-              <%= if @coding_agent_pref == :opencode do %>
-                <!-- OpenCode Mode -->
-                <div class="space-y-4">
-                  <!-- Work Error -->
-                  <%= if @work_error do %>
-                    <div class="bg-error/20 text-error rounded-lg p-3 text-sm font-mono">
-                      <%= @work_error %>
-                    </div>
-                  <% end %>
-                  
-                  <!-- Server Status Check -->
-                  <%= if not @opencode_server_status.running do %>
-                    <div class="bg-warning/20 text-warning rounded-lg p-3 text-sm">
-                      ⚠️ OpenCode ACP server is not running. 
-                      <button 
-                        phx-click="start_opencode_server"
-                        class="underline hover:no-underline ml-1"
-                      >
-                        Start it now
-                      </button>
-                    </div>
-                  <% end %>
-                  
-                  <!-- Execute Work Button -->
-                  <div class="flex items-center space-x-3">
-                    <button
-                      phx-click="execute_work"
-                      disabled={@work_in_progress or @work_ticket_loading or @work_sent}
-                      class={"flex-1 py-3 rounded-lg text-sm font-mono font-bold transition-all " <> 
-                        cond do
-                          @work_sent -> "bg-green-500/30 text-green-300 cursor-default"
-                          @work_in_progress -> "bg-blue-500/30 text-blue-300 cursor-wait"
-                          true -> "bg-blue-500/20 text-blue-400 hover:bg-blue-500/40"
-                        end}
-                    >
-                      <%= cond do %>
-                        <% @work_sent -> %>
-                          ✓ Work Sent to OpenCode
-                        <% @work_in_progress -> %>
-                          <span class="inline-block animate-spin mr-2">⟳</span> Sending to OpenCode...
-                        <% true -> %>
-                          🚀 Execute Work with OpenCode
-                      <% end %>
-                    </button>
-                  </div>
-                  
-                  <p class="text-[10px] text-base-content/50">
-                    This will send the ticket details to the OpenCode ACP server and start working automatically.
-                  </p>
-                </div>
-              <% else %>
-                <!-- Claude Mode - Copy Command -->
-                <div class="space-y-3">
-                  <p class="text-sm text-base-content/70">
-                    Copy the command below to spawn a Claude sub-agent that will work on this ticket:
-                  </p>
-                  
-                  <% spawn_command = "Work on #{@work_ticket_id}" %>
-                  <div class="relative">
-                    <div 
-                      id="spawn-command" 
-                      class="text-sm font-mono bg-black/50 rounded-lg p-4 pr-16 text-green-400 cursor-pointer hover:bg-black/60 transition-colors"
-                      phx-hook="CopyToClipboard"
-                      data-copy={spawn_command}
-                    >
-                      <%= spawn_command %>
-                    </div>
-                    <button
-                      class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-xs font-mono"
-                      phx-click="copy_spawn_command"
-                      id="copy-btn"
-                      phx-hook="CopyToClipboard"
-                      data-copy={spawn_command}
-                    >
-                      📋 Copy
-                    </button>
-                  </div>
-                  
-                  <p class="text-[10px] text-base-content/50">
-                    Tip: Paste this into your OpenClaw chat to spawn a sub-agent for this ticket.
-                  </p>
-                </div>
+              <%= if @work_error do %>
+                <div class="bg-error/20 text-error rounded-lg p-3 text-sm font-mono mb-3"><%= @work_error %></div>
               <% end %>
-            </div>
-            
-            <!-- Actions -->
-            <div class="flex items-center justify-end space-x-3 mt-6 pt-4 border-t border-white/10">
-              <a 
-                href={"https://linear.app/fresh-clinics/issue/#{@work_ticket_id}"} 
-                target="_blank"
-                class="px-4 py-2 rounded bg-base-content/10 text-base-content/70 hover:bg-base-content/20 transition-colors text-sm font-mono"
-              >
-                Open in Linear ↗
-              </a>
-              <button 
-                phx-click="close_work_modal"
-                class="px-4 py-2 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-sm font-mono"
-              >
-                Close
-              </button>
+              
+              <div class="flex items-center space-x-3">
+                <button
+                  phx-click="execute_work"
+                  disabled={@work_in_progress or @work_ticket_loading or @work_sent}
+                  class={"flex-1 py-3 rounded-lg text-sm font-mono font-bold transition-all " <> 
+                    cond do
+                      @work_sent -> "bg-green-500/30 text-green-300"
+                      @work_in_progress -> "bg-blue-500/30 text-blue-300 cursor-wait"
+                      true -> "bg-accent/20 text-accent hover:bg-accent/40"
+                    end}
+                >
+                  <%= cond do %>
+                    <% @work_sent -> %>✓ Work Started
+                    <% @work_in_progress -> %><span class="inline-block animate-spin mr-2">⟳</span> Starting...
+                    <% true -> %>🚀 Execute Work
+                  <% end %>
+                </button>
+                <a 
+                  href={"https://linear.app/fresh-clinics/issue/#{@work_ticket_id}"} 
+                  target="_blank"
+                  class="px-4 py-3 rounded-lg bg-base-content/10 text-base-content/70 hover:bg-base-content/20 text-sm font-mono"
+                >
+                  Linear ↗
+                </a>
+              </div>
             </div>
           </div>
         </div>
