@@ -1397,18 +1397,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
                               View ↗
                             </a>
                             <button
-                              phx-click="request_opencode_pr"
-                              phx-value-id={session.id}
-                              class={"px-2 py-1 rounded transition-colors text-[10px] " <> 
-                                if(session.file_changes.files > 0, 
-                                  do: "bg-accent/30 text-accent hover:bg-accent/50 font-semibold",
-                                  else: "bg-accent/20 text-accent/70 hover:text-accent hover:bg-accent/40"
-                                )}
-                              title="Request PR creation"
-                            >
-                              📝 PR
-                            </button>
-                            <button
                               phx-click="close_opencode_session"
                               phx-value-id={session.id}
                               data-confirm="Close this OpenCode session?"
