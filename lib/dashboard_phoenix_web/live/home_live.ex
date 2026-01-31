@@ -1655,9 +1655,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
               </div>
             </div>
             
-            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@process_relationships_collapsed, do: "max-h-0", else: "max-h-[200px]")}>
+            <div class={"transition-all duration-300 ease-in-out " <> if(@process_relationships_collapsed, do: "max-h-0 overflow-hidden", else: "")}>
               <div class="p-2">
-                <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[150px]"></div>
+                <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[180px]"></div>
               </div>
             </div>
           </div>
