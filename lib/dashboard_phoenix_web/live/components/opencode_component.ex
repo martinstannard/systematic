@@ -69,7 +69,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
           <span class={"text-xs transition-transform duration-200 " <> if(@opencode_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
           <span class="text-xs font-mono text-accent uppercase tracking-wider">💻 OpenCode</span>
           <%= if @opencode_server_status.running do %>
-            <span class="text-[10px] font-mono text-base-content/50"><%= @opencode_sessions_count %></span>
+            <span class="text-[10px] font-mono text-base-content/50"><%= length(@opencode_sessions) %></span>
           <% end %>
         </div>
         <%= if @opencode_server_status.running do %>

@@ -143,82 +143,14 @@
         opencode_collapsed={@opencode_collapsed}
       />
 
-      <!-- Gemini CLI Panel -->
-      <div class="glass-panel rounded-lg overflow-hidden">
-        <div 
-          class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
-          phx-click="toggle_panel"
-          phx-value-panel="gemini"
-        >
-          <div class="flex items-center space-x-2">
-            <span class={"text-xs transition-transform duration-200 " <> if(@gemini_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">✨ Gemini CLI</span>
-            <%= if @gemini_server_status.running do %>
-              <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-            <% end %>
-          </div>
-          <%= if @gemini_server_status.running do %>
-            <button phx-click="clear_gemini_output" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">Clear</button>
-          <% end %>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@gemini_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-          <div class="px-3 pb-3">
-            <%= if not @gemini_server_status.running do %>
-              <div class="text-center py-4">
-                <div class="text-[10px] text-base-content/40 mb-2">Gemini CLI not running</div>
-                <button phx-click="start_gemini_server" class="text-xs px-3 py-1.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40">
-                  ✨ Start Gemini
-                </button>
-              </div>
-            <% else %>
-              <!-- Status -->
-              <div class="flex items-center justify-between mb-2 text-[10px] font-mono">
-                <div class="flex items-center space-x-2">
-                  <span class="text-base-content/50">Status:</span>
-                  <%= if @gemini_server_status[:busy] do %>
-                    <span class="text-warning animate-pulse">Running...</span>
-                  <% else %>
-                    <span class="text-green-400">Ready</span>
-                  <% end %>
-                  <span class="text-base-content/30">|</span>
-                  <span class="text-base-content/50">Dir:</span>
-                  <span class="text-blue-400 truncate max-w-[150px]" title={@gemini_server_status.cwd}><%= @gemini_server_status.cwd %></span>
-                </div>
-                <button phx-click="stop_gemini_server" class="px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40 text-[10px]">
-                  Stop
-                </button>
-              </div>
-              
-              <!-- Output -->
-              <div class="bg-black/40 rounded-lg p-2 mb-2 max-h-[200px] overflow-y-auto font-mono text-[10px] text-base-content/70" id="gemini-output" phx-hook="ScrollBottom">
-                <%= if @gemini_output == "" do %>
-                  <span class="text-base-content/40 italic">Waiting for output...</span>
-                <% else %>
-                  <pre class="whitespace-pre-wrap"><%= @gemini_output %></pre>
-                <% end %>
-              </div>
-              
-              <!-- Prompt Input -->
-              <form phx-submit="send_gemini_prompt" class="flex items-center space-x-2">
-                <input
-                  type="text"
-                  name="prompt"
-                  placeholder="Send a prompt to Gemini..."
-                  class="flex-1 bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs font-mono text-white placeholder-base-content/40 focus:outline-none focus:border-green-500/50"
-                  autocomplete="off"
-                />
-                <button
-                  type="submit"
-                  class="px-3 py-1.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 text-xs font-mono"
-                >
-                  Send
-                </button>
-              </form>
-            <% end %>
-          </div>
-        </div>
-      </div>
+      <!-- Gemini CLI Panel (LiveComponent) -->
+      <.live_component
+        module={GeminiComponent}
+        id="gemini-panel"
+        gemini_server_status={@gemini_server_status}
+        gemini_output={@gemini_output}
+        gemini_collapsed={@gemini_collapsed}
+      />
 
       <!-- Dave Panel (Main Agent) -->
       <% main_agent_session = Enum.find(@agent_sessions, fn s -> Map.get(s, :session_key) == "agent:main:main" end) %>
@@ -345,147 +277,17 @@
   <!-- Bottom Panels Row (Less Important - Collapsed by Default) -->
   <div class="mt-3 space-y-2">
     
-    <!-- Config Panel (Compact) -->
-    <div class="glass-panel rounded-lg overflow-hidden">
-      <div 
-        class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
-        phx-click="toggle_panel"
-        phx-value-panel="config"
-      >
-        <div class="flex items-center space-x-2">
-          <span class={"text-xs transition-transform duration-200 " <> if(@config_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-          <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ Config</span>
-        </div>
-        <div class="flex items-center space-x-2 text-[10px] font-mono text-base-content/40">
-          <span><%= if @coding_agent_pref == :opencode, do: "OpenCode + #{@opencode_model}", else: "Claude + #{String.replace(@claude_model, "anthropic/claude-", "")}" %></span>
-        </div>
-      </div>
-      
-      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@config_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-4 py-3 border-t border-white/5">
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <!-- Coding Agent Toggle (3-way) -->
-            <div>
-              <div class="text-[10px] font-mono text-base-content/50 mb-2">Coding Agent</div>
-              <div class="flex rounded-lg overflow-hidden border border-white/10">
-                <button 
-                  phx-click="set_coding_agent"
-                  phx-value-agent="opencode"
-                  class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all " <> 
-                    if(@coding_agent_pref == :opencode, 
-                      do: "bg-blue-500/30 text-blue-400",
-                      else: "bg-base-content/5 text-base-content/50 hover:bg-base-content/10"
-                    )}
-                >
-                  <span>💻</span>
-                  <span class="hidden sm:inline">OpenCode</span>
-                </button>
-                <button 
-                  phx-click="set_coding_agent"
-                  phx-value-agent="claude"
-                  class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all border-x border-white/10 " <> 
-                    if(@coding_agent_pref == :claude, 
-                      do: "bg-purple-500/30 text-purple-400",
-                      else: "bg-base-content/5 text-base-content/50 hover:bg-base-content/10"
-                    )}
-                >
-                  <span>🤖</span>
-                  <span class="hidden sm:inline">Claude</span>
-                </button>
-                <button 
-                  phx-click="set_coding_agent"
-                  phx-value-agent="gemini"
-                  class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all " <> 
-                    if(@coding_agent_pref == :gemini, 
-                      do: "bg-green-500/30 text-green-400",
-                      else: "bg-base-content/5 text-base-content/50 hover:bg-base-content/10"
-                    )}
-                >
-                  <span>✨</span>
-                  <span class="hidden sm:inline">Gemini</span>
-                </button>
-              </div>
-            </div>
-            
-            <!-- Claude Model -->
-            <div>
-              <div class="text-[10px] font-mono text-base-content/50 mb-2">Claude Model</div>
-              <select 
-                phx-change="select_claude_model"
-                name="model"
-                class="w-full text-sm font-mono bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-400"
-              >
-                <option value="anthropic/claude-opus-4-5" selected={@claude_model == "anthropic/claude-opus-4-5"}>Opus</option>
-                <option value="anthropic/claude-sonnet-4-20250514" selected={@claude_model == "anthropic/claude-sonnet-4-20250514"}>Sonnet</option>
-              </select>
-            </div>
-            
-            <!-- OpenCode Model -->
-            <div>
-              <div class="text-[10px] font-mono text-base-content/50 mb-2">OpenCode Model</div>
-              <select 
-                phx-change="select_opencode_model"
-                name="model"
-                class="w-full text-sm font-mono bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-blue-400"
-              >
-                <option value="gemini-3-pro" selected={@opencode_model == "gemini-3-pro"}>Gemini 3 Pro</option>
-                <option value="gemini-3-flash" selected={@opencode_model == "gemini-3-flash"}>Gemini 3 Flash</option>
-                <option value="gemini-2.5-pro" selected={@opencode_model == "gemini-2.5-pro"}>Gemini 2.5 Pro</option>
-              </select>
-            </div>
-          </div>
-          
-          <!-- Server Controls based on selected agent -->
-          <div class="mt-3 pt-3 border-t border-white/5">
-            <%= cond do %>
-              <% @coding_agent_pref == :opencode -> %>
-                <!-- OpenCode Server Controls -->
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center space-x-2 text-xs font-mono">
-                    <span class="text-base-content/50">ACP Server:</span>
-                    <%= if @opencode_server_status.running do %>
-                      <span class="text-success">Running on :<%= @opencode_server_status.port %></span>
-                    <% else %>
-                      <span class="text-base-content/40">Stopped</span>
-                    <% end %>
-                  </div>
-                  <%= if @opencode_server_status.running do %>
-                    <button phx-click="stop_opencode_server" class="text-xs px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40">Stop</button>
-                  <% else %>
-                    <button phx-click="start_opencode_server" class="text-xs px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">Start</button>
-                  <% end %>
-                </div>
-              <% @coding_agent_pref == :gemini -> %>
-                <!-- Gemini CLI Controls -->
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center space-x-2 text-xs font-mono">
-                    <span class="text-base-content/50">Gemini CLI:</span>
-                    <%= if @gemini_server_status.running do %>
-                      <%= if @gemini_server_status[:busy] do %>
-                        <span class="text-warning animate-pulse">Running prompt...</span>
-                      <% else %>
-                        <span class="text-success">Ready</span>
-                      <% end %>
-                    <% else %>
-                      <span class="text-base-content/40">Stopped</span>
-                    <% end %>
-                  </div>
-                  <%= if @gemini_server_status.running do %>
-                    <button phx-click="stop_gemini_server" class="text-xs px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40">Stop</button>
-                  <% else %>
-                    <button phx-click="start_gemini_server" class="text-xs px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">Start</button>
-                  <% end %>
-                </div>
-              <% true -> %>
-                <!-- Claude sub-agents don't need server controls -->
-                <div class="text-xs font-mono text-base-content/40">
-                  Claude uses OpenClaw sub-agents (no server needed)
-                </div>
-            <% end %>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Config Panel (LiveComponent) -->
+    <.live_component
+      module={ConfigComponent}
+      id="config-panel"
+      config_collapsed={@config_collapsed}
+      coding_agent_pref={@coding_agent_pref}
+      claude_model={@claude_model}
+      opencode_model={@opencode_model}
+      opencode_server_status={@opencode_server_status}
+      gemini_server_status={@gemini_server_status}
+    />
 
     <!-- Coding Agents Panel -->
     <%= if @coding_agents != [] do %>

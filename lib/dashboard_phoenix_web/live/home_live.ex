@@ -7,6 +7,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.BranchesComponent
   alias DashboardPhoenixWeb.Live.Components.OpenCodeComponent
   alias DashboardPhoenixWeb.Live.Components.SubagentsComponent
+  alias DashboardPhoenixWeb.Live.Components.GeminiComponent
+  alias DashboardPhoenixWeb.Live.Components.ConfigComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -808,6 +810,81 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  # Handle GeminiComponent messages
+  def handle_info({:gemini_component, :toggle_panel}, socket) do
+    socket = assign(socket, gemini_collapsed: !socket.assigns.gemini_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:gemini_component, :start_server}, socket) do
+    DashboardPhoenix.GeminiServer.start_server()
+    {:noreply, socket}
+  end
+
+  def handle_info({:gemini_component, :stop_server}, socket) do
+    DashboardPhoenix.GeminiServer.stop_server()
+    {:noreply, assign(socket, gemini_output: "")}
+  end
+
+  def handle_info({:gemini_component, :send_prompt, prompt}, socket) do
+    case DashboardPhoenix.GeminiServer.send_prompt(prompt) do
+      {:ok, _} -> {:noreply, socket}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, "Failed to send prompt: #{reason}")}
+    end
+  end
+
+  def handle_info({:gemini_component, :clear_output}, socket) do
+    {:noreply, assign(socket, gemini_output: "")}
+  end
+
+  # Handle ConfigComponent messages
+  def handle_info({:config_component, :toggle_panel}, socket) do
+    socket = assign(socket, config_collapsed: !socket.assigns.config_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:config_component, :set_coding_agent, agent}, socket) do
+    agent_atom = String.to_existing_atom(agent)
+    AgentPreferences.set_coding_agent(agent_atom)
+    {:noreply, assign(socket, coding_agent_pref: agent_atom)}
+  end
+
+  def handle_info({:config_component, :select_claude_model, model}, socket) do
+    socket = assign(socket, claude_model: model)
+    {:noreply, push_model_selections(socket)}
+  end
+
+  def handle_info({:config_component, :select_opencode_model, model}, socket) do
+    socket = assign(socket, opencode_model: model)
+    {:noreply, push_model_selections(socket)}
+  end
+
+  def handle_info({:config_component, :start_opencode_server}, socket) do
+    # Get model and start server with it
+    model = socket.assigns.opencode_model
+    case OpenCodeServer.start_server(%{model: model}) do
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "OpenCode server starting with #{model}...")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to start server: #{reason}")}
+    end
+  end
+
+  def handle_info({:config_component, :stop_opencode_server}, socket) do
+    OpenCodeServer.stop_server()
+    {:noreply, socket}
+  end
+
+  def handle_info({:config_component, :start_gemini_server}, socket) do
+    DashboardPhoenix.GeminiServer.start_server()
+    {:noreply, socket}
+  end
+
+  def handle_info({:config_component, :stop_gemini_server}, socket) do
+    DashboardPhoenix.GeminiServer.stop_server()
+    {:noreply, assign(socket, gemini_output: "")}
+  end
+
   # Handle OpenCode server status updates
   def handle_info({:opencode_status, status}, socket) do
     sessions = fetch_opencode_sessions(status)
@@ -1080,21 +1157,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, coding_agent_pref: new_pref)}
   end
 
-  def handle_event("set_coding_agent", %{"agent" => agent}, socket) do
-    AgentPreferences.set_coding_agent(agent)
-    new_pref = AgentPreferences.get_coding_agent()
-    {:noreply, assign(socket, coding_agent_pref: new_pref)}
-  end
-
-  def handle_event("select_claude_model", %{"model" => model}, socket) do
-    socket = assign(socket, claude_model: model)
-    {:noreply, push_model_selections(socket)}
-  end
-
-  def handle_event("select_opencode_model", %{"model" => model}, socket) do
-    socket = assign(socket, opencode_model: model)
-    {:noreply, push_model_selections(socket)}
-  end
+  # NOTE: Config controls now handled via ConfigComponent -> handle_info({:config_component, ...})
 
   # Restore model selections from localStorage via JS hook
   def handle_event("restore_model_selections", %{"claude_model" => claude_model, "opencode_model" => opencode_model}, socket) when is_binary(claude_model) and is_binary(opencode_model) do
@@ -1105,28 +1168,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # NOTE: OpenCode server controls now handled via OpenCodeComponent -> handle_info({:opencode_component, ...})
   # Kept for backward compatibility with direct phx-click usage
-  def handle_event("start_opencode_server", _, socket) do
-    case OpenCodeServer.start_server() do
-      {:ok, port} ->
-        socket = socket
-        |> assign(opencode_server_status: OpenCodeServer.status())
-        |> put_flash(:info, "OpenCode server started on port #{port}")
-        {:noreply, socket}
-      {:error, reason} ->
-        socket = put_flash(socket, :error, "Failed to start OpenCode server: #{inspect(reason)}")
-        {:noreply, socket}
-    end
-  end
-
-  # NOTE: stop_opencode_server now handled via OpenCodeComponent -> handle_info({:opencode_component, :stop_server}, ...)
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("stop_opencode_server", _, socket) do
-    OpenCodeServer.stop_server()
-    socket = socket
-    |> assign(opencode_server_status: OpenCodeServer.status())
-    |> put_flash(:info, "OpenCode server stopped")
-    {:noreply, socket}
-  end
+  # NOTE: OpenCode server controls now handled via ConfigComponent -> handle_info({:config_component, ...})
 
   # NOTE: refresh_opencode_sessions now handled via OpenCodeComponent -> handle_info({:opencode_component, :refresh}, ...)
   # Kept for backward compatibility with direct phx-click usage
@@ -1139,41 +1181,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # Gemini server controls
-  def handle_event("start_gemini_server", _, socket) do
-    case GeminiServer.start_server() do
-      {:ok, _pid} ->
-        socket = socket
-        |> assign(gemini_server_status: GeminiServer.status())
-        |> put_flash(:info, "Gemini CLI started")
-        {:noreply, socket}
-      {:error, reason} ->
-        socket = put_flash(socket, :error, "Failed to start Gemini: #{inspect(reason)}")
-        {:noreply, socket}
-    end
-  end
-
-  def handle_event("stop_gemini_server", _, socket) do
-    GeminiServer.stop_server()
-    socket = socket
-    |> assign(gemini_server_status: GeminiServer.status(), gemini_output: "")
-    |> put_flash(:info, "Gemini CLI stopped")
-    {:noreply, socket}
-  end
-
-  def handle_event("send_gemini_prompt", %{"prompt" => prompt}, socket) when prompt != "" do
-    case GeminiServer.send_prompt(prompt) do
-      :ok ->
-        {:noreply, put_flash(socket, :info, "Prompt sent to Gemini")}
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to send: #{inspect(reason)}")}
-    end
-  end
-
-  def handle_event("send_gemini_prompt", _, socket), do: {:noreply, socket}
-
-  def handle_event("clear_gemini_output", _, socket) do
-    {:noreply, assign(socket, gemini_output: "")}
-  end
+  # NOTE: Gemini server controls now handled via GeminiComponent -> handle_info({:gemini_component, ...})
 
   # NOTE: close_opencode_session now handled via OpenCodeComponent -> handle_info({:opencode_component, :close_session, ...})
   # Kept for backward compatibility with direct phx-click usage
