@@ -534,6 +534,24 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  def handle_event("dismiss_session", %{"id" => id}, socket) do
+    dismissed = MapSet.put(socket.assigns.dismissed_sessions, id)
+    {:noreply, assign(socket, dismissed_sessions: dismissed)}
+  end
+
+  def handle_event("clear_completed", _, socket) do
+    # Get all completed session IDs and add them to dismissed
+    completed_ids = socket.assigns.agent_sessions
+    |> Enum.filter(fn s -> s.status == "completed" end)
+    |> Enum.map(fn s -> s.id end)
+    
+    dismissed = Enum.reduce(completed_ids, socket.assigns.dismissed_sessions, fn id, acc ->
+      MapSet.put(acc, id)
+    end)
+    
+    {:noreply, assign(socket, dismissed_sessions: dismissed)}
+  end
+
   # Actually execute the work when no duplicate exists
   defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model) do
     cond do
@@ -577,24 +595,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
         |> put_flash(:info, "Sending work request to OpenClaw (#{claude_model})...")
         {:noreply, socket}
     end
-  end
-
-  def handle_event("dismiss_session", %{"id" => id}, socket) do
-    dismissed = MapSet.put(socket.assigns.dismissed_sessions, id)
-    {:noreply, assign(socket, dismissed_sessions: dismissed)}
-  end
-
-  def handle_event("clear_completed", _, socket) do
-    # Get all completed session IDs and add them to dismissed
-    completed_ids = socket.assigns.agent_sessions
-    |> Enum.filter(fn s -> s.status == "completed" end)
-    |> Enum.map(fn s -> s.id end)
-    
-    dismissed = Enum.reduce(completed_ids, socket.assigns.dismissed_sessions, fn id, acc ->
-      MapSet.put(acc, id)
-    end)
-    
-    {:noreply, assign(socket, dismissed_sessions: dismissed)}
   end
 
   # Push current panel state to JS for localStorage persistence

@@ -81,7 +81,7 @@ defmodule DashboardPhoenix.OpenClawClient do
   end
 
   # Build the work message that tells the agent to spawn a coding sub-agent
-  defp build_work_message(ticket_id, details, model \\ nil) do
+  defp build_work_message(ticket_id, details, model) do
     model_instruction = if model do
       "\n**Model:** Use #{model} for the sub-agent when spawning.\n"
     else
