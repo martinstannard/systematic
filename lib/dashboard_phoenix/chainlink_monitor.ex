@@ -88,7 +88,7 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   def handle_info(:poll, state) do
     # Fetch async to avoid blocking GenServer calls
     parent = self()
-    Task.start(fn ->
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       new_state = fetch_issues(state)
       send(parent, {:poll_complete, new_state})
     end)

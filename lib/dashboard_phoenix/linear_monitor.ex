@@ -86,7 +86,7 @@ defmodule DashboardPhoenix.LinearMonitor do
   def handle_info(:poll, state) do
     # Fetch async to avoid blocking GenServer calls
     parent = self()
-    Task.start(fn ->
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       new_state = fetch_all_tickets(state)
       send(parent, {:poll_complete, new_state})
     end)
