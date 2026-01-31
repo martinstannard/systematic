@@ -113,6 +113,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # Branch action states
       branch_merge_pending: nil,
       branch_delete_pending: nil,
+      # PR fix action state (tracks which PR number is being fixed)
+      pr_fix_pending: nil,
       # Work modal state
       show_work_modal: false,
       work_ticket_id: nil,
@@ -924,8 +926,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Fix PR issues (CI failures and/or merge conflicts)
   def handle_event("fix_pr_issues", params, socket) do
     %{"url" => pr_url, "number" => pr_number, "repo" => repo, "branch" => branch} = params
+    pr_number_int = String.to_integer(pr_number)
     has_conflicts = params["has-conflicts"] == "true"
     ci_failing = params["ci-failing"] == "true"
+    
+    # Set pending state immediately for instant UI feedback
+    socket = assign(socket, pr_fix_pending: pr_number_int)
     
     issues = []
     issues = if ci_failing, do: ["CI failures" | issues], else: issues
@@ -960,13 +966,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
       post_mode: "summary"
     ) do
       {:ok, %{job_id: job_id}} ->
-        {:noreply, put_flash(socket, :info, "Fix sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")}
+        socket = socket
+        |> assign(pr_fix_pending: nil)
+        |> put_flash(:info, "Fix sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")
+        {:noreply, socket}
       
       {:ok, _} ->
-        {:noreply, put_flash(socket, :info, "Fix sub-agent spawned for PR ##{pr_number}")}
+        socket = socket
+        |> assign(pr_fix_pending: nil)
+        |> put_flash(:info, "Fix sub-agent spawned for PR ##{pr_number}")
+        {:noreply, socket}
       
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to spawn fix agent: #{inspect(reason)}")}
+        socket = socket
+        |> assign(pr_fix_pending: nil)
+        |> put_flash(:error, "Failed to spawn fix agent: #{inspect(reason)}")
+        {:noreply, socket}
     end
   end
 
@@ -2006,6 +2021,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
                           
                           <!-- Fix Button (for CI failures or conflicts) -->
                           <%= if pr.ci_status == :failure or pr.has_conflicts do %>
+                            <% is_fix_pending = @pr_fix_pending == pr.number %>
+                            <% is_work_in_progress = pr_work_info != nil %>
+                            <% is_disabled = is_fix_pending or is_work_in_progress %>
                             <button
                               phx-click="fix_pr_issues"
                               phx-value-url={pr.url}
@@ -2014,10 +2032,32 @@ defmodule DashboardPhoenixWeb.HomeLive do
                               phx-value-branch={pr.branch}
                               phx-value-has-conflicts={pr.has_conflicts}
                               phx-value-ci-failing={pr.ci_status == :failure}
-                              class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 text-[10px]"
-                              title="Send to coding agent to fix issues"
+                              disabled={is_disabled}
+                              class={[
+                                "min-h-[32px] min-w-[44px] px-2 py-1 rounded text-[10px] font-medium",
+                                "transition-all duration-150 select-none touch-manipulation",
+                                if(is_fix_pending,
+                                  do: "bg-warning/30 text-warning animate-pulse cursor-wait",
+                                  else: if(is_work_in_progress,
+                                    do: "bg-base-content/10 text-base-content/40 cursor-not-allowed",
+                                    else: "bg-red-500/20 text-red-400 hover:bg-red-500/40 active:bg-red-500/60 active:scale-95"
+                                  )
+                                ),
+                                "phx-click-loading:bg-warning/30 phx-click-loading:text-warning phx-click-loading:animate-pulse"
+                              ]}
+                              title={if is_work_in_progress, do: "Agent already working on this PR", else: "Send to coding agent to fix issues"}
                             >
-                              🔧 Fix
+                              <%= cond do %>
+                                <% is_fix_pending -> %>
+                                  <span class="inline-flex items-center gap-1">
+                                    <span class="throbber-small"></span>
+                                    <span>Working...</span>
+                                  </span>
+                                <% is_work_in_progress -> %>
+                                  🤖 Working
+                                <% true -> %>
+                                  🔧 Fix
+                              <% end %>
                             </button>
                           <% end %>
                           
