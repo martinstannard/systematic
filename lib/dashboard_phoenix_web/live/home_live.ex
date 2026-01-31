@@ -30,12 +30,16 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.OpenCodeServer
   alias DashboardPhoenix.OpenCodeClient
   alias DashboardPhoenix.GeminiServer
+  alias DashboardPhoenix.ClientFactory
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      SessionBridge.subscribe()
+      # Only subscribe to SessionBridge if it's not disabled (test mode)
+      unless Application.get_env(:dashboard_phoenix, :disable_session_bridge, false) do
+        SessionBridge.subscribe()
+      end
       StatsMonitor.subscribe()
       ResourceTracker.subscribe()
       AgentActivityMonitor.subscribe()
@@ -61,8 +65,17 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
 
     processes = ProcessMonitor.list_processes()
-    sessions = SessionBridge.get_sessions()
-    progress = SessionBridge.get_progress()
+    
+    # Handle SessionBridge being disabled in test mode
+    {sessions, progress} = if Application.get_env(:dashboard_phoenix, :disable_session_bridge, false) do
+      {[], []}
+    else
+      try do
+        {SessionBridge.get_sessions(), SessionBridge.get_progress()}
+      rescue
+        _ -> {[], []}
+      end
+    end
     stats = StatsMonitor.get_stats()
     resource_history = ResourceTracker.get_history()
     agent_activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, progress)
@@ -326,9 +339,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       """
       
       # Spawn a sub-agent to work on it
-      alias DashboardPhoenix.OpenClawClient
       
-      case OpenClawClient.spawn_subagent(prompt,
+      case ClientFactory.openclaw_client().spawn_subagent(prompt,
         name: "chainlink-#{issue_id}",
         thinking: "low",
         post_mode: "summary"
@@ -407,9 +419,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Focus on fixing the issues, not refactoring unrelated code.
     """
 
-    alias DashboardPhoenix.OpenClawClient
-
-    case OpenClawClient.spawn_subagent(fix_prompt,
+    case ClientFactory.openclaw_client().spawn_subagent(fix_prompt,
       name: "pr-fix-#{pr_number}",
       thinking: "low",
       post_mode: "summary"
@@ -470,9 +480,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Be thorough but constructive in your feedback.
     """
 
-    alias DashboardPhoenix.OpenClawClient
-
-    case OpenClawClient.spawn_subagent(review_prompt,
+    case ClientFactory.openclaw_client().spawn_subagent(review_prompt,
       name: "pr-review-#{pr_number}",
       thinking: "medium",
       post_mode: "summary"
@@ -786,7 +794,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   def handle_info({:opencode_component, :close_session, session_id}, socket) do
-    case OpenCodeClient.delete_session(session_id) do
+    case ClientFactory.opencode_client().delete_session(session_id) do
       :ok ->
         sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
         tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
@@ -810,7 +818,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Use `gh pr create` to create the PR.
     """
 
-    case OpenCodeClient.send_message(session_id, prompt) do
+    case ClientFactory.opencode_client().send_message(session_id, prompt) do
       {:ok, _} ->
         {:noreply, put_flash(socket, :info, "PR requested for session")}
       {:error, reason} ->
@@ -1258,7 +1266,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # NOTE: close_opencode_session now handled via OpenCodeComponent -> handle_info({:opencode_component, :close_session, ...})
   # Kept for backward compatibility with direct phx-click usage
   def handle_event("close_opencode_session", %{"id" => session_id}, socket) do
-    case OpenCodeClient.delete_session(session_id) do
+    case ClientFactory.opencode_client().delete_session(session_id) do
       :ok ->
         sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
         tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
@@ -1284,7 +1292,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Use `gh pr create` to create the PR.
     """
 
-    case OpenCodeClient.send_message(session_id, prompt) do
+    case ClientFactory.opencode_client().send_message(session_id, prompt) do
       {:ok, _} ->
         {:noreply, put_flash(socket, :info, "PR requested for session")}
       {:error, reason} ->
@@ -1309,12 +1317,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
       result = case work_info.type do
         :opencode ->
           # Send to OpenCode session
-          OpenCodeClient.send_message(work_info.session_id, pr_prompt)
+          ClientFactory.opencode_client().send_message(work_info.session_id, pr_prompt)
         
         :subagent ->
           # Send to OpenClaw sub-agent via sessions_send
-          alias DashboardPhoenix.OpenClawClient
-          OpenClawClient.send_message(pr_prompt, channel: "webchat")
+          ClientFactory.openclaw_client().send_message(pr_prompt, channel: "webchat")
       end
 
       case result do
@@ -1358,9 +1365,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     """
 
     # Spawn an isolated sub-agent to do the review
-    alias DashboardPhoenix.OpenClawClient
     
-    case OpenClawClient.spawn_subagent(review_prompt,
+    case ClientFactory.openclaw_client().spawn_subagent(review_prompt,
       name: "ticket-review-#{ticket_id}",
       thinking: "medium",
       post_mode: "summary"
@@ -1459,7 +1465,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
         # Start work in supervised task
         parent = self()
         Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-          result = OpenCodeClient.send_task(prompt, model: opencode_model)
+          result = ClientFactory.opencode_client().send_task(prompt, model: opencode_model)
           send(parent, {:work_result, result})
         end)
         
@@ -1509,12 +1515,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
       
       # Claude mode - send to OpenClaw to spawn a sub-agent
       true ->
-        alias DashboardPhoenix.OpenClawClient
         
         # Start work in supervised task
         parent = self()
         Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-          result = OpenClawClient.work_on_ticket(ticket_id, ticket_details, model: claude_model)
+          result = ClientFactory.openclaw_client().work_on_ticket(ticket_id, ticket_details, model: claude_model)
           send(parent, {:work_result, result})
         end)
         
@@ -1713,7 +1718,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Fetch OpenCode sessions if server is running
   defp fetch_opencode_sessions(%{running: true}) do
-    case OpenCodeClient.list_sessions_formatted() do
+    case ClientFactory.opencode_client().list_sessions_formatted() do
       {:ok, sessions} -> sessions
       {:error, _} -> []
     end
