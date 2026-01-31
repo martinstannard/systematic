@@ -3,11 +3,16 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
   Monitors coding agent processes (OpenCode, Claude Code, Codex, etc.)
   """
 
+  require Logger
+
+  alias DashboardPhoenix.CommandRunner
+
   @agent_patterns ~w(opencode claude-code codex aider)
+  @cli_timeout_ms 10_000
 
   def list_agents do
-    case System.cmd("ps", ["aux"], stderr_to_stdout: true) do
-      {output, 0} ->
+    case CommandRunner.run("ps", ["aux"], timeout: @cli_timeout_ms) do
+      {:ok, output} ->
         output
         |> String.split("\n", trim: true)
         |> Enum.drop(1)  # Skip header
@@ -15,7 +20,8 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
         |> Enum.filter(&is_coding_agent?/1)
         |> Enum.map(&enrich_agent/1)
 
-      _ ->
+      {:error, reason} ->
+        Logger.warning("Failed to list coding agents: #{inspect(reason)}")
         []
     end
   end
@@ -28,9 +34,10 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
   end
 
   def kill_agent(pid) when is_integer(pid) do
-    case System.cmd("kill", ["-15", to_string(pid)], stderr_to_stdout: true) do
-      {_, 0} -> :ok
-      {error, _} -> {:error, error}
+    case CommandRunner.run("kill", ["-15", to_string(pid)], timeout: 5_000) do
+      {:ok, _} -> :ok
+      {:error, {:exit, _code, error}} -> {:error, error}
+      {:error, reason} -> {:error, inspect(reason)}
     end
   end
 

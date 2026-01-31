@@ -7,12 +7,13 @@ defmodule DashboardPhoenix.LinearMonitor do
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.{CommandRunner, Paths}
 
   @poll_interval_ms 30_000  # 30 seconds
   @topic "linear_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for URLs
   @states ["Triage", "Backlog", "Todo", "In Review"]
+  @cli_timeout_ms 30_000
 
   defp linear_cli, do: Paths.linear_cli()
 
@@ -39,13 +40,21 @@ defmodule DashboardPhoenix.LinearMonitor do
 
   @doc "Get full details for a specific ticket"
   def get_ticket_details(ticket_id) do
-    case System.cmd(linear_cli(), ["issue", "show", ticket_id], stderr_to_stdout: true) do
-      {output, 0} ->
+    case CommandRunner.run(linear_cli(), ["issue", "show", ticket_id], timeout: @cli_timeout_ms) do
+      {:ok, output} ->
         {:ok, output}
       
-      {error, _code} ->
+      {:error, {:exit, _code, error}} ->
         Logger.warning("Linear CLI error fetching #{ticket_id}: #{error}")
         {:error, error}
+      
+      {:error, :timeout} ->
+        Logger.warning("Linear CLI timeout fetching #{ticket_id}")
+        {:error, "Command timed out"}
+      
+      {:error, reason} ->
+        Logger.warning("Linear CLI error fetching #{ticket_id}: #{inspect(reason)}")
+        {:error, inspect(reason)}
     end
   end
 
@@ -128,13 +137,21 @@ defmodule DashboardPhoenix.LinearMonitor do
   end
 
   defp fetch_tickets_for_state(status) do
-    case System.cmd(linear_cli(), ["issues", "--state", status], stderr_to_stdout: true) do
-      {output, 0} ->
+    case CommandRunner.run(linear_cli(), ["issues", "--state", status], timeout: @cli_timeout_ms) do
+      {:ok, output} ->
         {:ok, parse_issues_output(output, status)}
       
-      {error, _code} ->
+      {:error, {:exit, _code, error}} ->
         Logger.warning("Linear CLI error for state #{status}: #{error}")
         {:error, error}
+      
+      {:error, :timeout} ->
+        Logger.warning("Linear CLI timeout for state #{status}")
+        {:error, "Command timed out"}
+      
+      {:error, reason} ->
+        Logger.warning("Linear CLI error for state #{status}: #{inspect(reason)}")
+        {:error, inspect(reason)}
     end
   end
 
@@ -230,26 +247,18 @@ defmodule DashboardPhoenix.LinearMonitor do
   defp add_pr_info(ticket), do: Map.put(ticket, :pr_url, nil)
 
   defp lookup_pr(ticket_id) do
-    case System.cmd("gh", [
+    case CommandRunner.run_json("gh", [
       "pr", "list",
       "--repo", "Fresh-Clinics/core-platform",
       "--search", ticket_id,
       "--state", "open",
       "--json", "number,url",
       "--limit", "1"
-    ], stderr_to_stdout: true) do
-      {output, 0} ->
-        case Jason.decode(output) do
-          {:ok, [%{"url" => url} | _]} -> {:ok, url}
-          {:ok, []} -> {:error, :no_pr_found}
-          {:error, _} -> {:error, :json_decode_failed}
-        end
-      
-      {_error, _code} ->
-        {:error, :gh_command_failed}
+    ], timeout: @cli_timeout_ms) do
+      {:ok, [%{"url" => url} | _]} -> {:ok, url}
+      {:ok, []} -> {:error, :no_pr_found}
+      {:error, _} -> {:error, :command_failed}
     end
-  rescue
-    _ -> {:error, :exception}
   end
 
   defp sort_tickets(tickets) do

@@ -7,9 +7,12 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   use GenServer
   require Logger
 
+  alias DashboardPhoenix.CommandRunner
+
   @poll_interval_ms 60_000  # 60 seconds (chainlink issues change less frequently)
   @topic "chainlink_updates"
   @chainlink_repo_path Path.expand("~/code/systematic")
+  @cli_timeout_ms 30_000
 
   # Client API
 
@@ -34,15 +37,23 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
 
   @doc "Get full details for a specific issue"
   def get_issue_details(issue_id) do
-    case System.cmd("chainlink", ["show", to_string(issue_id)],
+    case CommandRunner.run("chainlink", ["show", to_string(issue_id)],
            cd: @chainlink_repo_path,
-           stderr_to_stdout: true) do
-      {output, 0} ->
+           timeout: @cli_timeout_ms) do
+      {:ok, output} ->
         {:ok, output}
 
-      {error, _code} ->
+      {:error, {:exit, _code, error}} ->
         Logger.warning("Chainlink CLI error fetching ##{issue_id}: #{error}")
         {:error, error}
+
+      {:error, :timeout} ->
+        Logger.warning("Chainlink CLI timeout fetching ##{issue_id}")
+        {:error, "Command timed out"}
+
+      {:error, reason} ->
+        Logger.warning("Chainlink CLI error fetching ##{issue_id}: #{inspect(reason)}")
+        {:error, inspect(reason)}
     end
   end
 
@@ -102,10 +113,10 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   # Private functions
 
   defp fetch_issues(state) do
-    case System.cmd("chainlink", ["list"],
+    case CommandRunner.run("chainlink", ["list"],
            cd: @chainlink_repo_path,
-           stderr_to_stdout: true) do
-      {output, 0} ->
+           timeout: @cli_timeout_ms) do
+      {:ok, output} ->
         issues = parse_chainlink_output(output)
         %{state |
           issues: issues,
@@ -113,9 +124,17 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
           error: nil
         }
 
-      {error, code} ->
+      {:error, {:exit, code, error}} ->
         Logger.warning("Chainlink CLI error (exit #{code}): #{error}")
         %{state | error: "Failed to fetch issues: #{String.slice(error, 0, 100)}"}
+
+      {:error, :timeout} ->
+        Logger.warning("Chainlink CLI timeout")
+        %{state | error: "Command timed out"}
+
+      {:error, reason} ->
+        Logger.warning("Chainlink CLI error: #{inspect(reason)}")
+        %{state | error: "Failed to fetch issues"}
     end
   rescue
     e ->

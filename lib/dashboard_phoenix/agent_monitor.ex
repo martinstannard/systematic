@@ -4,7 +4,12 @@ defmodule DashboardPhoenix.AgentMonitor do
   by scanning running processes and extracting their status.
   """
 
+  require Logger
+
+  alias DashboardPhoenix.CommandRunner
+
   @agent_patterns ~w(claude opencode codex pi\ coding)
+  @cli_timeout_ms 10_000
 
   @doc """
   List all active coding agent sessions.
@@ -14,15 +19,20 @@ defmodule DashboardPhoenix.AgentMonitor do
   end
 
   defp find_agent_processes do
-    {output, _} = System.cmd("ps", ["aux", "--sort=-start_time"])
-    
-    output
-    |> String.split("\n")
-    |> Enum.drop(1)
-    |> Enum.filter(&is_agent_process?/1)
-    |> Enum.map(&parse_agent_process/1)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.take(10)
+    case CommandRunner.run("ps", ["aux", "--sort=-start_time"], timeout: @cli_timeout_ms) do
+      {:ok, output} ->
+        output
+        |> String.split("\n")
+        |> Enum.drop(1)
+        |> Enum.filter(&is_agent_process?/1)
+        |> Enum.map(&parse_agent_process/1)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.take(10)
+
+      {:error, reason} ->
+        Logger.warning("Failed to list agent processes: #{inspect(reason)}")
+        []
+    end
   end
 
   defp is_agent_process?(line) do
@@ -99,8 +109,9 @@ defmodule DashboardPhoenix.AgentMonitor do
 
   defp get_output_from_pty(pid, _agent_type) do
     # Try to find associated PTY and read recent output
-    case System.cmd("sh", ["-c", "ls -la /proc/#{pid}/fd/ 2>/dev/null | grep pts"]) do
-      {output, 0} when output != "" ->
+    case CommandRunner.run("sh", ["-c", "ls -la /proc/#{pid}/fd/ 2>/dev/null | grep pts"], 
+           timeout: 5_000) do
+      {:ok, output} when output != "" ->
         "Running on PTY"
       _ ->
         nil

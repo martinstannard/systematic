@@ -5,10 +5,13 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   """
   use GenServer
 
-  alias DashboardPhoenix.Paths
+  require Logger
+
+  alias DashboardPhoenix.{CommandRunner, Paths}
 
   @poll_interval 1_000  # 1 second for responsive updates
   @max_recent_actions 10
+  @cli_timeout_ms 10_000
 
   defp openclaw_sessions_dir, do: Paths.openclaw_sessions_dir()
 
@@ -263,8 +266,8 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   defp parse_timestamp(_), do: DateTime.utc_now()
 
   defp find_coding_agent_processes do
-    case System.cmd("ps", ["aux", "--sort=-start_time"]) do
-      {output, _} ->
+    case CommandRunner.run("ps", ["aux", "--sort=-start_time"], timeout: @cli_timeout_ms) do
+      {:ok, output} ->
         output
         |> String.split("\n")
         |> Enum.drop(1)
@@ -272,7 +275,9 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
         |> Enum.map(&parse_process_to_agent/1)
         |> Enum.reject(&is_nil/1)
         |> Map.new(fn a -> {a.id, a} end)
-      _ ->
+        
+      {:error, reason} ->
+        Logger.warning("Failed to find coding agent processes: #{inspect(reason)}")
         %{}
     end
   end
@@ -343,16 +348,17 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   defp get_recently_modified_files(nil), do: []
   defp get_recently_modified_files(cwd) do
-    case System.cmd("find", [cwd, "-maxdepth", "3", "-type", "f", "-mmin", "-5", 
+    case CommandRunner.run("find", [cwd, "-maxdepth", "3", "-type", "f", "-mmin", "-5", 
                              "-name", "*.ex", "-o", "-name", "*.exs", 
                              "-o", "-name", "*.ts", "-o", "-name", "*.js",
                              "-o", "-name", "*.py", "-o", "-name", "*.rb"], 
-                    stderr_to_stdout: true) do
-      {output, 0} ->
+                    timeout: @cli_timeout_ms) do
+      {:ok, output} ->
         output
         |> String.split("\n", trim: true)
         |> Enum.take(10)
-      _ ->
+        
+      {:error, _} ->
         []
     end
   rescue

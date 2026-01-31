@@ -3,20 +3,28 @@ defmodule DashboardPhoenix.ProcessMonitor do
   Fetches real process data from the system.
   """
 
-  alias DashboardPhoenix.Paths
+  require Logger
+
+  alias DashboardPhoenix.{CommandRunner, Paths}
 
   @interesting_patterns ~w(opencode openclaw-tui openclaw-gateway)
+  @cli_timeout_ms 10_000
 
   def list_processes do
-    {output, 0} = System.cmd("ps", ["aux", "--sort=-pcpu"])
-    
-    output
-    |> String.split("\n")
-    |> Enum.drop(1)  # Skip header
-    |> Enum.filter(&interesting_process?/1)
-    |> Enum.take(20)  # Limit to 20 processes
-    |> Enum.map(&parse_process_line/1)
-    |> Enum.reject(&is_nil/1)
+    case CommandRunner.run("ps", ["aux", "--sort=-pcpu"], timeout: @cli_timeout_ms) do
+      {:ok, output} ->
+        output
+        |> String.split("\n")
+        |> Enum.drop(1)  # Skip header
+        |> Enum.filter(&interesting_process?/1)
+        |> Enum.take(20)  # Limit to 20 processes
+        |> Enum.map(&parse_process_line/1)
+        |> Enum.reject(&is_nil/1)
+
+      {:error, reason} ->
+        Logger.warning("Failed to list processes: #{inspect(reason)}")
+        []
+    end
   end
 
   defp interesting_process?(line) do

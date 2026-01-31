@@ -7,10 +7,13 @@ defmodule DashboardPhoenix.PRMonitor do
   use GenServer
   require Logger
 
+  alias DashboardPhoenix.CommandRunner
+
   @poll_interval_ms 60_000  # 60 seconds
   @topic "pr_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for Linear URLs
   @repos ["Fresh-Clinics/core-platform"]  # Repos to monitor
+  @cli_timeout_ms 60_000  # GitHub API can be slow
 
   # Client API
 
@@ -118,20 +121,24 @@ defmodule DashboardPhoenix.PRMonitor do
       "--state", "open"
     ]
     
-    case System.cmd("gh", args, stderr_to_stdout: true) do
-      {output, 0} ->
-        case Jason.decode(output) do
-          {:ok, prs} when is_list(prs) ->
-            {:ok, Enum.map(prs, &parse_pr(&1, repo))}
-          {:ok, _} ->
-            {:error, :unexpected_format}
-          {:error, _} ->
-            {:error, :json_decode_failed}
-        end
-      
-      {error, _code} ->
+    case CommandRunner.run_json("gh", args, timeout: @cli_timeout_ms) do
+      {:ok, prs} when is_list(prs) ->
+        {:ok, Enum.map(prs, &parse_pr(&1, repo))}
+        
+      {:ok, _} ->
+        {:error, :unexpected_format}
+        
+      {:error, :timeout} ->
+        Logger.warning("GitHub CLI timeout for repo #{repo}")
+        {:error, :timeout}
+        
+      {:error, {:exit, _code, error}} ->
         Logger.warning("GitHub CLI error for repo #{repo}: #{error}")
         {:error, error}
+        
+      {:error, reason} ->
+        Logger.warning("GitHub CLI error for repo #{repo}: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 

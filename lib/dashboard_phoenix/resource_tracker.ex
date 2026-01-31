@@ -5,9 +5,14 @@ defmodule DashboardPhoenix.ResourceTracker do
   """
   use GenServer
 
+  require Logger
+
+  alias DashboardPhoenix.CommandRunner
+
   @sample_interval 5_000  # 5 seconds
   @max_history 60  # 5 minutes of history at 5-second intervals
   @interesting_patterns ~w(opencode openclaw claude codex)
+  @cli_timeout_ms 10_000
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -114,8 +119,8 @@ defmodule DashboardPhoenix.ResourceTracker do
   end
 
   defp fetch_process_stats do
-    case System.cmd("ps", ["aux", "--sort=-pcpu"]) do
-      {output, 0} ->
+    case CommandRunner.run("ps", ["aux", "--sort=-pcpu"], timeout: @cli_timeout_ms) do
+      {:ok, output} ->
         output
         |> String.split("\n")
         |> Enum.drop(1)  # Skip header
@@ -123,7 +128,9 @@ defmodule DashboardPhoenix.ResourceTracker do
         |> Enum.take(30)
         |> Enum.map(&parse_process_line/1)
         |> Enum.reject(&is_nil/1)
-      _ ->
+        
+      {:error, reason} ->
+        Logger.warning("Failed to fetch process stats: #{inspect(reason)}")
         []
     end
   end
