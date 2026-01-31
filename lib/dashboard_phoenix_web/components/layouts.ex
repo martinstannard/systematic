@@ -43,6 +43,13 @@ defmodule DashboardPhoenixWeb.Layouts do
         </a>
       </div>
       <div class="flex items-center gap-4">
+        <a
+          href="/dev/dashboard"
+          class="text-xs font-mono px-3 py-1.5 rounded-lg bg-base-content/10 hover:bg-base-content/20 text-base-content/70 hover:text-base-content transition-colors"
+          title="Phoenix LiveDashboard - System Metrics"
+        >
+          📊 LiveDashboard
+        </a>
         <.theme_toggle />
         <div class="dropdown dropdown-end">
           <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar placeholder">
