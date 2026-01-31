@@ -23,6 +23,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       OpenCodeServer.subscribe()
       Process.send_after(self(), :update_processes, 100)
       :timer.send_interval(2_000, :update_processes)
+      :timer.send_interval(5_000, :refresh_opencode_sessions)
     end
 
     processes = ProcessMonitor.list_processes()
@@ -54,6 +55,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       graph_data: graph_data,
       dismissed_sessions: MapSet.new(),  # Track dismissed session IDs
       show_main_entries: true,            # Toggle for main session visibility
+      show_completed: true,               # Toggle for completed sub-agents visibility
       main_activity_count: main_activity_count,
       expanded_outputs: MapSet.new(),     # Track which outputs are expanded
       coding_agent_pref: coding_agent_pref,  # Coding agent preference (opencode/claude)
@@ -133,6 +135,16 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:opencode_status, status}, socket) do
     sessions = fetch_opencode_sessions(status)
     {:noreply, assign(socket, opencode_server_status: status, opencode_sessions: sessions)}
+  end
+
+  # Handle periodic OpenCode sessions refresh
+  def handle_info(:refresh_opencode_sessions, socket) do
+    if socket.assigns.opencode_server_status.running do
+      sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
+      {:noreply, assign(socket, opencode_sessions: sessions)}
+    else
+      {:noreply, socket}
+    end
   end
 
   # Handle async work result (from OpenCode or OpenClaw)
@@ -215,6 +227,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("toggle_main_entries", _, socket) do
     {:noreply, assign(socket, show_main_entries: !socket.assigns.show_main_entries)}
+  end
+
+  def handle_event("toggle_show_completed", _, socket) do
+    {:noreply, assign(socket, show_completed: !socket.assigns.show_completed)}
   end
 
   def handle_event("toggle_output", %{"ts" => ts_str}, socket) do
@@ -1154,20 +1170,32 @@ defmodule DashboardPhoenixWeb.HomeLive do
       <div class="space-y-3">
         <div class="flex items-center justify-between px-1">
           <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
-          <% completed_count = Enum.count(@agent_sessions, fn s -> 
-            s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) 
-          end) %>
-          <%= if completed_count > 0 do %>
-            <button 
-              phx-click="clear_completed" 
-              class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
-            >
-              CLEAR COMPLETED (<%= completed_count %>)
-            </button>
-          <% end %>
+          <div class="flex items-center space-x-2">
+            <% completed_count = Enum.count(@agent_sessions, fn s -> 
+              s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) 
+            end) %>
+            <!-- Toggle show/hide completed -->
+            <%= if completed_count > 0 do %>
+              <button 
+                phx-click="toggle_show_completed"
+                class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@show_completed, do: "bg-success/20 text-success", else: "bg-base-content/10 text-base-content/40")}
+                title={if @show_completed, do: "Click to hide completed sub-agents", else: "Click to show completed sub-agents"}
+              >
+                <%= if @show_completed, do: "👁 COMPLETED", else: "👁‍🗨 SHOW " <> Integer.to_string(completed_count) %> 
+              </button>
+              <button 
+                phx-click="clear_completed" 
+                class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
+              >
+                CLEAR (<%= completed_count %>)
+              </button>
+            <% end %>
+          </div>
         </div>
         
-        <% visible_sessions = Enum.reject(@agent_sessions, fn s -> MapSet.member?(@dismissed_sessions, s.id) end) %>
+        <% visible_sessions = @agent_sessions
+          |> Enum.reject(fn s -> MapSet.member?(@dismissed_sessions, s.id) end)
+          |> Enum.reject(fn s -> !@show_completed && s.status == "completed" end) %>
         <%= if visible_sessions == [] do %>
           <div class="glass-panel rounded-lg p-4 text-center">
             <div class="text-base-content/40 font-mono text-xs mb-2">[NO ACTIVE AGENTS]</div>
