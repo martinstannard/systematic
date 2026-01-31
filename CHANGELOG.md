@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- Re-add Chainlink panel after template extraction merge (#43)
+- Add Chainlink issues panel with Work button (#17)
+- Move inline template to separate .html.heex file (#2)
+- Make Fix button responsive and show tap state (#18)
 - Add Chainlink issues panel with Work button (#17)
 - Show PR verification status in panel (#15)
 - PR background colors reflect status (#16)
