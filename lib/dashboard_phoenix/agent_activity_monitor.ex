@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   require Logger
 
-  alias DashboardPhoenix.{CommandRunner, Paths}
+  alias DashboardPhoenix.{CommandRunner, Paths, ProcessParser}
 
   @poll_interval 1_000  # 1 second for responsive updates
   @max_recent_actions 10
@@ -266,58 +266,41 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   defp parse_timestamp(_), do: DateTime.utc_now()
 
   defp find_coding_agent_processes do
-    case CommandRunner.run("ps", ["aux", "--sort=-start_time"], timeout: @cli_timeout_ms) do
-      {:ok, output} ->
-        output
-        |> String.split("\n")
-        |> Enum.drop(1)
-        |> Enum.filter(&coding_agent_process?/1)
-        |> Enum.map(&parse_process_to_agent/1)
-        |> Enum.reject(&is_nil/1)
-        |> Map.new(fn a -> {a.id, a} end)
-        
-      {:error, reason} ->
-        Logger.warning("Failed to find coding agent processes: #{inspect(reason)}")
-        %{}
-    end
+    ProcessParser.list_processes(
+      sort: "-start_time",
+      filter: &coding_agent_process?/1,
+      timeout: @cli_timeout_ms
+    )
+    |> Enum.map(&transform_process_to_agent/1)
+    |> Map.new(fn a -> {a.id, a} end)
   end
 
   defp coding_agent_process?(line) do
-    line_lower = String.downcase(line)
-    (String.contains?(line_lower, "claude") or
-     String.contains?(line_lower, "opencode") or
-     String.contains?(line_lower, "codex")) and
-    not String.contains?(line_lower, "grep") and
-    not String.contains?(line_lower, "ps aux")
+    ProcessParser.contains_patterns?(line, ~w(claude opencode codex)) and
+    not String.contains?(String.downcase(line), "grep") and
+    not String.contains?(String.downcase(line), "ps aux")
   end
 
-  defp parse_process_to_agent(line) do
-    parts = String.split(line, ~r/\s+/, parts: 11)
+  defp transform_process_to_agent(%{pid: pid, cpu: cpu, mem: mem, start: start, command: command}) do
+    type = detect_agent_type(command)
+    cwd = get_process_cwd(pid)
     
-    case parts do
-      [_user, pid, cpu, mem, _vsz, _rss, _tty, _stat, start, _time, command | _] ->
-        type = detect_agent_type(command)
-        cwd = get_process_cwd(pid)
-        
-        %{
-          id: "process-#{pid}",
-          session_id: pid,
-          type: type,
-          model: detect_model_from_command(command),
-          cwd: cwd,
-          status: if(parse_float(cpu) > 5.0, do: "busy", else: "idle"),
-          last_action: nil,
-          recent_actions: [],
-          files_worked: get_recently_modified_files(cwd),
-          last_activity: DateTime.utc_now(),
-          cpu: "#{cpu}%",
-          memory: "#{mem}%",
-          start_time: start,
-          tool_call_count: 0
-        }
-      _ ->
-        nil
-    end
+    %{
+      id: "process-#{pid}",
+      session_id: pid,
+      type: type,
+      model: detect_model_from_command(command),
+      cwd: cwd,
+      status: if(cpu > 5.0, do: "busy", else: "idle"),
+      last_action: nil,
+      recent_actions: [],
+      files_worked: get_recently_modified_files(cwd),
+      last_activity: DateTime.utc_now(),
+      cpu: "#{cpu}%",
+      memory: "#{mem}%",
+      start_time: start,
+      tool_call_count: 0
+    }
   end
 
   defp detect_agent_type(command) do
@@ -384,10 +367,4 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   end
   defp truncate(_, _), do: ""
 
-  defp parse_float(str) do
-    case Float.parse(str) do
-      {val, _} -> val
-      :error -> 0.0
-    end
-  end
 end
