@@ -290,21 +290,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("restore_panel_state", _, socket), do: {:noreply, socket}
 
-  # Push current panel state to JS for localStorage persistence
-  defp push_panel_state(socket) do
-    panels = %{
-      "linear" => socket.assigns.linear_collapsed,
-      "opencode" => socket.assigns.opencode_collapsed,
-      "coding_agents" => socket.assigns.coding_agents_collapsed,
-      "subagents" => socket.assigns.subagents_collapsed,
-      "live_progress" => socket.assigns.live_progress_collapsed,
-      "agent_activity" => socket.assigns.agent_activity_collapsed,
-      "system_processes" => socket.assigns.system_processes_collapsed,
-      "process_relationships" => socket.assigns.process_relationships_collapsed
-    }
-    push_event(socket, "save_panel_state", %{panels: panels})
-  end
-
   def handle_event("work_on_ticket", %{"id" => ticket_id}, socket) do
     # Show modal immediately with loading state
     socket = assign(socket,
@@ -433,6 +418,21 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end)
     
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
+  end
+
+  # Push current panel state to JS for localStorage persistence
+  defp push_panel_state(socket) do
+    panels = %{
+      "linear" => socket.assigns.linear_collapsed,
+      "opencode" => socket.assigns.opencode_collapsed,
+      "coding_agents" => socket.assigns.coding_agents_collapsed,
+      "subagents" => socket.assigns.subagents_collapsed,
+      "live_progress" => socket.assigns.live_progress_collapsed,
+      "agent_activity" => socket.assigns.agent_activity_collapsed,
+      "system_processes" => socket.assigns.system_processes_collapsed,
+      "process_relationships" => socket.assigns.process_relationships_collapsed
+    }
+    push_event(socket, "save_panel_state", %{panels: panels})
   end
 
   # Build agent activity from sessions and progress events
