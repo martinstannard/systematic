@@ -57,7 +57,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agents: coding_agents,
       graph_data: graph_data,
       dismissed_sessions: MapSet.new(),  # Track dismissed session IDs
-      show_main_entries: true,            # Toggle for main session visibility
+      show_main_entries: true,            # Toggle for main session visibility (legacy)
+      progress_filter: "all",              # Filter: "all", "main", or specific agent name
       show_completed: true,               # Toggle for completed sub-agents visibility
       main_activity_count: main_activity_count,
       expanded_outputs: MapSet.new(),     # Track which outputs are expanded
@@ -241,6 +242,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("toggle_main_entries", _, socket) do
     {:noreply, assign(socket, show_main_entries: !socket.assigns.show_main_entries)}
+  end
+
+  def handle_event("set_progress_filter", %{"filter" => filter}, socket) do
+    {:noreply, assign(socket, progress_filter: filter)}
   end
 
   def handle_event("toggle_show_completed", _, socket) do
@@ -1513,14 +1518,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
             <% end %>
           </div>
           <div class="flex items-center space-x-2" onclick="event.stopPropagation()">
-            <!-- Toggle main entries -->
-            <button 
-              phx-click="toggle_main_entries" 
-              class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@show_main_entries, do: "bg-green-500/20 text-green-400", else: "bg-base-content/10 text-base-content/40")}
-              title={if @show_main_entries, do: "Click to hide main session entries", else: "Click to show main session entries"}
-            >
-              <%= if @show_main_entries, do: "👁 main", else: "🚫 main" %>
-            </button>
             <button phx-click="clear_progress" class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20">
               CLEAR
             </button>
@@ -1528,13 +1525,39 @@ defmodule DashboardPhoenixWeb.HomeLive do
         </div>
         
         <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
+        <!-- Agent Filter Bar -->
+        <% unique_agents = @agent_progress |> Enum.map(& &1.agent) |> Enum.uniq() |> Enum.sort() %>
+        <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
+          <span class="text-[10px] font-mono text-base-content/50 mr-1">Filter:</span>
+          <button 
+            phx-click="set_progress_filter" 
+            phx-value-filter="all"
+            class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@progress_filter == "all", do: "bg-accent/30 text-accent font-bold", else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
+          >
+            All
+          </button>
+          <%= for agent <- unique_agents do %>
+            <button 
+              phx-click="set_progress_filter" 
+              phx-value-filter={agent}
+              class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> 
+                if(@progress_filter == agent, 
+                  do: "bg-accent/30 text-accent font-bold", 
+                  else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
+                ) <> " " <> agent_color(agent)}
+              title={"Filter by #{agent}"}
+            >
+              <%= agent %>
+            </button>
+          <% end %>
+        </div>
         <div class="glass-panel rounded-lg p-3 h-[400px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom">
           <%= if @agent_progress == [] do %>
             <div class="text-base-content/40 text-center py-8">
               Waiting for agent activity...
             </div>
           <% else %>
-            <% filtered_progress = if @show_main_entries, do: @agent_progress, else: Enum.reject(@agent_progress, & &1.agent == "main") %>
+            <% filtered_progress = if @progress_filter == "all", do: @agent_progress, else: Enum.filter(@agent_progress, & &1.agent == @progress_filter) %>
             <%= for event <- filtered_progress do %>
               <% is_main = event.agent == "main" %>
               <% has_output = event.output != "" and event.output != nil %>
