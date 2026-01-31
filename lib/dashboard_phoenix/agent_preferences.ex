@@ -13,8 +13,9 @@ defmodule DashboardPhoenix.AgentPreferences do
   require Logger
 
   alias DashboardPhoenix.FileUtils
+  alias DashboardPhoenix.Paths
 
-  @prefs_file "/tmp/dashboard-prefs.json"
+  defp prefs_file, do: Paths.preferences_file()
   @pubsub DashboardPhoenix.PubSub
   @topic "agent_preferences"
 
@@ -107,7 +108,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   # Private functions
 
   defp load_preferences do
-    case File.read(@prefs_file) do
+    case File.read(prefs_file()) do
       {:ok, content} ->
         case Jason.decode(content, keys: :atoms) do
           {:ok, prefs} ->
@@ -128,7 +129,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   defp save_preferences(prefs) do
     case Jason.encode(prefs, pretty: true) do
       {:ok, json} ->
-        case FileUtils.atomic_write(@prefs_file, json) do
+        case FileUtils.atomic_write(prefs_file(), json) do
           :ok -> :ok
           {:error, reason} ->
             Logger.error("[AgentPreferences] Failed to save prefs: #{inspect(reason)}")

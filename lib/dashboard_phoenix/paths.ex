@@ -178,6 +178,16 @@ defmodule DashboardPhoenix.Paths do
       "/tmp/agent-progress.jsonl"
   end
 
+  @doc """
+  Get the agent preferences file path.
+  Default: $OPENCLAW_HOME/dashboard-prefs.json
+  """
+  def preferences_file do
+    System.get_env("DASHBOARD_PREFS_FILE") ||
+      Application.get_env(:dashboard_phoenix, :preferences_file) ||
+      Path.join(openclaw_home(), "dashboard-prefs.json")
+  end
+
   # Private helpers
 
   defp find_in_path(binary) do
