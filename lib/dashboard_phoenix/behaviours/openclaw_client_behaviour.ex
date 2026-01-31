@@ -8,4 +8,7 @@ defmodule DashboardPhoenix.Behaviours.OpenClawClientBehaviour do
 
   @doc "Send a raw message to the OpenClaw main session"
   @callback send_message(String.t(), keyword()) :: {:ok, :sent} | {:error, String.t()}
+
+  @doc "Spawn an isolated sub-agent to handle a task"
+  @callback spawn_subagent(String.t(), keyword()) :: {:ok, map()} | {:error, String.t()}
 end

@@ -629,7 +629,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Request super review for a ticket that has a PR
   def handle_event("request_super_review", %{"id" => ticket_id}, socket) do
     review_prompt = """
-    🔍 **Super Review Request**
+    🔍 **Super Review Request for #{ticket_id}**
     
     Please perform a comprehensive code review for the PR related to ticket #{ticket_id}:
     
@@ -647,17 +647,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Use `gh pr view` to find the PR and `gh pr diff` to see changes.
     """
 
-    # Send to main agent to spawn a review sub-agent
+    # Spawn an isolated sub-agent to do the review
     alias DashboardPhoenix.OpenClawClient
     
-    try do
-      OpenClawClient.send_message(review_prompt, channel: "webchat")
-      {:noreply, put_flash(socket, :info, "Super review requested for #{ticket_id}")}
-    catch
-      :exit, reason ->
-        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(reason)}")}
-      error ->
-        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(error)}")}
+    case OpenClawClient.spawn_subagent(review_prompt,
+      name: "ticket-review-#{ticket_id}",
+      thinking: "medium",
+      post_mode: "summary"
+    ) do
+      {:ok, %{job_id: job_id}} ->
+        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for #{ticket_id} (job: #{String.slice(job_id, 0, 8)}...)")}
+      
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for #{ticket_id}")}
+      
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to spawn review agent: #{inspect(reason)}")}
     end
   end
 
@@ -689,17 +694,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Be thorough but constructive in your feedback.
     """
 
-    # Send to main agent to spawn a review sub-agent
+    # Spawn an isolated sub-agent to do the review
     alias DashboardPhoenix.OpenClawClient
     
-    try do
-      OpenClawClient.send_message(review_prompt, channel: "webchat")
-      {:noreply, put_flash(socket, :info, "Super review requested for PR ##{pr_number}")}
-    catch
-      :exit, reason ->
-        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(reason)}")}
-      error ->
-        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(error)}")}
+    case OpenClawClient.spawn_subagent(review_prompt,
+      name: "pr-review-#{pr_number}",
+      thinking: "medium",
+      post_mode: "summary"
+    ) do
+      {:ok, %{job_id: job_id}} ->
+        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")}
+      
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for PR ##{pr_number}")}
+      
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to spawn review agent: #{inspect(reason)}")}
     end
   end
 
@@ -733,16 +743,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Focus on fixing the issues, not refactoring unrelated code.
     """
 
+    # Spawn an isolated sub-agent to fix the issues
     alias DashboardPhoenix.OpenClawClient
     
-    try do
-      OpenClawClient.send_message(fix_prompt, channel: "webchat")
-      {:noreply, put_flash(socket, :info, "Fix requested for PR ##{pr_number}")}
-    catch
-      :exit, reason ->
-        {:noreply, put_flash(socket, :error, "Failed to request fix: #{inspect(reason)}")}
-      error ->
-        {:noreply, put_flash(socket, :error, "Failed to request fix: #{inspect(error)}")}
+    case OpenClawClient.spawn_subagent(fix_prompt,
+      name: "pr-fix-#{pr_number}",
+      thinking: "low",
+      post_mode: "summary"
+    ) do
+      {:ok, %{job_id: job_id}} ->
+        {:noreply, put_flash(socket, :info, "Fix sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")}
+      
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Fix sub-agent spawned for PR ##{pr_number}")}
+      
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to spawn fix agent: #{inspect(reason)}")}
     end
   end
 
