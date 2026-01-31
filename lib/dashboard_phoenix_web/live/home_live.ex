@@ -648,6 +648,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp linear_status_badge("Backlog"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
   defp linear_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
 
+  defp opencode_status_badge("active"), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px] animate-pulse"
+  defp opencode_status_badge("subagent"), do: "px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px]"
+  defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
+  defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+
   def render(assigns) do
     ~H"""
     <div class="space-y-4">
@@ -917,6 +922,98 @@ defmodule DashboardPhoenixWeb.HomeLive do
             <% end %>
           <% end %>
         </div>
+      </div>
+
+      <!-- OpenCode Sessions Panel -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <div class="flex items-center space-x-3">
+            <span class="text-xs font-mono text-accent uppercase tracking-wider">💻 OpenCode Sessions</span>
+            <span class="text-[10px] font-mono text-base-content/50">
+              <%= length(@opencode_sessions) %> sessions
+            </span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button phx-click="refresh_opencode_sessions" class="text-[10px] text-base-content/40 hover:text-accent">↻</button>
+          </div>
+        </div>
+        
+        <%= if not @opencode_server_status.running do %>
+          <div class="glass-panel rounded-lg p-4 text-center">
+            <div class="text-base-content/40 font-mono text-xs mb-2">[SERVER NOT RUNNING]</div>
+            <div class="text-base-content/60 text-xs mb-3">Start the OpenCode ACP server to see sessions</div>
+            <button 
+              phx-click="start_opencode_server"
+              class="px-3 py-1.5 rounded bg-success/20 text-success hover:bg-success/40 text-xs font-mono"
+            >
+              Start Server
+            </button>
+          </div>
+        <% else %>
+          <%= if @opencode_sessions == [] do %>
+            <div class="glass-panel rounded-lg p-4 text-center">
+              <div class="text-base-content/40 font-mono text-xs">[NO SESSIONS]</div>
+              <div class="text-base-content/60 text-xs">No active OpenCode sessions</div>
+            </div>
+          <% else %>
+            <div class="glass-panel rounded-lg p-3">
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs font-mono">
+                  <thead>
+                    <tr class="text-base-content/50 border-b border-white/10">
+                      <th class="text-left py-2 px-2 w-28">Slug</th>
+                      <th class="text-left py-2 px-2">Title</th>
+                      <th class="text-left py-2 px-2 w-20">Status</th>
+                      <th class="text-left py-2 px-2 w-24">Created</th>
+                      <th class="text-left py-2 px-2 w-28">Changes</th>
+                      <th class="text-left py-2 px-2 w-20"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <%= for session <- @opencode_sessions do %>
+                      <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td class="py-2 px-2">
+                          <span class={"font-semibold " <> if(session.parent_id, do: "text-purple-400", else: "text-blue-400")}>
+                            <%= if session.parent_id do %>↳ <% end %><%= session.slug %>
+                          </span>
+                        </td>
+                        <td class="py-2 px-2 text-white truncate max-w-xs" title={session.title}>
+                          <%= session.title || "-" %>
+                        </td>
+                        <td class="py-2 px-2">
+                          <span class={opencode_status_badge(session.status)}>
+                            <%= session.status %>
+                          </span>
+                        </td>
+                        <td class="py-2 px-2 text-base-content/60">
+                          <%= format_linear_time(session.created_at) %>
+                        </td>
+                        <td class="py-2 px-2">
+                          <%= if session.file_changes.files > 0 do %>
+                            <span class="text-green-400">+<%= session.file_changes.additions %></span>
+                            <span class="text-red-400">-<%= session.file_changes.deletions %></span>
+                            <span class="text-base-content/50">(<%= session.file_changes.files %> files)</span>
+                          <% else %>
+                            <span class="text-base-content/40">-</span>
+                          <% end %>
+                        </td>
+                        <td class="py-2 px-2">
+                          <a 
+                            href={"http://localhost:9100/session/#{session.id}"} 
+                            target="_blank" 
+                            class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors text-[10px]"
+                          >
+                            View ↗
+                          </a>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
       </div>
 
       <!-- Relationship Graph -->
