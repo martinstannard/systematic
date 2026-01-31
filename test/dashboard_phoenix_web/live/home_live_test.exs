@@ -838,6 +838,7 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
   end
 
   describe "openclaw client model parameter" do
+    @tag :claude_tests
     test "work_on_ticket function accepts model parameter correctly" do
       # Test that OpenClawClient.work_on_ticket accepts the model option
       # This test verifies the function signature and parameter handling
@@ -858,6 +859,7 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
       assert Keyword.has_key?(opts, :timeout)
     end
 
+    @tag :claude_tests
     test "work_on_ticket parameter contract for different models" do
       # Verify the function can handle both opus and sonnet models
       opus_opts = [model: "anthropic/claude-opus-4-5"]
@@ -868,6 +870,7 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
       assert Keyword.get(sonnet_opts, :model) == "anthropic/claude-sonnet-4-20250514"
     end
 
+    @tag :claude_tests
     test "send_message function signature for channel parameter" do
       # Verify the send_message function accepts channel options correctly
       message = "Test message"
