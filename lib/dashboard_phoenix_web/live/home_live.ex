@@ -133,6 +133,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       gemini_collapsed: false,
       coding_agents_collapsed: false,
       subagents_collapsed: false,
+      dave_collapsed: false,
       live_progress_collapsed: false,
       agent_activity_collapsed: false,
       system_processes_collapsed: false,
@@ -1080,6 +1081,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "opencode" => socket.assigns.opencode_collapsed,
       "gemini" => socket.assigns.gemini_collapsed,
       "coding_agents" => socket.assigns.coding_agents_collapsed,
+      "dave" => socket.assigns.dave_collapsed,
       "subagents" => socket.assigns.subagents_collapsed,
       "live_progress" => socket.assigns.live_progress_collapsed,
       "agent_activity" => socket.assigns.agent_activity_collapsed,
@@ -2243,7 +2245,89 @@ defmodule DashboardPhoenixWeb.HomeLive do
             </div>
           </div>
 
+          <!-- Dave Panel (Main Agent) -->
+          <% main_agent_session = Enum.find(@agent_sessions, fn s -> Map.get(s, :session_key) == "agent:main:main" end) %>
+          <%= if main_agent_session do %>
+            <div class="glass-panel rounded-lg overflow-hidden border-2 border-purple-500/30" id="dave">
+              <div 
+                class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
+                phx-click="toggle_panel"
+                phx-value-panel="dave"
+              >
+                <div class="flex items-center space-x-2">
+                  <span class={"text-xs transition-transform duration-200 " <> if(@dave_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                  <span class="text-xs font-mono text-purple-400 uppercase tracking-wider">🐙 Dave</span>
+                  <span class={"px-1.5 py-0.5 rounded text-[10px] " <> status_badge(main_agent_session.status)}>
+                    <%= main_agent_session.status %>
+                  </span>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <% {_type, model_name, model_icon} = agent_type_from_model(Map.get(main_agent_session, :model)) %>
+                  <span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px]" title={Map.get(main_agent_session, :model)}>
+                    <%= model_icon %> <%= model_name %>
+                  </span>
+                </div>
+              </div>
+              
+              <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@dave_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+                <div class="px-3 pb-3">
+                  <% current_action = Map.get(main_agent_session, :current_action) %>
+                  <% recent_actions = Map.get(main_agent_session, :recent_actions, []) %>
+                  
+                  <!-- Current Activity -->
+                  <div class="py-2">
+                    <%= if main_agent_session.status == "running" do %>
+                      <%= if current_action do %>
+                        <div class="flex items-center space-x-2 mb-2">
+                          <span class="throbber-small"></span>
+                          <span class="text-[10px] text-purple-400/70">Current:</span>
+                          <span class="text-purple-300 text-xs font-mono truncate animate-pulse" title={current_action}>
+                            <%= current_action %>
+                          </span>
+                        </div>
+                      <% else %>
+                        <div class="flex items-center space-x-2 mb-2">
+                          <span class="throbber-small"></span>
+                          <span class="text-xs text-purple-400/60 italic">Working...</span>
+                        </div>
+                      <% end %>
+                    <% else %>
+                      <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-purple-400">○</span>
+                        <span class="text-xs text-purple-400/60">Idle</span>
+                      </div>
+                    <% end %>
+                    
+                    <!-- Recent Actions -->
+                    <%= if recent_actions != [] do %>
+                      <div class="text-[10px] text-base-content/40 space-y-0.5 max-h-[100px] overflow-y-auto">
+                        <%= for action <- Enum.take(recent_actions, -5) do %>
+                          <div class="truncate" title={action}>✓ <%= action %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+                  
+                  <!-- Stats Footer -->
+                  <div class="pt-2 border-t border-purple-500/20 flex items-center justify-between text-[10px] font-mono">
+                    <div class="flex items-center space-x-3 text-base-content/50">
+                      <span>↓ <%= format_tokens(Map.get(main_agent_session, :tokens_in, 0)) %></span>
+                      <span>↑ <%= format_tokens(Map.get(main_agent_session, :tokens_out, 0)) %></span>
+                    </div>
+                    <%= if Map.get(main_agent_session, :cost, 0) > 0 do %>
+                      <span class="text-success/60">$<%= Float.round(main_agent_session.cost, 4) %></span>
+                    <% end %>
+                    <%= if Map.get(main_agent_session, :runtime) do %>
+                      <span class="text-purple-400/60"><%= main_agent_session.runtime %></span>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
           <!-- Sub-Agents Panel (Enhanced) -->
+          <% sub_agent_sessions = Enum.reject(@agent_sessions, fn s -> Map.get(s, :session_key) == "agent:main:main" end) %>
           <div class="glass-panel rounded-lg overflow-hidden" id="subagents">
             <div 
               class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
@@ -2253,15 +2337,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <div class="flex items-center space-x-2">
                 <span class={"text-xs transition-transform duration-200 " <> if(@subagents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
                 <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
-                <span class="text-[10px] font-mono text-base-content/50"><%= length(@agent_sessions) %></span>
-                <% running_count = Enum.count(@agent_sessions, fn s -> s.status == "running" end) %>
+                <span class="text-[10px] font-mono text-base-content/50"><%= length(sub_agent_sessions) %></span>
+                <% running_count = Enum.count(sub_agent_sessions, fn s -> s.status == "running" end) %>
                 <%= if running_count > 0 do %>
                   <span class="px-1.5 py-0.5 rounded bg-warning/20 text-warning text-[10px] animate-pulse">
                     <%= running_count %> active
                   </span>
                 <% end %>
               </div>
-              <% completed_count = Enum.count(@agent_sessions, fn s -> s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) end) %>
+              <% completed_count = Enum.count(sub_agent_sessions, fn s -> s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) end) %>
               <%= if completed_count > 0 do %>
                 <button phx-click="clear_completed" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">
                   Clear <%= completed_count %>
@@ -2271,7 +2355,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
             
             <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}>
               <div class="px-3 pb-3 space-y-2 max-h-[450px] overflow-y-auto">
-                <% visible_sessions = @agent_sessions
+                <% visible_sessions = sub_agent_sessions
                   |> Enum.reject(fn s -> MapSet.member?(@dismissed_sessions, s.id) end)
                   |> Enum.reject(fn s -> !@show_completed && s.status == "completed" end) %>
                 <%= if visible_sessions == [] do %>
