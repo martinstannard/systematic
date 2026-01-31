@@ -237,6 +237,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
           require Logger
           Logger.error("Failed to load Linear tickets: #{inspect(e)}")
           send(parent, {:linear_loaded, %{tickets: [], last_updated: nil, error: "Load failed: #{inspect(e)}"}})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Linear tickets load exited: #{inspect(reason)}")
+          send(parent, {:linear_loaded, %{tickets: [], last_updated: nil, error: "Load timeout"}})
       end
     end)
     {:noreply, socket}
@@ -277,6 +282,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
           require Logger
           Logger.error("Failed to load GitHub PRs: #{inspect(e)}")
           send(parent, {:github_prs_loaded, %{prs: [], last_updated: nil, error: "Load failed: #{inspect(e)}"}})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("GitHub PRs load exited: #{inspect(reason)}")
+          send(parent, {:github_prs_loaded, %{prs: [], last_updated: nil, error: "Load timeout"}})
       end
     end)
     {:noreply, socket}
@@ -315,6 +325,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
           require Logger
           Logger.error("Failed to load branches: #{inspect(e)}")
           send(parent, {:branches_loaded, %{branches: [], worktrees: %{}, last_updated: nil, error: "Load failed: #{inspect(e)}"}})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Branches load exited: #{inspect(reason)}")
+          send(parent, {:branches_loaded, %{branches: [], worktrees: %{}, last_updated: nil, error: "Load timeout"}})
       end
     end)
     {:noreply, socket}
