@@ -8,11 +8,14 @@ defmodule DashboardPhoenix.BranchMonitor do
   require Logger
 
   alias DashboardPhoenix.CommandRunner
+  alias DashboardPhoenix.Paths
 
   @poll_interval_ms 120_000  # 2 minutes
   @topic "branch_updates"
-  @repo_path Path.expand("~/code/systematic")
   @cli_timeout_ms 30_000
+
+  # Get the repository path from configuration
+  defp repo_path, do: Paths.systematic_repo()
 
   # Client API
 
@@ -145,7 +148,7 @@ defmodule DashboardPhoenix.BranchMonitor do
 
   defp fetch_worktrees do
     case CommandRunner.run("git", ["worktree", "list", "--porcelain"], 
-           cd: @repo_path, timeout: @cli_timeout_ms) do
+           cd: repo_path(), timeout: @cli_timeout_ms) do
       {:ok, output} ->
         worktrees = parse_worktree_output(output)
         {:ok, worktrees}
@@ -192,7 +195,7 @@ defmodule DashboardPhoenix.BranchMonitor do
 
   defp fetch_unmerged_branches do
     case CommandRunner.run("git", ["branch", "--no-merged", "main", "--format=%(refname:short)"], 
-                    cd: @repo_path, timeout: @cli_timeout_ms) do
+                    cd: repo_path(), timeout: @cli_timeout_ms) do
       {:ok, output} ->
         branches = output
         |> String.split("\n", trim: true)
@@ -204,7 +207,7 @@ defmodule DashboardPhoenix.BranchMonitor do
         # If main doesn't exist, try master
         if String.contains?(error, "main") do
           case CommandRunner.run("git", ["branch", "--no-merged", "master", "--format=%(refname:short)"],
-                          cd: @repo_path, timeout: @cli_timeout_ms) do
+                          cd: repo_path(), timeout: @cli_timeout_ms) do
             {:ok, output} ->
               branches = output
               |> String.split("\n", trim: true)
@@ -267,7 +270,7 @@ defmodule DashboardPhoenix.BranchMonitor do
     base_branch = get_base_branch()
     
     case CommandRunner.run("git", ["rev-list", "--count", "#{base_branch}..#{branch_name}"],
-                    cd: @repo_path, timeout: @cli_timeout_ms) do
+                    cd: repo_path(), timeout: @cli_timeout_ms) do
       {:ok, output} ->
         count = output |> String.trim() |> String.to_integer()
         {:ok, count}
@@ -282,7 +285,7 @@ defmodule DashboardPhoenix.BranchMonitor do
     format = "%aI||%s||%an"  # ISO date, subject, author name
     
     case CommandRunner.run("git", ["log", "-1", "--format=#{format}", branch_name],
-                    cd: @repo_path, timeout: @cli_timeout_ms) do
+                    cd: repo_path(), timeout: @cli_timeout_ms) do
       {:ok, output} ->
         case String.split(String.trim(output), "||") do
           [date_str, message, author] ->
@@ -305,7 +308,7 @@ defmodule DashboardPhoenix.BranchMonitor do
   defp get_base_branch do
     # Check if main exists
     case CommandRunner.run("git", ["rev-parse", "--verify", "main"],
-                    cd: @repo_path, timeout: @cli_timeout_ms) do
+                    cd: repo_path(), timeout: @cli_timeout_ms) do
       {:ok, _} -> "main"
       _ -> "master"
     end
@@ -315,23 +318,23 @@ defmodule DashboardPhoenix.BranchMonitor do
     base_branch = get_base_branch()
     
     # First, checkout main/master
-    case CommandRunner.run("git", ["checkout", base_branch], cd: @repo_path, timeout: @cli_timeout_ms) do
+    case CommandRunner.run("git", ["checkout", base_branch], cd: repo_path(), timeout: @cli_timeout_ms) do
       {:ok, _} ->
         # Then merge the branch
         case CommandRunner.run("git", ["merge", branch_name, "--no-edit"], 
-               cd: @repo_path, timeout: @cli_timeout_ms) do
+               cd: repo_path(), timeout: @cli_timeout_ms) do
           {:ok, output} ->
             Logger.info("Successfully merged #{branch_name} to #{base_branch}")
             {:ok, output}
           
           {:error, {:exit, _code, error}} ->
             # Abort the merge if it failed
-            CommandRunner.run("git", ["merge", "--abort"], cd: @repo_path, timeout: @cli_timeout_ms)
+            CommandRunner.run("git", ["merge", "--abort"], cd: repo_path(), timeout: @cli_timeout_ms)
             Logger.error("Failed to merge #{branch_name}: #{error}")
             {:error, "Merge failed: #{String.slice(error, 0, 200)}"}
           
           {:error, reason} ->
-            CommandRunner.run("git", ["merge", "--abort"], cd: @repo_path, timeout: @cli_timeout_ms)
+            CommandRunner.run("git", ["merge", "--abort"], cd: repo_path(), timeout: @cli_timeout_ms)
             Logger.error("Failed to merge #{branch_name}: #{inspect(reason)}")
             {:error, "Merge failed: #{inspect(reason)}"}
         end
@@ -355,7 +358,7 @@ defmodule DashboardPhoenix.BranchMonitor do
           
           # Remove worktree first
           case CommandRunner.run("git", ["worktree", "remove", worktree_path, "--force"],
-                          cd: @repo_path, timeout: @cli_timeout_ms) do
+                          cd: repo_path(), timeout: @cli_timeout_ms) do
             {:ok, _} ->
               Logger.info("Removed worktree at #{worktree_path}")
               delete_branch_ref(branch_name)
@@ -380,7 +383,7 @@ defmodule DashboardPhoenix.BranchMonitor do
   defp delete_branch_ref(branch_name) do
     # Delete the branch (force delete to allow unmerged branches)
     case CommandRunner.run("git", ["branch", "-D", branch_name], 
-           cd: @repo_path, timeout: @cli_timeout_ms) do
+           cd: repo_path(), timeout: @cli_timeout_ms) do
       {:ok, output} ->
         Logger.info("Deleted branch #{branch_name}")
         {:ok, output}

@@ -376,7 +376,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Branch: #{branch}
 
     Steps:
-    1. First, check out the branch: `cd ~/code/core-platform && git fetch origin && git checkout #{branch}`
+    1. First, check out the branch: `cd #{Paths.core_platform_repo()} && git fetch origin && git checkout #{branch}`
     #{if has_conflicts, do: "2. Resolve merge conflicts: `git fetch origin main && git merge origin/main` - fix any conflicts, then commit", else: ""}
     #{if ci_failing, do: "#{if has_conflicts, do: "3", else: "2"}. Get CI failure details: `gh pr checks #{pr_number} --repo #{repo}`", else: ""}
     #{if ci_failing, do: "#{if has_conflicts, do: "4", else: "3"}. Review the failing checks and fix the issues (tests, linting, type errors, etc.)", else: ""}
@@ -1370,7 +1370,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Branch: #{branch}
     
     Steps:
-    1. First, check out the branch: `cd ~/code/core-platform && git fetch origin && git checkout #{branch}`
+    1. First, check out the branch: `cd #{Paths.core_platform_repo()} && git fetch origin && git checkout #{branch}`
     #{if has_conflicts, do: "2. Resolve merge conflicts: `git fetch origin main && git merge origin/main` - fix any conflicts, then commit", else: ""}
     #{if ci_failing, do: "#{if has_conflicts, do: "3", else: "2"}. Get CI failure details: `gh pr checks #{pr_number} --repo #{repo}`", else: ""}
     #{if ci_failing, do: "#{if has_conflicts, do: "4", else: "3"}. Review the failing checks and fix the issues (tests, linting, type errors, etc.)", else: ""}

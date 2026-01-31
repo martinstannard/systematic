@@ -9,7 +9,7 @@ defmodule DashboardPhoenix.PRVerification do
   ## Storage Format
   
   The verification data is stored in a JSON file (configurable via `Paths.pr_verification_file/0`,
-  default: `~/.openclaw/pr-verified.json`):
+  default: `$OPENCLAW_HOME/pr-verified.json`):
   
       {
         "verified": {

@@ -8,11 +8,14 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   require Logger
 
   alias DashboardPhoenix.CommandRunner
+  alias DashboardPhoenix.Paths
 
   @poll_interval_ms 60_000  # 60 seconds (chainlink issues change less frequently)
   @topic "chainlink_updates"
-  @chainlink_repo_path Path.expand("~/code/systematic")
   @cli_timeout_ms 30_000
+
+  # Get the repository path from configuration
+  defp repo_path, do: Paths.systematic_repo()
 
   # Client API
 
@@ -38,7 +41,7 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   @doc "Get full details for a specific issue"
   def get_issue_details(issue_id) do
     case CommandRunner.run("chainlink", ["show", to_string(issue_id)],
-           cd: @chainlink_repo_path,
+           cd: repo_path(),
            timeout: @cli_timeout_ms) do
       {:ok, output} ->
         {:ok, output}
@@ -114,7 +117,7 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
 
   defp fetch_issues(state) do
     case CommandRunner.run("chainlink", ["list"],
-           cd: @chainlink_repo_path,
+           cd: repo_path(),
            timeout: @cli_timeout_ms) do
       {:ok, output} ->
         issues = parse_chainlink_output(output)

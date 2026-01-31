@@ -13,7 +13,7 @@ defmodule DashboardPhoenix.Paths do
   
   ## Environment Variables
   
-  - `OPENCLAW_HOME` - Base directory for OpenClaw data (default: ~/.openclaw)
+  - `OPENCLAW_HOME` - Base directory for OpenClaw data (default: $HOME/.openclaw)
   - `OPENCLAW_SESSIONS_DIR` - Sessions directory (default: $OPENCLAW_HOME/agents/main/sessions)
   - `GEMINI_BIN` - Path to Gemini CLI binary
   - `LINEAR_CLI` - Path to Linear CLI binary
@@ -23,7 +23,7 @@ defmodule DashboardPhoenix.Paths do
 
   @doc """
   Get the OpenClaw home directory.
-  Default: ~/.openclaw
+  Default: $HOME/.openclaw
   """
   def openclaw_home do
     System.get_env("OPENCLAW_HOME") ||
@@ -33,7 +33,7 @@ defmodule DashboardPhoenix.Paths do
 
   @doc """
   Get the OpenClaw sessions directory.
-  Default: ~/.openclaw/agents/main/sessions
+  Default: $OPENCLAW_HOME/agents/main/sessions
   """
   def openclaw_sessions_dir do
     System.get_env("OPENCLAW_SESSIONS_DIR") ||
@@ -51,7 +51,7 @@ defmodule DashboardPhoenix.Paths do
 
   @doc """
   Get the PR verification file path.
-  Default: ~/.openclaw/pr-verified.json
+  Default: $OPENCLAW_HOME/pr-verified.json
   """
   def pr_verification_file do
     System.get_env("PR_VERIFICATION_FILE") ||
@@ -61,7 +61,7 @@ defmodule DashboardPhoenix.Paths do
 
   @doc """
   Get the PR state file path (for systematic dashboard).
-  Default: ~/.openclaw/systematic-pr-state.json
+  Default: $OPENCLAW_HOME/systematic-pr-state.json
   """
   def pr_state_file do
     System.get_env("PR_STATE_FILE") ||
@@ -104,7 +104,7 @@ defmodule DashboardPhoenix.Paths do
 
   @doc """
   Get the default working directory for coding tasks.
-  Default: ~/work/core-platform
+  Default: $HOME/work/core-platform
   """
   def default_work_dir do
     System.get_env("DEFAULT_WORK_DIR") ||
@@ -114,7 +114,7 @@ defmodule DashboardPhoenix.Paths do
 
   @doc """
   Get the clawd workspace directory.
-  Default: ~/clawd
+  Default: $HOME/clawd
   """
   def clawd_dir do
     System.get_env("CLAWD_DIR") ||
@@ -123,8 +123,28 @@ defmodule DashboardPhoenix.Paths do
   end
 
   @doc """
+  Get the systematic repository path.
+  Default: $HOME/code/systematic
+  """
+  def systematic_repo do
+    System.get_env("SYSTEMATIC_REPO_PATH") ||
+      Application.get_env(:dashboard_phoenix, :systematic_repo_path) ||
+      Path.join([System.user_home!(), "code", "systematic"])
+  end
+
+  @doc """
+  Get the core platform repository path.
+  Default: $HOME/code/core-platform
+  """
+  def core_platform_repo do
+    System.get_env("CORE_PLATFORM_REPO") ||
+      Application.get_env(:dashboard_phoenix, :core_platform_repo) ||
+      Path.join([System.user_home!(), "code", "core-platform"])
+  end
+
+  @doc """
   Get the dashboard phoenix directory.
-  Default: ~/clawd/dashboard_phoenix (but we should use Application.app_dir in prod)
+  Default: $CLAWD_DIR/dashboard_phoenix (but we should use Application.app_dir in prod)
   """
   def dashboard_phoenix_dir do
     # In releases, use the app directory
