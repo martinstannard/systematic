@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.ResourceTracker do
 
   require Logger
 
-  alias DashboardPhoenix.CommandRunner
+  alias DashboardPhoenix.ProcessParser
 
   @sample_interval 5_000  # 5 seconds
   @max_history 60  # 5 minutes of history at 5-second intervals
@@ -119,56 +119,31 @@ defmodule DashboardPhoenix.ResourceTracker do
   end
 
   defp fetch_process_stats do
-    case CommandRunner.run("ps", ["aux", "--sort=-pcpu"], timeout: @cli_timeout_ms) do
-      {:ok, output} ->
-        output
-        |> String.split("\n")
-        |> Enum.drop(1)  # Skip header
-        |> Enum.filter(&interesting_process?/1)
-        |> Enum.take(30)
-        |> Enum.map(&parse_process_line/1)
-        |> Enum.reject(&is_nil/1)
-        
-      {:error, reason} ->
-        Logger.warning("Failed to fetch process stats: #{inspect(reason)}")
-        []
-    end
+    ProcessParser.list_processes(
+      sort: "-pcpu",
+      filter: &ProcessParser.contains_patterns?(&1, @interesting_patterns),
+      limit: 30,
+      timeout: @cli_timeout_ms
+    )
+    |> Enum.map(&transform_to_tracker_process/1)
   end
 
-  defp interesting_process?(line) do
-    line_lower = String.downcase(line)
-    Enum.any?(@interesting_patterns, &String.contains?(line_lower, &1))
+  defp transform_to_tracker_process(%{pid: pid, cpu: cpu, rss: rss, command: command}) do
+    %{
+      pid: pid,
+      cpu: cpu,
+      memory_kb: parse_memory_kb(rss),
+      command: ProcessParser.truncate_command(command, 80)
+    }
   end
 
-  defp parse_process_line(line) do
-    parts = String.split(line, ~r/\s+/, parts: 11)
-    
-    case parts do
-      [_user, pid, cpu, _mem, _vsz, rss, _tty, _stat, _start, _time, command | _] ->
-        %{
-          pid: pid,
-          cpu: parse_float(cpu),
-          memory_kb: parse_int(rss),
-          command: String.slice(command, 0, 80)
-        }
-      _ ->
-        nil
-    end
-  end
-
-  defp parse_float(str) do
-    case Float.parse(str) do
-      {val, _} -> val
-      :error -> 0.0
-    end
-  end
-
-  defp parse_int(str) do
-    case Integer.parse(str) do
+  defp parse_memory_kb(rss_str) when is_binary(rss_str) do
+    case Integer.parse(rss_str) do
       {val, _} -> val
       :error -> 0
     end
   end
+  defp parse_memory_kb(_), do: 0
 
   defp broadcast_update(history, current_processes) do
     Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, "resource_updates", 

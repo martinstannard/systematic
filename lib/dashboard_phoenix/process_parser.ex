@@ -187,7 +187,7 @@ defmodule DashboardPhoenix.ProcessParser do
   def truncate_command(command, max_length) when is_binary(command) do
     command
     |> String.slice(0, max_length)
-    |> String.replace(~r/--[a-zA-Z]+=\S+/, "")  # Remove long flags
+    |> String.replace(~r/--[a-zA-Z-]+=\S+/, "")  # Remove long flags
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
   end
@@ -209,6 +209,25 @@ defmodule DashboardPhoenix.ProcessParser do
     Enum.any?(patterns, &String.contains?(line_lower, &1))
   end
   def contains_patterns?(_, _), do: false
+
+  @doc """
+  Check if a process line or parsed process is interesting based on pattern list.
+
+  ## Examples
+
+      iex> ProcessParser.interesting?("opencode session start", ["opencode", "claude"])
+      true
+
+      iex> ProcessParser.interesting?(%{command: "opencode session start"}, ["opencode"])
+      true
+  """
+  def interesting?(line, patterns) when is_binary(line) do
+    contains_patterns?(line, patterns)
+  end
+  def interesting?(%{command: command}, patterns) when is_binary(command) do
+    contains_patterns?(command, patterns)
+  end
+  def interesting?(_, _), do: false
 
   # Private helpers
 
