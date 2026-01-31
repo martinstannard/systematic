@@ -53,14 +53,12 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
       
       <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0", else: "max-h-[400px] flex-1")}>
         <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-[10px]" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream">
-          <%= for {id, event} <- @progress_events do %>
-            <div id={id} class="py-0.5 flex items-start space-x-1">
-              <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
-              <span class={agent_color(event.agent) <> " w-20 flex-shrink-0 truncate"}><%= event.agent %></span>
-              <span class={action_color(event.action) <> " font-bold w-10 flex-shrink-0"}><%= event.action %></span>
-              <span class="text-base-content/70 truncate flex-1"><%= event.target %></span>
-            </div>
-          <% end %>
+          <div :for={{dom_id, event} <- @progress_events} id={dom_id} class="py-0.5 flex items-start space-x-1">
+            <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
+            <span class={agent_color(event.agent) <> " w-20 flex-shrink-0 truncate"}><%= event.agent %></span>
+            <span class={action_color(event.action) <> " font-bold w-10 flex-shrink-0"}><%= event.action %></span>
+            <span class="text-base-content/70 truncate flex-1"><%= event.target %></span>
+          </div>
         </div>
       </div>
     </div>
