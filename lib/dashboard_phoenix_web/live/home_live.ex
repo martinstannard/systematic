@@ -1016,34 +1016,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
         <% end %>
       </div>
 
-      <!-- Relationship Graph -->
-      <div class="space-y-3">
-        <div class="flex items-center justify-between px-1">
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">🔗 Process Relationships</span>
-          <div class="flex items-center space-x-4 text-[10px] font-mono">
-            <span class="flex items-center space-x-1">
-              <span class="w-3 h-3 rounded-full bg-green-600"></span>
-              <span class="text-base-content/60">Main</span>
-            </span>
-            <span class="flex items-center space-x-1">
-              <span class="w-3 h-3 rounded-full bg-purple-600"></span>
-              <span class="text-base-content/60">Sub-Agent</span>
-            </span>
-            <span class="flex items-center space-x-1">
-              <span class="w-3 h-3 rounded-full bg-orange-500"></span>
-              <span class="text-base-content/60">Coding Agent</span>
-            </span>
-            <span class="flex items-center space-x-1">
-              <span class="w-3 h-3 rounded-full bg-gray-500"></span>
-              <span class="text-base-content/60">System</span>
-            </span>
-          </div>
-        </div>
-        <div class="glass-panel rounded-lg p-4">
-          <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[300px]"></div>
-        </div>
-      </div>
-
       <!-- Coding Agents (OpenCode, Claude Code, etc.) -->
       <%= if @coding_agents != [] do %>
         <div class="space-y-3">
@@ -1100,31 +1072,109 @@ defmodule DashboardPhoenixWeb.HomeLive do
         </div>
       <% end %>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <!-- Agent Sessions Panel -->
-        <div class="lg:col-span-1 space-y-3">
-          <div class="flex items-center justify-between px-1">
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
-            <% completed_count = Enum.count(@agent_sessions, fn s -> 
-              s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) 
-            end) %>
-            <%= if completed_count > 0 do %>
-              <button 
-                phx-click="clear_completed" 
-                class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
-              >
-                CLEAR COMPLETED (<%= completed_count %>)
-              </button>
+      <!-- Live Progress Feed -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <div class="flex items-center space-x-3">
+            <span class="text-xs font-mono text-accent uppercase tracking-wider">📡 Live Progress</span>
+            <!-- Main session warning -->
+            <%= if @main_activity_count > 10 do %>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-warning/20 text-warning animate-pulse" title="Main session has lots of activity - consider offloading work to sub-agents">
+                ⚠️ main: <%= @main_activity_count %> actions
+              </span>
             <% end %>
           </div>
-          
-          <% visible_sessions = Enum.reject(@agent_sessions, fn s -> MapSet.member?(@dismissed_sessions, s.id) end) %>
-          <%= if visible_sessions == [] do %>
-            <div class="glass-panel rounded-lg p-4 text-center">
-              <div class="text-base-content/40 font-mono text-xs mb-2">[NO ACTIVE AGENTS]</div>
-              <div class="text-base-content/60 text-xs">Spawn a sub-agent to begin</div>
+          <div class="flex items-center space-x-2">
+            <!-- Toggle main entries -->
+            <button 
+              phx-click="toggle_main_entries" 
+              class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@show_main_entries, do: "bg-green-500/20 text-green-400", else: "bg-base-content/10 text-base-content/40")}
+              title={if @show_main_entries, do: "Click to hide main session entries", else: "Click to show main session entries"}
+            >
+              <%= if @show_main_entries, do: "👁 main", else: "🚫 main" %>
+            </button>
+            <button phx-click="clear_progress" class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20">
+              CLEAR
+            </button>
+          </div>
+        </div>
+        
+        <div class="glass-panel rounded-lg p-3 h-[400px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom">
+          <%= if @agent_progress == [] do %>
+            <div class="text-base-content/40 text-center py-8">
+              Waiting for agent activity...
             </div>
           <% else %>
+            <% filtered_progress = if @show_main_entries, do: @agent_progress, else: Enum.reject(@agent_progress, & &1.agent == "main") %>
+            <%= for event <- filtered_progress do %>
+              <% is_main = event.agent == "main" %>
+              <% has_output = event.output != "" and event.output != nil %>
+              <% ts_int = if is_integer(event.ts), do: event.ts, else: 0 %>
+              <% is_expanded = MapSet.member?(@expanded_outputs, ts_int) %>
+              <div class={"py-1 border-b border-white/5 last:border-0 " <> if(is_main, do: "opacity-50", else: "")}>
+                <div class="flex items-start space-x-2">
+                  <span class="text-base-content/40 w-14 flex-shrink-0"><%= format_time(event.ts) %></span>
+                  <span class={"w-28 flex-shrink-0 truncate " <> agent_color(event.agent)} title={event.agent}>
+                    <%= if is_main, do: "⚠️ ", else: "" %><%= event.agent %>
+                  </span>
+                  <span class={"w-14 flex-shrink-0 font-bold " <> action_color(event.action)}><%= event.action %></span>
+                  <span class="text-base-content/70 truncate flex-1" title={event.target}><%= event.target %></span>
+                  <!-- Output summary + expand button -->
+                  <%= if has_output do %>
+                    <button 
+                      phx-click="toggle_output" 
+                      phx-value-ts={ts_int}
+                      class="text-[9px] px-1.5 py-0.5 rounded bg-base-content/10 hover:bg-base-content/20 text-base-content/60 flex-shrink-0"
+                      title="Click to expand/collapse output"
+                    >
+                      <%= if is_expanded, do: "▼", else: "▶" %> <%= event[:output_summary] || "output" %>
+                    </button>
+                  <% else %>
+                    <%= if event.status == "running" do %>
+                      <span class="text-[9px] text-warning animate-pulse flex-shrink-0">⏳</span>
+                    <% end %>
+                  <% end %>
+                  <%= if event.status == "error" do %>
+                    <span class="text-error flex-shrink-0">✗</span>
+                  <% end %>
+                </div>
+                <!-- Expanded output -->
+                <%= if has_output and is_expanded do %>
+                  <div class="mt-1 ml-16 p-2 rounded bg-black/30 text-[10px] text-base-content/70 whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+                    <%= event.output %>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Agent Sessions Panel -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
+          <% completed_count = Enum.count(@agent_sessions, fn s -> 
+            s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) 
+          end) %>
+          <%= if completed_count > 0 do %>
+            <button 
+              phx-click="clear_completed" 
+              class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
+            >
+              CLEAR COMPLETED (<%= completed_count %>)
+            </button>
+          <% end %>
+        </div>
+        
+        <% visible_sessions = Enum.reject(@agent_sessions, fn s -> MapSet.member?(@dismissed_sessions, s.id) end) %>
+        <%= if visible_sessions == [] do %>
+          <div class="glass-panel rounded-lg p-4 text-center">
+            <div class="text-base-content/40 font-mono text-xs mb-2">[NO ACTIVE AGENTS]</div>
+            <div class="text-base-content/60 text-xs">Spawn a sub-agent to begin</div>
+          </div>
+        <% else %>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <%= for session <- visible_sessions do %>
               <% status = Map.get(session, :status, "unknown") %>
               <% is_completed = status == "completed" %>
@@ -1240,86 +1290,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 <% end %>
               </div>
             <% end %>
-          <% end %>
-        </div>
-
-        <!-- Live Progress Feed -->
-        <div class="lg:col-span-2 space-y-3">
-          <div class="flex items-center justify-between px-1">
-            <div class="flex items-center space-x-3">
-              <span class="text-xs font-mono text-accent uppercase tracking-wider">📡 Live Progress</span>
-              <!-- Main session warning -->
-              <%= if @main_activity_count > 10 do %>
-                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-warning/20 text-warning animate-pulse" title="Main session has lots of activity - consider offloading work to sub-agents">
-                  ⚠️ main: <%= @main_activity_count %> actions
-                </span>
-              <% end %>
-            </div>
-            <div class="flex items-center space-x-2">
-              <!-- Toggle main entries -->
-              <button 
-                phx-click="toggle_main_entries" 
-                class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@show_main_entries, do: "bg-green-500/20 text-green-400", else: "bg-base-content/10 text-base-content/40")}
-                title={if @show_main_entries, do: "Click to hide main session entries", else: "Click to show main session entries"}
-              >
-                <%= if @show_main_entries, do: "👁 main", else: "🚫 main" %>
-              </button>
-              <button phx-click="clear_progress" class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20">
-                CLEAR
-              </button>
-            </div>
           </div>
-          
-          <div class="glass-panel rounded-lg p-3 h-[400px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom">
-            <%= if @agent_progress == [] do %>
-              <div class="text-base-content/40 text-center py-8">
-                Waiting for agent activity...
-              </div>
-            <% else %>
-              <% filtered_progress = if @show_main_entries, do: @agent_progress, else: Enum.reject(@agent_progress, & &1.agent == "main") %>
-              <%= for event <- filtered_progress do %>
-                <% is_main = event.agent == "main" %>
-                <% has_output = event.output != "" and event.output != nil %>
-                <% ts_int = if is_integer(event.ts), do: event.ts, else: 0 %>
-                <% is_expanded = MapSet.member?(@expanded_outputs, ts_int) %>
-                <div class={"py-1 border-b border-white/5 last:border-0 " <> if(is_main, do: "opacity-50", else: "")}>
-                  <div class="flex items-start space-x-2">
-                    <span class="text-base-content/40 w-14 flex-shrink-0"><%= format_time(event.ts) %></span>
-                    <span class={"w-28 flex-shrink-0 truncate " <> agent_color(event.agent)} title={event.agent}>
-                      <%= if is_main, do: "⚠️ ", else: "" %><%= event.agent %>
-                    </span>
-                    <span class={"w-14 flex-shrink-0 font-bold " <> action_color(event.action)}><%= event.action %></span>
-                    <span class="text-base-content/70 truncate flex-1" title={event.target}><%= event.target %></span>
-                    <!-- Output summary + expand button -->
-                    <%= if has_output do %>
-                      <button 
-                        phx-click="toggle_output" 
-                        phx-value-ts={ts_int}
-                        class="text-[9px] px-1.5 py-0.5 rounded bg-base-content/10 hover:bg-base-content/20 text-base-content/60 flex-shrink-0"
-                        title="Click to expand/collapse output"
-                      >
-                        <%= if is_expanded, do: "▼", else: "▶" %> <%= event[:output_summary] || "output" %>
-                      </button>
-                    <% else %>
-                      <%= if event.status == "running" do %>
-                        <span class="text-[9px] text-warning animate-pulse flex-shrink-0">⏳</span>
-                      <% end %>
-                    <% end %>
-                    <%= if event.status == "error" do %>
-                      <span class="text-error flex-shrink-0">✗</span>
-                    <% end %>
-                  </div>
-                  <!-- Expanded output -->
-                  <%= if has_output and is_expanded do %>
-                    <div class="mt-1 ml-16 p-2 rounded bg-black/30 text-[10px] text-base-content/70 whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
-                      <%= event.output %>
-                    </div>
-                  <% end %>
-                </div>
-              <% end %>
-            <% end %>
-          </div>
-        </div>
+        <% end %>
       </div>
 
       <!-- Agent Activity - What's it doing? -->
@@ -1426,6 +1398,34 @@ defmodule DashboardPhoenixWeb.HomeLive do
               </div>
             </div>
           <% end %>
+        </div>
+      </div>
+
+      <!-- Relationship Graph -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <span class="text-xs font-mono text-accent uppercase tracking-wider">🔗 Process Relationships</span>
+          <div class="flex items-center space-x-4 text-[10px] font-mono">
+            <span class="flex items-center space-x-1">
+              <span class="w-3 h-3 rounded-full bg-green-600"></span>
+              <span class="text-base-content/60">Main</span>
+            </span>
+            <span class="flex items-center space-x-1">
+              <span class="w-3 h-3 rounded-full bg-purple-600"></span>
+              <span class="text-base-content/60">Sub-Agent</span>
+            </span>
+            <span class="flex items-center space-x-1">
+              <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+              <span class="text-base-content/60">Coding Agent</span>
+            </span>
+            <span class="flex items-center space-x-1">
+              <span class="w-3 h-3 rounded-full bg-gray-500"></span>
+              <span class="text-base-content/60">System</span>
+            </span>
+          </div>
+        </div>
+        <div class="glass-panel rounded-lg p-4">
+          <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[300px]"></div>
         </div>
       </div>
 
