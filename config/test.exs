@@ -13,9 +13,11 @@ config :dashboard_phoenix, DashboardPhoenix.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
-# Run server during test so tests can hit the actual endpoint
+# Run server during test for integration tests.
+# PORT env var allows configuration (default 4002).
+# MIX_TEST_PARTITION offsets port for parallel test runs.
 config :dashboard_phoenix, DashboardPhoenixWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4002")],
+  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4002") + String.to_integer(System.get_env("MIX_TEST_PARTITION") || "0")],
   secret_key_base: "GtYCddWWsPjCOACgHDjkKw04+pHhnJj/9tdtedR/O65jq8gK4BL1D/FElGGEyqHh",
   server: true
 
