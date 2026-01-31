@@ -390,8 +390,20 @@ defmodule DashboardPhoenixWeb.HomeLive do
     ticket_id = socket.assigns.work_ticket_id
     ticket_details = socket.assigns.work_ticket_details
     coding_pref = socket.assigns.coding_agent_pref
+    tickets_in_progress = socket.assigns.tickets_in_progress
     
-    cond do
+    # Check if ticket already has work in progress
+    if Map.has_key?(tickets_in_progress, ticket_id) do
+      work_info = Map.get(tickets_in_progress, ticket_id)
+      work_type = if work_info.type == :opencode, do: "OpenCode", else: "sub-agent"
+      
+      socket = socket
+      |> put_flash(:error, "Work already in progress for #{ticket_id} (#{work_type})")
+      |> assign(show_work_modal: false)
+      
+      {:noreply, socket}
+    else
+      cond do
       # If OpenCode mode is selected
       coding_pref == :opencode ->
         # Build the prompt from ticket details
@@ -431,6 +443,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
         |> assign(work_in_progress: true, work_error: nil, show_work_modal: false)
         |> put_flash(:info, "Sending work request to OpenClaw...")
         {:noreply, socket}
+      end
     end
   end
 
