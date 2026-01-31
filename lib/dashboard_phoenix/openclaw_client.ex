@@ -60,6 +60,7 @@ defmodule DashboardPhoenix.OpenClawClient do
     
     args = [
       "agent",
+      "--agent", "main",
       "--message", message,
       "--deliver",
       "--channel", channel
