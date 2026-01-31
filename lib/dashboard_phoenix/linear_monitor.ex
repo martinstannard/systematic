@@ -145,7 +145,7 @@ defmodule DashboardPhoenix.LinearMonitor do
     # The fields are separated by 2+ spaces
     case Regex.run(~r/^(COR-\d+)\s{2,}(.+?)\s{2,}(\w+)\s{2,}(.+?)\s{2,}(.*)$/, clean_line) do
       [_, id, title, _state, project, assignee] ->
-        %{
+        ticket = %{
           id: String.trim(id),
           title: String.trim(title),
           status: status,
@@ -154,12 +154,13 @@ defmodule DashboardPhoenix.LinearMonitor do
           priority: nil,  # Not in the list output
           url: build_issue_url(id)
         }
+        add_pr_info(ticket)
       
       _ ->
         # Try simpler format (fewer columns)
         case Regex.run(~r/^(COR-\d+)\s{2,}(.+?)\s{2,}(\w+)/, clean_line) do
           [_, id, title, _state | rest] ->
-            %{
+            ticket = %{
               id: String.trim(id),
               title: String.trim(title),
               status: status,
@@ -168,12 +169,13 @@ defmodule DashboardPhoenix.LinearMonitor do
               priority: nil,
               url: build_issue_url(id)
             }
+            add_pr_info(ticket)
           
           _ ->
             # Last resort: just grab the ID and rest as title
             case Regex.run(~r/^(COR-\d+)\s+(.+)/, clean_line) do
               [_, id, rest] ->
-                %{
+                ticket = %{
                   id: String.trim(id),
                   title: String.trim(rest),
                   status: status,
@@ -182,6 +184,7 @@ defmodule DashboardPhoenix.LinearMonitor do
                   priority: nil,
                   url: build_issue_url(id)
                 }
+                add_pr_info(ticket)
               
               _ ->
                 nil
@@ -205,6 +208,37 @@ defmodule DashboardPhoenix.LinearMonitor do
 
   defp build_issue_url(issue_id) do
     "https://linear.app/#{@linear_workspace}/issue/#{issue_id}"
+  end
+
+  defp add_pr_info(%{status: "In Review", id: ticket_id} = ticket) do
+    case lookup_pr(ticket_id) do
+      {:ok, pr_url} -> Map.put(ticket, :pr_url, pr_url)
+      {:error, _} -> Map.put(ticket, :pr_url, nil)
+    end
+  end
+  defp add_pr_info(ticket), do: Map.put(ticket, :pr_url, nil)
+
+  defp lookup_pr(ticket_id) do
+    case System.cmd("gh", [
+      "pr", "list",
+      "--repo", "Fresh-Clinics/core-platform",
+      "--search", ticket_id,
+      "--state", "open",
+      "--json", "number,url",
+      "--limit", "1"
+    ], stderr_to_stdout: true) do
+      {output, 0} ->
+        case Jason.decode(output) do
+          {:ok, [%{"url" => url} | _]} -> {:ok, url}
+          {:ok, []} -> {:error, :no_pr_found}
+          {:error, _} -> {:error, :json_decode_failed}
+        end
+      
+      {_error, _code} ->
+        {:error, :gh_command_failed}
+    end
+  rescue
+    _ -> {:error, :exception}
   end
 
   defp sort_tickets(tickets) do

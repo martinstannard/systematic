@@ -1461,6 +1461,21 @@ defmodule DashboardPhoenixWeb.HomeLive do
                                 <span class="text-base-content/30 text-[10px]">-</span>
                             <% end %>
                           </td>
+                          <td class="py-2 px-2">
+                            <%= if ticket.pr_url do %>
+                              <a 
+                                href={ticket.pr_url} 
+                                target="_blank"
+                                class="inline-flex items-center space-x-1 px-2 py-1 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 transition-colors text-[10px] font-bold"
+                                title="Open PR in GitHub"
+                              >
+                                <span>📄</span>
+                                <span>PR</span>
+                              </a>
+                            <% else %>
+                              <span class="text-base-content/30 text-[10px]">-</span>
+                            <% end %>
+                          </td>
                           <td class="py-2 px-2 text-base-content/60 truncate max-w-[120px]" title={ticket.project}>
                             <%= ticket.project || "-" %>
                           </td>
