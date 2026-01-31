@@ -1176,7 +1176,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
                         <th class="text-left py-2 px-2">Title</th>
                         <th class="text-left py-2 px-2 w-20">Status</th>
                         <th class="text-left py-2 px-2 w-36">Work</th>
-                        <th class="text-left py-2 px-2 w-32">Project</th>
+                        <th class="text-left py-2 px-2 w-28">Actions</th>
+                        <th class="text-left py-2 px-2 w-28">Project</th>
                         <th class="text-left py-2 px-2 w-24">Assignee</th>
                       </tr>
                     </thead>
@@ -1246,6 +1247,44 @@ defmodule DashboardPhoenixWeb.HomeLive do
                               <% end %>
                             <% else %>
                               <span class="text-base-content/30 text-[10px]">-</span>
+                            <% end %>
+                          </td>
+                          <td class="py-2 px-2">
+                            <% has_pr = MapSet.member?(@pr_created_tickets, ticket.id) %>
+                            <%= cond do %>
+                              <% has_pr -> %>
+                                <%!-- PR exists - show Super Review button --%>
+                                <div class="flex items-center space-x-1">
+                                  <button
+                                    phx-click="request_super_review"
+                                    phx-value-id={ticket.id}
+                                    class="px-2 py-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 transition-colors text-[10px] font-bold"
+                                    title="Request super review for PR"
+                                  >
+                                    🔍 Review
+                                  </button>
+                                  <button
+                                    phx-click="clear_ticket_pr"
+                                    phx-value-id={ticket.id}
+                                    class="px-1 py-1 rounded bg-base-content/10 text-base-content/40 hover:text-error hover:bg-error/20 transition-colors text-[10px]"
+                                    title="Clear PR state"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              <% work_info != nil -> %>
+                                <%!-- Work in progress - show PR button --%>
+                                <button
+                                  phx-click="request_ticket_pr"
+                                  phx-value-id={ticket.id}
+                                  class="px-2 py-1 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 transition-colors text-[10px] font-bold"
+                                  title="Request PR creation"
+                                >
+                                  📝 PR
+                                </button>
+                              <% true -> %>
+                                <%!-- No work - show dash --%>
+                                <span class="text-base-content/30 text-[10px]">-</span>
                             <% end %>
                           </td>
                           <td class="py-2 px-2 text-base-content/60 truncate max-w-[120px]" title={ticket.project}>
