@@ -80,6 +80,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agent_pref: coding_agent_pref,  # Coding agent preference (opencode/claude)
       # Linear tickets - loaded async to avoid blocking mount
       linear_tickets: [],
+      linear_counts: %{},
       linear_last_updated: nil,
       linear_error: nil,
       linear_loading: true,
@@ -182,8 +183,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle Linear ticket updates (from PubSub)
   def handle_info({:linear_update, data}, socket) do
+    linear_counts = Enum.frequencies_by(data.tickets, & &1.status)
     {:noreply, assign(socket,
       linear_tickets: data.tickets,
+      linear_counts: linear_counts,
       linear_last_updated: data.last_updated,
       linear_error: data.error,
       linear_loading: false
@@ -192,19 +195,28 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle async Linear ticket loading (initial mount)
   def handle_info(:load_linear_tickets, socket) do
-    # Fetch in a Task to avoid blocking the LiveView process
+    # Fetch in a supervised Task to avoid blocking and catch crashes
     parent = self()
-    Task.start(fn ->
-      linear_data = LinearMonitor.get_tickets()
-      send(parent, {:linear_loaded, linear_data})
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        linear_data = LinearMonitor.get_tickets()
+        send(parent, {:linear_loaded, linear_data})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load Linear tickets: #{inspect(e)}")
+          send(parent, {:linear_loaded, %{tickets: [], last_updated: nil, error: "Load failed: #{inspect(e)}"}})
+      end
     end)
     {:noreply, socket}
   end
 
   # Handle Linear tickets loaded result
   def handle_info({:linear_loaded, data}, socket) do
+    linear_counts = Enum.frequencies_by(data.tickets, & &1.status)
     {:noreply, assign(socket,
       linear_tickets: data.tickets,
+      linear_counts: linear_counts,
       linear_last_updated: data.last_updated,
       linear_error: data.error,
       linear_loading: false
@@ -223,11 +235,18 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle async GitHub PR loading (initial mount)
   def handle_info(:load_github_prs, socket) do
-    # Fetch in a Task to avoid blocking the LiveView process
+    # Fetch in a supervised Task to avoid blocking and catch crashes
     parent = self()
-    Task.start(fn ->
-      pr_data = PRMonitor.get_prs()
-      send(parent, {:github_prs_loaded, pr_data})
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        pr_data = PRMonitor.get_prs()
+        send(parent, {:github_prs_loaded, pr_data})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load GitHub PRs: #{inspect(e)}")
+          send(parent, {:github_prs_loaded, %{prs: [], last_updated: nil, error: "Load failed: #{inspect(e)}"}})
+      end
     end)
     {:noreply, socket}
   end
@@ -256,9 +275,16 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle async branch loading (initial mount)
   def handle_info(:load_branches, socket) do
     parent = self()
-    Task.start(fn ->
-      branch_data = BranchMonitor.get_branches()
-      send(parent, {:branches_loaded, branch_data})
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        branch_data = BranchMonitor.get_branches()
+        send(parent, {:branches_loaded, branch_data})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load branches: #{inspect(e)}")
+          send(parent, {:branches_loaded, %{branches: [], worktrees: %{}, last_updated: nil, error: "Load failed: #{inspect(e)}"}})
+      end
     end)
     {:noreply, socket}
   end
@@ -475,7 +501,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("execute_merge_branch", %{"name" => branch_name}, socket) do
     parent = self()
-    Task.start(fn ->
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       result = BranchMonitor.merge_branch(branch_name)
       send(parent, {:branch_merge_result, branch_name, result})
     end)
@@ -492,7 +518,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("execute_delete_branch", %{"name" => branch_name}, socket) do
     parent = self()
-    Task.start(fn ->
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       result = BranchMonitor.delete_branch(branch_name)
       send(parent, {:branch_delete_result, branch_name, result})
     end)
@@ -1608,7 +1634,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 <!-- Status Filter -->
                 <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
                   <%= for status <- ["Triage", "Backlog", "Todo", "In Review"] do %>
-                    <% count = Enum.count(@linear_tickets, & &1.status == status) %>
+                    <% count = Map.get(@linear_counts, status, 0) %>
                     <button
                       phx-click="set_linear_filter"
                       phx-value-status={status}

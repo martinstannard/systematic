@@ -10,6 +10,8 @@ defmodule DashboardPhoenix.Application do
     children = [
       DashboardPhoenixWeb.Telemetry,
       DashboardPhoenix.Repo,
+      # Task supervisor for async loading (prevents silent failures)
+      {Task.Supervisor, name: DashboardPhoenix.TaskSupervisor},
       {DNSCluster, query: Application.get_env(:dashboard_phoenix, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: DashboardPhoenix.PubSub},
       # Agent preferences for coding agent toggle
