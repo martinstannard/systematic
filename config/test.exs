@@ -36,3 +36,11 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Mock configuration for test environment
+config :dashboard_phoenix,
+  # Disable live services in test
+  disable_session_bridge: true,
+  # Use mock paths to avoid real file access
+  sessions_file: "/tmp/test_sessions.json",
+  progress_file: "/tmp/test_progress.jsonl"

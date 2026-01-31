@@ -7,6 +7,13 @@ defmodule DashboardPhoenix.Application do
 
   @impl true
   def start(_type, _args) do
+    # Conditional services based on environment
+    session_bridge_child = if Application.get_env(:dashboard_phoenix, :disable_session_bridge, false) do
+      []
+    else
+      [DashboardPhoenix.SessionBridge]
+    end
+
     children = [
       DashboardPhoenixWeb.Telemetry,
       DashboardPhoenix.Repo,
@@ -18,8 +25,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.AgentPreferences,
       # HomeLive memoization cache
       DashboardPhoenixWeb.HomeLiveCache,
-      # Session bridge for live agent updates (tails progress files)
-      DashboardPhoenix.SessionBridge,
+    ] ++ session_bridge_child ++ [
+      # Session bridge for live agent updates (tails progress files) - conditional
       # Stats monitor for OpenCode/Claude usage
       DashboardPhoenix.StatsMonitor,
       # Resource tracker for CPU/memory graphs
