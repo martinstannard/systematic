@@ -38,6 +38,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
     opencode_status = OpenCodeServer.status()
     opencode_sessions = fetch_opencode_sessions(opencode_status)
     
+    # Build map of ticket_id -> work session info
+    tickets_in_progress = build_tickets_in_progress(opencode_sessions, sessions)
+    
     graph_data = build_graph_data(sessions, coding_agents, processes)
     
     # Calculate main session activity count for warning
@@ -62,6 +65,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_tickets: linear_data.tickets,
       linear_last_updated: linear_data.last_updated,
       linear_error: linear_data.error,
+      tickets_in_progress: tickets_in_progress,
       # Work modal state
       show_work_modal: false,
       work_ticket_id: nil,
@@ -104,7 +108,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle session updates
   def handle_info({:sessions, sessions}, socket) do
     activity = build_agent_activity(sessions, socket.assigns.agent_progress)
-    {:noreply, assign(socket, agent_sessions: sessions, agent_activity: activity)}
+    tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
+    {:noreply, assign(socket, agent_sessions: sessions, agent_activity: activity, tickets_in_progress: tickets_in_progress)}
   end
 
   # Handle stats updates
@@ -141,14 +146,16 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle OpenCode server status updates
   def handle_info({:opencode_status, status}, socket) do
     sessions = fetch_opencode_sessions(status)
-    {:noreply, assign(socket, opencode_server_status: status, opencode_sessions: sessions)}
+    tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+    {:noreply, assign(socket, opencode_server_status: status, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)}
   end
 
   # Handle periodic OpenCode sessions refresh
   def handle_info(:refresh_opencode_sessions, socket) do
     if socket.assigns.opencode_server_status.running do
       sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-      {:noreply, assign(socket, opencode_sessions: sessions)}
+      tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+      {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)}
     else
       {:noreply, socket}
     end
@@ -262,12 +269,40 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   def handle_event("toggle_linear_panel", _, socket) do
-    {:noreply, assign(socket, linear_collapsed: !socket.assigns.linear_collapsed)}
+    socket = assign(socket, linear_collapsed: !socket.assigns.linear_collapsed)
+    {:noreply, push_panel_state(socket)}
   end
 
   def handle_event("toggle_panel", %{"panel" => panel}, socket) do
     key = String.to_existing_atom(panel <> "_collapsed")
-    {:noreply, assign(socket, key, !Map.get(socket.assigns, key))}
+    socket = assign(socket, key, !Map.get(socket.assigns, key))
+    {:noreply, push_panel_state(socket)}
+  end
+
+  # Restore panel state from localStorage via JS hook
+  def handle_event("restore_panel_state", %{"panels" => panels}, socket) when is_map(panels) do
+    socket = Enum.reduce(panels, socket, fn {panel, collapsed}, acc ->
+      key = String.to_existing_atom(panel <> "_collapsed")
+      assign(acc, key, collapsed)
+    end)
+    {:noreply, socket}
+  end
+
+  def handle_event("restore_panel_state", _, socket), do: {:noreply, socket}
+
+  # Push current panel state to JS for localStorage persistence
+  defp push_panel_state(socket) do
+    panels = %{
+      "linear" => socket.assigns.linear_collapsed,
+      "opencode" => socket.assigns.opencode_collapsed,
+      "coding_agents" => socket.assigns.coding_agents_collapsed,
+      "subagents" => socket.assigns.subagents_collapsed,
+      "live_progress" => socket.assigns.live_progress_collapsed,
+      "agent_activity" => socket.assigns.agent_activity_collapsed,
+      "system_processes" => socket.assigns.system_processes_collapsed,
+      "process_relationships" => socket.assigns.process_relationships_collapsed
+    }
+    push_event(socket, "save_panel_state", %{panels: panels})
   end
 
   def handle_event("work_on_ticket", %{"id" => ticket_id}, socket) do
@@ -329,7 +364,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("refresh_opencode_sessions", _, socket) do
     sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-    {:noreply, assign(socket, opencode_sessions: sessions)}
+    tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+    {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)}
   end
 
   # Execute work on ticket using OpenCode or OpenClaw
@@ -447,6 +483,64 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   defp parse_event_time(ts) when is_integer(ts), do: DateTime.from_unix!(ts, :millisecond)
   defp parse_event_time(_), do: DateTime.utc_now()
+
+  # Build map of ticket_id -> work session info from OpenCode and sub-agent sessions
+  # Parses ticket IDs (like COR-123, FRE-456) from session titles and labels
+  defp build_tickets_in_progress(opencode_sessions, agent_sessions) do
+    ticket_regex = ~r/([A-Z]{2,5}-\d+)/i
+    
+    # Build from OpenCode sessions (look at title)
+    opencode_work = opencode_sessions
+    |> Enum.filter(fn session -> 
+      # Only include active/running sessions
+      session.status in ["active", "idle"]
+    end)
+    |> Enum.flat_map(fn session ->
+      title = session.title || ""
+      case Regex.scan(ticket_regex, title) do
+        [] -> []
+        matches -> 
+          Enum.map(matches, fn [_, ticket_id] -> 
+            {String.upcase(ticket_id), %{
+              type: :opencode,
+              slug: session.slug,
+              session_id: session.id,
+              status: session.status,
+              title: session.title
+            }}
+          end)
+      end
+    end)
+    
+    # Build from sub-agent sessions (look at label and task_summary)
+    subagent_work = agent_sessions
+    |> Enum.filter(fn session -> 
+      # Only include running/idle sessions (not completed)
+      session.status in ["running", "idle"]
+    end)
+    |> Enum.flat_map(fn session ->
+      label = Map.get(session, :label) || ""
+      task = Map.get(session, :task_summary) || ""
+      text_to_search = "#{label} #{task}"
+      
+      case Regex.scan(ticket_regex, text_to_search) do
+        [] -> []
+        matches -> 
+          Enum.map(matches, fn [_, ticket_id] -> 
+            {String.upcase(ticket_id), %{
+              type: :subagent,
+              label: label,
+              session_id: session.id,
+              status: session.status,
+              task_summary: Map.get(session, :task_summary)
+            }}
+          end)
+      end
+    end)
+    
+    # Combine - OpenCode takes precedence if both are working on same ticket
+    Map.new(subagent_work ++ opencode_work)
+  end
 
   # Build graph data for relationship visualization
   defp build_graph_data(sessions, coding_agents, processes) do
@@ -683,7 +777,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def render(assigns) do
     ~H"""
-    <div class="space-y-4">
+    <div class="space-y-4" id="panel-state-container" phx-hook="PanelState">
       <!-- Header -->
       <div class="glass-panel rounded-lg px-4 py-2 flex items-center justify-between">
         <div class="flex items-center space-x-4">
@@ -897,22 +991,30 @@ defmodule DashboardPhoenixWeb.HomeLive do
                         <th class="text-left py-2 px-2 w-24">ID</th>
                         <th class="text-left py-2 px-2">Title</th>
                         <th class="text-left py-2 px-2 w-20">Status</th>
+                        <th class="text-left py-2 px-2 w-36">Work</th>
                         <th class="text-left py-2 px-2 w-32">Project</th>
                         <th class="text-left py-2 px-2 w-24">Assignee</th>
                       </tr>
                     </thead>
                     <tbody>
                       <%= for ticket <- @linear_tickets do %>
-                        <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
+                        <tr class={"border-b border-white/5 hover:bg-white/5 transition-colors " <> if(work_info, do: "bg-accent/5", else: "")}>
                           <td class="py-2 px-2">
-                            <button
-                              phx-click="work_on_ticket"
-                              phx-value-id={ticket.id}
-                              class="px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-[10px] font-bold"
-                              title="Work on this ticket"
-                            >
-                              ▶ Work
-                            </button>
+                            <%= if work_info do %>
+                              <span class="px-2 py-1 rounded bg-success/20 text-success text-[10px] font-bold animate-pulse" title="Work in progress">
+                                ⚡ Active
+                              </span>
+                            <% else %>
+                              <button
+                                phx-click="work_on_ticket"
+                                phx-value-id={ticket.id}
+                                class="px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-[10px] font-bold"
+                                title="Work on this ticket"
+                              >
+                                ▶ Work
+                              </button>
+                            <% end %>
                           </td>
                           <td class="py-2 px-2">
                             <a 
@@ -930,6 +1032,37 @@ defmodule DashboardPhoenixWeb.HomeLive do
                             <span class={linear_status_badge(ticket.status)}>
                               <%= ticket.status %>
                             </span>
+                          </td>
+                          <td class="py-2 px-2">
+                            <%= if work_info do %>
+                              <%= if work_info.type == :opencode do %>
+                                <a 
+                                  href="#opencode-sessions"
+                                  class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors text-[10px]"
+                                  title={"OpenCode: #{work_info.title}"}
+                                >
+                                  <span>💻</span>
+                                  <span class="truncate max-w-[80px]"><%= work_info.slug %></span>
+                                  <%= if work_info.status == "active" do %>
+                                    <span class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping"></span>
+                                  <% end %>
+                                </a>
+                              <% else %>
+                                <a
+                                  href="#subagents"
+                                  class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors text-[10px]"
+                                  title={"Sub-agent: #{work_info.task_summary}"}
+                                >
+                                  <span>🤖</span>
+                                  <span class="truncate max-w-[80px]"><%= work_info.label %></span>
+                                  <%= if work_info.status == "running" do %>
+                                    <span class="w-1.5 h-1.5 bg-purple-400 rounded-full animate-ping"></span>
+                                  <% end %>
+                                </a>
+                              <% end %>
+                            <% else %>
+                              <span class="text-base-content/30 text-[10px]">-</span>
+                            <% end %>
                           </td>
                           <td class="py-2 px-2 text-base-content/60 truncate max-w-[120px]" title={ticket.project}>
                             <%= ticket.project || "-" %>
@@ -953,7 +1086,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       </div>
 
       <!-- OpenCode Sessions Panel -->
-      <div class="space-y-3">
+      <div class="space-y-3" id="opencode-sessions">
         <div 
           class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
           phx-click="toggle_panel"
@@ -1054,9 +1187,20 @@ defmodule DashboardPhoenixWeb.HomeLive do
       <!-- Coding Agents (OpenCode, Claude Code, etc.) -->
       <%= if @coding_agents != [] do %>
         <div class="space-y-3">
-          <div class="flex items-center px-1">
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">💻 Coding Agents</span>
+          <div 
+            class="flex items-center px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+            phx-click="toggle_panel"
+            phx-value-panel="coding_agents"
+          >
+            <div class="flex items-center space-x-3">
+              <span class={"text-xs transition-transform duration-200 " <> if(@coding_agents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+              <span class="text-xs font-mono text-accent uppercase tracking-wider">💻 Coding Agents</span>
+              <span class="text-[10px] font-mono text-base-content/50">
+                <%= length(@coding_agents) %> agents
+              </span>
+            </div>
           </div>
+          <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@coding_agents_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
           <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
             <%= for agent <- @coding_agents do %>
               <div class={"glass-panel rounded-lg p-3 border-l-4 " <> if(agent.status == "running", do: "border-l-warning", else: "border-l-success")}>
@@ -1104,14 +1248,25 @@ defmodule DashboardPhoenixWeb.HomeLive do
               </div>
             <% end %>
           </div>
+          </div>
         </div>
       <% end %>
 
       <!-- Agent Sessions Panel -->
-      <div class="space-y-3">
-        <div class="flex items-center justify-between px-1">
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
-          <div class="flex items-center space-x-2">
+      <div class="space-y-3" id="subagents">
+        <div 
+          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+          phx-click="toggle_panel"
+          phx-value-panel="subagents"
+        >
+          <div class="flex items-center space-x-3">
+            <span class={"text-xs transition-transform duration-200 " <> if(@subagents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+            <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
+            <span class="text-[10px] font-mono text-base-content/50">
+              <%= length(@agent_sessions) %> sessions
+            </span>
+          </div>
+          <div class="flex items-center space-x-2" onclick="event.stopPropagation()">
             <% completed_count = Enum.count(@agent_sessions, fn s -> 
               s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) 
             end) %>
@@ -1134,6 +1289,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
           </div>
         </div>
         
+        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
         <% visible_sessions = @agent_sessions
           |> Enum.reject(fn s -> MapSet.member?(@dismissed_sessions, s.id) end)
           |> Enum.reject(fn s -> !@show_completed && s.status == "completed" end) %>
@@ -1261,13 +1417,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
             <% end %>
           </div>
         <% end %>
+        </div>
       </div>
 
       <!-- Live Progress Feed -->
       <div class="space-y-3">
-        <div class="flex items-center justify-between px-1">
+        <div 
+          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+          phx-click="toggle_panel"
+          phx-value-panel="live_progress"
+        >
           <div class="flex items-center space-x-3">
+            <span class={"text-xs transition-transform duration-200 " <> if(@live_progress_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
             <span class="text-xs font-mono text-accent uppercase tracking-wider">📡 Live Progress</span>
+            <span class="text-[10px] font-mono text-base-content/50">
+              <%= length(@agent_progress) %> events
+            </span>
             <!-- Main session warning -->
             <%= if @main_activity_count > 10 do %>
               <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-warning/20 text-warning animate-pulse" title="Main session has lots of activity - consider offloading work to sub-agents">
@@ -1275,7 +1440,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
               </span>
             <% end %>
           </div>
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-2" onclick="event.stopPropagation()">
             <!-- Toggle main entries -->
             <button 
               phx-click="toggle_main_entries" 
@@ -1290,6 +1455,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
           </div>
         </div>
         
+        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
         <div class="glass-panel rounded-lg p-3 h-[400px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom">
           <%= if @agent_progress == [] do %>
             <div class="text-base-content/40 text-center py-8">
@@ -1339,14 +1505,26 @@ defmodule DashboardPhoenixWeb.HomeLive do
             <% end %>
           <% end %>
         </div>
+        </div>
       </div>
 
       <!-- Agent Activity - What's it doing? -->
       <%= if @agent_activity != [] do %>
         <div class="space-y-3">
-          <div class="flex items-center px-1">
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">🔍 What's it doing?</span>
+          <div 
+            class="flex items-center px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+            phx-click="toggle_panel"
+            phx-value-panel="agent_activity"
+          >
+            <div class="flex items-center space-x-3">
+              <span class={"text-xs transition-transform duration-200 " <> if(@agent_activity_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+              <span class="text-xs font-mono text-accent uppercase tracking-wider">🔍 What's it doing?</span>
+              <span class="text-[10px] font-mono text-base-content/50">
+                <%= length(@agent_activity) %> agents
+              </span>
+            </div>
           </div>
+          <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@agent_activity_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <%= for activity <- @agent_activity do %>
               <div class="glass-panel rounded-lg p-3 border-l-4 border-l-accent">
@@ -1403,14 +1581,23 @@ defmodule DashboardPhoenixWeb.HomeLive do
               </div>
             <% end %>
           </div>
+          </div>
         </div>
       <% end %>
 
       <!-- System Processes with Sparklines -->
       <div class="space-y-3">
-        <div class="flex items-center px-1">
-          <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ System Processes (<%= length(@recent_processes) %>)</span>
+        <div 
+          class="flex items-center px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+          phx-click="toggle_panel"
+          phx-value-panel="system_processes"
+        >
+          <div class="flex items-center space-x-3">
+            <span class={"text-xs transition-transform duration-200 " <> if(@system_processes_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+            <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ System Processes (<%= length(@recent_processes) %>)</span>
+          </div>
         </div>
+        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@system_processes_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
         <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
           <%= for process <- @recent_processes do %>
             <% history = Map.get(@resource_history, process.pid, []) %>
@@ -1446,12 +1633,20 @@ defmodule DashboardPhoenixWeb.HomeLive do
             </div>
           <% end %>
         </div>
+        </div>
       </div>
 
       <!-- Relationship Graph -->
       <div class="space-y-3">
-        <div class="flex items-center justify-between px-1">
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">🔗 Process Relationships</span>
+        <div 
+          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+          phx-click="toggle_panel"
+          phx-value-panel="process_relationships"
+        >
+          <div class="flex items-center space-x-3">
+            <span class={"text-xs transition-transform duration-200 " <> if(@process_relationships_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+            <span class="text-xs font-mono text-accent uppercase tracking-wider">🔗 Process Relationships</span>
+          </div>
           <div class="flex items-center space-x-4 text-[10px] font-mono">
             <span class="flex items-center space-x-1">
               <span class="w-3 h-3 rounded-full bg-green-600"></span>
@@ -1471,8 +1666,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
             </span>
           </div>
         </div>
+        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@process_relationships_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
         <div class="glass-panel rounded-lg p-4">
           <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[300px]"></div>
+        </div>
         </div>
       </div>
 

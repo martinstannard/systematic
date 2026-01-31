@@ -41,6 +41,25 @@ const Hooks = {
     }
   },
   RelationshipGraph: RelationshipGraph,
+  PanelState: {
+    mounted() {
+      // Load saved panel states from localStorage and send to LiveView
+      const saved = localStorage.getItem("systematic:panels")
+      if (saved) {
+        try {
+          const panelState = JSON.parse(saved)
+          this.pushEvent("restore_panel_state", { panels: panelState })
+        } catch (e) {
+          console.error("Failed to parse panel state:", e)
+        }
+      }
+      
+      // Listen for save events from LiveView
+      this.handleEvent("save_panel_state", ({ panels }) => {
+        localStorage.setItem("systematic:panels", JSON.stringify(panels))
+      })
+    }
+  },
   ThemeToggle: {
     mounted() {
       this.updateIcon()
