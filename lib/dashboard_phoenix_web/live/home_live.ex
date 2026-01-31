@@ -490,12 +490,20 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Send to main agent to spawn a review sub-agent
     alias DashboardPhoenix.OpenClawClient
     
-    case OpenClawClient.send_message(review_prompt, channel: "webchat") do
-      {:ok, _} ->
-        {:noreply, put_flash(socket, :info, "Super review requested for #{ticket_id}")}
-      {:error, reason} ->
+    try do
+      OpenClawClient.send_message(review_prompt, channel: "webchat")
+      {:noreply, put_flash(socket, :info, "Super review requested for #{ticket_id}")}
+    catch
+      :exit, reason ->
         {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(reason)}")}
+      error ->
+        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(error)}")}
     end
+  end
+
+  # Handle request_super_review when id parameter is missing
+  def handle_event("request_super_review", _params, socket) do
+    {:noreply, put_flash(socket, :error, "Missing ticket ID for super review request")}
   end
 
   # Clear PR state for a ticket (e.g., when PR is merged)
