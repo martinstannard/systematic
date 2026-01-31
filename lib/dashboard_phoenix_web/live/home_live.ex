@@ -391,6 +391,21 @@ defmodule DashboardPhoenixWeb.HomeLive do
     ticket_details = socket.assigns.work_ticket_details
     coding_pref = socket.assigns.coding_agent_pref
     
+    # Check if work already exists for this ticket
+    if Map.has_key?(socket.assigns.tickets_in_progress, ticket_id) do
+      work_info = Map.get(socket.assigns.tickets_in_progress, ticket_id)
+      agent_type = if work_info.type == :opencode, do: "OpenCode", else: "sub-agent"
+      socket = socket
+      |> assign(show_work_modal: false)
+      |> put_flash(:error, "Work already in progress for #{ticket_id} (#{agent_type}: #{work_info[:slug] || work_info[:label]})")
+      {:noreply, socket}
+    else
+      execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref)
+    end
+  end
+
+  # Actually execute the work when no duplicate exists
+  defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref) do
     cond do
       # If OpenCode mode is selected
       coding_pref == :opencode ->
