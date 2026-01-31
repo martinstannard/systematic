@@ -784,6 +784,28 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp activity_status_color("busy"), do: "text-warning"
   defp activity_status_color(_), do: "text-base-content/50"
 
+  # Find an OpenCode session that matches the coding agent's working directory
+  defp find_opencode_session(agent, opencode_sessions) when is_list(opencode_sessions) do
+    agent_dir = agent.working_dir
+    
+    Enum.find(opencode_sessions, fn session ->
+      session_dir = session.directory
+      # Match if directories are the same
+      agent_dir && session_dir && normalize_path(agent_dir) == normalize_path(session_dir)
+    end)
+  end
+  defp find_opencode_session(_, _), do: nil
+
+  defp normalize_path(nil), do: nil
+  defp normalize_path(path), do: Path.expand(path)
+
+  # Truncate title with ellipsis if too long
+  defp truncate_title(nil), do: nil
+  defp truncate_title(title) when byte_size(title) > 50 do
+    String.slice(title, 0, 47) <> "..."
+  end
+  defp truncate_title(title), do: title
+
   defp format_linear_time(nil), do: ""
   defp format_linear_time(%DateTime{} = dt) do
     now = DateTime.utc_now()
@@ -1258,6 +1280,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
           <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@coding_agents_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
           <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
             <%= for agent <- @coding_agents do %>
+              <% matched_session = if agent.type == "OpenCode", do: find_opencode_session(agent, @opencode_sessions), else: nil %>
               <div class={"glass-panel rounded-lg p-3 border-l-4 " <> if(agent.status == "running", do: "border-l-warning", else: "border-l-success")}>
                 <!-- Header -->
                 <div class="flex items-center justify-between mb-2">
@@ -1268,6 +1291,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
                       <span class="text-base-content/50">○</span>
                     <% end %>
                     <span class="text-sm font-mono text-white font-bold"><%= agent.type %></span>
+                    <%= if matched_session do %>
+                      <span class={"text-[10px] font-mono px-1.5 py-0.5 rounded " <> opencode_status_badge(matched_session.status)}>
+                        <%= matched_session.status %>
+                      </span>
+                    <% end %>
                   </div>
                   <button 
                     phx-click="kill_process" 
@@ -1278,13 +1306,36 @@ defmodule DashboardPhoenixWeb.HomeLive do
                   </button>
                 </div>
                 
+                <!-- Session Title (for OpenCode with matched session) -->
+                <%= if matched_session && matched_session.title do %>
+                  <div class="mb-2">
+                    <div class="text-xs text-white font-medium truncate" title={matched_session.title}>
+                      📝 <%= truncate_title(matched_session.title) %>
+                    </div>
+                    <%= if matched_session.slug do %>
+                      <div class="text-[10px] font-mono text-blue-400/70">
+                        <%= matched_session.slug %>
+                      </div>
+                    <% end %>
+                  </div>
+                <% end %>
+                
                 <!-- Project / Working Dir -->
                 <%= if agent.project do %>
-                  <div class="text-xs font-mono text-accent mb-1"><%= agent.project %></div>
+                  <div class="text-xs font-mono text-accent mb-1">📁 <%= agent.project %></div>
                 <% end %>
-                <%= if agent.working_dir do %>
+                <%= if agent.working_dir && !matched_session do %>
                   <div class="text-[10px] font-mono text-base-content/50 mb-2 truncate" title={agent.working_dir}>
-                    📁 <%= agent.working_dir %>
+                    <%= agent.working_dir %>
+                  </div>
+                <% end %>
+                
+                <!-- File Changes (for matched OpenCode sessions) -->
+                <%= if matched_session && matched_session.file_changes.files > 0 do %>
+                  <div class="text-[10px] font-mono mb-2">
+                    <span class="text-green-400">+<%= matched_session.file_changes.additions %></span>
+                    <span class="text-red-400 ml-1">-<%= matched_session.file_changes.deletions %></span>
+                    <span class="text-base-content/50 ml-1">(<%= matched_session.file_changes.files %> files)</span>
                   </div>
                 <% end %>
                 
