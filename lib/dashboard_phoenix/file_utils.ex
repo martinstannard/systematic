@@ -4,18 +4,32 @@ defmodule DashboardPhoenix.FileUtils do
   
   Prevents race conditions when multiple processes write to the same files.
   
-  ## Why Atomic Writes Matter
+  ## Race Condition Prevention
   
-  When multiple processes read/write the same file, you can get:
-  - Partial reads (reader sees half-written content)
+  This module solves file operation race conditions that can occur when:
+  - Multiple GenServers write to shared files (e.g., progress files, verification data)
+  - Concurrent processes update JSON configuration files
+  - Monitors and agents simultaneously modify state files
+  
+  Common issues prevented:
+  - Partial reads (reader sees half-written content during write)
   - Corrupted data (two writers interleave their writes)
-  - Lost updates (write-write race)
+  - Lost updates (write-write race condition)
+  - File truncation during concurrent access
   
-  Atomic writes solve this by writing to a temp file first, then using
-  `rename(2)` which is atomic on POSIX systems. Readers either see the
-  old complete content or the new complete content, never partial data.
+  ## How Atomic Writes Work
   
-  ## Usage
+  Atomic writes solve this by:
+  1. Writing content to a temporary file in the same directory
+  2. Using `File.rename/2` which is atomic on POSIX systems
+  3. Readers either see the old complete content OR the new complete content
+  4. Never see partial/corrupted data during the write operation
+  
+  This is much simpler and more reliable than file locking mechanisms.
+  
+  ## Usage in GenServers
+  
+  All modules writing to shared files should use these atomic operations:
   
   Instead of:
       File.write(path, content)
@@ -23,8 +37,18 @@ defmodule DashboardPhoenix.FileUtils do
   Use:
       FileUtils.atomic_write(path, content)
   
-  For JSON data:
+  For JSON data (common pattern):
       FileUtils.atomic_write_json(path, data)
+  
+  ## Current Usage
+  
+  These modules already use atomic operations:
+  - `SessionBridge` - for ensuring progress file integrity
+  - `PRVerification` - for verified PR data
+  - `AgentPreferences` - for user preference storage
+  - `HomeLive` - for PR state tracking
+  
+  All new file operations should use this module to maintain consistency.
   """
 
   require Logger
