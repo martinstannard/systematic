@@ -1224,9 +1224,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
                     <textarea
                       name="message"
                       value={@chat_message}
-                      placeholder="Type a message to OpenClaw..."
+                      placeholder="Type a message to OpenClaw... (Shift+Enter to send)"
                       class="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-sm font-mono text-white placeholder-base-content/40 focus:outline-none focus:border-accent/50 resize-none"
                       disabled={@chat_sending}
+                      phx-hook="ChatInput"
+                      id="chat-input"
                     ></textarea>
                     
                     <div class="flex items-center justify-between mt-3">

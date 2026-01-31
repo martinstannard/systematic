@@ -169,6 +169,16 @@ const Hooks = {
         }
       }, 10000)
     }
+  },
+  ChatInput: {
+    mounted() {
+      this.el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && e.shiftKey) {
+          e.preventDefault();
+          this.el.form.dispatchEvent(new Event("submit", {bubbles: true, cancelable: true}));
+        }
+      });
+    }
   }
 }
 
