@@ -57,7 +57,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     progress = SessionBridge.get_progress()
     stats = StatsMonitor.get_stats()
     resource_history = ResourceTracker.get_history()
-    agent_activity = build_agent_activity(sessions, progress)
+    agent_activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, progress)
     coding_agents = CodingAgentMonitor.list_agents()
     coding_agent_pref = AgentPreferences.get_coding_agent()
     opencode_status = OpenCodeServer.status()
@@ -76,7 +76,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Build map of pr_number -> work session info for PRs being worked on
     prs_in_progress = build_prs_in_progress(opencode_sessions, sessions)
     
-    graph_data = build_graph_data(sessions, coding_agents, processes, opencode_sessions, gemini_status)
+    graph_data = DashboardPhoenixWeb.HomeLiveCache.get_graph_data(sessions, coding_agents, processes, opencode_sessions, gemini_status)
     
     # Calculate main session activity count for warning
     main_activity_count = Enum.count(progress, & &1.agent == "main")
@@ -203,7 +203,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle live progress updates
   def handle_info({:progress, events}, socket) do
     updated = (socket.assigns.agent_progress ++ events) |> Enum.take(-100)
-    activity = build_agent_activity(socket.assigns.agent_sessions, updated)
+    activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(socket.assigns.agent_sessions, updated)
     main_activity_count = Enum.count(updated, & &1.agent == "main")
     agent_progress_count = length(updated)
     
@@ -217,7 +217,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle session updates
   def handle_info({:sessions, sessions}, socket) do
-    activity = build_agent_activity(sessions, socket.assigns.agent_progress)
+    activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, socket.assigns.agent_progress)
     tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
     prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
     agent_sessions_count = length(sessions)
@@ -237,7 +237,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle agent activity updates - rebuild from sessions + progress
   def handle_info({:agent_activity, _activities}, socket) do
     # Rebuild activity from current data
-    activity = build_agent_activity(socket.assigns.agent_sessions, socket.assigns.agent_progress)
+    activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(socket.assigns.agent_sessions, socket.assigns.agent_progress)
     {:noreply, assign(socket, agent_activity: activity)}
   end
 
@@ -904,7 +904,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     sessions = socket.assigns.agent_sessions
     opencode_sessions = socket.assigns.opencode_sessions
     gemini_status = socket.assigns.gemini_server_status
-    graph_data = build_graph_data(sessions, coding_agents, processes, opencode_sessions, gemini_status)
+    graph_data = DashboardPhoenixWeb.HomeLiveCache.get_graph_data(sessions, coding_agents, processes, opencode_sessions, gemini_status)
     
     # Pre-calculate counts
     recent_processes_count = length(processes)
@@ -1611,43 +1611,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     push_event(socket, "save_model_selections", %{models: models})
   end
 
-  # Build agent activity from sessions and progress events
-  defp build_agent_activity(sessions, progress) do
-    # Group progress events by agent
-    events_by_agent = Enum.group_by(progress, & &1.agent)
-    
-    # Build activity for each running/active session
-    sessions
-    |> Enum.filter(fn s -> s.status in ["running", "idle"] end)
-    |> Enum.map(fn session ->
-      agent_id = session.label || session.id
-      agent_events = Map.get(events_by_agent, agent_id, [])
-      
-      # Get recent actions
-      recent = agent_events |> Enum.take(-10)
-      last = List.last(recent)
-      
-      # Extract files from recent events
-      files = recent
-      |> Enum.map(& &1.target)
-      |> Enum.filter(& &1 && String.contains?(&1, "/"))
-      |> Enum.uniq()
-      |> Enum.take(-5)
-      
-      %{
-        id: session.id,
-        type: determine_agent_type(session),
-        model: session.model,
-        cwd: nil,
-        status: if(session.status == "running", do: "active", else: "idle"),
-        last_action: if(last, do: %{action: last.action, target: last.target}, else: nil),
-        files_worked: files,
-        last_activity: if(last, do: parse_event_time(last.ts), else: nil),
-        tool_call_count: length(agent_events)
-      }
-    end)
-    |> Enum.filter(fn a -> a.tool_call_count > 0 end)
-  end
+  # build_agent_activity function moved to DashboardPhoenixWeb.HomeLiveCache for memoization
 
   defp determine_agent_type(session) do
     session_key = Map.get(session, :session_key)
@@ -1800,137 +1764,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Map.new(subagent_work ++ opencode_work)
   end
 
-  # Build graph data for relationship visualization
-  defp build_graph_data(sessions, coding_agents, processes, opencode_sessions, gemini_status) do
-    nodes = []
-    links = []
-    
-    # Main node (OpenClaw)
-    main_node = %{
-      id: "main",
-      label: "OpenClaw",
-      type: "main",
-      status: "running"
-    }
-    nodes = [main_node | nodes]
-    
-    # Sub-agent nodes (Claude sub-agents)
-    {subagent_nodes, subagent_links} = 
-      sessions
-      |> Enum.filter(fn s -> s.session_key != "agent:main:main" end)
-      |> Enum.take(8)  # Limit for readability
-      |> Enum.map(fn session ->
-        node = %{
-          id: "subagent-#{session.id}",
-          label: session.label || "subagent",
-          type: "subagent",
-          status: session.status
-        }
-        link = %{
-          source: "main",
-          target: "subagent-#{session.id}",
-          type: "spawned"
-        }
-        {node, link}
-      end)
-      |> Enum.unzip()
-    
-    nodes = nodes ++ subagent_nodes
-    links = links ++ subagent_links
-    
-    # OpenCode session nodes
-    {opencode_nodes, opencode_links} =
-      opencode_sessions
-      |> Enum.take(6)
-      |> Enum.map(fn session ->
-        node = %{
-          id: "opencode-#{session.id}",
-          label: session.slug || session.title || "opencode",
-          type: "opencode",
-          status: if(session.status in ["active", "running"], do: "running", else: "idle")
-        }
-        link = %{
-          source: "main",
-          target: "opencode-#{session.id}",
-          type: "spawned"
-        }
-        {node, link}
-      end)
-      |> Enum.unzip()
-    
-    nodes = nodes ++ opencode_nodes
-    links = links ++ opencode_links
-    
-    # Gemini agent node (if running)
-    {gemini_nodes, gemini_links} = if gemini_status.running do
-      node = %{
-        id: "gemini-main",
-        label: "Gemini CLI",
-        type: "gemini",
-        status: "running"
-      }
-      link = %{
-        source: "main",
-        target: "gemini-main",
-        type: "spawned"
-      }
-      {[node], [link]}
-    else
-      {[], []}
-    end
-    
-    nodes = nodes ++ gemini_nodes
-    links = links ++ gemini_links
-    
-    # Coding agent nodes (legacy process-based agents)
-    {coding_nodes, coding_links} =
-      coding_agents
-      |> Enum.take(6)
-      |> Enum.map(fn agent ->
-        node = %{
-          id: "coding-#{agent.pid}",
-          label: "#{agent.type}",
-          type: "coding_agent",
-          status: if(agent.status == "running", do: "running", else: "idle")
-        }
-        link = %{
-          source: "main",
-          target: "coding-#{agent.pid}",
-          type: "monitors"
-        }
-        {node, link}
-      end)
-      |> Enum.unzip()
-    
-    nodes = nodes ++ coding_nodes
-    links = links ++ coding_links
-    
-    # System process nodes (just a few key ones)
-    {process_nodes, process_links} =
-      processes
-      |> Enum.filter(fn p -> p.status == "busy" end)
-      |> Enum.take(4)
-      |> Enum.map(fn proc ->
-        node = %{
-          id: "proc-#{proc.pid}",
-          label: proc.name || "process",
-          type: "system",
-          status: proc.status
-        }
-        link = %{
-          source: "main",
-          target: "proc-#{proc.pid}",
-          type: "monitors"
-        }
-        {node, link}
-      end)
-      |> Enum.unzip()
-    
-    nodes = nodes ++ process_nodes
-    links = links ++ process_links
-    
-    %{nodes: nodes, links: links}
-  end
+  # build_graph_data function moved to DashboardPhoenixWeb.HomeLiveCache for memoization
 
   # Fetch OpenCode sessions if server is running
   defp fetch_opencode_sessions(%{running: true}) do

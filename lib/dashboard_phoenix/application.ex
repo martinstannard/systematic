@@ -16,6 +16,8 @@ defmodule DashboardPhoenix.Application do
       {Phoenix.PubSub, name: DashboardPhoenix.PubSub},
       # Agent preferences for coding agent toggle
       DashboardPhoenix.AgentPreferences,
+      # HomeLive memoization cache
+      DashboardPhoenixWeb.HomeLiveCache,
       # Session bridge for live agent updates (tails progress files)
       DashboardPhoenix.SessionBridge,
       # Stats monitor for OpenCode/Claude usage
