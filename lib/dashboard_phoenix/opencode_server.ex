@@ -101,7 +101,8 @@ defmodule DashboardPhoenix.OpenCodeServer do
     Logger.info("[OpenCodeServer] Starting server on port #{state.port} with cwd: #{cwd}")
     
     # Build the command
-    args = ["acp", "--port", "#{state.port}", "--cwd", cwd, "--print-logs"]
+    # Bind to 0.0.0.0 to allow access from other machines (e.g., via Tailscale)
+    args = ["acp", "--port", "#{state.port}", "--hostname", "0.0.0.0", "--cwd", cwd, "--print-logs"]
     
     # Start the port with proper options
     port_opts = [

@@ -367,6 +367,24 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  def handle_event("request_opencode_pr", %{"id" => session_id}, socket) do
+    prompt = """
+    The work looks complete. Please create a Pull Request with:
+    1. A clear, descriptive title
+    2. A detailed description explaining what was changed and why
+    3. Any relevant context for reviewers
+
+    Use `gh pr create` to create the PR.
+    """
+
+    case OpenCodeClient.send_message(session_id, prompt) do
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "PR requested for session")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to request PR: #{reason}")}
+    end
+  end
+
   # Execute work on ticket using OpenCode or OpenClaw
   def handle_event("execute_work", _, socket) do
     ticket_id = socket.assigns.work_ticket_id
@@ -1187,6 +1205,18 @@ defmodule DashboardPhoenixWeb.HomeLive do
                             >
                               View ↗
                             </a>
+                            <button
+                              phx-click="request_opencode_pr"
+                              phx-value-id={session.id}
+                              class={"px-2 py-1 rounded transition-colors text-[10px] " <> 
+                                if(session.file_changes.files > 0, 
+                                  do: "bg-accent/30 text-accent hover:bg-accent/50 font-semibold",
+                                  else: "bg-accent/20 text-accent/70 hover:text-accent hover:bg-accent/40"
+                                )}
+                              title="Request PR creation"
+                            >
+                              📝 PR
+                            </button>
                             <button
                               phx-click="close_opencode_session"
                               phx-value-id={session.id}
