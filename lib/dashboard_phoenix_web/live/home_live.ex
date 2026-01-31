@@ -2158,17 +2158,21 @@ defmodule DashboardPhoenixWeb.HomeLive do
                   <div class="flex items-center space-x-3">
                     <button
                       phx-click="execute_work"
-                      disabled={@work_in_progress or @work_ticket_loading}
+                      disabled={@work_in_progress or @work_ticket_loading or @work_sent}
                       class={"flex-1 py-3 rounded-lg text-sm font-mono font-bold transition-all " <> 
-                        if(@work_in_progress, 
-                          do: "bg-blue-500/30 text-blue-300 cursor-wait",
-                          else: "bg-blue-500/20 text-blue-400 hover:bg-blue-500/40"
-                        )}
+                        cond do
+                          @work_sent -> "bg-green-500/30 text-green-300 cursor-default"
+                          @work_in_progress -> "bg-blue-500/30 text-blue-300 cursor-wait"
+                          true -> "bg-blue-500/20 text-blue-400 hover:bg-blue-500/40"
+                        end}
                     >
-                      <%= if @work_in_progress do %>
-                        <span class="inline-block animate-spin mr-2">⟳</span> Sending to OpenCode...
-                      <% else %>
-                        🚀 Execute Work with OpenCode
+                      <%= cond do %>
+                        <% @work_sent -> %>
+                          ✓ Work Sent to OpenCode
+                        <% @work_in_progress -> %>
+                          <span class="inline-block animate-spin mr-2">⟳</span> Sending to OpenCode...
+                        <% true -> %>
+                          🚀 Execute Work with OpenCode
                       <% end %>
                     </button>
                   </div>
