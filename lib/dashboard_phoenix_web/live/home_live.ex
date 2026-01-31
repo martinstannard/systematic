@@ -82,6 +82,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # Work in progress
       work_in_progress: false,
       work_error: nil,
+      # Model selections
+      claude_model: "anthropic/claude-sonnet-4-20250514",  # Default to sonnet
+      opencode_model: "gemini-2.5-pro",  # Default to gemini pro
       # Panel collapse states
       linear_collapsed: false,
       opencode_collapsed: false,
@@ -334,6 +337,23 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, coding_agent_pref: new_pref)}
   end
 
+  def handle_event("select_claude_model", %{"model" => model}, socket) do
+    socket = assign(socket, claude_model: model)
+    {:noreply, push_model_selections(socket)}
+  end
+
+  def handle_event("select_opencode_model", %{"model" => model}, socket) do
+    socket = assign(socket, opencode_model: model)
+    {:noreply, push_model_selections(socket)}
+  end
+
+  # Restore model selections from localStorage via JS hook
+  def handle_event("restore_model_selections", %{"claude_model" => claude_model, "opencode_model" => opencode_model}, socket) when is_binary(claude_model) and is_binary(opencode_model) do
+    {:noreply, assign(socket, claude_model: claude_model, opencode_model: opencode_model)}
+  end
+
+  def handle_event("restore_model_selections", _, socket), do: {:noreply, socket}
+
   # OpenCode server controls
   def handle_event("start_opencode_server", _, socket) do
     case OpenCodeServer.start_server() do
@@ -482,6 +502,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     ticket_id = socket.assigns.work_ticket_id
     ticket_details = socket.assigns.work_ticket_details
     coding_pref = socket.assigns.coding_agent_pref
+    claude_model = socket.assigns.claude_model
+    opencode_model = socket.assigns.opencode_model
     
     # Check if work already exists for this ticket
     if Map.has_key?(socket.assigns.tickets_in_progress, ticket_id) do
@@ -492,12 +514,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
       |> put_flash(:error, "Work already in progress for #{ticket_id} (#{agent_type}: #{work_info[:slug] || work_info[:label]})")
       {:noreply, socket}
     else
-      execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref)
+      execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model)
     end
   end
 
   # Actually execute the work when no duplicate exists
-  defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref) do
+  defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model) do
     cond do
       # If OpenCode mode is selected
       coding_pref == :opencode ->
@@ -511,32 +533,32 @@ defmodule DashboardPhoenixWeb.HomeLive do
         Please analyze this ticket and implement the required changes.
         """
         
-        # Start work in background
+        # Start work in background, passing selected model
         parent = self()
         Task.start(fn ->
-          result = OpenCodeClient.send_task(prompt)
+          result = OpenCodeClient.send_task(prompt, model: opencode_model)
           send(parent, {:work_result, result})
         end)
         
         socket = socket
         |> assign(work_in_progress: true, work_error: nil)
-        |> put_flash(:info, "Starting work with OpenCode...")
+        |> put_flash(:info, "Starting work with OpenCode (#{opencode_model})...")
         {:noreply, socket}
       
       # Claude mode - send to OpenClaw to spawn a sub-agent
       true ->
         alias DashboardPhoenix.OpenClawClient
         
-        # Start work in background
+        # Start work in background, passing selected model
         parent = self()
         Task.start(fn ->
-          result = OpenClawClient.work_on_ticket(ticket_id, ticket_details)
+          result = OpenClawClient.work_on_ticket(ticket_id, ticket_details, model: claude_model)
           send(parent, {:work_result, result})
         end)
         
         socket = socket
         |> assign(work_in_progress: true, work_error: nil, show_work_modal: false)
-        |> put_flash(:info, "Sending work request to OpenClaw...")
+        |> put_flash(:info, "Sending work request to OpenClaw (#{claude_model})...")
         {:noreply, socket}
     end
   end
@@ -572,6 +594,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "process_relationships" => socket.assigns.process_relationships_collapsed
     }
     push_event(socket, "save_panel_state", %{panels: panels})
+  end
+
+  # Push current model selections to JS for localStorage persistence
+  defp push_model_selections(socket) do
+    models = %{
+      "claude_model" => socket.assigns.claude_model,
+      "opencode_model" => socket.assigns.opencode_model
+    }
+    push_event(socket, "save_model_selections", %{models: models})
   end
 
   # Build agent activity from sessions and progress events
@@ -986,7 +1017,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
           </button>
         </div>
         
-        <!-- Coding Agent Toggle + OpenCode Server Status -->
+        <!-- Coding Agent Toggle + Model Selectors + OpenCode Server Status -->
         <div class="flex items-center space-x-4">
           <!-- Coding Agent Selector -->
           <div class="flex items-center space-x-2">
@@ -1011,6 +1042,39 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <% end %>
             </button>
           </div>
+          
+          <!-- Model Selectors -->
+          <%= if @coding_agent_pref == :opencode do %>
+            <!-- OpenCode Model Selector -->
+            <div class="flex items-center space-x-2">
+              <span class="text-[9px] font-mono text-base-content/40 uppercase">Model:</span>
+              <div class="relative">
+                <select 
+                  phx-change="select_opencode_model"
+                  name="model"
+                  class="text-[10px] font-mono bg-blue-500/10 border border-blue-500/30 rounded px-2 py-1 text-blue-400 focus:outline-none focus:border-blue-500/50 hover:bg-blue-500/20 transition-colors"
+                >
+                  <option value="gemini-2.5-pro" selected={@opencode_model == "gemini-2.5-pro"}>gemini-2.5-pro</option>
+                  <option value="gemini-2.5-flash" selected={@opencode_model == "gemini-2.5-flash"}>gemini-2.5-flash</option>
+                </select>
+              </div>
+            </div>
+          <% else %>
+            <!-- Claude Model Selector -->
+            <div class="flex items-center space-x-2">
+              <span class="text-[9px] font-mono text-base-content/40 uppercase">Model:</span>
+              <div class="relative">
+                <select 
+                  phx-change="select_claude_model"
+                  name="model"
+                  class="text-[10px] font-mono bg-purple-500/10 border border-purple-500/30 rounded px-2 py-1 text-purple-400 focus:outline-none focus:border-purple-500/50 hover:bg-purple-500/20 transition-colors"
+                >
+                  <option value="anthropic/claude-opus-4-5" selected={@claude_model == "anthropic/claude-opus-4-5"}>opus</option>
+                  <option value="anthropic/claude-sonnet-4-20250514" selected={@claude_model == "anthropic/claude-sonnet-4-20250514"}>sonnet</option>
+                </select>
+              </div>
+            </div>
+          <% end %>
           
           <!-- OpenCode Server Status (shown when OpenCode mode is selected) -->
           <%= if @coding_agent_pref == :opencode do %>
@@ -1992,7 +2056,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <div class="flex items-center justify-between mb-3">
                 <div class="text-xs font-mono text-accent uppercase tracking-wider">Start Working</div>
                 <div class={"text-[10px] font-mono px-2 py-1 rounded " <> if(@coding_agent_pref == :opencode, do: "bg-blue-500/20 text-blue-400", else: "bg-purple-500/20 text-purple-400")}>
-                  Using: <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode", else: "🤖 Claude" %>
+                  Using: <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode (#{@opencode_model})", else: "🤖 Claude (#{@claude_model |> String.replace("anthropic/claude-", "") |> String.replace("-4-5", "") |> String.replace("-4-20250514", "")})" %>
                 </div>
               </div>
               
