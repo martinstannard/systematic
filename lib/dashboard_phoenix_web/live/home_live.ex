@@ -86,6 +86,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       claude_model: "anthropic/claude-sonnet-4-20250514",  # Default to sonnet
       opencode_model: "gemini-2.5-pro",  # Default to gemini pro
       # Panel collapse states
+      config_collapsed: false,
       linear_collapsed: false,
       opencode_collapsed: false,
       coding_agents_collapsed: false,
@@ -584,6 +585,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Push current panel state to JS for localStorage persistence
   defp push_panel_state(socket) do
     panels = %{
+      "config" => socket.assigns.config_collapsed,
       "linear" => socket.assigns.linear_collapsed,
       "opencode" => socket.assigns.opencode_collapsed,
       "coding_agents" => socket.assigns.coding_agents_collapsed,
@@ -1017,91 +1019,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
           </button>
         </div>
         
-        <!-- Coding Agent Toggle + Model Selectors + OpenCode Server Status -->
+        <!-- Status Info -->
         <div class="flex items-center space-x-4">
-          <!-- Coding Agent Selector -->
-          <div class="flex items-center space-x-2">
-            <span class="text-[10px] font-mono text-base-content/50 uppercase">Coding Agent:</span>
-            <button 
-              phx-click="toggle_coding_agent"
-              class={"flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all duration-200 " <> 
-                if(@coding_agent_pref == :opencode, 
-                  do: "bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30",
-                  else: "bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30"
-                )}
-              title="Click to toggle between OpenCode (Gemini) and Claude sub-agents"
-            >
-              <%= if @coding_agent_pref == :opencode do %>
-                <span class="text-lg">💻</span>
-                <span class="text-xs font-mono font-bold text-blue-400">OpenCode</span>
-                <span class="text-[9px] font-mono text-blue-400/60">(Gemini)</span>
-              <% else %>
-                <span class="text-lg">🤖</span>
-                <span class="text-xs font-mono font-bold text-purple-400">Claude</span>
-                <span class="text-[9px] font-mono text-purple-400/60">(Sub-agents)</span>
-              <% end %>
-            </button>
-          </div>
-          
-          <!-- Model Selectors -->
-          <%= if @coding_agent_pref == :opencode do %>
-            <!-- OpenCode Model Selector -->
-            <div class="flex items-center space-x-2">
-              <span class="text-[9px] font-mono text-base-content/40 uppercase">Model:</span>
-              <div class="relative">
-                <select 
-                  phx-change="select_opencode_model"
-                  name="model"
-                  class="text-[10px] font-mono bg-blue-500/10 border border-blue-500/30 rounded px-2 py-1 text-blue-400 focus:outline-none focus:border-blue-500/50 hover:bg-blue-500/20 transition-colors"
-                >
-                  <option value="gemini-2.5-pro" selected={@opencode_model == "gemini-2.5-pro"}>gemini-2.5-pro</option>
-                  <option value="gemini-2.5-flash" selected={@opencode_model == "gemini-2.5-flash"}>gemini-2.5-flash</option>
-                </select>
-              </div>
-            </div>
-          <% else %>
-            <!-- Claude Model Selector -->
-            <div class="flex items-center space-x-2">
-              <span class="text-[9px] font-mono text-base-content/40 uppercase">Model:</span>
-              <div class="relative">
-                <select 
-                  phx-change="select_claude_model"
-                  name="model"
-                  class="text-[10px] font-mono bg-purple-500/10 border border-purple-500/30 rounded px-2 py-1 text-purple-400 focus:outline-none focus:border-purple-500/50 hover:bg-purple-500/20 transition-colors"
-                >
-                  <option value="anthropic/claude-opus-4-5" selected={@claude_model == "anthropic/claude-opus-4-5"}>opus</option>
-                  <option value="anthropic/claude-sonnet-4-20250514" selected={@claude_model == "anthropic/claude-sonnet-4-20250514"}>sonnet</option>
-                </select>
-              </div>
-            </div>
-          <% end %>
-          
           <!-- OpenCode Server Status (shown when OpenCode mode is selected) -->
           <%= if @coding_agent_pref == :opencode do %>
-            <div class="flex items-center space-x-2 border-l border-white/20 pl-4">
+            <div class="flex items-center space-x-2">
               <span class="text-[10px] font-mono text-base-content/50 uppercase">ACP Server:</span>
               <%= if @opencode_server_status.running do %>
                 <div class="flex items-center space-x-2">
                   <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
                   <span class="text-[10px] font-mono text-success">Running</span>
                   <span class="text-[9px] font-mono text-base-content/40">:<%=@opencode_server_status.port %></span>
-                  <button 
-                    phx-click="stop_opencode_server"
-                    class="text-[10px] font-mono px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40"
-                  >
-                    Stop
-                  </button>
                 </div>
               <% else %>
                 <div class="flex items-center space-x-2">
                   <span class="w-2 h-2 rounded-full bg-base-content/30"></span>
                   <span class="text-[10px] font-mono text-base-content/50">Stopped</span>
-                  <button 
-                    phx-click="start_opencode_server"
-                    class="text-[10px] font-mono px-2 py-0.5 rounded bg-success/20 text-success hover:bg-success/40"
-                  >
-                    Start
-                  </button>
                 </div>
               <% end %>
             </div>
@@ -1189,6 +1122,140 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <div class="text-base-content/60 mb-1">Total Messages</div>
               <div class="text-2xl font-bold text-white">
                 <%= (@usage_stats.opencode[:messages] || 0) + (@usage_stats.claude[:messages] || 0) %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Config Panel -->
+      <div class="space-y-3">
+        <div 
+          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+          phx-click="toggle_panel"
+          phx-value-panel="config"
+        >
+          <div class="flex items-center space-x-3">
+            <span class={"text-xs transition-transform duration-200 " <> if(@config_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+            <span class="text-xs font-mono text-accent uppercase tracking-wider">⚙️ Config</span>
+          </div>
+        </div>
+        
+        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@config_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
+          <div class="glass-panel rounded-lg p-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              <!-- Coding Agent Selection -->
+              <div class="space-y-3">
+                <div class="text-xs font-mono text-accent uppercase tracking-wider">Coding Agent</div>
+                <div class="space-y-2">
+                  <button 
+                    phx-click="toggle_coding_agent"
+                    class={"flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 w-full text-left " <> 
+                      if(@coding_agent_pref == :opencode, 
+                        do: "bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30",
+                        else: "bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30"
+                      )}
+                    title="Click to toggle between OpenCode (Gemini) and Claude sub-agents"
+                  >
+                    <%= if @coding_agent_pref == :opencode do %>
+                      <span class="text-2xl">💻</span>
+                      <div class="flex-1">
+                        <div class="text-sm font-mono font-bold text-blue-400">OpenCode</div>
+                        <div class="text-xs text-blue-400/70">Gemini-powered coding agent</div>
+                      </div>
+                    <% else %>
+                      <span class="text-2xl">🤖</span>
+                      <div class="flex-1">
+                        <div class="text-sm font-mono font-bold text-purple-400">Claude</div>
+                        <div class="text-xs text-purple-400/70">Claude sub-agents</div>
+                      </div>
+                    <% end %>
+                  </button>
+                  
+                  <!-- OpenCode Server Controls -->
+                  <%= if @coding_agent_pref == :opencode do %>
+                    <div class="pl-4 space-y-2 border-l-2 border-blue-500/30">
+                      <div class="text-xs font-mono text-base-content/60">ACP Server Status</div>
+                      <%= if @opencode_server_status.running do %>
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+                            <span class="text-xs font-mono text-success">Running on port <%= @opencode_server_status.port %></span>
+                          </div>
+                          <button 
+                            phx-click="stop_opencode_server"
+                            class="text-xs font-mono px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40"
+                          >
+                            Stop
+                          </button>
+                        </div>
+                      <% else %>
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-base-content/30"></span>
+                            <span class="text-xs font-mono text-base-content/50">Stopped</span>
+                          </div>
+                          <button 
+                            phx-click="start_opencode_server"
+                            class="text-xs font-mono px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40"
+                          >
+                            Start
+                          </button>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+              
+              <!-- Model Selection -->
+              <div class="space-y-3">
+                <div class="text-xs font-mono text-accent uppercase tracking-wider">Model Selection</div>
+                
+                <!-- Claude Model Selector -->
+                <div class="space-y-2">
+                  <div class="text-xs font-mono text-purple-400 font-semibold">🤖 Claude Model</div>
+                  <select 
+                    phx-change="select_claude_model"
+                    name="model"
+                    class="w-full text-sm font-mono bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-400 focus:outline-none focus:border-purple-500/50 hover:bg-purple-500/20 transition-colors"
+                  >
+                    <option value="anthropic/claude-opus-4-5" selected={@claude_model == "anthropic/claude-opus-4-5"}>Claude Opus (opus)</option>
+                    <option value="anthropic/claude-sonnet-4-20250514" selected={@claude_model == "anthropic/claude-sonnet-4-20250514"}>Claude Sonnet (sonnet)</option>
+                  </select>
+                  <div class="text-xs text-base-content/50">Used when spawning Claude sub-agents</div>
+                </div>
+                
+                <!-- OpenCode Model Selector -->
+                <div class="space-y-2">
+                  <div class="text-xs font-mono text-blue-400 font-semibold">💻 OpenCode Model</div>
+                  <select 
+                    phx-change="select_opencode_model"
+                    name="model"
+                    class="w-full text-sm font-mono bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-blue-400 focus:outline-none focus:border-blue-500/50 hover:bg-blue-500/20 transition-colors"
+                  >
+                    <option value="gemini-2.5-pro" selected={@opencode_model == "gemini-2.5-pro"}>Gemini 2.5 Pro</option>
+                    <option value="gemini-2.5-flash" selected={@opencode_model == "gemini-2.5-flash"}>Gemini 2.5 Flash</option>
+                  </select>
+                  <div class="text-xs text-base-content/50">Used for OpenCode sessions <span class="text-base-content/40">(interface ready, not yet supported by ACP)</span></div>
+                </div>
+                
+                <!-- Current Selection Summary -->
+                <div class="pt-2 border-t border-white/10">
+                  <div class="text-xs text-base-content/60 mb-1">Active Configuration:</div>
+                  <div class="text-sm font-mono">
+                    <%= if @coding_agent_pref == :opencode do %>
+                      <span class="text-blue-400">💻 OpenCode</span>
+                      <span class="text-base-content/40"> with </span>
+                      <span class="text-blue-300"><%= @opencode_model %></span>
+                    <% else %>
+                      <span class="text-purple-400">🤖 Claude</span>
+                      <span class="text-base-content/40"> with </span>
+                      <span class="text-purple-300"><%= @claude_model |> String.replace("anthropic/claude-", "") |> String.replace("-4-5", "") |> String.replace("-4-20250514", "") %></span>
+                    <% end %>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2058,6 +2125,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 <div class={"text-[10px] font-mono px-2 py-1 rounded " <> if(@coding_agent_pref == :opencode, do: "bg-blue-500/20 text-blue-400", else: "bg-purple-500/20 text-purple-400")}>
                   Using: <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode (#{@opencode_model})", else: "🤖 Claude (#{@claude_model |> String.replace("anthropic/claude-", "") |> String.replace("-4-5", "") |> String.replace("-4-20250514", "")})" %>
                 </div>
+              </div>
+              
+              <div class="text-xs text-base-content/60 mb-4">
+                Configure coding agent and models in the ⚙️ Config panel above.
               </div>
               
               <%= if @coding_agent_pref == :opencode do %>
