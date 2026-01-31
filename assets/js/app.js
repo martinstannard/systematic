@@ -179,6 +179,48 @@ const Hooks = {
         }
       });
     }
+  },
+  LiveDuration: {
+    mounted() {
+      this.startTime = parseInt(this.el.dataset.startTime)
+      this.updateDuration()
+      this.interval = setInterval(() => this.updateDuration(), 1000)
+    },
+    updated() {
+      // Update start time if changed
+      const newStartTime = parseInt(this.el.dataset.startTime)
+      if (newStartTime !== this.startTime) {
+        this.startTime = newStartTime
+      }
+    },
+    destroyed() {
+      if (this.interval) {
+        clearInterval(this.interval)
+      }
+    },
+    updateDuration() {
+      if (!this.startTime || isNaN(this.startTime)) return
+      
+      const now = Date.now()
+      const elapsed = now - this.startTime
+      
+      if (elapsed < 0) return
+      
+      const seconds = Math.floor(elapsed / 1000)
+      const minutes = Math.floor(seconds / 60)
+      const hours = Math.floor(minutes / 60)
+      
+      let formatted
+      if (hours > 0) {
+        formatted = `${hours}h ${minutes % 60}m`
+      } else if (minutes > 0) {
+        formatted = `${minutes}m ${seconds % 60}s`
+      } else {
+        formatted = `${seconds}s`
+      }
+      
+      this.el.textContent = formatted
+    }
   }
 }
 

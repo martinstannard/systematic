@@ -88,9 +88,11 @@ export const RelationshipGraph = {
     
     // Position based on type in different arcs
     const typeOffsets = {
-      'subagent': { startAngle: -2.4, endAngle: -0.7, radius: 110 },
-      'coding_agent': { startAngle: -0.5, endAngle: 0.5, radius: 120 },
-      'system': { startAngle: 0.7, endAngle: 2.4, radius: 100 }
+      'subagent': { startAngle: -2.4, endAngle: -1.2, radius: 110 },     // Upper left arc (Claude sub-agents)
+      'opencode': { startAngle: -1.1, endAngle: 0.0, radius: 115 },      // Upper right arc (OpenCode sessions)
+      'gemini': { startAngle: 0.1, endAngle: 0.5, radius: 120 },         // Right side (Gemini)
+      'coding_agent': { startAngle: 0.6, endAngle: 1.2, radius: 120 },   // Lower right (legacy coding agents)
+      'system': { startAngle: 1.3, endAngle: 2.4, radius: 100 }          // Lower arc (system processes)
     };
     
     const config = typeOffsets[node.type] || { startAngle: 0, endAngle: Math.PI * 2, radius: 100 };
@@ -123,15 +125,17 @@ export const RelationshipGraph = {
 
     // Group nodes by type
     const subagents = nodes.filter(n => n.type === 'subagent');
+    const opencodeSessions = nodes.filter(n => n.type === 'opencode');
+    const geminiAgents = nodes.filter(n => n.type === 'gemini');
     const codingAgents = nodes.filter(n => n.type === 'coding_agent');
     const systemProcs = nodes.filter(n => n.type === 'system');
 
-    // Position sub-agents in upper arc (only if not already positioned away from center)
+    // Position sub-agents (Claude) in upper left arc
     subagents.forEach((node, i) => {
       const distFromCenter = Math.sqrt(Math.pow(node.x - centerX, 2) + Math.pow(node.y - centerY, 2));
       if (distFromCenter < 50) {  // Too close to center, reposition
-        const startAngle = -Math.PI * 0.8;
-        const endAngle = -Math.PI * 0.2;
+        const startAngle = -Math.PI * 0.85;
+        const endAngle = -Math.PI * 0.4;
         const angle = subagents.length === 1 
           ? (startAngle + endAngle) / 2
           : startAngle + (endAngle - startAngle) * (i / Math.max(subagents.length - 1, 1));
@@ -140,14 +144,42 @@ export const RelationshipGraph = {
       }
     });
 
-    // Position coding agents on the right
+    // Position OpenCode sessions in upper right arc
+    opencodeSessions.forEach((node, i) => {
+      const distFromCenter = Math.sqrt(Math.pow(node.x - centerX, 2) + Math.pow(node.y - centerY, 2));
+      if (distFromCenter < 50) {
+        const startAngle = -Math.PI * 0.35;
+        const endAngle = Math.PI * 0.0;
+        const angle = opencodeSessions.length === 1
+          ? (startAngle + endAngle) / 2
+          : startAngle + (endAngle - startAngle) * (i / Math.max(opencodeSessions.length - 1, 1));
+        node.x = centerX + 115 * Math.cos(angle);
+        node.y = centerY + 115 * Math.sin(angle);
+      }
+    });
+
+    // Position Gemini agents on the right
+    geminiAgents.forEach((node, i) => {
+      const distFromCenter = Math.sqrt(Math.pow(node.x - centerX, 2) + Math.pow(node.y - centerY, 2));
+      if (distFromCenter < 50) {
+        const startAngle = Math.PI * 0.05;
+        const endAngle = Math.PI * 0.2;
+        const angle = geminiAgents.length === 1
+          ? (startAngle + endAngle) / 2
+          : startAngle + (endAngle - startAngle) * (i / Math.max(geminiAgents.length - 1, 1));
+        node.x = centerX + 120 * Math.cos(angle);
+        node.y = centerY + 120 * Math.sin(angle);
+      }
+    });
+
+    // Position coding agents (legacy) on lower right
     codingAgents.forEach((node, i) => {
       const distFromCenter = Math.sqrt(Math.pow(node.x - centerX, 2) + Math.pow(node.y - centerY, 2));
       if (distFromCenter < 50) {
-        const startAngle = -Math.PI * 0.2;
-        const endAngle = Math.PI * 0.2;
+        const startAngle = Math.PI * 0.25;
+        const endAngle = Math.PI * 0.45;
         const angle = codingAgents.length === 1
-          ? 0
+          ? (startAngle + endAngle) / 2
           : startAngle + (endAngle - startAngle) * (i / Math.max(codingAgents.length - 1, 1));
         node.x = centerX + 120 * Math.cos(angle);
         node.y = centerY + 120 * Math.sin(angle);
@@ -158,8 +190,8 @@ export const RelationshipGraph = {
     systemProcs.forEach((node, i) => {
       const distFromCenter = Math.sqrt(Math.pow(node.x - centerX, 2) + Math.pow(node.y - centerY, 2));
       if (distFromCenter < 50) {
-        const startAngle = Math.PI * 0.2;
-        const endAngle = Math.PI * 0.8;
+        const startAngle = Math.PI * 0.5;
+        const endAngle = Math.PI * 0.85;
         const angle = systemProcs.length === 1
           ? (startAngle + endAngle) / 2
           : startAngle + (endAngle - startAngle) * (i / Math.max(systemProcs.length - 1, 1));
@@ -230,6 +262,8 @@ export const RelationshipGraph = {
       const dist = Math.sqrt(dx*dx + dy*dy) || 1;
       
       const idealRadius = node.type === 'subagent' ? 110 : 
+                          node.type === 'opencode' ? 115 :
+                          node.type === 'gemini' ? 120 :
                           node.type === 'coding_agent' ? 120 : 100;
       
       const radiusForce = (dist - idealRadius) * 0.02;
@@ -323,6 +357,8 @@ export const RelationshipGraph = {
     const colors = {
       'main': '#238636',
       'subagent': '#9333ea',
+      'opencode': '#3b82f6',     // Blue for OpenCode (Gemini-based)
+      'gemini': '#22c55e',       // Green for Gemini CLI
       'coding_agent': '#f97316',
       'system': '#6b7280'
     };
@@ -333,6 +369,8 @@ export const RelationshipGraph = {
     const colors = {
       'main': '#3fb950',
       'subagent': '#a855f7',
+      'opencode': '#60a5fa',     // Light blue stroke
+      'gemini': '#4ade80',       // Light green stroke
       'coding_agent': '#fb923c',
       'system': '#9ca3af'
     };
@@ -343,6 +381,8 @@ export const RelationshipGraph = {
     const sizes = {
       'main': 24,
       'subagent': 18,
+      'opencode': 18,
+      'gemini': 18,
       'coding_agent': 18,
       'system': 14
     };
@@ -353,6 +393,8 @@ export const RelationshipGraph = {
     const icons = {
       'main': '🦞',
       'subagent': '🤖',
+      'opencode': '💻',           // Laptop for OpenCode
+      'gemini': '✨',             // Sparkles for Gemini
       'coding_agent': '💻',
       'system': '⚙️'
     };

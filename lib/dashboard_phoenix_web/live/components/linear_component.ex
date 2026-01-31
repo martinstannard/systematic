@@ -36,18 +36,6 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
   end
 
   # Helper functions
-  defp format_linear_time(nil), do: ""
-  defp format_linear_time(%DateTime{} = dt) do
-    now = DateTime.utc_now()
-    diff = DateTime.diff(now, dt, :second)
-    cond do
-      diff < 60 -> "#{diff}s ago"
-      diff < 3600 -> "#{div(diff, 60)}m ago"
-      diff < 86400 -> "#{div(diff, 3600)}h ago"
-      true -> Calendar.strftime(dt, "%H:%M")
-    end
-  end
-  defp format_linear_time(_), do: ""
 
   defp linear_status_badge("Triage"), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
   defp linear_status_badge("Todo"), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px]"
@@ -93,7 +81,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
           <!-- Status Filter -->
           <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
             <%= for status <- ["Triage", "Backlog", "Todo", "In Review"] do %>
-              <% count = Enum.count(@linear_tickets, & &1.status == status) %>
+              <% count = Map.get(@linear_counts, status, 0) %>
               <button
                 phx-click="set_linear_filter"
                 phx-value-status={status}
@@ -141,13 +129,6 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
               <% end %>
             <% end %>
           </div>
-          
-          <!-- Last Updated -->
-          <%= if @linear_last_updated do %>
-            <div class="text-[9px] text-base-content/30 mt-2 text-right font-mono">
-              Updated <%= format_linear_time(@linear_last_updated) %>
-            </div>
-          <% end %>
         </div>
       </div>
     </div>
