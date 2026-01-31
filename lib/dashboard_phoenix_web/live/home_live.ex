@@ -4,6 +4,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.LinearComponent
   alias DashboardPhoenixWeb.Live.Components.ChainlinkComponent
   alias DashboardPhoenixWeb.Live.Components.PRsComponent
+  alias DashboardPhoenixWeb.Live.Components.BranchesComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -439,6 +440,51 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  # BranchesComponent handlers
+  def handle_info({:branches_component, :toggle_panel}, socket) do
+    socket = assign(socket, branches_collapsed: !socket.assigns.branches_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:branches_component, :refresh}, socket) do
+    BranchMonitor.refresh()
+    {:noreply, socket}
+  end
+
+  def handle_info({:branches_component, :confirm_merge, branch_name}, socket) do
+    {:noreply, assign(socket, branch_merge_pending: branch_name)}
+  end
+
+  def handle_info({:branches_component, :cancel_merge}, socket) do
+    {:noreply, assign(socket, branch_merge_pending: nil)}
+  end
+
+  def handle_info({:branches_component, :execute_merge, branch_name}, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      result = BranchMonitor.merge_branch(branch_name)
+      send(parent, {:branch_merge_result, branch_name, result})
+    end)
+    {:noreply, assign(socket, branch_merge_pending: nil)}
+  end
+
+  def handle_info({:branches_component, :confirm_delete, branch_name}, socket) do
+    {:noreply, assign(socket, branch_delete_pending: branch_name)}
+  end
+
+  def handle_info({:branches_component, :cancel_delete}, socket) do
+    {:noreply, assign(socket, branch_delete_pending: nil)}
+  end
+
+  def handle_info({:branches_component, :execute_delete, branch_name}, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      result = BranchMonitor.delete_branch(branch_name)
+      send(parent, {:branch_delete_result, branch_name, result})
+    end)
+    {:noreply, assign(socket, branch_delete_pending: nil)}
+  end
+
   # Handle async Linear ticket loading (initial mount)
   def handle_info(:load_linear_tickets, socket) do
     # Fetch in a supervised Task to avoid blocking and catch crashes
@@ -787,19 +833,27 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
+  # NOTE: refresh_branches now handled via BranchesComponent -> handle_info({:branches_component, :refresh}, ...)
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("refresh_branches", _, socket) do
     BranchMonitor.refresh()
     {:noreply, socket}
   end
 
+  # NOTE: confirm_merge_branch now handled via BranchesComponent -> handle_info({:branches_component, :confirm_merge, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("confirm_merge_branch", %{"name" => branch_name}, socket) do
     {:noreply, assign(socket, branch_merge_pending: branch_name)}
   end
 
+  # NOTE: cancel_merge_branch now handled via BranchesComponent -> handle_info({:branches_component, :cancel_merge}, ...)
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("cancel_merge_branch", _, socket) do
     {:noreply, assign(socket, branch_merge_pending: nil)}
   end
 
+  # NOTE: execute_merge_branch now handled via BranchesComponent -> handle_info({:branches_component, :execute_merge, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("execute_merge_branch", %{"name" => branch_name}, socket) do
     parent = self()
     Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
@@ -809,14 +863,20 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, branch_merge_pending: nil)}
   end
 
+  # NOTE: confirm_delete_branch now handled via BranchesComponent -> handle_info({:branches_component, :confirm_delete, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("confirm_delete_branch", %{"name" => branch_name}, socket) do
     {:noreply, assign(socket, branch_delete_pending: branch_name)}
   end
 
+  # NOTE: cancel_delete_branch now handled via BranchesComponent -> handle_info({:branches_component, :cancel_delete}, ...)
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("cancel_delete_branch", _, socket) do
     {:noreply, assign(socket, branch_delete_pending: nil)}
   end
 
+  # NOTE: execute_delete_branch now handled via BranchesComponent -> handle_info({:branches_component, :execute_delete, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("execute_delete_branch", %{"name" => branch_name}, socket) do
     parent = self()
     Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
