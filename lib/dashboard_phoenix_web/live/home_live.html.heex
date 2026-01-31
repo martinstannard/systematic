@@ -144,10 +144,12 @@
                 <% end %>
                 <%= for pr <- @github_prs do %>
                   <% pr_work_info = Map.get(@prs_in_progress, pr.number) %>
+                  <% status_bg = pr_status_bg(pr) %>
+                  <% verification = Map.get(@pr_verifications, pr.url) %>
                   <div class={"px-2 py-2 rounded text-xs font-mono " <> 
                     if(pr_work_info, 
                       do: "bg-accent/10 border-2 border-accent/50 animate-pulse-subtle",
-                      else: "hover:bg-white/5 border border-white/5")}>
+                      else: "hover:bg-white/5 border border-white/5 #{status_bg}")}>
                     <!-- PR Title and Number -->
                     <div class="flex items-start justify-between mb-1">
                       <div class="flex-1 min-w-0">
@@ -197,6 +199,9 @@
                       
                       <!-- Fix Button (for CI failures or conflicts) -->
                       <%= if pr.ci_status == :failure or pr.has_conflicts do %>
+                        <% is_fix_pending = @pr_fix_pending == pr.number %>
+                        <% is_work_in_progress = pr_work_info != nil %>
+                        <% is_disabled = is_fix_pending or is_work_in_progress %>
                         <button
                           phx-click="fix_pr_issues"
                           phx-value-url={pr.url}
@@ -205,10 +210,59 @@
                           phx-value-branch={pr.branch}
                           phx-value-has-conflicts={pr.has_conflicts}
                           phx-value-ci-failing={pr.ci_status == :failure}
-                          class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 text-[10px]"
-                          title="Send to coding agent to fix issues"
+                          disabled={is_disabled}
+                          class={[
+                            "min-h-[32px] min-w-[44px] px-2 py-1 rounded text-[10px] font-medium",
+                            "transition-all duration-150 select-none touch-manipulation",
+                            if(is_fix_pending,
+                              do: "bg-warning/30 text-warning animate-pulse cursor-wait",
+                              else: if(is_work_in_progress,
+                                do: "bg-base-content/10 text-base-content/40 cursor-not-allowed",
+                                else: "bg-red-500/20 text-red-400 hover:bg-red-500/40 active:bg-red-500/60 active:scale-95"
+                              )
+                            ),
+                            "phx-click-loading:bg-warning/30 phx-click-loading:text-warning phx-click-loading:animate-pulse"
+                          ]}
+                          title={if is_work_in_progress, do: "Agent already working on this PR", else: "Send to coding agent to fix issues"}
                         >
-                          🔧 Fix
+                          <%= cond do %>
+                            <% is_fix_pending -> %>
+                              <span class="inline-flex items-center gap-1">
+                                <span class="throbber-small"></span>
+                                <span>Working...</span>
+                              </span>
+                            <% is_work_in_progress -> %>
+                              🤖 Working
+                            <% true -> %>
+                              🔧 Fix
+                          <% end %>
+                        </button>
+                      <% end %>
+                      
+                      <!-- Verification Status Badge -->
+                      <%= if verification do %>
+                        <span 
+                          class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px] inline-flex items-center gap-1"
+                          title={"Verified by #{verification["verified_by"]} at #{verification["verified_at"]}"}
+                        >
+                          ✓ Verified
+                          <button
+                            phx-click="clear_pr_verification"
+                            phx-value-url={pr.url}
+                            class="ml-0.5 text-green-400/60 hover:text-red-400"
+                            title="Clear verification"
+                          >✗</button>
+                        </span>
+                      <% else %>
+                        <button
+                          phx-click="verify_pr"
+                          phx-value-url={pr.url}
+                          phx-value-number={pr.number}
+                          phx-value-repo={pr.repo}
+                          class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/40 hover:bg-green-500/20 hover:text-green-400 text-[10px]"
+                          title="Mark as verified"
+                        >
+                          ○ Verify
                         </button>
                       <% end %>
                       

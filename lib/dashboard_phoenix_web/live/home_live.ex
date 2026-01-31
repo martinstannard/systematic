@@ -12,6 +12,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.LinearMonitor
   alias DashboardPhoenix.ChainlinkMonitor
   alias DashboardPhoenix.PRMonitor
+  alias DashboardPhoenix.PRVerification
   alias DashboardPhoenix.BranchMonitor
   alias DashboardPhoenix.AgentPreferences
   alias DashboardPhoenix.OpenCodeServer
@@ -28,6 +29,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       LinearMonitor.subscribe()
       ChainlinkMonitor.subscribe()
       PRMonitor.subscribe()
+      PRVerification.subscribe()
       BranchMonitor.subscribe()
       OpenCodeServer.subscribe()
       GeminiServer.subscribe()
@@ -118,6 +120,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # Branch action states
       branch_merge_pending: nil,
       branch_delete_pending: nil,
+      # PR fix action state (tracks which PR number is being fixed)
+      pr_fix_pending: nil,
+      # PR verifications (loaded from PRVerification)
+      pr_verifications: PRVerification.get_all_verifications(),
       # Work modal state
       show_work_modal: false,
       work_ticket_id: nil,
@@ -382,6 +388,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
       github_prs_error: data.error,
       github_prs_loading: false
     )}
+  end
+
+  # Handle PR verification updates (from PubSub)
+  def handle_info({:pr_verification_update, verifications}, socket) do
+    {:noreply, assign(socket, pr_verifications: verifications)}
   end
 
   # Handle async GitHub PR loading (initial mount)
@@ -1000,8 +1011,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Fix PR issues (CI failures and/or merge conflicts)
   def handle_event("fix_pr_issues", params, socket) do
     %{"url" => pr_url, "number" => pr_number, "repo" => repo, "branch" => branch} = params
+    pr_number_int = String.to_integer(pr_number)
     has_conflicts = params["has-conflicts"] == "true"
     ci_failing = params["ci-failing"] == "true"
+    
+    # Set pending state immediately for instant UI feedback
+    socket = assign(socket, pr_fix_pending: pr_number_int)
     
     issues = []
     issues = if ci_failing, do: ["CI failures" | issues], else: issues
@@ -1036,14 +1051,39 @@ defmodule DashboardPhoenixWeb.HomeLive do
       post_mode: "summary"
     ) do
       {:ok, %{job_id: job_id}} ->
-        {:noreply, put_flash(socket, :info, "Fix sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")}
+        socket = socket
+        |> assign(pr_fix_pending: nil)
+        |> put_flash(:info, "Fix sub-agent spawned for PR ##{pr_number} (job: #{String.slice(job_id, 0, 8)}...)")
+        {:noreply, socket}
       
       {:ok, _} ->
-        {:noreply, put_flash(socket, :info, "Fix sub-agent spawned for PR ##{pr_number}")}
+        socket = socket
+        |> assign(pr_fix_pending: nil)
+        |> put_flash(:info, "Fix sub-agent spawned for PR ##{pr_number}")
+        {:noreply, socket}
       
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to spawn fix agent: #{inspect(reason)}")}
+        socket = socket
+        |> assign(pr_fix_pending: nil)
+        |> put_flash(:error, "Failed to spawn fix agent: #{inspect(reason)}")
+        {:noreply, socket}
     end
+  end
+
+  # Mark a PR as verified
+  def handle_event("verify_pr", %{"url" => pr_url, "number" => pr_number, "repo" => repo}, socket) do
+    PRVerification.mark_verified(pr_url, "manual",
+      pr_number: String.to_integer(pr_number),
+      repo: repo,
+      status: "clean"
+    )
+    {:noreply, put_flash(socket, :info, "PR ##{pr_number} marked as verified")}
+  end
+
+  # Clear PR verification status
+  def handle_event("clear_pr_verification", %{"url" => pr_url}, socket) do
+    PRVerification.clear_verification(pr_url)
+    {:noreply, socket}
   end
 
   # Clear PR state for a ticket (e.g., when PR is merged)
@@ -1792,6 +1832,27 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp pr_review_text(:commented), do: "Comments"
   defp pr_review_text(:pending), do: "Pending"
   defp pr_review_text(_), do: "—"
+
+  # PR row background color based on overall status
+  # Green: approved + CI passing = ready to merge
+  # Red: CI failing or changes requested
+  # Yellow: pending review, has conflicts, or draft
+  # Default: open PR without specific status
+  defp pr_status_bg(pr) do
+    cond do
+      # Red: CI failing or changes requested
+      pr.ci_status == :failure -> "bg-red-500/10"
+      pr.review_status == :changes_requested -> "bg-red-500/10"
+      # Green: approved AND CI passing = ready to merge
+      pr.review_status == :approved and pr.ci_status == :success -> "bg-green-500/10"
+      # Yellow: has conflicts
+      pr.has_conflicts -> "bg-yellow-500/10"
+      # Yellow: CI pending (still running)
+      pr.ci_status == :pending -> "bg-yellow-500/10"
+      # Default: no special background
+      true -> ""
+    end
+  end
 
   # Format PR creation time
   defp format_pr_time(nil), do: ""
