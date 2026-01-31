@@ -1683,6 +1683,27 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp pr_review_text(:pending), do: "Pending"
   defp pr_review_text(_), do: "—"
 
+  # PR row background color based on overall status
+  # Green: approved + CI passing = ready to merge
+  # Red: CI failing or changes requested
+  # Yellow: pending review, has conflicts, or draft
+  # Default: open PR without specific status
+  defp pr_status_bg(pr) do
+    cond do
+      # Red: CI failing or changes requested
+      pr.ci_status == :failure -> "bg-red-500/10"
+      pr.review_status == :changes_requested -> "bg-red-500/10"
+      # Green: approved AND CI passing = ready to merge
+      pr.review_status == :approved and pr.ci_status == :success -> "bg-green-500/10"
+      # Yellow: has conflicts
+      pr.has_conflicts -> "bg-yellow-500/10"
+      # Yellow: CI pending (still running)
+      pr.ci_status == :pending -> "bg-yellow-500/10"
+      # Default: no special background
+      true -> ""
+    end
+  end
+
   # Format PR creation time
   defp format_pr_time(nil), do: ""
   defp format_pr_time(%DateTime{} = dt) do
@@ -1875,10 +1896,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
                     <% end %>
                     <%= for pr <- @github_prs do %>
                       <% pr_work_info = Map.get(@prs_in_progress, pr.number) %>
+                      <% status_bg = pr_status_bg(pr) %>
                       <div class={"px-2 py-2 rounded text-xs font-mono " <> 
                         if(pr_work_info, 
                           do: "bg-accent/10 border-2 border-accent/50 animate-pulse-subtle",
-                          else: "hover:bg-white/5 border border-white/5")}>
+                          else: "hover:bg-white/5 border border-white/5 #{status_bg}")}>
                         <!-- PR Title and Number -->
                         <div class="flex items-start justify-between mb-1">
                           <div class="flex-1 min-w-0">
