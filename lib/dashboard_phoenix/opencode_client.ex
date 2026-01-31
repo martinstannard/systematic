@@ -26,17 +26,23 @@ defmodule DashboardPhoenix.OpenCodeClient do
   
   Options:
   - :cwd - working directory for the task (default: core-platform)
+  - :model - model to request from OpenCode (currently not used, OpenCode uses its own model config)
   - :timeout - request timeout in ms
   """
   def send_task(prompt, opts \\ []) do
     cwd = Keyword.get(opts, :cwd, "/home/martins/work/core-platform")
+    model = Keyword.get(opts, :model, nil)
     timeout = Keyword.get(opts, :timeout, @default_timeout)
+    
+    Logger.info("[OpenCodeClient] Sending task with model: #{model || "default"}")
     
     # Ensure server is running
     case ensure_server_running(cwd) do
       {:ok, port} ->
         base_url = "http://127.0.0.1:#{port}"
         
+        # Note: OpenCode model selection is not currently supported via API
+        # The model parameter is accepted for interface consistency but not used
         with {:ok, session} <- create_session(base_url, timeout),
              {:ok, _} <- send_message(base_url, session["id"], prompt, timeout) do
           {:ok, %{session_id: session["id"], slug: session["slug"], port: port}}

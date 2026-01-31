@@ -16,13 +16,15 @@ defmodule DashboardPhoenix.OpenClawClient do
   Options:
   - :ticket_id - Linear ticket ID (e.g., "COR-123")
   - :details - Ticket description/details
+  - :model - Model to use for the sub-agent (e.g., "anthropic/claude-opus-4-5")
   - :timeout - Command timeout in ms (default: 30s)
   """
   def work_on_ticket(ticket_id, details, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
+    model = Keyword.get(opts, :model, nil)
     
     # Build the message for the agent
-    message = build_work_message(ticket_id, details)
+    message = build_work_message(ticket_id, details, model)
     
     # Run openclaw agent command
     args = [
@@ -32,7 +34,7 @@ defmodule DashboardPhoenix.OpenClawClient do
       "--channel", "webchat"
     ]
     
-    Logger.info("[OpenClawClient] Sending work request for #{ticket_id}")
+    Logger.info("[OpenClawClient] Sending work request for #{ticket_id} with model: #{model || "default"}")
     
     case System.cmd("openclaw", args, stderr_to_stdout: true, timeout: timeout) do
       {output, 0} ->
@@ -80,12 +82,17 @@ defmodule DashboardPhoenix.OpenClawClient do
   end
 
   # Build the work message that tells the agent to spawn a coding sub-agent
-  defp build_work_message(ticket_id, details) do
+  defp build_work_message(ticket_id, details, model \\ nil) do
+    model_instruction = if model do
+      "\n**Model:** Use #{model} for the sub-agent when spawning.\n"
+    else
+      ""
+    end
+
     """
     🎫 **Work Request from Systematic Dashboard**
     
-    Please spawn a coding sub-agent to work on this ticket:
-    
+    Please spawn a coding sub-agent to work on this ticket:#{model_instruction}
     **Ticket:** #{ticket_id}
     
     **Details:**
