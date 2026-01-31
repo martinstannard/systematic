@@ -3,8 +3,9 @@ defmodule DashboardPhoenix.AgentPreferences do
   GenServer for managing coding agent preferences.
   
   Stores user preference for which coding agent to use:
-  - :opencode (Gemini) - default for coding tasks
+  - :opencode - OpenCode (Gemini-powered) for coding tasks
   - :claude - Claude sub-agents for when Claude is preferred
+  - :gemini - Gemini CLI for direct Gemini interaction
   
   Persists preferences to a JSON file for durability across restarts.
   """
@@ -15,9 +16,12 @@ defmodule DashboardPhoenix.AgentPreferences do
   @pubsub DashboardPhoenix.PubSub
   @topic "agent_preferences"
 
+  # Valid coding agents
+  @valid_agents ["opencode", "claude", "gemini"]
+
   # Default preferences
   @default_prefs %{
-    coding_agent: "opencode",  # "opencode" or "claude"
+    coding_agent: "opencode",  # "opencode", "claude", or "gemini"
     updated_at: nil
   }
 
@@ -36,7 +40,7 @@ defmodule DashboardPhoenix.AgentPreferences do
 
   @doc """
   Get current coding agent preference.
-  Returns :opencode or :claude
+  Returns :opencode, :claude, or :gemini
   """
   def get_coding_agent do
     prefs = get_preferences()
@@ -45,20 +49,29 @@ defmodule DashboardPhoenix.AgentPreferences do
 
   @doc """
   Set coding agent preference.
-  agent should be "opencode" or "claude"
+  agent should be "opencode", "claude", or "gemini"
   """
-  def set_coding_agent(agent) when agent in ["opencode", "claude"] do
+  def set_coding_agent(agent) when agent in @valid_agents do
     GenServer.call(__MODULE__, {:set_coding_agent, agent})
   end
 
   @doc """
-  Toggle between OpenCode and Claude.
+  Cycle through coding agents: opencode -> claude -> gemini -> opencode
   """
   def toggle_coding_agent do
     current = get_coding_agent()
-    new_agent = if current == :opencode, do: "claude", else: "opencode"
+    new_agent = case current do
+      :opencode -> "claude"
+      :claude -> "gemini"
+      :gemini -> "opencode"
+    end
     set_coding_agent(new_agent)
   end
+
+  @doc """
+  Get list of valid coding agents.
+  """
+  def valid_agents, do: @valid_agents
 
   @doc """
   Subscribe to preference changes.

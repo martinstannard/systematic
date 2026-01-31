@@ -162,22 +162,25 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
   describe "AgentPreferences integration" do
     test "get_coding_agent/0 returns valid agent type" do
       agent = AgentPreferences.get_coding_agent()
-      assert agent in [:opencode, :claude]
+      assert agent in [:opencode, :claude, :gemini]
     end
 
-    test "toggle_coding_agent/0 switches between opencode and claude" do
-      initial = AgentPreferences.get_coding_agent()
+    test "toggle_coding_agent/0 cycles through opencode, claude, and gemini" do
+      # Set to known starting point
+      AgentPreferences.set_coding_agent("opencode")
+      assert AgentPreferences.get_coding_agent() == :opencode
       
-      # Toggle once
+      # Toggle: opencode -> claude
       AgentPreferences.toggle_coding_agent()
-      after_toggle = AgentPreferences.get_coding_agent()
-      assert after_toggle != initial
-      assert after_toggle in [:opencode, :claude]
+      assert AgentPreferences.get_coding_agent() == :claude
       
-      # Toggle back
+      # Toggle: claude -> gemini
       AgentPreferences.toggle_coding_agent()
-      after_second_toggle = AgentPreferences.get_coding_agent()
-      assert after_second_toggle == initial
+      assert AgentPreferences.get_coding_agent() == :gemini
+      
+      # Toggle: gemini -> opencode (full cycle)
+      AgentPreferences.toggle_coding_agent()
+      assert AgentPreferences.get_coding_agent() == :opencode
     end
 
     test "set_coding_agent/1 accepts valid agent types" do

@@ -12,6 +12,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.AgentPreferences
   alias DashboardPhoenix.OpenCodeServer
   alias DashboardPhoenix.OpenCodeClient
+  alias DashboardPhoenix.GeminiServer
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -23,6 +24,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       LinearMonitor.subscribe()
       PRMonitor.subscribe()
       OpenCodeServer.subscribe()
+      GeminiServer.subscribe()
       Process.send_after(self(), :update_processes, 100)
       :timer.send_interval(2_000, :update_processes)
       :timer.send_interval(5_000, :refresh_opencode_sessions)
@@ -42,6 +44,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     coding_agent_pref = AgentPreferences.get_coding_agent()
     opencode_status = OpenCodeServer.status()
     opencode_sessions = fetch_opencode_sessions(opencode_status)
+    gemini_status = GeminiServer.status()
     
     # Build map of ticket_id -> work session info
     tickets_in_progress = build_tickets_in_progress(opencode_sessions, sessions)
@@ -92,6 +95,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # OpenCode server state
       opencode_server_status: opencode_status,
       opencode_sessions: opencode_sessions,
+      # Gemini server state
+      gemini_server_status: gemini_status,
+      gemini_output: "",
       # Work in progress
       work_in_progress: false,
       work_sent: false,
@@ -104,6 +110,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_collapsed: false,
       prs_collapsed: false,
       opencode_collapsed: false,
+      gemini_collapsed: false,
       coding_agents_collapsed: false,
       subagents_collapsed: false,
       live_progress_collapsed: false,
@@ -230,6 +237,23 @@ defmodule DashboardPhoenixWeb.HomeLive do
     sessions = fetch_opencode_sessions(status)
     tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
     {:noreply, assign(socket, opencode_server_status: status, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)}
+  end
+
+  # Handle Gemini server status updates
+  def handle_info({:gemini_status, status}, socket) do
+    {:noreply, assign(socket, gemini_server_status: status)}
+  end
+
+  # Handle Gemini output updates
+  def handle_info({:gemini_output, output}, socket) do
+    # Append new output, keeping last 5000 chars
+    new_output = socket.assigns.gemini_output <> output
+    new_output = if String.length(new_output) > 5000 do
+      String.slice(new_output, -5000..-1)
+    else
+      new_output
+    end
+    {:noreply, assign(socket, gemini_output: new_output)}
   end
 
   # Handle periodic OpenCode sessions refresh
@@ -438,6 +462,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, coding_agent_pref: new_pref)}
   end
 
+  def handle_event("set_coding_agent", %{"agent" => agent}, socket) do
+    AgentPreferences.set_coding_agent(agent)
+    new_pref = AgentPreferences.get_coding_agent()
+    {:noreply, assign(socket, coding_agent_pref: new_pref)}
+  end
+
   def handle_event("select_claude_model", %{"model" => model}, socket) do
     socket = assign(socket, claude_model: model)
     {:noreply, push_model_selections(socket)}
@@ -481,6 +511,43 @@ defmodule DashboardPhoenixWeb.HomeLive do
     sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
     tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
     {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)}
+  end
+
+  # Gemini server controls
+  def handle_event("start_gemini_server", _, socket) do
+    case GeminiServer.start_server() do
+      {:ok, _pid} ->
+        socket = socket
+        |> assign(gemini_server_status: GeminiServer.status())
+        |> put_flash(:info, "Gemini CLI started")
+        {:noreply, socket}
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Failed to start Gemini: #{inspect(reason)}")
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("stop_gemini_server", _, socket) do
+    GeminiServer.stop_server()
+    socket = socket
+    |> assign(gemini_server_status: GeminiServer.status(), gemini_output: "")
+    |> put_flash(:info, "Gemini CLI stopped")
+    {:noreply, socket}
+  end
+
+  def handle_event("send_gemini_prompt", %{"prompt" => prompt}, socket) when prompt != "" do
+    case GeminiServer.send_prompt(prompt) do
+      :ok ->
+        {:noreply, put_flash(socket, :info, "Prompt sent to Gemini")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to send: #{inspect(reason)}")}
+    end
+  end
+
+  def handle_event("send_gemini_prompt", _, socket), do: {:noreply, socket}
+
+  def handle_event("clear_gemini_output", _, socket) do
+    {:noreply, assign(socket, gemini_output: "")}
   end
 
   def handle_event("close_opencode_session", %{"id" => session_id}, socket) do
@@ -755,19 +822,19 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Actually execute the work when no duplicate exists
   defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model) do
+    # Build the prompt from ticket details
+    prompt = """
+    Work on ticket #{ticket_id}.
+    
+    Ticket details:
+    #{ticket_details || "No details available - use the ticket ID to look it up."}
+    
+    Please analyze this ticket and implement the required changes.
+    """
+
     cond do
       # If OpenCode mode is selected
       coding_pref == :opencode ->
-        # Build the prompt from ticket details
-        prompt = """
-        Work on ticket #{ticket_id}.
-        
-        Ticket details:
-        #{ticket_details || "No details available - use the ticket ID to look it up."}
-        
-        Please analyze this ticket and implement the required changes.
-        """
-        
         # Start work in background, passing selected model
         parent = self()
         Task.start(fn ->
@@ -779,6 +846,45 @@ defmodule DashboardPhoenixWeb.HomeLive do
         |> assign(work_in_progress: true, work_error: nil)
         |> put_flash(:info, "Starting work with OpenCode (#{opencode_model})...")
         {:noreply, socket}
+      
+      # Gemini mode - send prompt to running Gemini CLI
+      coding_pref == :gemini ->
+        # Ensure Gemini server is running
+        if GeminiServer.running?() do
+          case GeminiServer.send_prompt(prompt) do
+            :ok ->
+              socket = socket
+              |> assign(work_in_progress: false, work_error: nil, show_work_modal: false)
+              |> put_flash(:info, "Prompt sent to Gemini CLI for #{ticket_id}")
+              {:noreply, socket}
+            {:error, reason} ->
+              socket = socket
+              |> assign(work_in_progress: false, work_error: "Failed to send to Gemini: #{inspect(reason)}")
+              {:noreply, socket}
+          end
+        else
+          # Start Gemini server first, then send prompt
+          case GeminiServer.start_server() do
+            {:ok, _pid} ->
+              # Wait a bit for server to initialize
+              Process.sleep(2000)
+              case GeminiServer.send_prompt(prompt) do
+                :ok ->
+                  socket = socket
+                  |> assign(work_in_progress: false, work_error: nil, show_work_modal: false, gemini_server_status: GeminiServer.status())
+                  |> put_flash(:info, "Started Gemini and sent prompt for #{ticket_id}")
+                  {:noreply, socket}
+                {:error, reason} ->
+                  socket = socket
+                  |> assign(work_in_progress: false, work_error: "Gemini started but failed to send: #{inspect(reason)}", gemini_server_status: GeminiServer.status())
+                  {:noreply, socket}
+              end
+            {:error, reason} ->
+              socket = socket
+              |> assign(work_in_progress: false, work_error: "Failed to start Gemini: #{inspect(reason)}")
+              {:noreply, socket}
+          end
+        end
       
       # Claude mode - send to OpenClaw to spawn a sub-agent
       true ->
@@ -805,6 +911,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "linear" => socket.assigns.linear_collapsed,
       "prs" => socket.assigns.prs_collapsed,
       "opencode" => socket.assigns.opencode_collapsed,
+      "gemini" => socket.assigns.gemini_collapsed,
       "coding_agents" => socket.assigns.coding_agents_collapsed,
       "subagents" => socket.assigns.subagents_collapsed,
       "live_progress" => socket.assigns.live_progress_collapsed,
@@ -1188,6 +1295,32 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
   defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
 
+  # Coding agent badge helpers
+  defp coding_agent_badge_class(:opencode), do: "bg-blue-500/20 text-blue-400"
+  defp coding_agent_badge_class(:claude), do: "bg-purple-500/20 text-purple-400"
+  defp coding_agent_badge_class(:gemini), do: "bg-green-500/20 text-green-400"
+  defp coding_agent_badge_class(_), do: "bg-base-content/10 text-base-content/60"
+
+  defp coding_agent_badge_text(:opencode), do: "💻 OpenCode"
+  defp coding_agent_badge_text(:claude), do: "🤖 Claude"
+  defp coding_agent_badge_text(:gemini), do: "✨ Gemini"
+  defp coding_agent_badge_text(_), do: "❓ Unknown"
+
+  defp coding_agent_button_class(:opencode), do: "bg-blue-500/20 text-blue-400"
+  defp coding_agent_button_class(:claude), do: "bg-purple-500/20 text-purple-400"
+  defp coding_agent_button_class(:gemini), do: "bg-green-500/20 text-green-400"
+  defp coding_agent_button_class(_), do: "bg-base-content/10 text-base-content/60"
+
+  defp coding_agent_icon(:opencode), do: "💻"
+  defp coding_agent_icon(:claude), do: "🤖"
+  defp coding_agent_icon(:gemini), do: "✨"
+  defp coding_agent_icon(_), do: "❓"
+
+  defp coding_agent_name(:opencode), do: "OpenCode"
+  defp coding_agent_name(:claude), do: "Claude"
+  defp coding_agent_name(:gemini), do: "Gemini"
+  defp coding_agent_name(_), do: "Unknown"
+
   # PR CI status badges
   defp pr_ci_badge(:success), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px]"
   defp pr_ci_badge(:failure), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
@@ -1303,8 +1436,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
             </div>
           <% end %>
           <div class="flex items-center space-x-1">
-            <span class={"px-2 py-0.5 rounded text-[10px] " <> if(@coding_agent_pref == :opencode, do: "bg-blue-500/20 text-blue-400", else: "bg-purple-500/20 text-purple-400")}>
-              <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode", else: "🤖 Claude" %>
+            <span class={"px-2 py-0.5 rounded text-[10px] " <> coding_agent_badge_class(@coding_agent_pref)}>
+              <%= coding_agent_badge_text(@coding_agent_pref) %>
             </span>
           </div>
         </div>
@@ -1713,6 +1846,79 @@ defmodule DashboardPhoenixWeb.HomeLive do
             </div>
           </div>
 
+          <!-- Gemini CLI Panel -->
+          <div class="glass-panel rounded-lg overflow-hidden">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="gemini"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@gemini_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-accent uppercase tracking-wider">✨ Gemini CLI</span>
+                <%= if @gemini_server_status.running do %>
+                  <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+                <% end %>
+              </div>
+              <%= if @gemini_server_status.running do %>
+                <button phx-click="clear_gemini_output" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">Clear</button>
+              <% end %>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@gemini_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+              <div class="px-3 pb-3">
+                <%= if not @gemini_server_status.running do %>
+                  <div class="text-center py-4">
+                    <div class="text-[10px] text-base-content/40 mb-2">Gemini CLI not running</div>
+                    <button phx-click="start_gemini_server" class="text-xs px-3 py-1.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40">
+                      ✨ Start Gemini
+                    </button>
+                  </div>
+                <% else %>
+                  <!-- Status -->
+                  <div class="flex items-center justify-between mb-2 text-[10px] font-mono">
+                    <div class="flex items-center space-x-2">
+                      <span class="text-base-content/50">PID:</span>
+                      <span class="text-green-400"><%= @gemini_server_status.pid %></span>
+                      <span class="text-base-content/30">|</span>
+                      <span class="text-base-content/50">Dir:</span>
+                      <span class="text-blue-400 truncate max-w-[150px]" title={@gemini_server_status.cwd}><%= @gemini_server_status.cwd %></span>
+                    </div>
+                    <button phx-click="stop_gemini_server" class="px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40 text-[10px]">
+                      Stop
+                    </button>
+                  </div>
+                  
+                  <!-- Output -->
+                  <div class="bg-black/40 rounded-lg p-2 mb-2 max-h-[200px] overflow-y-auto font-mono text-[10px] text-base-content/70" id="gemini-output" phx-hook="ScrollBottom">
+                    <%= if @gemini_output == "" do %>
+                      <span class="text-base-content/40 italic">Waiting for output...</span>
+                    <% else %>
+                      <pre class="whitespace-pre-wrap"><%= @gemini_output %></pre>
+                    <% end %>
+                  </div>
+                  
+                  <!-- Prompt Input -->
+                  <form phx-submit="send_gemini_prompt" class="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      name="prompt"
+                      placeholder="Send a prompt to Gemini..."
+                      class="flex-1 bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs font-mono text-white placeholder-base-content/40 focus:outline-none focus:border-green-500/50"
+                      autocomplete="off"
+                    />
+                    <button
+                      type="submit"
+                      class="px-3 py-1.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 text-xs font-mono"
+                    >
+                      Send
+                    </button>
+                  </form>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
           <!-- Sub-Agents Panel -->
           <div class="glass-panel rounded-lg overflow-hidden" id="subagents">
             <div 
@@ -1808,21 +2014,48 @@ defmodule DashboardPhoenixWeb.HomeLive do
           
           <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@config_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
             <div class="px-4 py-3 border-t border-white/5">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- Coding Agent Toggle -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Coding Agent Toggle (3-way) -->
                 <div>
                   <div class="text-[10px] font-mono text-base-content/50 mb-2">Coding Agent</div>
-                  <button 
-                    phx-click="toggle_coding_agent"
-                    class={"flex items-center space-x-2 px-3 py-2 rounded-lg w-full text-left text-sm " <> 
-                      if(@coding_agent_pref == :opencode, 
-                        do: "bg-blue-500/20 text-blue-400",
-                        else: "bg-purple-500/20 text-purple-400"
-                      )}
-                  >
-                    <span><%= if @coding_agent_pref == :opencode, do: "💻", else: "🤖" %></span>
-                    <span class="font-mono font-bold"><%= if @coding_agent_pref == :opencode, do: "OpenCode", else: "Claude" %></span>
-                  </button>
+                  <div class="flex rounded-lg overflow-hidden border border-white/10">
+                    <button 
+                      phx-click="set_coding_agent"
+                      phx-value-agent="opencode"
+                      class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all " <> 
+                        if(@coding_agent_pref == :opencode, 
+                          do: "bg-blue-500/30 text-blue-400",
+                          else: "bg-base-content/5 text-base-content/50 hover:bg-base-content/10"
+                        )}
+                    >
+                      <span>💻</span>
+                      <span class="hidden sm:inline">OpenCode</span>
+                    </button>
+                    <button 
+                      phx-click="set_coding_agent"
+                      phx-value-agent="claude"
+                      class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all border-x border-white/10 " <> 
+                        if(@coding_agent_pref == :claude, 
+                          do: "bg-purple-500/30 text-purple-400",
+                          else: "bg-base-content/5 text-base-content/50 hover:bg-base-content/10"
+                        )}
+                    >
+                      <span>🤖</span>
+                      <span class="hidden sm:inline">Claude</span>
+                    </button>
+                    <button 
+                      phx-click="set_coding_agent"
+                      phx-value-agent="gemini"
+                      class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all " <> 
+                        if(@coding_agent_pref == :gemini, 
+                          do: "bg-green-500/30 text-green-400",
+                          else: "bg-base-content/5 text-base-content/50 hover:bg-base-content/10"
+                        )}
+                    >
+                      <span>✨</span>
+                      <span class="hidden sm:inline">Gemini</span>
+                    </button>
+                  </div>
                 </div>
                 
                 <!-- Claude Model -->
@@ -1853,24 +2086,50 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 </div>
               </div>
               
-              <!-- OpenCode Server Controls -->
-              <%= if @coding_agent_pref == :opencode do %>
-                <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
-                  <div class="flex items-center space-x-2 text-xs font-mono">
-                    <span class="text-base-content/50">ACP Server:</span>
-                    <%= if @opencode_server_status.running do %>
-                      <span class="text-success">Running on :<%= @opencode_server_status.port %></span>
-                    <% else %>
-                      <span class="text-base-content/40">Stopped</span>
-                    <% end %>
-                  </div>
-                  <%= if @opencode_server_status.running do %>
-                    <button phx-click="stop_opencode_server" class="text-xs px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40">Stop</button>
-                  <% else %>
-                    <button phx-click="start_opencode_server" class="text-xs px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">Start</button>
-                  <% end %>
-                </div>
-              <% end %>
+              <!-- Server Controls based on selected agent -->
+              <div class="mt-3 pt-3 border-t border-white/5">
+                <%= cond do %>
+                  <% @coding_agent_pref == :opencode -> %>
+                    <!-- OpenCode Server Controls -->
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center space-x-2 text-xs font-mono">
+                        <span class="text-base-content/50">ACP Server:</span>
+                        <%= if @opencode_server_status.running do %>
+                          <span class="text-success">Running on :<%= @opencode_server_status.port %></span>
+                        <% else %>
+                          <span class="text-base-content/40">Stopped</span>
+                        <% end %>
+                      </div>
+                      <%= if @opencode_server_status.running do %>
+                        <button phx-click="stop_opencode_server" class="text-xs px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40">Stop</button>
+                      <% else %>
+                        <button phx-click="start_opencode_server" class="text-xs px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">Start</button>
+                      <% end %>
+                    </div>
+                  <% @coding_agent_pref == :gemini -> %>
+                    <!-- Gemini CLI Controls -->
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center space-x-2 text-xs font-mono">
+                        <span class="text-base-content/50">Gemini CLI:</span>
+                        <%= if @gemini_server_status.running do %>
+                          <span class="text-success">Running (PID: <%= @gemini_server_status.pid %>)</span>
+                        <% else %>
+                          <span class="text-base-content/40">Stopped</span>
+                        <% end %>
+                      </div>
+                      <%= if @gemini_server_status.running do %>
+                        <button phx-click="stop_gemini_server" class="text-xs px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40">Stop</button>
+                      <% else %>
+                        <button phx-click="start_gemini_server" class="text-xs px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">Start</button>
+                      <% end %>
+                    </div>
+                  <% true -> %>
+                    <!-- Claude sub-agents don't need server controls -->
+                    <div class="text-xs font-mono text-base-content/40">
+                      Claude uses OpenClaw sub-agents (no server needed)
+                    </div>
+                <% end %>
+              </div>
             </div>
           </div>
         </div>
@@ -1990,8 +2249,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
             <div class="border-t border-white/10 pt-4">
               <div class="flex items-center justify-between mb-3">
                 <div class="text-xs font-mono text-accent uppercase tracking-wider">Start Working</div>
-                <div class={"text-[10px] font-mono px-2 py-1 rounded " <> if(@coding_agent_pref == :opencode, do: "bg-blue-500/20 text-blue-400", else: "bg-purple-500/20 text-purple-400")}>
-                  Using: <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode", else: "🤖 Claude" %>
+                <div class={"text-[10px] font-mono px-2 py-1 rounded " <> coding_agent_badge_class(@coding_agent_pref)}>
+                  Using: <%= coding_agent_badge_text(@coding_agent_pref) %>
                 </div>
               </div>
               
