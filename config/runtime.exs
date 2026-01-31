@@ -7,6 +7,13 @@ import Config
 # any compile-time configuration in here, as it won't be applied.
 # The block below contains prod specific runtime configuration.
 
+# Dashboard Authentication
+# Set DASHBOARD_AUTH_TOKEN to enable token-based authentication.
+# When not set, authentication is disabled (convenient for dev/localhost).
+if auth_token = System.get_env("DASHBOARD_AUTH_TOKEN") do
+  config :dashboard_phoenix, :auth_token, auth_token
+end
+
 # ## Using releases
 #
 # If you use `mix release`, you need to explicitly enable the server
