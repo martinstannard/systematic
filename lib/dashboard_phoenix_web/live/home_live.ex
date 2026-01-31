@@ -2,6 +2,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   use DashboardPhoenixWeb, :live_view
   
   alias DashboardPhoenixWeb.Live.Components.LinearComponent
+  alias DashboardPhoenixWeb.Live.Components.ChainlinkComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -9,6 +10,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.AgentActivityMonitor
   alias DashboardPhoenix.CodingAgentMonitor
   alias DashboardPhoenix.LinearMonitor
+  alias DashboardPhoenix.ChainlinkMonitor
   alias DashboardPhoenix.PRMonitor
   alias DashboardPhoenix.BranchMonitor
   alias DashboardPhoenix.AgentPreferences
@@ -24,6 +26,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       AgentActivityMonitor.subscribe()
       AgentPreferences.subscribe()
       LinearMonitor.subscribe()
+      ChainlinkMonitor.subscribe()
       PRMonitor.subscribe()
       BranchMonitor.subscribe()
       OpenCodeServer.subscribe()
@@ -33,6 +36,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       :timer.send_interval(5_000, :refresh_opencode_sessions)
       # Async load Linear tickets to avoid blocking mount
       send(self(), :load_linear_tickets)
+      # Async load Chainlink issues
+      send(self(), :load_chainlink_issues)
       # Async load GitHub PRs
       send(self(), :load_github_prs)
       # Async load unmerged branches
@@ -92,6 +97,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
       tickets_in_progress: tickets_in_progress,
       pr_created_tickets: pr_created_tickets,
       prs_in_progress: prs_in_progress,
+      # Chainlink issues - loaded async to avoid blocking mount
+      chainlink_issues: [],
+      chainlink_last_updated: nil,
+      chainlink_error: nil,
+      chainlink_loading: true,
+      chainlink_collapsed: false,
+      chainlink_work_in_progress: %{},  # Map of issue_id -> work session info
       # GitHub PRs - loaded async to avoid blocking mount
       github_prs: [],
       github_prs_last_updated: nil,
@@ -230,6 +242,71 @@ defmodule DashboardPhoenixWeb.HomeLive do
     )}
   end
 
+  # Handle ChainlinkComponent messages
+  def handle_info({:chainlink_component, :toggle_panel}, socket) do
+    socket = assign(socket, chainlink_collapsed: !socket.assigns.chainlink_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:chainlink_component, :refresh}, socket) do
+    ChainlinkMonitor.refresh()
+    {:noreply, socket}
+  end
+
+  def handle_info({:chainlink_component, :work_on_issue, issue_id}, socket) do
+    # Find the issue details
+    issue = Enum.find(socket.assigns.chainlink_issues, &(&1.id == issue_id))
+    
+    if issue do
+      # Build work prompt
+      prompt = """
+      Work on Chainlink issue ##{issue_id}: #{issue.title}
+      
+      Priority: #{issue.priority}
+      
+      Please analyze this issue and implement the required changes.
+      Use `chainlink show #{issue_id}` to get full details.
+      """
+      
+      # Spawn a sub-agent to work on it
+      alias DashboardPhoenix.OpenClawClient
+      
+      case OpenClawClient.spawn_subagent(prompt,
+        name: "chainlink-#{issue_id}",
+        thinking: "low",
+        post_mode: "summary"
+      ) do
+        {:ok, %{job_id: job_id}} ->
+          # Track that work is in progress
+          work_info = %{label: "chainlink-#{issue_id}", job_id: job_id}
+          chainlink_wip = Map.put(socket.assigns.chainlink_work_in_progress, issue_id, work_info)
+          
+          socket = socket
+          |> assign(chainlink_work_in_progress: chainlink_wip)
+          |> put_flash(:info, "Started work on Chainlink ##{issue_id}")
+          {:noreply, socket}
+        
+        {:ok, _} ->
+          {:noreply, put_flash(socket, :info, "Started work on Chainlink ##{issue_id}")}
+        
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to start work: #{inspect(reason)}")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Issue ##{issue_id} not found")}
+    end
+  end
+
+  # Handle Chainlink issue updates (from PubSub)
+  def handle_info({:chainlink_update, data}, socket) do
+    {:noreply, assign(socket,
+      chainlink_issues: data.issues,
+      chainlink_last_updated: data.last_updated,
+      chainlink_error: data.error,
+      chainlink_loading: false
+    )}
+  end
+
   # Handle async Linear ticket loading (initial mount)
   def handle_info(:load_linear_tickets, socket) do
     # Fetch in a supervised Task to avoid blocking and catch crashes
@@ -262,6 +339,38 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_last_updated: data.last_updated,
       linear_error: data.error,
       linear_loading: false
+    )}
+  end
+
+  # Handle async Chainlink issue loading (initial mount)
+  def handle_info(:load_chainlink_issues, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        chainlink_data = ChainlinkMonitor.get_issues()
+        send(parent, {:chainlink_loaded, chainlink_data})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load Chainlink issues: #{inspect(e)}")
+          send(parent, {:chainlink_loaded, %{issues: [], last_updated: nil, error: "Load failed: #{inspect(e)}"}})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Chainlink issues load exited: #{inspect(reason)}")
+          send(parent, {:chainlink_loaded, %{issues: [], last_updated: nil, error: "Load timeout"}})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle Chainlink issues loaded result
+  def handle_info({:chainlink_loaded, data}, socket) do
+    {:noreply, assign(socket,
+      chainlink_issues: data.issues,
+      chainlink_last_updated: data.last_updated,
+      chainlink_error: data.error,
+      chainlink_loading: false
     )}
   end
 
@@ -1076,6 +1185,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     panels = %{
       "config" => socket.assigns.config_collapsed,
       "linear" => socket.assigns.linear_collapsed,
+      "chainlink" => socket.assigns.chainlink_collapsed,
       "prs" => socket.assigns.prs_collapsed,
       "branches" => socket.assigns.branches_collapsed,
       "opencode" => socket.assigns.opencode_collapsed,

@@ -96,6 +96,17 @@
         tickets_in_progress={@tickets_in_progress}
       />
 
+      <!-- Chainlink Issues Panel (LiveComponent) -->
+      <.live_component
+        module={ChainlinkComponent}
+        id="chainlink-issues"
+        chainlink_issues={@chainlink_issues}
+        chainlink_loading={@chainlink_loading}
+        chainlink_error={@chainlink_error}
+        chainlink_collapsed={@chainlink_collapsed}
+        chainlink_work_in_progress={@chainlink_work_in_progress}
+      />
+
       <!-- GitHub Pull Requests Panel -->
       <div class="glass-panel rounded-lg overflow-hidden">
         <div 
