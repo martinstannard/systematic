@@ -1,0 +1,231 @@
+    warning: function linear_status_badge/1 is unused
+    │
+ 40 │   defp linear_status_badge("Triage"), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
+    │        ~
+    │
+    └─ lib/dashboard_phoenix_web/live/components/linear_component.ex:40:8: DashboardPhoenixWeb.Live.Components.LinearComponent (module)
+
+     warning: the following clause will never match:
+
+         {:error, reason}
+
+     because it attempts to match on the result of:
+
+         fetch_worktrees()
+
+     which has type:
+
+         dynamic({:ok, term()})
+
+     typing violation found at:
+     │
+ 354 │       {:error, reason} ->
+     │       ~~~~~~~~~~~~~~~~~~~
+     │
+     └─ lib/dashboard_phoenix/branch_monitor.ex:354: DashboardPhoenix.BranchMonitor.do_delete_branch/1
+
+      warning: function truncate_title/1 is unused
+      │
+ 1714 │   defp truncate_title(nil), do: nil
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1714:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function sparkline/2 is unused
+      │
+ 1639 │   defp sparkline(history, type) do
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1639:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function normalize_path/1 is unused
+      │
+ 1710 │   defp normalize_path(nil), do: nil
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1710:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function model_badge/1 is unused
+      │
+ 1622 │   defp model_badge(model) when is_binary(model) do
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1622:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function format_activity_time/1 is unused
+      │
+ 1672 │   defp format_activity_time(nil), do: ""
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1672:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function find_opencode_session/2 is unused
+      │
+ 1699 │   defp find_opencode_session(agent, opencode_sessions) when is_list(opencode_sessions) do
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1699:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function coding_agent_name/1 is unused
+      │
+ 1748 │   defp coding_agent_name(:opencode), do: "OpenCode"
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1748:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function coding_agent_icon/1 is unused
+      │
+ 1743 │   defp coding_agent_icon(:opencode), do: "💻"
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1743:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function coding_agent_button_class/1 is unused
+      │
+ 1738 │   defp coding_agent_button_class(:opencode), do: "bg-blue-500/20 text-blue-400"
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1738:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function agent_type_icon/1 is unused
+      │
+ 1685 │   defp agent_type_icon(:openclaw), do: "🦞"
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1685:8: DashboardPhoenixWeb.HomeLive (module)
+
+      warning: function activity_status_color/1 is unused
+      │
+ 1691 │   defp activity_status_color("executing"), do: "text-warning animate-pulse"
+      │        ~
+      │
+      └─ lib/dashboard_phoenix_web/live/home_live.ex:1691:8: DashboardPhoenixWeb.HomeLive (module)
+
+[notice]     :alarm_handler: {:set, {:system_memory_high_watermark, []}}
+[info] Running DashboardPhoenixWeb.Endpoint with Bandit 1.10.2 at 127.0.0.1:4000 (http)
+[info] Access DashboardPhoenixWeb.Endpoint at http://localhost:4000
+[watch] build finished, watching for changes...
+≈ tailwindcss v4.1.7
+
+/*! 🌼 daisyUI 5.0.35 */
+[info] GET /
+sh: line 1: watchman: command not found
+[debug] Processing with DashboardPhoenixWeb.HomeLive.__live__/0
+  Parameters: %{}
+  Pipelines: [:browser, :authenticated]
+Done in 111ms
+[info] Sent 200 in 119ms
+[info] CONNECTED TO Phoenix.LiveView.Socket in 13µs
+  Transport: :websocket
+  Serializer: Phoenix.Socket.V2.JSONSerializer
+  Parameters: %{"_csrf_token" => "Jg97ITMfJBsXN2A3Pi0_JkVNLw0hZj0ZeiBg_gsmoT8nZAkwu8KwB2Gp", "_live_referer" => "undefined", "_mount_attempts" => "0", "_mounts" => "0", "_track_static" => %{"0" => "https://balgownie.tail1b57dd.ts.net:4000/assets/css/app.css", "1" => "https://balgownie.tail1b57dd.ts.net:4000/assets/js/app.js"}, "vsn" => "2.0.0"}
+[debug] MOUNT DashboardPhoenixWeb.HomeLive
+  Parameters: %{}
+  Session: %{"_csrf_token" => "Cf9FlxWvxcXYdlTQ0udzcTzi", "auth_token" => "c68005e7fcdf1a34db4599055c086616eb55c38fed3a83f7156978b96b652400", "authenticated" => true}
+[debug] Replied in 35ms
+[debug] HANDLE EVENT "restore_panel_state" in DashboardPhoenixWeb.HomeLive
+  Parameters: %{"panels" => %{"agent_activity" => false, "branches" => true, "chainlink" => false, "chat" => true, "coding_agents" => false, "config" => false, "dave" => true, "gemini" => true, "linear" => true, "live_progress" => false, "opencode" => true, "process_relationships" => false, "prs" => true, "subagents" => false, "system_processes" => false}}
+[debug] Replied in 280µs
+[info] GET /
+[debug] Processing with DashboardPhoenixWeb.HomeLive.__live__/0
+  Parameters: %{"token" => "c68005e7fcdf1a34db4599055c086616eb55c38fed3a83f7156978b96b652400"}
+  Pipelines: [:browser, :authenticated]
+[info] Sent 302 in 1ms
+[debug] Phoenix.Router halted in :authenticated/2
+[debug] HANDLE EVENT "work_on_chainlink" in DashboardPhoenixWeb.HomeLive
+  Component: DashboardPhoenixWeb.Live.Components.ChainlinkComponent
+  Parameters: %{"id" => "23", "value" => ""}
+[debug] Replied in 153µs
+[info] [OpenClawClient] Spawning isolated sub-agent: dashboard-chainlink-23
+[error] [OpenClawClient] Spawn failed (1): Error: gateway timeout after 10000ms
+Gateway target: ws://127.0.0.1:18789
+Source: local loopback
+Config: /home/martins/.openclaw/openclaw.json
+Bind: loopback
+
+[info] GET /
+[debug] Processing with DashboardPhoenixWeb.HomeLive.__live__/0
+  Parameters: %{"token" => "c68005e7fcdf1a34db4599055c086616eb55c38fed3a83f7156978b96b652400"}
+  Pipelines: [:browser, :authenticated]
+[info] Sent 200 in 38ms
+[info] CONNECTED TO Phoenix.LiveView.Socket in 16µs
+  Transport: :websocket
+  Serializer: Phoenix.Socket.V2.JSONSerializer
+  Parameters: %{"_csrf_token" => "CAx4AQ0OEhoTNgAPKwE6C1dABQ4bFUI7KjAGavElkUXVOmnZg5atxA8R", "_live_referer" => "undefined", "_mount_attempts" => "0", "_mounts" => "0", "_track_static" => %{"0" => "https://balgownie.tail1b57dd.ts.net:4000/assets/css/app.css", "1" => "https://balgownie.tail1b57dd.ts.net:4000/assets/js/app.js"}, "vsn" => "2.0.0"}
+[debug] MOUNT DashboardPhoenixWeb.HomeLive
+  Parameters: %{"token" => "c68005e7fcdf1a34db4599055c086616eb55c38fed3a83f7156978b96b652400"}
+  Session: %{"_csrf_token" => "Cf9FlxWvxcXYdlTQ0udzcTzi", "auth_token" => "c68005e7fcdf1a34db4599055c086616eb55c38fed3a83f7156978b96b652400", "authenticated" => true}
+[debug] Replied in 49ms
+[debug] HANDLE EVENT "restore_panel_state" in DashboardPhoenixWeb.HomeLive
+  Parameters: %{"panels" => %{"agent_activity" => false, "branches" => true, "chainlink" => false, "chat" => true, "coding_agents" => false, "config" => false, "dave" => true, "gemini" => true, "linear" => true, "live_progress" => false, "opencode" => true, "process_relationships" => false, "prs" => true, "subagents" => false, "system_processes" => false}}
+[debug] Replied in 1ms
+[debug] HANDLE EVENT "work_on_chainlink" in DashboardPhoenixWeb.HomeLive
+  Component: DashboardPhoenixWeb.Live.Components.ChainlinkComponent
+  Parameters: %{"id" => "22", "value" => ""}
+[debug] Replied in 236µs
+[info] [OpenClawClient] Spawning isolated sub-agent: dashboard-chainlink-22
+[error] [OpenClawClient] Spawn failed (1): Error: gateway timeout after 10000ms
+Gateway target: ws://127.0.0.1:18789
+Source: local loopback
+Config: /home/martins/.openclaw/openclaw.json
+Bind: loopback
+
+[debug] HANDLE EVENT "work_on_chainlink" in DashboardPhoenixWeb.HomeLive
+  Component: DashboardPhoenixWeb.Live.Components.ChainlinkComponent
+  Parameters: %{"id" => "22", "value" => ""}
+[debug] Replied in 72µs
+[info] [OpenClawClient] Spawning isolated sub-agent: dashboard-chainlink-22
+[error] [OpenClawClient] Spawn failed (1): Error: gateway timeout after 10000ms
+Gateway target: ws://127.0.0.1:18789
+Source: local loopback
+Config: /home/martins/.openclaw/openclaw.json
+Bind: loopback
+
+[info] CONNECTED TO Phoenix.LiveView.Socket in 17µs
+  Transport: :websocket
+  Serializer: Phoenix.Socket.V2.JSONSerializer
+  Parameters: %{"_csrf_token" => "CAx4AQ0OEhoTNgAPKwE6C1dABQ4bFUI7KjAGavElkUXVOmnZg5atxA8R", "_live_referer" => "undefined", "_mount_attempts" => "0", "_mounts" => "0", "_track_static" => %{"0" => "https://balgownie.tail1b57dd.ts.net:4000/assets/css/app.css", "1" => "https://balgownie.tail1b57dd.ts.net:4000/assets/js/app.js"}, "vsn" => "2.0.0"}
+[debug] MOUNT DashboardPhoenixWeb.HomeLive
+  Parameters: %{"token" => "c68005e7fcdf1a34db4599055c086616eb55c38fed3a83f7156978b96b652400"}
+  Session: %{"_csrf_token" => "Cf9FlxWvxcXYdlTQ0udzcTzi", "auth_token" => "c68005e7fcdf1a34db4599055c086616eb55c38fed3a83f7156978b96b652400", "authenticated" => true}
+[debug] Replied in 37ms
+[info] CONNECTED TO Phoenix.LiveView.Socket in 15µs
+  Transport: :websocket
+  Serializer: Phoenix.Socket.V2.JSONSerializer
+  Parameters: %{"_csrf_token" => "CAx4AQ0OEhoTNgAPKwE6C1dABQ4bFUI7KjAGavElkUXVOmnZg5atxA8R", "_live_referer" => "undefined", "_mount_attempts" => "0", "_mounts" => "1", "_track_static" => %{"0" => "https://balgownie.tail1b57dd.ts.net:4000/assets/css/app.css", "1" => "https://balgownie.tail1b57dd.ts.net:4000/assets/js/app.js"}, "vsn" => "2.0.0"}
+[debug] MOUNT DashboardPhoenixWeb.HomeLive
+  Parameters: %{"token" => "c68005e7fcdf1a34db4599055c086616eb55c38fed3a83f7156978b96b652400"}
+  Session: %{"_csrf_token" => "Cf9FlxWvxcXYdlTQ0udzcTzi", "auth_token" => "c68005e7fcdf1a34db4599055c086616eb55c38fed3a83f7156978b96b652400", "authenticated" => true}
+[debug] Replied in 37ms
+Done in 22µs
+Done in 2ms
+[notice]     :alarm_handler: {:clear, :system_memory_high_watermark}
+Done in 4ms
+[notice]     :alarm_handler: {:set, {:system_memory_high_watermark, []}}
+Done in 3ms
+Done in 2ms
+Done in 12ms
+Done in 2ms
+Done in 14ms
+Done in 2ms
+Done in 3ms
+Done in 779µs
+[notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/tmp"}, []}}
+Done in 2ms
+Done in 2ms
+Done in 858µs
+Done in 651µs
+Done in 2ms
+Done in 433µs
+[warning] Linear CLI error for state Triage: [31mHTTP error: 500 Internal Server Error[0m
+
+Done in 3ms
+Done in 4ms
+Done in 2ms
+Done in 977µs
+Done in 3ms
+Done in 984µs
+[notice]     :alarm_handler: {:clear, :system_memory_high_watermark}
+Done in 793µs
+Done in 663µs
+[notice]     :alarm_handler: {:clear, {:disk_almost_full, ~c"/tmp"}}

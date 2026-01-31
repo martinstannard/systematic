@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- Add timeouts to all external CLI calls (#23)
 - Add authentication to dashboard (#20)
 - Re-add Chainlink panel after template extraction merge (#43)
 - Add Chainlink issues panel with Work button (#17)
