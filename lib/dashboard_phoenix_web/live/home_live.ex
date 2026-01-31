@@ -9,6 +9,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.CodingAgentMonitor
   alias DashboardPhoenix.LinearMonitor
   alias DashboardPhoenix.PRMonitor
+  alias DashboardPhoenix.BranchMonitor
   alias DashboardPhoenix.AgentPreferences
   alias DashboardPhoenix.OpenCodeServer
   alias DashboardPhoenix.OpenCodeClient
@@ -23,6 +24,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       AgentPreferences.subscribe()
       LinearMonitor.subscribe()
       PRMonitor.subscribe()
+      BranchMonitor.subscribe()
       OpenCodeServer.subscribe()
       GeminiServer.subscribe()
       Process.send_after(self(), :update_processes, 100)
@@ -32,6 +34,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       send(self(), :load_linear_tickets)
       # Async load GitHub PRs
       send(self(), :load_github_prs)
+      # Async load unmerged branches
+      send(self(), :load_branches)
     end
 
     processes = ProcessMonitor.list_processes()
@@ -87,6 +91,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
       github_prs_last_updated: nil,
       github_prs_error: nil,
       github_prs_loading: true,
+      # Unmerged branches - loaded async
+      unmerged_branches: [],
+      branches_worktrees: %{},
+      branches_last_updated: nil,
+      branches_error: nil,
+      branches_loading: true,
+      # Branch action states
+      branch_merge_pending: nil,
+      branch_delete_pending: nil,
       # Work modal state
       show_work_modal: false,
       work_ticket_id: nil,
@@ -109,6 +122,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       config_collapsed: false,
       linear_collapsed: false,
       prs_collapsed: false,
+      branches_collapsed: false,
       opencode_collapsed: false,
       gemini_collapsed: false,
       coding_agents_collapsed: false,
@@ -230,6 +244,72 @@ defmodule DashboardPhoenixWeb.HomeLive do
       github_prs_error: data.error,
       github_prs_loading: false
     )}
+  end
+
+  # Handle branch updates (from PubSub)
+  def handle_info({:branch_update, data}, socket) do
+    {:noreply, assign(socket,
+      unmerged_branches: data.branches,
+      branches_worktrees: data.worktrees,
+      branches_last_updated: data.last_updated,
+      branches_error: data.error,
+      branches_loading: false
+    )}
+  end
+
+  # Handle async branch loading (initial mount)
+  def handle_info(:load_branches, socket) do
+    parent = self()
+    Task.start(fn ->
+      branch_data = BranchMonitor.get_branches()
+      send(parent, {:branches_loaded, branch_data})
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle branches loaded result
+  def handle_info({:branches_loaded, data}, socket) do
+    {:noreply, assign(socket,
+      unmerged_branches: data.branches,
+      branches_worktrees: data.worktrees,
+      branches_last_updated: data.last_updated,
+      branches_error: data.error,
+      branches_loading: false
+    )}
+  end
+
+  # Handle branch merge result
+  def handle_info({:branch_merge_result, branch_name, result}, socket) do
+    case result do
+      {:ok, _} ->
+        socket = socket
+        |> assign(branch_merge_pending: nil)
+        |> put_flash(:info, "Successfully merged #{branch_name} to main")
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = socket
+        |> assign(branch_merge_pending: nil)
+        |> put_flash(:error, "Merge failed: #{reason}")
+        {:noreply, socket}
+    end
+  end
+
+  # Handle branch delete result
+  def handle_info({:branch_delete_result, branch_name, result}, socket) do
+    case result do
+      {:ok, _} ->
+        socket = socket
+        |> assign(branch_delete_pending: nil)
+        |> put_flash(:info, "Successfully deleted #{branch_name}")
+        {:noreply, socket}
+      
+      {:error, reason} ->
+        socket = socket
+        |> assign(branch_delete_pending: nil)
+        |> put_flash(:error, "Delete failed: #{reason}")
+        {:noreply, socket}
+    end
   end
 
   # Handle OpenCode server status updates
@@ -398,6 +478,45 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_event("refresh_prs", _, socket) do
     PRMonitor.refresh()
     {:noreply, socket}
+  end
+
+  def handle_event("refresh_branches", _, socket) do
+    BranchMonitor.refresh()
+    {:noreply, socket}
+  end
+
+  def handle_event("confirm_merge_branch", %{"name" => branch_name}, socket) do
+    {:noreply, assign(socket, branch_merge_pending: branch_name)}
+  end
+
+  def handle_event("cancel_merge_branch", _, socket) do
+    {:noreply, assign(socket, branch_merge_pending: nil)}
+  end
+
+  def handle_event("execute_merge_branch", %{"name" => branch_name}, socket) do
+    parent = self()
+    Task.start(fn ->
+      result = BranchMonitor.merge_branch(branch_name)
+      send(parent, {:branch_merge_result, branch_name, result})
+    end)
+    {:noreply, assign(socket, branch_merge_pending: nil)}
+  end
+
+  def handle_event("confirm_delete_branch", %{"name" => branch_name}, socket) do
+    {:noreply, assign(socket, branch_delete_pending: branch_name)}
+  end
+
+  def handle_event("cancel_delete_branch", _, socket) do
+    {:noreply, assign(socket, branch_delete_pending: nil)}
+  end
+
+  def handle_event("execute_delete_branch", %{"name" => branch_name}, socket) do
+    parent = self()
+    Task.start(fn ->
+      result = BranchMonitor.delete_branch(branch_name)
+      send(parent, {:branch_delete_result, branch_name, result})
+    end)
+    {:noreply, assign(socket, branch_delete_pending: nil)}
   end
 
   def handle_event("set_linear_filter", %{"status" => status}, socket) do
@@ -926,6 +1045,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "config" => socket.assigns.config_collapsed,
       "linear" => socket.assigns.linear_collapsed,
       "prs" => socket.assigns.prs_collapsed,
+      "branches" => socket.assigns.branches_collapsed,
       "opencode" => socket.assigns.opencode_collapsed,
       "gemini" => socket.assigns.gemini_collapsed,
       "coding_agents" => socket.assigns.coding_agents_collapsed,
@@ -1376,6 +1496,21 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
   defp format_pr_time(_), do: ""
 
+  # Format branch time (same as PR time)
+  defp format_branch_time(nil), do: ""
+  defp format_branch_time(%DateTime{} = dt) do
+    now = DateTime.utc_now()
+    diff = DateTime.diff(now, dt, :second)
+    cond do
+      diff < 60 -> "#{diff}s ago"
+      diff < 3600 -> "#{div(diff, 60)}m ago"
+      diff < 86400 -> "#{div(diff, 3600)}h ago"
+      diff < 604800 -> "#{div(diff, 86400)}d ago"
+      true -> Calendar.strftime(dt, "%b %d")
+    end
+  end
+  defp format_branch_time(_), do: ""
+
   # PR state persistence - stores which tickets have PRs created
   @pr_state_file Path.expand("~/.openclaw/systematic-pr-state.json")
 
@@ -1816,6 +1951,151 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 <%= if @github_prs_last_updated do %>
                   <div class="text-[9px] text-base-content/30 mt-2 text-right font-mono">
                     Updated <%= format_pr_time(@github_prs_last_updated) %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Unmerged Branches Panel -->
+          <div class="glass-panel rounded-lg overflow-hidden">
+            <div 
+              class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+              phx-click="toggle_panel"
+              phx-value-panel="branches"
+            >
+              <div class="flex items-center space-x-2">
+                <span class={"text-xs transition-transform duration-200 " <> if(@branches_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+                <span class="text-xs font-mono text-accent uppercase tracking-wider">🌿 Unmerged Branches</span>
+                <%= if @branches_loading do %>
+                  <span class="throbber-small"></span>
+                <% else %>
+                  <span class="text-[10px] font-mono text-base-content/50"><%= length(@unmerged_branches) %></span>
+                <% end %>
+              </div>
+              <button phx-click="refresh_branches" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">↻</button>
+            </div>
+            
+            <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@branches_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+              <div class="px-3 pb-3">
+                <!-- Branch List -->
+                <div class="space-y-2 max-h-[350px] overflow-y-auto">
+                  <%= if @branches_loading do %>
+                    <div class="flex items-center justify-center py-4 space-x-2">
+                      <span class="throbber-small"></span>
+                      <span class="text-xs text-base-content/50 font-mono">Loading branches...</span>
+                    </div>
+                  <% else %>
+                    <%= if @branches_error do %>
+                      <div class="text-xs text-error/70 py-2 px-2"><%= @branches_error %></div>
+                    <% end %>
+                    <%= if @unmerged_branches == [] do %>
+                      <div class="text-xs text-base-content/50 py-4 text-center font-mono">No unmerged branches</div>
+                    <% end %>
+                    <%= for branch <- @unmerged_branches do %>
+                      <div class="px-2 py-2 rounded hover:bg-white/5 text-xs font-mono border border-white/5">
+                        <!-- Branch Name and Actions -->
+                        <div class="flex items-start justify-between mb-1">
+                          <div class="flex items-center space-x-2 min-w-0">
+                            <%= if branch.has_worktree do %>
+                              <span class="text-green-400" title={"Worktree: #{branch.worktree_path}"}>🌲</span>
+                            <% else %>
+                              <span class="text-base-content/30">🔀</span>
+                            <% end %>
+                            <span class="text-white truncate" title={branch.name}><%= branch.name %></span>
+                            <span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]">
+                              +<%= branch.commits_ahead %>
+                            </span>
+                          </div>
+                          
+                          <!-- Action Buttons -->
+                          <div class="flex items-center space-x-1 ml-2">
+                            <%= if @branch_merge_pending == branch.name do %>
+                              <!-- Merge Confirmation -->
+                              <span class="text-[10px] text-warning mr-1">Merge?</span>
+                              <button
+                                phx-click="execute_merge_branch"
+                                phx-value-name={branch.name}
+                                class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 text-[10px]"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                phx-click="cancel_merge_branch"
+                                class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-[10px]"
+                              >
+                                ✗
+                              </button>
+                            <% else %>
+                              <%= if @branch_delete_pending == branch.name do %>
+                                <!-- Delete Confirmation -->
+                                <span class="text-[10px] text-error mr-1">Delete?</span>
+                                <button
+                                  phx-click="execute_delete_branch"
+                                  phx-value-name={branch.name}
+                                  class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 text-[10px]"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  phx-click="cancel_delete_branch"
+                                  class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-[10px]"
+                                >
+                                  ✗
+                                </button>
+                              <% else %>
+                                <!-- Normal Buttons -->
+                                <button
+                                  phx-click="confirm_merge_branch"
+                                  phx-value-name={branch.name}
+                                  class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 text-[10px]"
+                                  title="Merge to main"
+                                >
+                                  ⤵ Merge
+                                </button>
+                                <button
+                                  phx-click="confirm_delete_branch"
+                                  phx-value-name={branch.name}
+                                  class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 text-[10px]"
+                                  title="Delete branch"
+                                >
+                                  🗑
+                                </button>
+                              <% end %>
+                            <% end %>
+                          </div>
+                        </div>
+                        
+                        <!-- Last Commit Info -->
+                        <div class="flex items-center space-x-2 text-[10px] text-base-content/50">
+                          <%= if branch.last_commit_message do %>
+                            <span class="truncate flex-1" title={branch.last_commit_message}><%= branch.last_commit_message %></span>
+                            <span>•</span>
+                          <% end %>
+                          <%= if branch.last_commit_author do %>
+                            <span class="text-base-content/40"><%= branch.last_commit_author %></span>
+                            <span>•</span>
+                          <% end %>
+                          <%= if branch.last_commit_date do %>
+                            <span><%= format_branch_time(branch.last_commit_date) %></span>
+                          <% end %>
+                        </div>
+                        
+                        <!-- Worktree Path if applicable -->
+                        <%= if branch.has_worktree do %>
+                          <div class="text-[10px] text-green-400/60 mt-1 truncate" title={branch.worktree_path}>
+                            📁 <%= branch.worktree_path %>
+                          </div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  <% end %>
+                </div>
+                
+                <!-- Last Updated -->
+                <%= if @branches_last_updated do %>
+                  <div class="text-[9px] text-base-content/30 mt-2 text-right font-mono">
+                    Updated <%= format_branch_time(@branches_last_updated) %>
                   </div>
                 <% end %>
               </div>

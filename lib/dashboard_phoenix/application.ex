@@ -26,6 +26,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.LinearMonitor,
       # GitHub PR monitor
       DashboardPhoenix.PRMonitor,
+      # Unmerged branches monitor
+      DashboardPhoenix.BranchMonitor,
       # OpenCode ACP server manager
       DashboardPhoenix.OpenCodeServer,
       # Gemini CLI server manager
