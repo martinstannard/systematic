@@ -24,6 +24,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.AgentActivityMonitor,
       # Linear ticket monitor for COR team
       DashboardPhoenix.LinearMonitor,
+      # GitHub PR monitor
+      DashboardPhoenix.PRMonitor,
       # OpenCode ACP server manager
       DashboardPhoenix.OpenCodeServer,
       # Start to serve requests, typically the last entry
