@@ -64,6 +64,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     opencode_sessions = fetch_opencode_sessions(opencode_status)
     gemini_status = GeminiServer.status()
     
+    # Initialize progress stream with recent events
+    recent_progress = Enum.take(progress, -50)
+    progress_stream = Enum.reduce(recent_progress, %{}, fn event, acc ->
+      Map.put(acc, "#{event.ts}", event)
+    end)
+    
     # Build map of ticket_id -> work session info
     tickets_in_progress = build_tickets_in_progress(opencode_sessions, sessions)
     
@@ -182,6 +188,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       chat_collapsed: true
     )
     
+    # Initialize progress feed stream
+    socket = stream(socket, :progress_events, recent_progress, dom_id: fn event -> "progress-#{event.ts}" end)
+    
     socket = if connected?(socket) do
       push_event(socket, "graph_update", graph_data)
     else
@@ -197,6 +206,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     activity = build_agent_activity(socket.assigns.agent_sessions, updated)
     main_activity_count = Enum.count(updated, & &1.agent == "main")
     agent_progress_count = length(updated)
+    
+    # Insert new events into stream
+    socket = Enum.reduce(events, socket, fn event, acc ->
+      stream_insert(acc, :progress_events, event, dom_id: "progress-#{event.ts}")
+    end)
+    
     {:noreply, assign(socket, agent_progress: updated, agent_progress_count: agent_progress_count, agent_activity: activity, main_activity_count: main_activity_count)}
   end
 
@@ -931,7 +946,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_event("clear_progress", _, socket) do
     progress_file = Application.get_env(:dashboard_phoenix, :progress_file, "/tmp/agent-progress.jsonl")
     File.write(progress_file, "")
-    {:noreply, assign(socket, agent_progress: [], main_activity_count: 0)}
+    # Reset the stream by re-initializing it with empty data
+    socket = socket
+    |> assign(agent_progress: [], main_activity_count: 0)
+    |> stream(:progress_events, [], reset: true)
+    {:noreply, socket}
   end
 
   def handle_event("toggle_main_entries", _, socket) do
