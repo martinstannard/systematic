@@ -1117,66 +1117,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
-  # NOTE: refresh_linear now handled via LinearComponent -> handle_info({:linear_component, :refresh}, ...)
-  # NOTE: refresh_prs now handled via PRsComponent -> handle_info({:prs_component, :refresh}, ...)
-
-  # NOTE: refresh_prs now handled via PRsComponent
-
-  # NOTE: refresh_branches now handled via BranchesComponent -> handle_info({:branches_component, :refresh}, ...)
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("refresh_branches", _, socket) do
-    BranchMonitor.refresh()
-    {:noreply, socket}
-  end
-
-  # NOTE: confirm_merge_branch now handled via BranchesComponent -> handle_info({:branches_component, :confirm_merge, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("confirm_merge_branch", %{"name" => branch_name}, socket) do
-    {:noreply, assign(socket, branch_merge_pending: branch_name)}
-  end
-
-  # NOTE: cancel_merge_branch now handled via BranchesComponent -> handle_info({:branches_component, :cancel_merge}, ...)
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("cancel_merge_branch", _, socket) do
-    {:noreply, assign(socket, branch_merge_pending: nil)}
-  end
-
-  # NOTE: execute_merge_branch now handled via BranchesComponent -> handle_info({:branches_component, :execute_merge, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("execute_merge_branch", %{"name" => branch_name}, socket) do
-    parent = self()
-    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-      result = BranchMonitor.merge_branch(branch_name)
-      send(parent, {:branch_merge_result, branch_name, result})
-    end)
-    {:noreply, assign(socket, branch_merge_pending: nil)}
-  end
-
-  # NOTE: confirm_delete_branch now handled via BranchesComponent -> handle_info({:branches_component, :confirm_delete, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("confirm_delete_branch", %{"name" => branch_name}, socket) do
-    {:noreply, assign(socket, branch_delete_pending: branch_name)}
-  end
-
-  # NOTE: cancel_delete_branch now handled via BranchesComponent -> handle_info({:branches_component, :cancel_delete}, ...)
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("cancel_delete_branch", _, socket) do
-    {:noreply, assign(socket, branch_delete_pending: nil)}
-  end
-
-  # NOTE: execute_delete_branch now handled via BranchesComponent -> handle_info({:branches_component, :execute_delete, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("execute_delete_branch", %{"name" => branch_name}, socket) do
-    parent = self()
-    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-      result = BranchMonitor.delete_branch(branch_name)
-      send(parent, {:branch_delete_result, branch_name, result})
-    end)
-    {:noreply, assign(socket, branch_delete_pending: nil)}
-  end
-
-  # NOTE: set_linear_filter and toggle_linear_panel now handled via LinearComponent -> handle_info
-
   def handle_event("toggle_panel", %{"panel" => panel}, socket) do
     # Skip panels now handled by SystemProcessesComponent
     case panel do
@@ -1245,60 +1185,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   def handle_event("restore_model_selections", _, socket), do: {:noreply, socket}
-
-  # NOTE: OpenCode server controls now handled via OpenCodeComponent -> handle_info({:opencode_component, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  # NOTE: OpenCode server controls now handled via ConfigComponent -> handle_info({:config_component, ...})
-
-  # NOTE: refresh_opencode_sessions now handled via OpenCodeComponent -> handle_info({:opencode_component, :refresh}, ...)
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("refresh_opencode_sessions", _, socket) do
-    sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-    tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-    prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
-    opencode_sessions_count = length(sessions)
-    {:noreply, assign(socket, opencode_sessions: sessions, opencode_sessions_count: opencode_sessions_count, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
-  end
-
-  # Gemini server controls
-  # NOTE: Gemini server controls now handled via GeminiComponent -> handle_info({:gemini_component, ...})
-
-  # NOTE: close_opencode_session now handled via OpenCodeComponent -> handle_info({:opencode_component, :close_session, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("close_opencode_session", %{"id" => session_id}, socket) do
-    case ClientFactory.opencode_client().delete_session(session_id) do
-      :ok ->
-        sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-        tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-        prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
-        socket = socket
-        |> assign(opencode_sessions: sessions, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)
-        |> put_flash(:info, "Session closed")
-        {:noreply, socket}
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to close session: #{reason}")}
-    end
-  end
-
-  # NOTE: request_opencode_pr now handled via OpenCodeComponent -> handle_info({:opencode_component, :request_pr, ...})
-  # Kept for backward compatibility with direct phx-click usage
-  def handle_event("request_opencode_pr", %{"id" => session_id}, socket) do
-    prompt = """
-    The work looks complete. Please create a Pull Request with:
-    1. A clear, descriptive title
-    2. A detailed description explaining what was changed and why
-    3. Any relevant context for reviewers
-
-    Use `gh pr create` to create the PR.
-    """
-
-    case ClientFactory.opencode_client().send_message(session_id, prompt) do
-      {:ok, _} ->
-        {:noreply, put_flash(socket, :info, "PR requested for session")}
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to request PR: #{reason}")}
-    end
-  end
 
   # Request PR creation for a ticket that has active work
   def handle_event("request_ticket_pr", %{"id" => ticket_id}, socket) do
@@ -1425,6 +1311,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_event("dismiss_session", %{"id" => id}, socket) do
     dismissed = MapSet.put(socket.assigns.dismissed_sessions, id)
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
+  end
+
+  # Backward compatibility for tests - delegates to component handler
+  def handle_event("clear_progress", _, socket) do
+    send(self(), {:live_progress_component, :clear_progress})
+    {:noreply, socket}
   end
 
   # Chat panel removed - using OpenClaw Control UI instead
@@ -1571,18 +1463,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # build_agent_activity function moved to DashboardPhoenixWeb.HomeLiveCache for memoization
-
-  defp determine_agent_type(session) do
-    session_key = Map.get(session, :session_key)
-    cond do
-      session_key && String.contains?(session_key, "main:main") -> :openclaw
-      session_key && String.contains?(session_key, "subagent") -> :openclaw
-      true -> :openclaw
-    end
-  end
-
-  defp parse_event_time(ts) when is_integer(ts), do: DateTime.from_unix!(ts, :millisecond)
-  defp parse_event_time(_), do: DateTime.utc_now()
 
   # Build map of ticket_id -> work session info from OpenCode and sub-agent sessions
   # Parses ticket IDs (like COR-123, FRE-456) from session titles and labels
@@ -1733,153 +1613,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
   defp fetch_opencode_sessions(_), do: []
-
-  # NOTE: format_time, agent_color, and action_color helper functions moved to LiveProgressComponent
-
-  # NOTE: status_badge/1 moved to DaveComponent
-
-  defp model_badge(model) when is_binary(model) do
-    cond do
-      String.contains?(model, "opus") -> "bg-purple-500/20 text-purple-400"
-      String.contains?(model, "sonnet") -> "bg-orange-500/20 text-orange-400"
-      String.contains?(model, "gemini") -> "bg-blue-500/20 text-blue-400"
-      String.contains?(model, "opencode") -> "bg-green-500/20 text-green-400"
-      true -> "bg-base-content/10 text-base-content/60"
-    end
-  end
-  defp model_badge(_), do: "bg-base-content/10 text-base-content/60"
-
-  # NOTE: format_tokens/1 moved to DaveComponent
-
-  # Generate SVG sparkline from history data
-  defp sparkline(history, type) do
-    # history is [{timestamp, cpu, memory}, ...] - newest first
-    values = history
-    |> Enum.reverse()  # oldest first for drawing
-    |> Enum.map(fn {_ts, cpu, mem} -> if type == :cpu, do: cpu, else: mem / 1024 end)  # mem in MB
-    |> Enum.take(-30)  # Last 30 points
-    
-    if length(values) < 2 do
-      ""
-    else
-      max_val = max(Enum.max(values), 1)
-      width = 60
-      height = 16
-      
-      points = values
-      |> Enum.with_index()
-      |> Enum.map(fn {val, i} ->
-        x = i * (width / max(length(values) - 1, 1))
-        y = height - (val / max_val * height)
-        "#{Float.round(x, 1)},#{Float.round(y, 1)}"
-      end)
-      |> Enum.join(" ")
-      
-      color = if type == :cpu, do: "#60a5fa", else: "#34d399"
-      
-      """
-      <svg width="#{width}" height="#{height}" class="inline-block">
-        <polyline fill="none" stroke="#{color}" stroke-width="1.5" points="#{points}"/>
-      </svg>
-      """
-    end
-  end
-
-  defp format_activity_time(nil), do: ""
-  defp format_activity_time(%DateTime{} = dt) do
-    now = DateTime.utc_now()
-    diff = DateTime.diff(now, dt, :second)
-    cond do
-      diff < 60 -> "#{diff}s ago"
-      diff < 3600 -> "#{div(diff, 60)}m ago"
-      diff < 86400 -> "#{div(diff, 3600)}h ago"
-      true -> Calendar.strftime(dt, "%H:%M")
-    end
-  end
-  defp format_activity_time(_), do: ""
-
-  defp agent_type_icon(:openclaw), do: "🦞"
-  defp agent_type_icon(:claude_code), do: "🤖"
-  defp agent_type_icon(:opencode), do: "💻"
-  defp agent_type_icon(:codex), do: "📝"
-  defp agent_type_icon(_), do: "⚡"
-
-  defp activity_status_color("executing"), do: "text-warning animate-pulse"
-  defp activity_status_color("thinking"), do: "text-info animate-pulse"
-  defp activity_status_color("processing"), do: "text-primary"
-  defp activity_status_color("active"), do: "text-success"
-  defp activity_status_color("busy"), do: "text-warning"
-  defp activity_status_color(_), do: "text-base-content/50"
-
-  # Find an OpenCode session that matches the coding agent's working directory
-  defp find_opencode_session(agent, opencode_sessions) when is_list(opencode_sessions) do
-    agent_dir = agent.working_dir
-    
-    Enum.find(opencode_sessions, fn session ->
-      session_dir = session.directory
-      # Match if directories are the same
-      agent_dir && session_dir && normalize_path(agent_dir) == normalize_path(session_dir)
-    end)
-  end
-  defp find_opencode_session(_, _), do: nil
-
-  defp normalize_path(nil), do: nil
-  defp normalize_path(path), do: Path.expand(path)
-
-  # Truncate title with ellipsis if too long
-  defp truncate_title(nil), do: nil
-  defp truncate_title(title) when byte_size(title) > 50 do
-    String.slice(title, 0, 47) <> "..."
-  end
-  defp truncate_title(title), do: title
-
-  # Linear-related helpers moved to LinearComponent
-
-  # NOTE: opencode_status_badge/1 moved to OpenCodeComponent
-  # Kept for backward compatibility
-  defp opencode_status_badge("active"), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px] animate-pulse"
-  defp opencode_status_badge("subagent"), do: "px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px]"
-  defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
-  defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
-
-  # NOTE: Coding agent badge helpers moved to HeaderComponent
-
-  defp coding_agent_button_class(:opencode), do: "bg-blue-500/20 text-blue-400"
-  defp coding_agent_button_class(:claude), do: "bg-purple-500/20 text-purple-400"
-  defp coding_agent_button_class(:gemini), do: "bg-green-500/20 text-green-400"
-  defp coding_agent_button_class(_), do: "bg-base-content/10 text-base-content/60"
-
-  defp coding_agent_icon(:opencode), do: "💻"
-  defp coding_agent_icon(:claude), do: "🤖"
-  defp coding_agent_icon(:gemini), do: "✨"
-  defp coding_agent_icon(_), do: "❓"
-
-  defp coding_agent_name(:opencode), do: "OpenCode"
-  defp coding_agent_name(:claude), do: "Claude"
-  defp coding_agent_name(:gemini), do: "Gemini"
-  defp coding_agent_name(_), do: "Unknown"
-
-  # NOTE: agent_type_from_model/1 moved to DaveComponent
-
-  # NOTE: session_start_timestamp/1 and parse_runtime_to_ms/1 moved to SubagentsComponent
-
-  # NOTE: PR helper functions (pr_ci_badge, pr_ci_icon, pr_review_badge, pr_review_text,
-  # pr_status_bg, format_pr_time) moved to PRsComponent
-
-  # Format branch time
-  defp format_branch_time(nil), do: ""
-  defp format_branch_time(%DateTime{} = dt) do
-    now = DateTime.utc_now()
-    diff = DateTime.diff(now, dt, :second)
-    cond do
-      diff < 60 -> "#{diff}s ago"
-      diff < 3600 -> "#{div(diff, 60)}m ago"
-      diff < 86400 -> "#{div(diff, 3600)}h ago"
-      diff < 604800 -> "#{div(diff, 86400)}d ago"
-      true -> Calendar.strftime(dt, "%b %d")
-    end
-  end
-  defp format_branch_time(_), do: ""
 
   # PR state persistence - stores which tickets have PRs created
   defp pr_state_file, do: Paths.pr_state_file()
