@@ -59,8 +59,16 @@ defmodule DashboardPhoenix.PRMonitor do
 
   @impl true
   def handle_info(:poll, state) do
-    new_state = fetch_all_prs(state)
-    
+    # Fetch async to avoid blocking GenServer calls
+    parent = self()
+    Task.start(fn ->
+      new_state = fetch_all_prs(state)
+      send(parent, {:poll_complete, new_state})
+    end)
+    {:noreply, state}
+  end
+
+  def handle_info({:poll_complete, new_state}, _state) do
     # Broadcast update to subscribers
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
