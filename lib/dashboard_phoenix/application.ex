@@ -26,6 +26,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.AgentActivityMonitor,
       # Linear ticket monitor for COR team
       DashboardPhoenix.LinearMonitor,
+      # Chainlink issue monitor for local issues
+      DashboardPhoenix.ChainlinkMonitor,
       # GitHub PR monitor
       DashboardPhoenix.PRMonitor,
       # Unmerged branches monitor
