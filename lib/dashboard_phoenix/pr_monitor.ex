@@ -106,7 +106,7 @@ defmodule DashboardPhoenix.PRMonitor do
     args = [
       "pr", "list",
       "--repo", repo,
-      "--json", "number,title,state,headRefName,url,statusCheckRollup,reviews,createdAt,author",
+      "--json", "number,title,state,headRefName,url,statusCheckRollup,reviews,createdAt,author,mergeable",
       "--state", "open"
     ]
     
@@ -140,6 +140,9 @@ defmodule DashboardPhoenix.PRMonitor do
     # Parse review status from reviews
     review_status = parse_review_status(Map.get(pr_data, "reviews", []))
     
+    # Check for merge conflicts
+    has_conflicts = Map.get(pr_data, "mergeable") == "CONFLICTING"
+    
     %{
       number: Map.get(pr_data, "number"),
       title: title,
@@ -151,7 +154,8 @@ defmodule DashboardPhoenix.PRMonitor do
       created_at: parse_datetime(Map.get(pr_data, "createdAt")),
       ci_status: ci_status,
       review_status: review_status,
-      ticket_ids: ticket_ids
+      ticket_ids: ticket_ids,
+      has_conflicts: has_conflicts
     }
   end
 

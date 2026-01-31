@@ -636,6 +636,49 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  # Fix PR issues (CI failures and/or merge conflicts)
+  def handle_event("fix_pr_issues", params, socket) do
+    %{"url" => pr_url, "number" => pr_number, "repo" => repo, "branch" => branch} = params
+    has_conflicts = params["has-conflicts"] == "true"
+    ci_failing = params["ci-failing"] == "true"
+    
+    issues = []
+    issues = if ci_failing, do: ["CI failures" | issues], else: issues
+    issues = if has_conflicts, do: ["merge conflicts" | issues], else: issues
+    issues_text = Enum.join(issues, " and ")
+    
+    fix_prompt = """
+    🔧 **Fix #{issues_text} for PR ##{pr_number}**
+    
+    This Pull Request has #{issues_text}. Please fix them:
+    URL: #{pr_url}
+    Repository: #{repo}
+    Branch: #{branch}
+    
+    Steps:
+    1. First, check out the branch: `cd ~/code/core-platform && git fetch origin && git checkout #{branch}`
+    #{if has_conflicts, do: "2. Resolve merge conflicts: `git fetch origin main && git merge origin/main` - fix any conflicts, then commit", else: ""}
+    #{if ci_failing, do: "#{if has_conflicts, do: "3", else: "2"}. Get CI failure details: `gh pr checks #{pr_number} --repo #{repo}`", else: ""}
+    #{if ci_failing, do: "#{if has_conflicts, do: "4", else: "3"}. Review the failing checks and fix the issues (tests, linting, type errors, etc.)", else: ""}
+    #{if ci_failing, do: "#{if has_conflicts, do: "5", else: "4"}. Run tests locally to verify: `mix test`", else: ""}
+    - Commit and push the fixes
+    
+    Focus on fixing the issues, not refactoring unrelated code.
+    """
+
+    alias DashboardPhoenix.OpenClawClient
+    
+    try do
+      OpenClawClient.send_message(fix_prompt, channel: "webchat")
+      {:noreply, put_flash(socket, :info, "Fix requested for PR ##{pr_number}")}
+    catch
+      :exit, reason ->
+        {:noreply, put_flash(socket, :error, "Failed to request fix: #{inspect(reason)}")}
+      error ->
+        {:noreply, put_flash(socket, :error, "Failed to request fix: #{inspect(error)}")}
+    end
+  end
+
   # Clear PR state for a ticket (e.g., when PR is merged)
   def handle_event("clear_ticket_pr", %{"id" => ticket_id}, socket) do
     pr_created = MapSet.delete(socket.assigns.pr_created_tickets, ticket_id)
@@ -1573,6 +1616,30 @@ defmodule DashboardPhoenixWeb.HomeLive do
                           <span class={pr_ci_badge(pr.ci_status)} title="CI Status">
                             <%= pr_ci_icon(pr.ci_status) %> CI
                           </span>
+                          
+                          <!-- Conflict Badge -->
+                          <%= if pr.has_conflicts do %>
+                            <span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px]" title="Has merge conflicts">
+                              ⚠️ Conflict
+                            </span>
+                          <% end %>
+                          
+                          <!-- Fix Button (for CI failures or conflicts) -->
+                          <%= if pr.ci_status == :failure or pr.has_conflicts do %>
+                            <button
+                              phx-click="fix_pr_issues"
+                              phx-value-url={pr.url}
+                              phx-value-number={pr.number}
+                              phx-value-repo={pr.repo}
+                              phx-value-branch={pr.branch}
+                              phx-value-has-conflicts={pr.has_conflicts}
+                              phx-value-ci-failing={pr.ci_status == :failure}
+                              class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 text-[10px]"
+                              title="Send to coding agent to fix issues"
+                            >
+                              🔧 Fix
+                            </button>
+                          <% end %>
                           
                           <!-- Review Status -->
                           <span class={pr_review_badge(pr.review_status)} title="Review Status">
