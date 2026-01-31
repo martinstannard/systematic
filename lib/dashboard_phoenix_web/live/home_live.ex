@@ -1350,6 +1350,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                         <th class="text-left py-2 px-2 w-20">Status</th>
                         <th class="text-left py-2 px-2 w-36">Work</th>
                         <th class="text-left py-2 px-2 w-28">Actions</th>
+                        <th class="text-left py-2 px-2 w-20">PR</th>
                         <th class="text-left py-2 px-2 w-28">Project</th>
                         <th class="text-left py-2 px-2 w-24">Assignee</th>
                       </tr>
@@ -1360,7 +1361,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                         <tr class={"border-b border-white/5 hover:bg-white/5 transition-colors " <> if(work_info, do: "bg-accent/5", else: "")}>
                           <td class="py-2 px-2">
                             <%= if work_info do %>
-                              <span class="px-2 py-1 rounded bg-success/20 text-success text-[10px] font-bold animate-pulse" title="Work in progress">
+                              <span class="px-4 py-1 rounded bg-success/20 text-success text-[10px] font-bold animate-pulse whitespace-nowrap" title="Work in progress">
                                 ⚡ Active
                               </span>
                             <% else %>
