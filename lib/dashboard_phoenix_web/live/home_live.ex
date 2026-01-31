@@ -13,6 +13,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.LiveProgressComponent
   alias DashboardPhoenixWeb.Live.Components.SystemProcessesComponent
   alias DashboardPhoenixWeb.Live.Components.UsageStatsComponent
+  alias DashboardPhoenixWeb.Live.Components.WorkModalComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -274,7 +275,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       show_work_modal: true,
       work_ticket_id: ticket_id,
       work_ticket_details: nil,
-      work_ticket_loading: true
+      work_ticket_loading: true,
+      work_sent: false,
+      work_error: nil
     )
     
     # Fetch ticket details async
@@ -937,6 +940,29 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
+  # Handle WorkModalComponent messages
+  def handle_info({:work_modal_component, :close}, socket) do
+    {:noreply, assign(socket,
+      show_work_modal: false,
+      work_ticket_id: nil,
+      work_ticket_details: nil,
+      work_ticket_loading: false,
+      work_sent: false,
+      work_error: nil
+    )}
+  end
+
+  def handle_info({:work_modal_component, :work_already_exists, {ticket_id, agent_type, work_info}}, socket) do
+    socket = socket
+    |> assign(show_work_modal: false)
+    |> put_flash(:error, "Work already in progress for #{ticket_id} (#{agent_type}: #{work_info[:slug] || work_info[:label]})")
+    {:noreply, socket}
+  end
+
+  def handle_info({:work_modal_component, :execute_work, {ticket_id, ticket_details, coding_pref, claude_model, opencode_model}}, socket) do
+    execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model)
+  end
+
   def handle_info({:live_progress_component, :clear_progress}, socket) do
     # Use atomic write to prevent race conditions with readers
     alias DashboardPhoenix.FileUtils
@@ -1174,7 +1200,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       show_work_modal: true,
       work_ticket_id: ticket_id,
       work_ticket_details: nil,
-      work_ticket_loading: true
+      work_ticket_loading: true,
+      work_sent: false,
+      work_error: nil
     )
     
     # Fetch ticket details async
@@ -1184,13 +1212,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   def handle_event("close_work_modal", _, socket) do
-    {:noreply, assign(socket,
-      show_work_modal: false,
-      work_ticket_id: nil,
-      work_ticket_details: nil,
-      work_ticket_loading: false,
-      work_sent: false
-    )}
+    # Delegate to component handler for consistency
+    send(self(), {:work_modal_component, :close})
+    {:noreply, socket}
   end
 
   def handle_event("copy_spawn_command", _, socket) do
@@ -1371,23 +1395,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Execute work on ticket using OpenCode or OpenClaw
   def handle_event("execute_work", _, socket) do
+    # Delegate to component handler
     ticket_id = socket.assigns.work_ticket_id
     ticket_details = socket.assigns.work_ticket_details
     coding_pref = socket.assigns.coding_agent_pref
     claude_model = socket.assigns.claude_model
     opencode_model = socket.assigns.opencode_model
     
-    # Check if work already exists for this ticket
-    if Map.has_key?(socket.assigns.tickets_in_progress, ticket_id) do
-      work_info = Map.get(socket.assigns.tickets_in_progress, ticket_id)
-      agent_type = if work_info.type == :opencode, do: "OpenCode", else: "sub-agent"
-      socket = socket
-      |> assign(show_work_modal: false)
-      |> put_flash(:error, "Work already in progress for #{ticket_id} (#{agent_type}: #{work_info[:slug] || work_info[:label]})")
-      {:noreply, socket}
-    else
-      execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model)
-    end
+    send(self(), {:work_modal_component, :execute_work, {ticket_id, ticket_details, coding_pref, claude_model, opencode_model}})
+    {:noreply, socket}
   end
 
   def handle_event("dismiss_session", %{"id" => id}, socket) do
@@ -1424,7 +1440,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, push_model_selections(socket)}
   end
 
-  # Actually execute the work when no duplicate exists
+  # Execute work for the ticket (duplicate check already done by component)
   defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model) do
     # Build the prompt from ticket details
     prompt = """
