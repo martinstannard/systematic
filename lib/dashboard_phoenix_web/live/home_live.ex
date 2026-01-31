@@ -12,6 +12,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.DaveComponent
   alias DashboardPhoenixWeb.Live.Components.LiveProgressComponent
   alias DashboardPhoenixWeb.Live.Components.SystemProcessesComponent
+  alias DashboardPhoenixWeb.Live.Components.UsageStatsComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -928,6 +929,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
         socket = put_flash(socket, :error, "Failed to kill process: #{reason}")
         {:noreply, socket}
     end
+  end
+
+  # Handle UsageStatsComponent messages
+  def handle_info({:usage_stats_component, :refresh_stats}, socket) do
+    StatsMonitor.refresh()
+    {:noreply, socket}
   end
 
   def handle_info({:live_progress_component, :clear_progress}, socket) do
