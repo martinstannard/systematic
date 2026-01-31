@@ -15,6 +15,7 @@ defmodule DashboardPhoenix.OpenCodeServer do
   require Logger
 
   alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.CommandRunner
 
   @default_port 9100
   @pubsub DashboardPhoenix.PubSub
@@ -116,29 +117,44 @@ defmodule DashboardPhoenix.OpenCodeServer do
       {:cd, cwd}
     ]
     
-    try do
-      port_ref = Port.open({:spawn_executable, opencode_bin()}, port_opts)
-      {:os_pid, os_pid} = Port.info(port_ref, :os_pid)
+    # Wrap Port.open in a task with timeout to prevent hanging
+    task = Task.async(fn ->
+      try do
+        port_ref = Port.open({:spawn_executable, opencode_bin()}, port_opts)
+        {:os_pid, os_pid} = Port.info(port_ref, :os_pid)
+        
+        Logger.info("[OpenCodeServer] Started with OS PID: #{os_pid}")
+        
+        # Wait a moment for the server to initialize
+        Process.sleep(2000)
+        
+        {:ok, port_ref, os_pid}
+      rescue
+        e ->
+          {:error, e}
+      end
+    end)
+    
+    case Task.yield(task, 10_000) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {:ok, port_ref, os_pid}} ->
+        new_state = %{state |
+          running: true,
+          os_pid: os_pid,
+          port_ref: port_ref,
+          cwd: cwd,
+          started_at: DateTime.utc_now()
+        }
+        
+        broadcast_status(new_state)
+        {:reply, {:ok, state.port}, new_state}
       
-      Logger.info("[OpenCodeServer] Started with OS PID: #{os_pid}")
-      
-      # Wait a moment for the server to initialize
-      Process.sleep(2000)
-      
-      new_state = %{state |
-        running: true,
-        os_pid: os_pid,
-        port_ref: port_ref,
-        cwd: cwd,
-        started_at: DateTime.utc_now()
-      }
-      
-      broadcast_status(new_state)
-      {:reply, {:ok, state.port}, new_state}
-    rescue
-      e ->
+      {:ok, {:error, e}} ->
         Logger.error("[OpenCodeServer] Failed to start: #{inspect(e)}")
         {:reply, {:error, inspect(e)}, state}
+      
+      nil ->
+        Logger.error("[OpenCodeServer] Failed to start: timeout after 10s")
+        {:reply, {:error, "startup timeout"}, state}
     end
   end
 
@@ -157,7 +173,7 @@ defmodule DashboardPhoenix.OpenCodeServer do
     
     # Also kill the OS process to be sure
     if state.os_pid do
-      System.cmd("kill", ["-9", "#{state.os_pid}"], stderr_to_stdout: true)
+      CommandRunner.run!("kill", ["-9", "#{state.os_pid}"], timeout: 5_000, stderr_to_stdout: true)
     end
     
     new_state = %{state |
@@ -222,7 +238,7 @@ defmodule DashboardPhoenix.OpenCodeServer do
     end
     
     if os_pid do
-      System.cmd("kill", ["-9", "#{os_pid}"], stderr_to_stdout: true)
+      CommandRunner.run!("kill", ["-9", "#{os_pid}"], timeout: 5_000, stderr_to_stdout: true)
     end
     
     :ok

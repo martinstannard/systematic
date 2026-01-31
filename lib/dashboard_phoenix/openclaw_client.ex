@@ -11,6 +11,7 @@ defmodule DashboardPhoenix.OpenClawClient do
   """
   require Logger
 
+  alias DashboardPhoenix.CommandRunner
   @behaviour DashboardPhoenix.Behaviours.OpenClawClientBehaviour
 
   @doc """
@@ -37,14 +38,22 @@ defmodule DashboardPhoenix.OpenClawClient do
     
     Logger.info("[OpenClawClient] Sending work request for #{ticket_id} with model: #{model || "default"}")
     
-    case System.cmd("openclaw", args, stderr_to_stdout: true) do
-      {output, 0} ->
+    case CommandRunner.run("openclaw", args, timeout: 30_000, stderr_to_stdout: true) do
+      {:ok, output} ->
         Logger.info("[OpenClawClient] Success: #{String.slice(output, 0, 200)}")
         {:ok, %{ticket_id: ticket_id, output: output}}
       
-      {output, code} ->
+      {:error, :timeout} ->
+        Logger.error("[OpenClawClient] Command timed out after 30s")
+        {:error, "openclaw agent timed out"}
+      
+      {:error, {:exit, code, output}} ->
         Logger.error("[OpenClawClient] Command failed (#{code}): #{output}")
         {:error, "openclaw agent failed: #{output}"}
+      
+      {:error, reason} ->
+        Logger.error("[OpenClawClient] Command error: #{inspect(reason)}")
+        {:error, "openclaw agent failed: #{inspect(reason)}"}
     end
   rescue
     e ->
@@ -70,11 +79,15 @@ defmodule DashboardPhoenix.OpenClawClient do
     
     # Fire and forget - don't block waiting for agent response
     Task.start(fn ->
-      case System.cmd("openclaw", args, stderr_to_stdout: true) do
-        {_output, 0} ->
+      case CommandRunner.run("openclaw", args, timeout: 30_000, stderr_to_stdout: true) do
+        {:ok, _output} ->
           Logger.info("[OpenClawClient] Message delivered successfully")
-        {output, code} ->
+        {:error, :timeout} ->
+          Logger.error("[OpenClawClient] Message delivery timed out after 30s")
+        {:error, {:exit, code, output}} ->
           Logger.error("[OpenClawClient] Command failed (#{code}): #{output}")
+        {:error, reason} ->
+          Logger.error("[OpenClawClient] Command error: #{inspect(reason)}")
       end
     end)
     
@@ -118,8 +131,8 @@ defmodule DashboardPhoenix.OpenClawClient do
     
     Logger.info("[OpenClawClient] Spawning isolated sub-agent: dashboard-#{name}")
     
-    case System.cmd("openclaw", args, stderr_to_stdout: true) do
-      {output, 0} ->
+    case CommandRunner.run("openclaw", args, timeout: 30_000, stderr_to_stdout: true) do
+      {:ok, output} ->
         case Jason.decode(output) do
           {:ok, %{"id" => job_id}} ->
             Logger.info("[OpenClawClient] Sub-agent spawned successfully: #{job_id}")
@@ -134,9 +147,17 @@ defmodule DashboardPhoenix.OpenClawClient do
             {:ok, %{name: "dashboard-#{name}", output: output}}
         end
       
-      {output, code} ->
+      {:error, :timeout} ->
+        Logger.error("[OpenClawClient] Spawn timed out after 30s")
+        {:error, "openclaw cron add timed out"}
+      
+      {:error, {:exit, code, output}} ->
         Logger.error("[OpenClawClient] Spawn failed (#{code}): #{output}")
         {:error, "openclaw cron add failed: #{output}"}
+      
+      {:error, reason} ->
+        Logger.error("[OpenClawClient] Spawn error: #{inspect(reason)}")
+        {:error, "openclaw cron add failed: #{inspect(reason)}"}
     end
   rescue
     e ->

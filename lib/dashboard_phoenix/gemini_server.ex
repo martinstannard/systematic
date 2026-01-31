@@ -15,6 +15,7 @@ defmodule DashboardPhoenix.GeminiServer do
   require Logger
 
   alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.CommandRunner
 
   @pubsub DashboardPhoenix.PubSub
   @topic "gemini_server"
@@ -104,8 +105,8 @@ defmodule DashboardPhoenix.GeminiServer do
     
     if gemini_path do
       # Verify it runs (quick version check)
-      case System.cmd(gemini_path, ["--version"], stderr_to_stdout: true) do
-        {output, 0} ->
+      case CommandRunner.run(gemini_path, ["--version"], timeout: 10_000, stderr_to_stdout: true) do
+        {:ok, output} ->
           Logger.info("[GeminiServer] Gemini CLI available: #{String.trim(output)}")
           
           new_state = %{state |
@@ -118,9 +119,17 @@ defmodule DashboardPhoenix.GeminiServer do
           broadcast_status(new_state)
           {:reply, {:ok, :started}, new_state}
         
-        {error, code} ->
+        {:error, :timeout} ->
+          Logger.error("[GeminiServer] Gemini CLI version check timed out")
+          {:reply, {:error, "Gemini CLI version check timed out"}, state}
+        
+        {:error, {:exit, code, error}} ->
           Logger.error("[GeminiServer] Gemini CLI check failed (exit #{code}): #{error}")
           {:reply, {:error, "Gemini CLI check failed: #{error}"}, state}
+        
+        {:error, reason} ->
+          Logger.error("[GeminiServer] Gemini CLI check error: #{inspect(reason)}")
+          {:reply, {:error, "Gemini CLI check failed: #{inspect(reason)}"}, state}
       end
     else
       Logger.error("[GeminiServer] Gemini CLI not found")
@@ -217,9 +226,9 @@ defmodule DashboardPhoenix.GeminiServer do
       File.exists?(path) -> path
       File.exists?("/usr/local/bin/gemini") -> "/usr/local/bin/gemini"
       true ->
-        # Try to find it in PATH
-        case System.cmd("which", ["gemini"], stderr_to_stdout: true) do
-          {path, 0} -> String.trim(path)
+        # Try to find it in PATH with timeout
+        case CommandRunner.run("which", ["gemini"], timeout: 5_000, stderr_to_stdout: true) do
+          {:ok, output} -> String.trim(output)
           _ -> nil
         end
     end
@@ -233,23 +242,25 @@ defmodule DashboardPhoenix.GeminiServer do
     
     # Run the gemini command with the prompt
     # The gemini CLI accepts the prompt as a positional argument
-    # Use cd: option to set working directory
-    try do
-      case System.cmd(gemini_path, [prompt],
-             cd: cwd,
-             stderr_to_stdout: true,
-             env: [{"NO_COLOR", "1"}, {"TERM", "dumb"}]) do
-        {output, 0} ->
-          {:ok, output}
-        
-        {output, exit_code} ->
-          # Still return output even on non-zero exit (might be useful info)
-          Logger.warning("[GeminiServer] Command exited with code #{exit_code}")
-          {:ok, output <> "\n[Exit code: #{exit_code}]"}
-      end
-    rescue
-      e ->
-        {:error, Exception.message(e)}
+    # Use longer timeout for AI processing, but not infinite
+    case CommandRunner.run(gemini_path, [prompt],
+           timeout: 120_000,  # 2 minutes for AI processing
+           cd: cwd,
+           stderr_to_stdout: true,
+           env: [{"NO_COLOR", "1"}, {"TERM", "dumb"}]) do
+      {:ok, output} ->
+        {:ok, output}
+      
+      {:error, :timeout} ->
+        {:error, "Gemini command timed out after 2 minutes"}
+      
+      {:error, {:exit, exit_code, output}} ->
+        # Still return output even on non-zero exit (might be useful info)
+        Logger.warning("[GeminiServer] Command exited with code #{exit_code}")
+        {:ok, output <> "\n[Exit code: #{exit_code}]"}
+      
+      {:error, reason} ->
+        {:error, "Gemini command failed: #{inspect(reason)}"}
     end
   end
 

@@ -5,6 +5,7 @@ defmodule DashboardPhoenix.StatsMonitor do
   use GenServer
 
   alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.CommandRunner
 
   @poll_interval 5_000  # 5 seconds
 
@@ -68,8 +69,11 @@ defmodule DashboardPhoenix.StatsMonitor do
   end
 
   defp fetch_opencode_stats do
-    case System.cmd("opencode", ["stats"], stderr_to_stdout: true) do
-      {output, 0} -> parse_opencode_stats(output)
+    # Use CommandRunner with a short timeout for stats (should be quick)
+    case CommandRunner.run("opencode", ["stats"], timeout: 10_000, stderr_to_stdout: true) do
+      {:ok, output} -> parse_opencode_stats(output)
+      {:error, :timeout} -> %{error: "Timeout fetching stats"}
+      {:error, {:exit, _code, output}} -> %{error: "Command failed: #{String.trim(output)}"}
       _ -> %{error: "Failed to fetch"}
     end
   end
