@@ -1682,13 +1682,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp action_color("Error"), do: "text-error"
   defp action_color(_), do: "text-base-content/70"
 
-  # Status badge styles (also used in main agent display)
-  defp status_badge("running"), do: "bg-warning/20 text-warning animate-pulse"
-  defp status_badge("idle"), do: "bg-info/20 text-info"
-  defp status_badge("completed"), do: "bg-success/20 text-success/60"
-  defp status_badge("done"), do: "bg-success/20 text-success"
-  defp status_badge("error"), do: "bg-error/20 text-error"
-  defp status_badge(_), do: "bg-base-content/10 text-base-content/60"
+  # NOTE: status_badge/1 moved to DaveComponent
 
   defp model_badge(model) when is_binary(model) do
     cond do
@@ -1701,11 +1695,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
   defp model_badge(_), do: "bg-base-content/10 text-base-content/60"
 
-  # Token formatting (also used in main agent display)
-  defp format_tokens(n) when is_integer(n) and n >= 1_000_000, do: "#{Float.round(n / 1_000_000, 1)}M"
-  defp format_tokens(n) when is_integer(n) and n >= 1_000, do: "#{Float.round(n / 1_000, 1)}K"
-  defp format_tokens(n) when is_integer(n), do: "#{n}"
-  defp format_tokens(_), do: "0"
+  # NOTE: format_tokens/1 moved to DaveComponent
 
   # Generate SVG sparkline from history data
   defp sparkline(history, type) do
@@ -1824,20 +1814,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp coding_agent_name(:gemini), do: "Gemini"
   defp coding_agent_name(_), do: "Unknown"
 
-  # Agent type helpers (also used in main agent display)
-  defp agent_type_from_model("anthropic/" <> _), do: {:claude, "Claude", "🤖"}
-  defp agent_type_from_model("google/" <> _), do: {:gemini, "Gemini", "✨"}
-  defp agent_type_from_model("openai/" <> _), do: {:openai, "OpenAI", "🔥"}
-  defp agent_type_from_model(model) when is_binary(model) do
-    cond do
-      String.contains?(model, "claude") -> {:claude, "Claude", "🤖"}
-      String.contains?(model, "gemini") -> {:gemini, "Gemini", "✨"}
-      String.contains?(model, "gpt") -> {:openai, "OpenAI", "🔥"}
-      String.contains?(model, "opencode") -> {:opencode, "OpenCode", "💻"}
-      true -> {:unknown, "Unknown", "⚡"}
-    end
-  end
-  defp agent_type_from_model(_), do: {:unknown, "Unknown", "⚡"}
+  # NOTE: agent_type_from_model/1 moved to DaveComponent
 
   # NOTE: session_start_timestamp/1 and parse_runtime_to_ms/1 moved to SubagentsComponent
 
