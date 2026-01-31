@@ -46,6 +46,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Calculate main session activity count for warning
     main_activity_count = Enum.count(progress, & &1.agent == "main")
     
+    # Load persisted PR state (tickets that have PRs created)
+    pr_created_tickets = load_pr_state()
+    
     socket = assign(socket,
       process_stats: ProcessMonitor.get_stats(processes),
       recent_processes: processes,
@@ -66,6 +69,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_last_updated: linear_data.last_updated,
       linear_error: linear_data.error,
       tickets_in_progress: tickets_in_progress,
+      pr_created_tickets: pr_created_tickets,
       # Work modal state
       show_work_modal: false,
       work_ticket_id: nil,
@@ -383,6 +387,89 @@ defmodule DashboardPhoenixWeb.HomeLive do
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, "Failed to request PR: #{reason}")}
     end
+  end
+
+  # Request PR creation for a ticket that has active work
+  def handle_event("request_ticket_pr", %{"id" => ticket_id}, socket) do
+    work_info = Map.get(socket.assigns.tickets_in_progress, ticket_id)
+    
+    if work_info do
+      pr_prompt = """
+      The work on #{ticket_id} looks complete. Please create a Pull Request with:
+      1. A clear, descriptive title referencing #{ticket_id}
+      2. A detailed description explaining what was changed and why
+      3. Include the Linear ticket link in the PR description
+      
+      Use `gh pr create` to create the PR. After creating the PR, report back with the PR URL.
+      """
+
+      result = case work_info.type do
+        :opencode ->
+          # Send to OpenCode session
+          OpenCodeClient.send_message(work_info.session_id, pr_prompt)
+        
+        :subagent ->
+          # Send to OpenClaw sub-agent via sessions_send
+          alias DashboardPhoenix.OpenClawClient
+          OpenClawClient.send_message(pr_prompt, channel: "webchat")
+      end
+
+      case result do
+        {:ok, _} ->
+          # Mark ticket as having PR requested
+          pr_created = MapSet.put(socket.assigns.pr_created_tickets, ticket_id)
+          save_pr_state(pr_created)
+          
+          socket = socket
+          |> assign(pr_created_tickets: pr_created)
+          |> put_flash(:info, "PR requested for #{ticket_id}")
+          {:noreply, socket}
+        
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to request PR: #{inspect(reason)}")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "No active work found for #{ticket_id}")}
+    end
+  end
+
+  # Request super review for a ticket that has a PR
+  def handle_event("request_super_review", %{"id" => ticket_id}, socket) do
+    review_prompt = """
+    🔍 **Super Review Request**
+    
+    Please perform a comprehensive code review for the PR related to ticket #{ticket_id}:
+    
+    1. Check out the PR branch
+    2. Review all code changes for:
+       - Code quality and best practices
+       - Potential bugs or edge cases
+       - Performance implications
+       - Security concerns
+       - Test coverage
+    3. Verify the implementation matches the ticket requirements
+    4. Leave detailed review comments on the PR
+    5. Approve or request changes as appropriate
+    
+    Use `gh pr view` to find the PR and `gh pr diff` to see changes.
+    """
+
+    # Send to main agent to spawn a review sub-agent
+    alias DashboardPhoenix.OpenClawClient
+    
+    case OpenClawClient.send_message(review_prompt, channel: "webchat") do
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Super review requested for #{ticket_id}")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(reason)}")}
+    end
+  end
+
+  # Clear PR state for a ticket (e.g., when PR is merged)
+  def handle_event("clear_ticket_pr", %{"id" => ticket_id}, socket) do
+    pr_created = MapSet.delete(socket.assigns.pr_created_tickets, ticket_id)
+    save_pr_state(pr_created)
+    {:noreply, assign(socket, pr_created_tickets: pr_created)}
   end
 
   # Execute work on ticket using OpenCode or OpenClaw
@@ -828,6 +915,29 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp opencode_status_badge("subagent"), do: "px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px]"
   defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
   defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+
+  # PR state persistence - stores which tickets have PRs created
+  @pr_state_file Path.expand("~/.openclaw/systematic-pr-state.json")
+
+  defp load_pr_state do
+    case File.read(@pr_state_file) do
+      {:ok, content} ->
+        case Jason.decode(content) do
+          {:ok, %{"pr_created" => tickets}} when is_list(tickets) ->
+            MapSet.new(tickets)
+          _ ->
+            MapSet.new()
+        end
+      {:error, _} ->
+        MapSet.new()
+    end
+  end
+
+  defp save_pr_state(pr_created) do
+    content = Jason.encode!(%{"pr_created" => MapSet.to_list(pr_created)})
+    File.mkdir_p!(Path.dirname(@pr_state_file))
+    File.write!(@pr_state_file, content)
+  end
 
   def render(assigns) do
     ~H"""
