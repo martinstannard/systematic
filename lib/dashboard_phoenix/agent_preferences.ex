@@ -12,6 +12,8 @@ defmodule DashboardPhoenix.AgentPreferences do
   use GenServer
   require Logger
 
+  alias DashboardPhoenix.FileUtils
+
   @prefs_file "/tmp/dashboard-prefs.json"
   @pubsub DashboardPhoenix.PubSub
   @topic "agent_preferences"
@@ -126,7 +128,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   defp save_preferences(prefs) do
     case Jason.encode(prefs, pretty: true) do
       {:ok, json} ->
-        case File.write(@prefs_file, json) do
+        case FileUtils.atomic_write(@prefs_file, json) do
           :ok -> :ok
           {:error, reason} ->
             Logger.error("[AgentPreferences] Failed to save prefs: #{inspect(reason)}")

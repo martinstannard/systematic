@@ -35,6 +35,7 @@ defmodule DashboardPhoenix.PRVerification do
   require Logger
 
   alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.FileUtils
 
   @topic "pr_verification"
 
@@ -198,7 +199,7 @@ defmodule DashboardPhoenix.PRVerification do
     # Ensure directory exists
     File.mkdir_p!(Path.dirname(file))
     
-    case File.write(file, content) do
+    case FileUtils.atomic_write(file, content) do
       :ok ->
         :ok
       {:error, reason} ->

@@ -23,6 +23,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.OpenCodeClient
   alias DashboardPhoenix.GeminiServer
   alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.FileUtils
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -2100,7 +2101,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     file = pr_state_file()
     content = Jason.encode!(%{"pr_created" => MapSet.to_list(pr_created)})
     File.mkdir_p!(Path.dirname(file))
-    File.write!(file, content)
+    FileUtils.atomic_write!(file, content)
   end
 
   # Linear filter button styling moved to LinearComponent
