@@ -896,9 +896,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Chat panel removed - using OpenClaw Control UI instead
 
-  def handle_event("toggle_chat_mode", _, socket) do
-    {:noreply, assign(socket, chat_iframe_error: !socket.assigns.chat_iframe_error)}
-  end
+  # Chat mode toggle removed
 
   def handle_event("clear_completed", _, socket) do
     # Get all completed session IDs and add them to dismissed
@@ -1557,8 +1555,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
         
         <!-- LEFT: Removed chat panel - use OpenClaw Control UI at https://balgownie.tail1b57dd.ts.net:8443/ -->
 
-        <!-- RIGHT: Sidebar Panels -->
-        <div class="lg:w-1/2 flex flex-col gap-3 overflow-y-auto">
+        <!-- Main Panels (full width, chat removed) -->
+        <div class="w-full flex flex-col gap-3 overflow-y-auto">
           
           <!-- Compact Usage Stats -->
           <div class="glass-panel rounded-lg p-3">
