@@ -5,6 +5,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.ChainlinkComponent
   alias DashboardPhoenixWeb.Live.Components.PRsComponent
   alias DashboardPhoenixWeb.Live.Components.BranchesComponent
+  alias DashboardPhoenixWeb.Live.Components.OpenCodeComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -678,6 +679,73 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  # OpenCodeComponent handlers
+  def handle_info({:opencode_component, :toggle_panel}, socket) do
+    socket = assign(socket, opencode_collapsed: !socket.assigns.opencode_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:opencode_component, :refresh}, socket) do
+    sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
+    tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+    prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+    {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
+  end
+
+  def handle_info({:opencode_component, :start_server}, socket) do
+    case OpenCodeServer.start_server() do
+      {:ok, port} ->
+        socket = socket
+        |> assign(opencode_server_status: OpenCodeServer.status())
+        |> put_flash(:info, "OpenCode server started on port #{port}")
+        {:noreply, socket}
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Failed to start OpenCode server: #{inspect(reason)}")
+        {:noreply, socket}
+    end
+  end
+
+  def handle_info({:opencode_component, :stop_server}, socket) do
+    OpenCodeServer.stop_server()
+    socket = socket
+    |> assign(opencode_server_status: OpenCodeServer.status())
+    |> put_flash(:info, "OpenCode server stopped")
+    {:noreply, socket}
+  end
+
+  def handle_info({:opencode_component, :close_session, session_id}, socket) do
+    case OpenCodeClient.delete_session(session_id) do
+      :ok ->
+        sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
+        tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+        prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+        socket = socket
+        |> assign(opencode_sessions: sessions, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)
+        |> put_flash(:info, "Session closed")
+        {:noreply, socket}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to close session: #{reason}")}
+    end
+  end
+
+  def handle_info({:opencode_component, :request_pr, session_id}, socket) do
+    prompt = """
+    The work looks complete. Please create a Pull Request with:
+    1. A clear, descriptive title
+    2. A detailed description explaining what was changed and why
+    3. Any relevant context for reviewers
+
+    Use `gh pr create` to create the PR.
+    """
+
+    case OpenCodeClient.send_message(session_id, prompt) do
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "PR requested for session")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to request PR: #{reason}")}
+    end
+  end
+
   # Handle OpenCode server status updates
   def handle_info({:opencode_status, status}, socket) do
     sessions = fetch_opencode_sessions(status)
@@ -966,7 +1034,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("restore_model_selections", _, socket), do: {:noreply, socket}
 
-  # OpenCode server controls
+  # NOTE: OpenCode server controls now handled via OpenCodeComponent -> handle_info({:opencode_component, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("start_opencode_server", _, socket) do
     case OpenCodeServer.start_server() do
       {:ok, port} ->
@@ -980,6 +1049,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  # NOTE: stop_opencode_server now handled via OpenCodeComponent -> handle_info({:opencode_component, :stop_server}, ...)
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("stop_opencode_server", _, socket) do
     OpenCodeServer.stop_server()
     socket = socket
@@ -988,6 +1059,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
+  # NOTE: refresh_opencode_sessions now handled via OpenCodeComponent -> handle_info({:opencode_component, :refresh}, ...)
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("refresh_opencode_sessions", _, socket) do
     sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
     tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
@@ -1032,6 +1105,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, gemini_output: "")}
   end
 
+  # NOTE: close_opencode_session now handled via OpenCodeComponent -> handle_info({:opencode_component, :close_session, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("close_opencode_session", %{"id" => session_id}, socket) do
     case OpenCodeClient.delete_session(session_id) do
       :ok ->
@@ -1047,6 +1122,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  # NOTE: request_opencode_pr now handled via OpenCodeComponent -> handle_info({:opencode_component, :request_pr, ...})
+  # Kept for backward compatibility with direct phx-click usage
   def handle_event("request_opencode_pr", %{"id" => session_id}, socket) do
     prompt = """
     The work looks complete. Please create a Pull Request with:
@@ -1910,6 +1987,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Linear-related helpers moved to LinearComponent
 
+  # NOTE: opencode_status_badge/1 moved to OpenCodeComponent
+  # Kept for backward compatibility
   defp opencode_status_badge("active"), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px] animate-pulse"
   defp opencode_status_badge("subagent"), do: "px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px]"
   defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"

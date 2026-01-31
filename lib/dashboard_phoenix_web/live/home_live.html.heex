@@ -134,45 +134,14 @@
         branch_delete_pending={@branch_delete_pending}
       />
 
-      <!-- OpenCode Sessions Panel -->
-      <div class="glass-panel rounded-lg overflow-hidden">
-        <div 
-          class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
-          phx-click="toggle_panel"
-          phx-value-panel="opencode"
-        >
-          <div class="flex items-center space-x-2">
-            <span class={"text-xs transition-transform duration-200 " <> if(@opencode_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-accent uppercase tracking-wider">💻 OpenCode</span>
-            <span class="text-[10px] font-mono text-base-content/50"><%= length(@opencode_sessions) %></span>
-          </div>
-          <button phx-click="refresh_opencode_sessions" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">↻</button>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@opencode_collapsed, do: "max-h-0", else: "max-h-[300px]")}>
-          <div class="px-3 pb-3 space-y-1 max-h-[250px] overflow-y-auto">
-            <%= if not @opencode_server_status.running do %>
-              <div class="text-center py-2">
-                <div class="text-[10px] text-base-content/40 mb-1">Server not running</div>
-                <button phx-click="start_opencode_server" class="text-[10px] px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">
-                  Start
-                </button>
-              </div>
-            <% else %>
-              <%= for session <- @opencode_sessions do %>
-                <div class="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-white/5 text-xs font-mono">
-                  <span class={opencode_status_badge(session.status)}><%= session.status %></span>
-                  <span class="text-white truncate flex-1" title={session.title}><%= session.slug %></span>
-                  <%= if session.file_changes.files > 0 do %>
-                    <span class="text-green-400 text-[10px]">+<%= session.file_changes.additions %></span>
-                    <span class="text-red-400 text-[10px]">-<%= session.file_changes.deletions %></span>
-                  <% end %>
-                </div>
-              <% end %>
-            <% end %>
-          </div>
-        </div>
-      </div>
+      <!-- OpenCode Sessions Panel (LiveComponent) -->
+      <.live_component
+        module={OpenCodeComponent}
+        id="opencode-panel"
+        opencode_server_status={@opencode_server_status}
+        opencode_sessions={@opencode_sessions}
+        opencode_collapsed={@opencode_collapsed}
+      />
 
       <!-- Gemini CLI Panel -->
       <div class="glass-panel rounded-lg overflow-hidden">
