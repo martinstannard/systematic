@@ -900,6 +900,36 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, push_panel_state(socket)}
   end
 
+  # Handle SystemProcessesComponent messages
+  def handle_info({:system_processes_component, :toggle_panel, "coding_agents"}, socket) do
+    socket = assign(socket, coding_agents_collapsed: !socket.assigns.coding_agents_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:system_processes_component, :toggle_panel, "system_processes"}, socket) do
+    socket = assign(socket, system_processes_collapsed: !socket.assigns.system_processes_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:system_processes_component, :toggle_panel, "process_relationships"}, socket) do
+    socket = assign(socket, process_relationships_collapsed: !socket.assigns.process_relationships_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:system_processes_component, :kill_process, pid}, socket) do
+    case DashboardPhoenix.CodingAgentMonitor.kill_agent(pid) do
+      :ok ->
+        coding_agents = DashboardPhoenix.CodingAgentMonitor.list_agents()
+        socket = socket
+        |> assign(coding_agents: coding_agents, coding_agents_count: length(coding_agents))
+        |> put_flash(:info, "Process #{pid} terminated")
+        {:noreply, socket}
+      {:error, reason} ->
+        socket = put_flash(socket, :error, "Failed to kill process: #{reason}")
+        {:noreply, socket}
+    end
+  end
+
   def handle_info({:live_progress_component, :clear_progress}, socket) do
     # Use atomic write to prevent race conditions with readers
     alias DashboardPhoenix.FileUtils
@@ -929,12 +959,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
       MapSet.put(expanded, ts)
     end
     {:noreply, assign(socket, expanded_outputs: new_expanded)}
-  end
-
-  # Handle SystemProcessesComponent messages
-  def handle_info({:system_processes_component, :toggle_panel}, socket) do
-    socket = assign(socket, system_processes_collapsed: !socket.assigns.system_processes_collapsed)
-    {:noreply, push_panel_state(socket)}
   end
 
   # Handle OpenCode server status updates
@@ -1042,20 +1066,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
-  def handle_event("kill_process", %{"pid" => pid}, socket) do
-    case CodingAgentMonitor.kill_agent(pid) do
-      :ok ->
-        coding_agents = CodingAgentMonitor.list_agents()
-        socket = socket
-        |> assign(coding_agents: coding_agents)
-        |> put_flash(:info, "Process #{pid} terminated")
-        {:noreply, socket}
-      {:error, reason} ->
-        socket = put_flash(socket, :error, "Failed to kill process: #{reason}")
-        {:noreply, socket}
-    end
-  end
-
   def handle_event("toggle_show_completed", _, socket) do
     {:noreply, assign(socket, show_completed: !socket.assigns.show_completed)}
   end
@@ -1126,9 +1136,16 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # NOTE: set_linear_filter and toggle_linear_panel now handled via LinearComponent -> handle_info
 
   def handle_event("toggle_panel", %{"panel" => panel}, socket) do
-    key = String.to_existing_atom(panel <> "_collapsed")
-    socket = assign(socket, key, !Map.get(socket.assigns, key))
-    {:noreply, push_panel_state(socket)}
+    # Skip panels now handled by SystemProcessesComponent
+    case panel do
+      "coding_agents" -> {:noreply, socket}
+      "system_processes" -> {:noreply, socket}
+      "process_relationships" -> {:noreply, socket}
+      _ ->
+        key = String.to_existing_atom(panel <> "_collapsed")
+        socket = assign(socket, key, !Map.get(socket.assigns, key))
+        {:noreply, push_panel_state(socket)}
+    end
   end
 
   # Restore panel state from localStorage via JS hook
@@ -1387,6 +1404,17 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end)
     
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
+  end
+
+  # Config model selection - kept for backward compatibility with tests
+  def handle_event("select_claude_model", %{"model" => model}, socket) do
+    socket = assign(socket, claude_model: model)
+    {:noreply, push_model_selections(socket)}
+  end
+
+  def handle_event("select_opencode_model", %{"model" => model}, socket) do
+    socket = assign(socket, opencode_model: model)
+    {:noreply, push_model_selections(socket)}
   end
 
   # Actually execute the work when no duplicate exists

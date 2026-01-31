@@ -196,72 +196,19 @@
       gemini_server_status={@gemini_server_status}
     />
 
-    <!-- Coding Agents Panel -->
-    <%= if @coding_agents != [] do %>
-      <div class="glass-panel rounded-lg overflow-hidden">
-        <div 
-          class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
-          phx-click="toggle_panel"
-          phx-value-panel="coding_agents"
-        >
-          <div class="flex items-center space-x-2">
-            <span class={"text-xs transition-transform duration-200 " <> if(@coding_agents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">💻 Coding Agents</span>
-            <span class="text-[10px] font-mono text-base-content/50"><%= @coding_agents_count %></span>
-          </div>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@coding_agents_collapsed, do: "max-h-0", else: "max-h-[200px]")}>
-          <div class="px-3 pb-3">
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2">
-              <%= for agent <- @coding_agents do %>
-                <div class={"px-2 py-1.5 rounded text-xs font-mono " <> if(agent.status == "running", do: "bg-warning/10", else: "bg-white/5")}>
-                  <div class="flex items-center justify-between">
-                    <span class="text-white font-bold"><%= agent.type %></span>
-                    <button phx-click="kill_process" phx-value-pid={agent.pid} class="text-error/50 hover:text-error">✕</button>
-                  </div>
-                  <div class="text-[10px] text-base-content/50 mt-1">
-                    CPU: <%= agent.cpu %>% | MEM: <%= agent.memory %>%
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          </div>
-        </div>
-      </div>
-    <% end %>
-
-    <!-- System & Relationships Row -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
-      <!-- System Processes Panel (LiveComponent) -->
-      <.live_component
-        module={SystemProcessesComponent}
-        id="system-processes-panel"
-        recent_processes={@recent_processes}
-        recent_processes_count={@recent_processes_count}
-        system_processes_collapsed={@system_processes_collapsed}
-      />
-
-      <!-- Process Relationships -->
-      <div class="glass-panel rounded-lg overflow-hidden">
-        <div 
-          class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
-          phx-click="toggle_panel"
-          phx-value-panel="process_relationships"
-        >
-          <div class="flex items-center space-x-2">
-            <span class={"text-xs transition-transform duration-200 " <> if(@process_relationships_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">🔗 Relationships</span>
-          </div>
-        </div>
-        
-        <div class={"transition-all duration-300 ease-in-out " <> if(@process_relationships_collapsed, do: "max-h-0 overflow-hidden", else: "")}>
-          <div class="p-2">
-            <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[180px]"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- System Processes Panel (LiveComponent) -->
+    <.live_component
+      module={SystemProcessesComponent}
+      id="system-processes-panel"
+      coding_agents={@coding_agents}
+      coding_agents_count={@coding_agents_count}
+      coding_agents_collapsed={@coding_agents_collapsed}
+      recent_processes={@recent_processes}
+      recent_processes_count={@recent_processes_count}
+      system_processes_collapsed={@system_processes_collapsed}
+      process_relationships_collapsed={@process_relationships_collapsed}
+      graph_data={@graph_data}
+    />
   </div>
 
   <!-- Work on Ticket Modal -->
