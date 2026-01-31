@@ -102,6 +102,40 @@ defmodule DashboardPhoenix.OpenCodeClient do
     end
   end
 
+  @doc """
+  Send a message to an existing session.
+  
+  This is fire-and-forget - the task runs async in OpenCode.
+  Returns {:ok, :sent} immediately or {:error, reason}.
+  """
+  def send_message(session_id, prompt) do
+    case OpenCodeServer.status() do
+      %{running: true, port: port} ->
+        base_url = "http://127.0.0.1:#{port}"
+        send_message_to_session(base_url, session_id, prompt)
+      _ ->
+        {:error, "Server not running"}
+    end
+  end
+
+  @doc """
+  Delete/close a session by ID.
+  """
+  def delete_session(session_id) do
+    case OpenCodeServer.status() do
+      %{running: true, port: port} ->
+        base_url = "http://127.0.0.1:#{port}"
+        case Req.delete("#{base_url}/session/#{session_id}", receive_timeout: 5000) do
+          {:ok, %{status: code}} when code in [200, 204] -> :ok
+          {:ok, %{status: 404}} -> {:error, "Session not found"}
+          {:ok, %{status: code, body: body}} -> {:error, "HTTP #{code}: #{inspect(body)}"}
+          {:error, reason} -> {:error, inspect(reason)}
+        end
+      _ ->
+        {:error, "Server not running"}
+    end
+  end
+
   defp format_session(session) do
     time = session["time"] || %{}
     summary = session["summary"] || %{}
@@ -205,6 +239,33 @@ defmodule DashboardPhoenix.OpenCodeClient do
     
     # Return immediately - task is running in background
     Logger.info("[OpenCodeClient] Message dispatched to OpenCode (running in background)")
+    {:ok, :sent}
+  end
+
+  # Send message to an existing session (public API version)
+  defp send_message_to_session(base_url, session_id, prompt) do
+    Logger.info("[OpenCodeClient] Sending message to existing session #{session_id}...")
+    
+    payload = %{
+      parts: [
+        %{type: "text", text: prompt}
+      ]
+    }
+    
+    url = "#{base_url}/session/#{session_id}/message"
+    
+    # Fire and forget - spawn a task to send the message
+    Task.start(fn ->
+      case Req.post(url, json: payload, receive_timeout: 600_000) do
+        {:ok, %{status: code}} when code in [200, 201, 202] ->
+          Logger.info("[OpenCodeClient] Message sent successfully to session #{session_id}")
+        {:ok, %{status: code, body: body}} ->
+          Logger.warning("[OpenCodeClient] OpenCode returned #{code}: #{inspect(body)}")
+        {:error, reason} ->
+          Logger.warning("[OpenCodeClient] OpenCode request failed: #{inspect(reason)}")
+      end
+    end)
+    
     {:ok, :sent}
   end
 end

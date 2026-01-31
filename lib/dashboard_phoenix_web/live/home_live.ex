@@ -353,6 +353,20 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)}
   end
 
+  def handle_event("close_opencode_session", %{"id" => session_id}, socket) do
+    case OpenCodeClient.delete_session(session_id) do
+      :ok ->
+        sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
+        tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+        socket = socket
+        |> assign(opencode_sessions: sessions, tickets_in_progress: tickets_in_progress)
+        |> put_flash(:info, "Session closed")
+        {:noreply, socket}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to close session: #{reason}")}
+    end
+  end
+
   # Execute work on ticket using OpenCode or OpenClaw
   def handle_event("execute_work", _, socket) do
     ticket_id = socket.assigns.work_ticket_id
@@ -1165,13 +1179,24 @@ defmodule DashboardPhoenixWeb.HomeLive do
                           <% end %>
                         </td>
                         <td class="py-2 px-2">
-                          <a 
-                            href={"http://localhost:9100/session/#{session.id}"} 
-                            target="_blank" 
-                            class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors text-[10px]"
-                          >
-                            View ↗
-                          </a>
+                          <div class="flex items-center space-x-2">
+                            <a 
+                              href={"http://localhost:9100/session/#{session.id}"} 
+                              target="_blank" 
+                              class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors text-[10px]"
+                            >
+                              View ↗
+                            </a>
+                            <button
+                              phx-click="close_opencode_session"
+                              phx-value-id={session.id}
+                              data-confirm="Close this OpenCode session?"
+                              class="px-2 py-1 rounded bg-error/20 text-error/70 hover:text-error hover:bg-error/40 transition-colors text-[10px]"
+                              title="Close session"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     <% end %>
