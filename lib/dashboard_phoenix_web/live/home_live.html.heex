@@ -670,8 +670,8 @@
           </div>
           <% completed_count = Enum.count(sub_agent_sessions, fn s -> s.status == "completed" && !MapSet.member?(@dismissed_sessions, s.id) end) %>
           <%= if completed_count > 0 do %>
-            <button phx-click="clear_completed" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">
-              Clear <%= completed_count %>
+            <button phx-click="clear_completed" class="text-[10px] px-2 py-0.5 rounded bg-base-content/10 text-base-content/50 hover:bg-accent/20 hover:text-accent transition-colors uppercase tracking-wider" onclick="event.stopPropagation()">
+              Clear Completed (<%= completed_count %>)
             </button>
           <% end %>
         </div>
@@ -698,16 +698,16 @@
                   else: if(status == "completed", do: "bg-success/5 border-success/20", else: "bg-white/5 border-white/10"))}>
                 
                 <!-- Header Row: Status, Label, Agent Type, Duration -->
-                <div class="flex items-center justify-between px-3 py-2 border-b border-white/5">
-                  <div class="flex items-center space-x-2 min-w-0 flex-1">
+                <div class="flex flex-wrap items-start justify-between gap-2 px-3 py-2 border-b border-white/5">
+                  <div class="flex items-start space-x-2 min-w-0 flex-1">
                     <%= if status == "running" do %>
-                      <span class="throbber-small flex-shrink-0"></span>
+                      <span class="throbber-small flex-shrink-0 mt-0.5"></span>
                     <% else %>
-                      <span class={"flex-shrink-0 " <> if(status == "completed", do: "text-success", else: "text-info")}>
+                      <span class={"flex-shrink-0 mt-0.5 " <> if(status == "completed", do: "text-success", else: "text-info")}>
                         <%= if status == "completed", do: "✓", else: "○" %>
                       </span>
                     <% end %>
-                    <span class="text-white font-medium truncate" title={Map.get(session, :label) || Map.get(session, :id)}>
+                    <span class="text-white font-medium break-words" title={Map.get(session, :label) || Map.get(session, :id)}>
                       <%= Map.get(session, :label) || String.slice(Map.get(session, :id, ""), 0, 8) %>
                     </span>
                   </div>

@@ -93,7 +93,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
               <%= if @chainlink_error do %>
                 <div class="text-xs text-error/70 py-2 px-2"><%= @chainlink_error %></div>
               <% end %>
-              <%= if Enum.empty?(@chainlink_issues) and not @chainlink_error do %>
+              <%= if Enum.empty?(@chainlink_issues) and is_nil(@chainlink_error) do %>
                 <div class="text-xs text-base-content/50 py-2 px-2 font-mono">No open issues</div>
               <% end %>
               <%= for issue <- @chainlink_issues do %>
