@@ -55,7 +55,6 @@ defmodule DashboardPhoenix.OpenClawClient do
   Send a raw message to the OpenClaw main session.
   """
   def send_message(message, opts \\ []) do
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
     channel = Keyword.get(opts, :channel, "webchat")
     
     args = [
@@ -66,20 +65,19 @@ defmodule DashboardPhoenix.OpenClawClient do
       "--channel", channel
     ]
     
-    Logger.info("[OpenClawClient] Sending message: #{String.slice(message, 0, 100)}...")
+    Logger.info("[OpenClawClient] Sending message (async): #{String.slice(message, 0, 100)}...")
     
-    case System.cmd("openclaw", args, stderr_to_stdout: true, timeout: timeout) do
-      {output, 0} ->
-        {:ok, output}
-      
-      {output, code} ->
-        Logger.error("[OpenClawClient] Command failed (#{code}): #{output}")
-        {:error, "openclaw agent failed: #{output}"}
-    end
-  rescue
-    e ->
-      Logger.error("[OpenClawClient] Exception: #{inspect(e)}")
-      {:error, "Exception: #{inspect(e)}"}
+    # Fire and forget - don't block waiting for agent response
+    Task.start(fn ->
+      case System.cmd("openclaw", args, stderr_to_stdout: true) do
+        {_output, 0} ->
+          Logger.info("[OpenClawClient] Message delivered successfully")
+        {output, code} ->
+          Logger.error("[OpenClawClient] Command failed (#{code}): #{output}")
+      end
+    end)
+    
+    {:ok, :sent}
   end
 
   # Build the work message that tells the agent to spawn a coding sub-agent
