@@ -8,18 +8,13 @@ defmodule DashboardPhoenix.SessionBridge do
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
   
-  @default_progress_file "/tmp/agent-progress.jsonl"
   @base_poll_interval 500    # Start responsive at 500ms
   @max_poll_interval 2000    # Back off to 2s when idle
   @backoff_increment 250     # Increase by 250ms each idle poll
   @max_progress_events 100
 
-  defp progress_file do
-    Application.get_env(:dashboard_phoenix, :progress_file, @default_progress_file)
-  end
-
   defp sessions_file do
-    Application.get_env(:dashboard_phoenix, :sessions_file) || Paths.sessions_file()
+    Paths.sessions_file()
   end
 
   defp transcripts_dir do
@@ -47,7 +42,7 @@ defmodule DashboardPhoenix.SessionBridge do
   @impl true
   def init(_) do
     # Ensure progress file exists (don't overwrite sessions - it's managed by OpenClaw)
-    FileUtils.ensure_exists(progress_file())
+    FileUtils.ensure_exists(Paths.progress_file())
     
     schedule_poll(@base_poll_interval)
     {:ok, %{
@@ -109,9 +104,9 @@ defmodule DashboardPhoenix.SessionBridge do
 
   # Tail the JSONL progress file for new lines
   defp poll_progress(state) do
-    case File.stat(progress_file()) do
+    case File.stat(Paths.progress_file()) do
       {:ok, %{size: size}} when size > state.progress_offset ->
-        case File.open(progress_file(), [:read]) do
+        case File.open(Paths.progress_file(), [:read]) do
           {:ok, file} ->
             :file.position(file, state.progress_offset)
             new_lines = IO.read(file, :eof)

@@ -928,9 +928,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   def handle_event("clear_progress", _, socket) do
-    progress_file = Application.get_env(:dashboard_phoenix, :progress_file, "/tmp/agent-progress.jsonl")
     # Use atomic write to prevent race conditions with readers
-    FileUtils.atomic_write(progress_file, "")
+    FileUtils.atomic_write(Paths.progress_file(), "")
     # Reset the stream by re-initializing it with empty data
     socket = socket
     |> assign(agent_progress: [], main_activity_count: 0)

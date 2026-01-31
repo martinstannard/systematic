@@ -4,14 +4,9 @@ defmodule DashboardPhoenix.StatsMonitor do
   """
   use GenServer
 
-  @poll_interval 5_000  # 5 seconds
+  alias DashboardPhoenix.Paths
 
-  # Get the Claude stats file path from configuration
-  defp claude_stats_path do
-    System.get_env("CLAUDE_STATS_FILE") ||
-      Application.get_env(:dashboard_phoenix, :claude_stats_file) ||
-      Path.join([System.user_home!(), ".claude", "stats-cache.json"])
-  end
+  @poll_interval 5_000  # 5 seconds
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -93,7 +88,7 @@ defmodule DashboardPhoenix.StatsMonitor do
   end
 
   defp fetch_claude_stats do
-    stats_file = claude_stats_path()
+    stats_file = Paths.claude_stats_file()
     case File.read(stats_file) do
       {:ok, content} ->
         case Jason.decode(content) do

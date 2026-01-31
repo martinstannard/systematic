@@ -19,6 +19,8 @@ defmodule DashboardPhoenix.Paths do
   - `LINEAR_CLI` - Path to Linear CLI binary
   - `OPENCODE_BIN` - Path to OpenCode binary
   - `DEFAULT_WORK_DIR` - Default working directory for coding tasks
+  - `CLAUDE_STATS_FILE` - Claude stats cache file (default: $HOME/.claude/stats-cache.json)
+  - `AGENT_PROGRESS_FILE` - Agent progress JSONL file (default: /tmp/agent-progress.jsonl)
   """
 
   @doc """
@@ -28,7 +30,7 @@ defmodule DashboardPhoenix.Paths do
   def openclaw_home do
     System.get_env("OPENCLAW_HOME") ||
       Application.get_env(:dashboard_phoenix, :openclaw_home) ||
-      Path.expand("~/.openclaw")
+      Path.join(System.user_home!(), ".openclaw")
   end
 
   @doc """
@@ -154,6 +156,26 @@ defmodule DashboardPhoenix.Paths do
       Application.get_env(:dashboard_phoenix, :dashboard_phoenix_dir) ||
         Path.join(clawd_dir(), "dashboard_phoenix")
     end
+  end
+
+  @doc """
+  Get the Claude stats cache file path.
+  Default: $HOME/.claude/stats-cache.json
+  """
+  def claude_stats_file do
+    System.get_env("CLAUDE_STATS_FILE") ||
+      Application.get_env(:dashboard_phoenix, :claude_stats_file) ||
+      Path.join([System.user_home!(), ".claude", "stats-cache.json"])
+  end
+
+  @doc """
+  Get the agent progress file path.
+  Default: /tmp/agent-progress.jsonl
+  """
+  def progress_file do
+    System.get_env("AGENT_PROGRESS_FILE") ||
+      Application.get_env(:dashboard_phoenix, :progress_file) ||
+      "/tmp/agent-progress.jsonl"
   end
 
   # Private helpers
