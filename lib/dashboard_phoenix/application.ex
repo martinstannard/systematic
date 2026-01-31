@@ -28,6 +28,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.PRMonitor,
       # OpenCode ACP server manager
       DashboardPhoenix.OpenCodeServer,
+      # Gemini CLI server manager
+      DashboardPhoenix.GeminiServer,
       # Start to serve requests, typically the last entry
       DashboardPhoenixWeb.Endpoint
     ]
