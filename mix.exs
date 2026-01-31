@@ -21,7 +21,7 @@ defmodule DashboardPhoenix.MixProject do
   def application do
     [
       mod: {DashboardPhoenix.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :os_mon]
     ]
   end
 
