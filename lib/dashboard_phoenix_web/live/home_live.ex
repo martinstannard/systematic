@@ -838,6 +838,17 @@ defmodule DashboardPhoenixWeb.HomeLive do
           <h1 class="text-sm font-bold tracking-widest text-base-content">SYSTEMATIC</h1>
           <span class="text-[10px] text-base-content/60 font-mono">AGENT CONTROL</span>
           
+          <!-- LiveDashboard Link -->
+          <a 
+            href="/dashboard" 
+            target="_blank" 
+            class="flex items-center space-x-1 px-2 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors text-blue-400 hover:text-blue-300 text-xs font-mono"
+            title="Open Phoenix LiveDashboard"
+          >
+            <span>📊</span>
+            <span>Dashboard</span>
+          </a>
+          
           <!-- Theme Toggle -->
           <button
             id="theme-toggle"
