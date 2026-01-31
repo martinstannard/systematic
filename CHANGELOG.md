@@ -11,6 +11,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- Add Chainlink issues panel with Work button (#17)
+- Show PR verification status in panel (#15)
+- PR background colors reflect status (#16)
+- Add Dave panel for main agent (#14)
+- Add agent work indicator to PR panel (#13)
 - Refactor home_live.ex into LiveComponents (#1)
 - Enhance Sub-Agents panel with richer info (#11)
 - Add Gemini agents to relationship diagram (#12)
