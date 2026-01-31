@@ -8,6 +8,8 @@ defmodule DashboardPhoenix.OpenClawClient do
   """
   require Logger
 
+  @behaviour DashboardPhoenix.Behaviours.OpenClawClientBehaviour
+
   @default_timeout 30_000
 
   @doc """

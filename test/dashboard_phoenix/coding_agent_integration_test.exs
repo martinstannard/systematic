@@ -7,94 +7,155 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
   2. OpenClawClient has the expected work_on_ticket/3 interface
   3. Both clients accept model parameters correctly
   4. Error handling works as expected
+  
+  Uses mocks to avoid hitting real OpenCode/OpenClaw servers.
   """
   use ExUnit.Case, async: false
 
-  alias DashboardPhoenix.OpenCodeClient
-  alias DashboardPhoenix.OpenClawClient
+  import Mox
+
+  alias DashboardPhoenix.ClientFactory
   alias DashboardPhoenix.AgentPreferences
+  alias DashboardPhoenix.Mocks.{OpenCodeClientMock, OpenClawClientMock}
+
+  # Make sure mocks are verified when the test exits
+  setup :verify_on_exit!
 
   describe "OpenCodeClient interface" do
     test "send_task/2 function exists and accepts expected parameters" do
+      client = ClientFactory.opencode_client()
+      
+      # Mock the send_task call
+      expect(OpenCodeClientMock, :send_task, fn "Test prompt", [model: "gemini-3-pro"] ->
+        {:ok, %{session_id: "test-123", slug: "test-session", port: 9100}}
+      end)
+      
       # Verify the function exists with the correct arity
-      assert function_exported?(OpenCodeClient, :send_task, 2)
+      assert function_exported?(client, :send_task, 2)
       
       # Test that the function accepts the expected parameters
-      # (This will fail if server isn't running, but that's expected in tests)
-      result = OpenCodeClient.send_task("Test prompt", model: "gemini-3-pro")
+      result = client.send_task("Test prompt", model: "gemini-3-pro")
       
-      # Should return either {:ok, _} or {:error, _}
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      # Should return success in mocked test
+      assert {:ok, %{session_id: "test-123", slug: "test-session", port: 9100}} = result
     end
 
     test "send_task/2 accepts model option" do
+      client = ClientFactory.opencode_client()
+      
       # Test with different model options
       models = ["gemini-3-pro", "gemini-3-flash", "gemini-2.5-pro"]
       
       for model <- models do
-        result = OpenCodeClient.send_task("Test with #{model}", model: model)
-        # Should handle the model parameter without crashing
-        assert match?({:ok, _}, result) or match?({:error, _}, result)
+        expected_session_id = "test-#{model}"
+        expect(OpenCodeClientMock, :send_task, fn "Test with " <> ^model, [model: ^model] ->
+          {:ok, %{session_id: expected_session_id, slug: expected_session_id, port: 9100}}
+        end)
+        
+        result = client.send_task("Test with #{model}", model: model)
+        assert {:ok, %{session_id: ^expected_session_id}} = result
       end
     end
 
     test "send_task/2 builds correct prompt format" do
+      client = ClientFactory.opencode_client()
       prompt = "Work on ticket COR-123.\n\nTicket details:\nTest details\n\nPlease analyze this ticket and implement the required changes."
       
+      expect(OpenCodeClientMock, :send_task, fn ^prompt, [model: "gemini-3-pro"] ->
+        {:ok, %{session_id: "cor-123", slug: "work-cor-123", port: 9100}}
+      end)
+      
       # The function should handle the prompt without crashing
-      result = OpenCodeClient.send_task(prompt, model: "gemini-3-pro")
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      result = client.send_task(prompt, model: "gemini-3-pro")
+      assert {:ok, %{session_id: "cor-123"}} = result
     end
 
     test "health_check/0 function exists" do
-      assert function_exported?(OpenCodeClient, :health_check, 0)
+      client = ClientFactory.opencode_client()
       
-      result = OpenCodeClient.health_check()
-      assert match?(:ok, result) or match?({:error, _}, result)
+      expect(OpenCodeClientMock, :health_check, fn -> :ok end)
+      
+      assert function_exported?(client, :health_check, 0)
+      
+      result = client.health_check()
+      assert :ok = result
     end
 
     test "list_sessions_formatted/0 function exists" do
-      assert function_exported?(OpenCodeClient, :list_sessions_formatted, 0)
+      client = ClientFactory.opencode_client()
       
-      result = OpenCodeClient.list_sessions_formatted()
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      expect(OpenCodeClientMock, :list_sessions_formatted, fn ->
+        {:ok, [
+          %{id: "session-1", slug: "test-1", title: "Test Session 1", status: "active"},
+          %{id: "session-2", slug: "test-2", title: "Test Session 2", status: "idle"}
+        ]}
+      end)
+      
+      assert function_exported?(client, :list_sessions_formatted, 0)
+      
+      result = client.list_sessions_formatted()
+      assert {:ok, [%{id: "session-1"}, %{id: "session-2"}]} = result
     end
   end
 
   describe "OpenClawClient interface" do
     test "work_on_ticket/3 function exists and accepts expected parameters" do
+      client = ClientFactory.openclaw_client()
+      
+      expect(OpenClawClientMock, :work_on_ticket, fn "COR-123", "Test details", [model: "anthropic/claude-opus-4-5"] ->
+        {:ok, %{ticket_id: "COR-123", output: "Work request sent successfully"}}
+      end)
+      
       # Verify the function exists with the correct arity
-      assert function_exported?(OpenClawClient, :work_on_ticket, 3)
+      assert function_exported?(client, :work_on_ticket, 3)
       
-      # Test basic interface (this will likely fail due to openclaw command not in test env)
-      result = OpenClawClient.work_on_ticket("COR-123", "Test details", model: "anthropic/claude-opus-4-5")
+      # Test basic interface
+      result = client.work_on_ticket("COR-123", "Test details", model: "anthropic/claude-opus-4-5")
       
-      # Should return either {:ok, _} or {:error, _}
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      # Should return success in mocked test
+      assert {:ok, %{ticket_id: "COR-123", output: "Work request sent successfully"}} = result
     end
 
     test "work_on_ticket/3 accepts model option" do
+      client = ClientFactory.openclaw_client()
+      
       # Test with different model options
       models = ["anthropic/claude-opus-4-5", "anthropic/claude-sonnet-4-20250514"]
       
       for model <- models do
-        result = OpenClawClient.work_on_ticket("COR-456", "Test with #{model}", model: model)
-        # Should handle the model parameter without crashing
-        assert match?({:ok, _}, result) or match?({:error, _}, result)
+        expected_output = "Success with #{model}"
+        expect(OpenClawClientMock, :work_on_ticket, fn "COR-456", "Test with " <> ^model, [model: ^model] ->
+          {:ok, %{ticket_id: "COR-456", output: expected_output}}
+        end)
+        
+        result = client.work_on_ticket("COR-456", "Test with #{model}", model: model)
+        assert {:ok, %{ticket_id: "COR-456", output: ^expected_output}} = result
       end
     end
 
     test "work_on_ticket/3 handles nil details" do
+      client = ClientFactory.openclaw_client()
+      
+      expect(OpenClawClientMock, :work_on_ticket, fn "COR-789", nil, [model: "anthropic/claude-sonnet-4-20250514"] ->
+        {:ok, %{ticket_id: "COR-789", output: "Success with nil details"}}
+      end)
+      
       # Test with nil details (should build fallback prompt)
-      result = OpenClawClient.work_on_ticket("COR-789", nil, model: "anthropic/claude-sonnet-4-20250514")
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      result = client.work_on_ticket("COR-789", nil, model: "anthropic/claude-sonnet-4-20250514")
+      assert {:ok, %{ticket_id: "COR-789"}} = result
     end
 
     test "send_message/2 function exists" do
-      assert function_exported?(OpenClawClient, :send_message, 2)
+      client = ClientFactory.openclaw_client()
       
-      result = OpenClawClient.send_message("Test message", channel: "webchat")
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      expect(OpenClawClientMock, :send_message, fn "Test message", [channel: "webchat"] ->
+        {:ok, :sent}
+      end)
+      
+      assert function_exported?(client, :send_message, 2)
+      
+      result = client.send_message("Test message", channel: "webchat")
+      assert {:ok, :sent} = result
     end
   end
 
@@ -132,6 +193,8 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
 
   describe "coding agent selection logic verification" do
     test "opencode preference should call OpenCodeClient.send_task" do
+      client = ClientFactory.opencode_client()
+      
       # This test verifies the conceptual flow:
       # When coding_agent_pref == :opencode -> OpenCodeClient.send_task should be used
       
@@ -151,13 +214,19 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
         Please analyze this ticket and implement the required changes.
         """
         
+        expect(OpenCodeClientMock, :send_task, fn ^prompt, [model: "gemini-3-pro"] ->
+          {:ok, %{session_id: "logic-test-1", slug: "work-logic-test-1", port: 9100}}
+        end)
+        
         # This would call OpenCodeClient.send_task(prompt, model: opencode_model)
-        result = OpenCodeClient.send_task(prompt, model: opencode_model)
-        assert match?({:ok, _}, result) or match?({:error, _}, result)
+        result = client.send_task(prompt, model: opencode_model)
+        assert {:ok, %{session_id: "logic-test-1"}} = result
       end
     end
 
     test "claude preference should call OpenClawClient.work_on_ticket" do
+      client = ClientFactory.openclaw_client()
+      
       # This test verifies the conceptual flow:
       # When coding_agent_pref != :opencode -> OpenClawClient.work_on_ticket should be used
       
@@ -168,43 +237,48 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
       ticket_details = "Test Claude logic"
       
       if coding_pref != :opencode do
+        expect(OpenClawClientMock, :work_on_ticket, fn "LOGIC-TEST-2", "Test Claude logic", [model: "anthropic/claude-sonnet-4-20250514"] ->
+          {:ok, %{ticket_id: "LOGIC-TEST-2", output: "Claude work request sent"}}
+        end)
+        
         # This would call OpenClawClient.work_on_ticket(ticket_id, ticket_details, model: claude_model)
-        result = OpenClawClient.work_on_ticket(ticket_id, ticket_details, model: claude_model)
-        assert match?({:ok, _}, result) or match?({:error, _}, result)
+        result = client.work_on_ticket(ticket_id, ticket_details, model: claude_model)
+        assert {:ok, %{ticket_id: "LOGIC-TEST-2"}} = result
       end
     end
   end
 
   describe "error scenarios" do
     test "OpenCodeClient handles server not running gracefully" do
-      # When server is not running, should return appropriate error
-      result = OpenCodeClient.send_task("Test when server down", model: "gemini-3-pro")
+      client = ClientFactory.opencode_client()
       
-      case result do
-        {:ok, _} -> 
-          # If server is actually running, that's fine
-          :ok
-        {:error, reason} ->
-          # Should be a meaningful error message
-          assert is_binary(reason) or is_atom(reason)
-          assert String.contains?(to_string(reason), "server") or 
-                 String.contains?(to_string(reason), "OpenCode") or
-                 String.contains?(to_string(reason), "start")
-      end
+      # Mock server not running error
+      expect(OpenCodeClientMock, :send_task, fn "Test when server down", [model: "gemini-3-pro"] ->
+        {:error, "Failed to start OpenCode server: server not available"}
+      end)
+      
+      # When server is not running, should return appropriate error
+      result = client.send_task("Test when server down", model: "gemini-3-pro")
+      
+      assert {:error, reason} = result
+      assert is_binary(reason)
+      assert String.contains?(reason, "server")
     end
 
     test "OpenClawClient handles openclaw command not available" do
-      # When openclaw CLI is not available, should return appropriate error
-      result = OpenClawClient.work_on_ticket("ERROR-TEST", "Test error handling", model: "anthropic/claude-opus-4-5")
+      client = ClientFactory.openclaw_client()
       
-      case result do
-        {:ok, _} ->
-          # If openclaw is actually available, that's fine
-          :ok
-        {:error, reason} ->
-          # Should be a meaningful error message
-          assert is_binary(reason) or is_atom(reason)
-      end
+      # Mock openclaw command not available error
+      expect(OpenClawClientMock, :work_on_ticket, fn "ERROR-TEST", "Test error handling", [model: "anthropic/claude-opus-4-5"] ->
+        {:error, "openclaw agent failed: command not found"}
+      end)
+      
+      # When openclaw CLI is not available, should return appropriate error
+      result = client.work_on_ticket("ERROR-TEST", "Test error handling", model: "anthropic/claude-opus-4-5")
+      
+      assert {:error, reason} = result
+      assert is_binary(reason)
+      assert String.contains?(reason, "openclaw")
     end
 
     test "AgentPreferences handles invalid agent types" do
@@ -217,6 +291,9 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
 
   describe "integration flow simulation" do
     test "complete flow: toggle agent -> execute work -> verify correct client called" do
+      opencode_client = ClientFactory.opencode_client()
+      openclaw_client = ClientFactory.openclaw_client()
+      
       # Save initial state
       initial_agent = AgentPreferences.get_coding_agent()
       
@@ -229,9 +306,13 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
         coding_pref = AgentPreferences.get_coding_agent()
         assert coding_pref == :opencode
         
+        expect(OpenCodeClientMock, :send_task, fn "Flow test OpenCode", [model: "gemini-3-pro"] ->
+          {:ok, %{session_id: "flow-opencode", slug: "flow-test", port: 9100}}
+        end)
+        
         # This would trigger OpenCodeClient.send_task
-        opencode_result = OpenCodeClient.send_task("Flow test OpenCode", model: "gemini-3-pro")
-        assert match?({:ok, _}, opencode_result) or match?({:error, _}, opencode_result)
+        opencode_result = opencode_client.send_task("Flow test OpenCode", model: "gemini-3-pro")
+        assert {:ok, %{session_id: "flow-opencode"}} = opencode_result
         
         # Switch to Claude mode
         AgentPreferences.set_coding_agent("claude")
@@ -241,9 +322,13 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
         coding_pref = AgentPreferences.get_coding_agent()
         assert coding_pref == :claude
         
+        expect(OpenClawClientMock, :work_on_ticket, fn "FLOW-TEST", "Flow test Claude", [model: "anthropic/claude-opus-4-5"] ->
+          {:ok, %{ticket_id: "FLOW-TEST", output: "Flow test complete"}}
+        end)
+        
         # This would trigger OpenClawClient.work_on_ticket
-        claude_result = OpenClawClient.work_on_ticket("FLOW-TEST", "Flow test Claude", model: "anthropic/claude-opus-4-5")
-        assert match?({:ok, _}, claude_result) or match?({:error, _}, claude_result)
+        claude_result = openclaw_client.work_on_ticket("FLOW-TEST", "Flow test Claude", model: "anthropic/claude-opus-4-5")
+        assert {:ok, %{ticket_id: "FLOW-TEST"}} = claude_result
         
       after
         # Restore initial state
@@ -252,8 +337,10 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
     end
 
     test "model parameter passing verification" do
-      # Verify that model parameters are properly passed through the entire chain
+      opencode_client = ClientFactory.opencode_client()
+      openclaw_client = ClientFactory.openclaw_client()
       
+      # Verify that model parameters are properly passed through the entire chain
       models = [
         {:opencode, "gemini-3-pro"},
         {:opencode, "gemini-3-flash"},
@@ -264,12 +351,23 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
       for {agent_type, model} <- models do
         case agent_type do
           :opencode ->
-            result = OpenCodeClient.send_task("Model test for #{model}", model: model)
-            assert match?({:ok, _}, result) or match?({:error, _}, result)
+            expected_session_id = "model-test-#{model}"
+            expected_slug = "test-#{model}"
+            expect(OpenCodeClientMock, :send_task, fn "Model test for " <> ^model, [model: ^model] ->
+              {:ok, %{session_id: expected_session_id, slug: expected_slug, port: 9100}}
+            end)
+            
+            result = opencode_client.send_task("Model test for #{model}", model: model)
+            assert {:ok, %{session_id: ^expected_session_id}} = result
             
           :claude ->
-            result = OpenClawClient.work_on_ticket("MODEL-TEST", "Model test for #{model}", model: model)
-            assert match?({:ok, _}, result) or match?({:error, _}, result)
+            expected_output = "Model test complete for #{model}"
+            expect(OpenClawClientMock, :work_on_ticket, fn "MODEL-TEST", "Model test for " <> ^model, [model: ^model] ->
+              {:ok, %{ticket_id: "MODEL-TEST", output: expected_output}}
+            end)
+            
+            result = openclaw_client.work_on_ticket("MODEL-TEST", "Model test for #{model}", model: model)
+            assert {:ok, %{ticket_id: "MODEL-TEST", output: ^expected_output}} = result
         end
       end
     end

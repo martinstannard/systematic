@@ -11,6 +11,8 @@ defmodule DashboardPhoenix.OpenCodeClient do
   """
   require Logger
 
+  @behaviour DashboardPhoenix.Behaviours.OpenCodeClientBehaviour
+
   alias DashboardPhoenix.OpenCodeServer
 
   @default_timeout 120_000
