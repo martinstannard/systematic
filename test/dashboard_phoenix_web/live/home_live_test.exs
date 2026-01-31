@@ -336,6 +336,329 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
     end
   end
 
+  describe "clear_completed functionality" do
+    test "clear_completed button appears when there are completed sub-agents", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Create completed sub-agent sessions (not main)
+      sessions = [
+        %{
+          id: "completed-sub-1",
+          label: "completed-task-1",
+          status: "completed",
+          session_key: "agent:main:subagent:abc123",
+          model: "claude",
+          runtime: "0:05:00"
+        },
+        %{
+          id: "completed-sub-2",
+          label: "completed-task-2",
+          status: "completed",
+          session_key: "agent:main:subagent:def456",
+          model: "claude",
+          runtime: "0:03:00"
+        }
+      ]
+      
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      html = render(view)
+      
+      # Button should show "Clear Completed (2)"
+      assert html =~ "Clear Completed"
+      assert html =~ "(2)"
+    end
+
+    test "clear_completed button does NOT appear when no completed sub-agents", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Create only running sessions
+      sessions = [
+        %{
+          id: "running-sub-1",
+          label: "running-task",
+          status: "running",
+          session_key: "agent:main:subagent:run123",
+          model: "claude",
+          runtime: "0:01:00"
+        }
+      ]
+      
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      html = render(view)
+      
+      # Button should NOT appear
+      refute html =~ "Clear Completed"
+    end
+
+    test "clicking clear_completed dismisses all completed sub-agents", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Create mix of running and completed sessions
+      sessions = [
+        %{
+          id: "running-session",
+          label: "still-running-label",
+          status: "running",
+          session_key: "agent:main:subagent:run1",
+          model: "claude",
+          runtime: "0:01:00"
+        },
+        %{
+          id: "completed-session-1",
+          label: "completed-label-1",
+          status: "completed",
+          session_key: "agent:main:subagent:done1",
+          model: "claude",
+          runtime: "0:02:00"
+        },
+        %{
+          id: "completed-session-2",
+          label: "completed-label-2",
+          status: "completed",
+          session_key: "agent:main:subagent:done2",
+          model: "claude",
+          runtime: "0:03:00"
+        }
+      ]
+      
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      # Before clearing - should see all sessions
+      html_before = render(view)
+      assert html_before =~ "still-running-label"
+      assert html_before =~ "completed-label-1"
+      assert html_before =~ "completed-label-2"
+      
+      # Click clear completed
+      render_click(view, "clear_completed")
+      
+      html_after = render(view)
+      
+      # Running session should still be visible
+      assert html_after =~ "still-running-label"
+      
+      # Completed sessions should be dismissed (hidden)
+      refute html_after =~ "completed-label-1"
+      refute html_after =~ "completed-label-2"
+      
+      # Clear button should disappear (no more completed to clear)
+      refute html_after =~ "Clear Completed"
+    end
+
+    test "clear_completed does NOT affect main agent session", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Create main agent and sub-agent sessions
+      sessions = [
+        %{
+          id: "main-session",
+          label: "main",
+          status: "running",
+          session_key: "agent:main:main",
+          model: "opus",
+          runtime: "1:00:00"
+        },
+        %{
+          id: "completed-sub",
+          label: "sub-completed-label",
+          status: "completed",
+          session_key: "agent:main:subagent:sub1",
+          model: "claude",
+          runtime: "0:05:00"
+        }
+      ]
+      
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      # Click clear completed
+      render_click(view, "clear_completed")
+      
+      html = render(view)
+      
+      # Sub-agent should be dismissed
+      refute html =~ "sub-completed-label"
+      
+      # Main agent (Dave panel) should still be visible - verify the Dave panel exists
+      # The main agent renders in a separate panel with id="dave"
+      assert html =~ "id=\"dave\""
+    end
+
+    test "dismissed sessions remain dismissed after new session updates", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Initial completed session
+      initial_sessions = [
+        %{
+          id: "session-to-dismiss",
+          label: "dismiss-me",
+          status: "completed",
+          session_key: "agent:main:subagent:dismiss1",
+          model: "claude",
+          runtime: "0:01:00"
+        }
+      ]
+      
+      send(view.pid, {:sessions, initial_sessions})
+      Process.sleep(100)
+      
+      # Clear completed
+      render_click(view, "clear_completed")
+      
+      # Now send update with new session + same dismissed session
+      updated_sessions = [
+        %{
+          id: "session-to-dismiss",
+          label: "dismiss-me",
+          status: "completed",
+          session_key: "agent:main:subagent:dismiss1",
+          model: "claude",
+          runtime: "0:01:00"
+        },
+        %{
+          id: "new-running-session",
+          label: "new-task",
+          status: "running",
+          session_key: "agent:main:subagent:new1",
+          model: "claude",
+          runtime: "0:00:30"
+        }
+      ]
+      
+      send(view.pid, {:sessions, updated_sessions})
+      Process.sleep(100)
+      
+      html = render(view)
+      
+      # Dismissed session should still be hidden
+      refute html =~ "dismiss-me"
+      
+      # New session should be visible
+      assert html =~ "new-task"
+    end
+  end
+
+  describe "sub-agent task name display" do
+    test "full task name is displayed without truncation", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Create session with a long label
+      long_label = "subagent-panel-improvements-with-very-long-descriptive-name"
+      
+      sessions = [
+        %{
+          id: "long-label-session",
+          label: long_label,
+          status: "running",
+          session_key: "agent:main:subagent:longname",
+          model: "claude",
+          runtime: "0:01:00"
+        }
+      ]
+      
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      html = render(view)
+      
+      # Full label should be present in the HTML
+      assert html =~ long_label
+    end
+
+    test "task summary is displayed with full text", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      task_summary = "Improve the Sub-Agents panel: show full task names, fix clear button, and add tests"
+      
+      sessions = [
+        %{
+          id: "task-summary-session",
+          label: "test-task",
+          status: "running",
+          session_key: "agent:main:subagent:task1",
+          model: "claude",
+          runtime: "0:01:00",
+          task_summary: task_summary
+        }
+      ]
+      
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      html = render(view)
+      
+      # Full task summary should be present
+      assert html =~ task_summary
+    end
+
+    test "label has break-words class for proper wrapping", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/")
+      
+      # The template should use break-words for label text wrapping
+      assert html =~ "break-words"
+    end
+
+    test "label has title attribute for tooltip on hover", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      label = "my-task-label"
+      
+      sessions = [
+        %{
+          id: "tooltip-test-session",
+          label: label,
+          status: "running",
+          session_key: "agent:main:subagent:tooltip1",
+          model: "claude",
+          runtime: "0:01:00"
+        }
+      ]
+      
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      html = render(view)
+      
+      # Label should have title attribute for tooltip
+      assert html =~ ~s(title="#{label}")
+    end
+
+    test "very long labels wrap properly instead of being truncated", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      
+      # Create a very long label that would overflow
+      very_long_label = "this-is-an-extremely-long-sub-agent-label-that-describes-a-complex-task-with-many-details"
+      
+      sessions = [
+        %{
+          id: "overflow-test-session",
+          label: very_long_label,
+          status: "running",
+          session_key: "agent:main:subagent:overflow1",
+          model: "claude",
+          runtime: "0:01:00"
+        }
+      ]
+      
+      send(view.pid, {:sessions, sessions})
+      Process.sleep(100)
+      
+      html = render(view)
+      
+      # Full label should be in the HTML (not truncated with ellipsis in the actual text)
+      assert html =~ very_long_label
+      
+      # The label should NOT have the truncate class (which causes CSS truncation)
+      # We check that the label span doesn't use truncate
+      refute html =~ ~r/<span[^>]*class="[^"]*text-white font-medium[^"]*truncate[^"]*"[^>]*>/
+    end
+  end
+
   describe "request_super_review functionality" do
     test "handles request_super_review event with correct flash message", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
