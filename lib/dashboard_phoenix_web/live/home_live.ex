@@ -35,6 +35,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     coding_agent_pref = AgentPreferences.get_coding_agent()
     linear_data = LinearMonitor.get_tickets()
     opencode_status = OpenCodeServer.status()
+    opencode_sessions = fetch_opencode_sessions(opencode_status)
     
     graph_data = build_graph_data(sessions, coding_agents, processes)
     
@@ -66,9 +67,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
       work_ticket_loading: false,
       # OpenCode server state
       opencode_server_status: opencode_status,
+      opencode_sessions: opencode_sessions,
       # Work in progress
       work_in_progress: false,
-      work_error: nil
+      work_error: nil,
+      # Panel collapse states
+      linear_collapsed: false
     )
     
     socket = if connected?(socket) do
@@ -127,7 +131,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle OpenCode server status updates
   def handle_info({:opencode_status, status}, socket) do
-    {:noreply, assign(socket, opencode_server_status: status)}
+    sessions = fetch_opencode_sessions(status)
+    {:noreply, assign(socket, opencode_server_status: status, opencode_sessions: sessions)}
   end
 
   # Handle async work result (from OpenCode or OpenClaw)
@@ -233,6 +238,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
+  def handle_event("toggle_linear_panel", _, socket) do
+    {:noreply, assign(socket, linear_collapsed: !socket.assigns.linear_collapsed)}
+  end
+
   def handle_event("work_on_ticket", %{"id" => ticket_id}, socket) do
     # Show modal immediately with loading state
     socket = assign(socket,
@@ -288,6 +297,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
     |> assign(opencode_server_status: OpenCodeServer.status())
     |> put_flash(:info, "OpenCode server stopped")
     {:noreply, socket}
+  end
+
+  def handle_event("refresh_opencode_sessions", _, socket) do
+    sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
+    {:noreply, assign(socket, opencode_sessions: sessions)}
   end
 
   # Execute work on ticket using OpenCode or OpenClaw
@@ -493,6 +507,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
     
     %{nodes: nodes, links: links}
   end
+
+  # Fetch OpenCode sessions if server is running
+  defp fetch_opencode_sessions(%{running: true}) do
+    case OpenCodeClient.list_sessions_formatted() do
+      {:ok, sessions} -> sessions
+      {:error, _} -> []
+    end
+  end
+  defp fetch_opencode_sessions(_), do: []
 
   defp format_time(nil), do: ""
   defp format_time(ts) when is_integer(ts) do
@@ -799,8 +822,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
       <!-- Linear Tickets Panel -->
       <div class="space-y-3">
-        <div class="flex items-center justify-between px-1">
+        <div 
+          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+          phx-click="toggle_linear_panel"
+        >
           <div class="flex items-center space-x-3">
+            <span class={"text-xs transition-transform duration-200 " <> if(@linear_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
             <span class="text-xs font-mono text-accent uppercase tracking-wider">🎫 Linear Tickets (COR)</span>
             <span class="text-[10px] font-mono text-base-content/50">
               <%= length(@linear_tickets) %> tickets
@@ -812,82 +839,84 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 Updated <%= format_linear_time(@linear_last_updated) %>
               </span>
             <% end %>
-            <button phx-click="refresh_linear" class="text-[10px] text-base-content/40 hover:text-accent">↻</button>
+            <button phx-click="refresh_linear" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">↻</button>
           </div>
         </div>
         
-        <%= if @linear_error do %>
-          <div class="glass-panel rounded-lg p-4 text-center">
-            <div class="text-error text-xs"><%= @linear_error %></div>
-          </div>
-        <% else %>
-          <%= if @linear_tickets == [] do %>
+        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@linear_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
+          <%= if @linear_error do %>
             <div class="glass-panel rounded-lg p-4 text-center">
-              <div class="text-base-content/40 font-mono text-xs">[NO TICKETS]</div>
-              <div class="text-base-content/60 text-xs">No tickets in Triage, Backlog, or Todo</div>
+              <div class="text-error text-xs"><%= @linear_error %></div>
             </div>
           <% else %>
-            <div class="glass-panel rounded-lg p-3">
-              <div class="overflow-x-auto">
-                <table class="w-full text-xs font-mono">
-                  <thead>
-                    <tr class="text-base-content/50 border-b border-white/10">
-                      <th class="text-left py-2 px-2 w-16"></th>
-                      <th class="text-left py-2 px-2 w-24">ID</th>
-                      <th class="text-left py-2 px-2">Title</th>
-                      <th class="text-left py-2 px-2 w-20">Status</th>
-                      <th class="text-left py-2 px-2 w-32">Project</th>
-                      <th class="text-left py-2 px-2 w-24">Assignee</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <%= for ticket <- @linear_tickets do %>
-                      <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td class="py-2 px-2">
-                          <button
-                            phx-click="work_on_ticket"
-                            phx-value-id={ticket.id}
-                            class="px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-[10px] font-bold"
-                            title="Work on this ticket"
-                          >
-                            ▶ Work
-                          </button>
-                        </td>
-                        <td class="py-2 px-2">
-                          <a 
-                            href={ticket.url} 
-                            target="_blank" 
-                            class="text-accent hover:text-accent/80 hover:underline"
-                          >
-                            <%= ticket.id %>
-                          </a>
-                        </td>
-                        <td class="py-2 px-2 text-white truncate max-w-xs" title={ticket.title}>
-                          <%= ticket.title %>
-                        </td>
-                        <td class="py-2 px-2">
-                          <span class={linear_status_badge(ticket.status)}>
-                            <%= ticket.status %>
-                          </span>
-                        </td>
-                        <td class="py-2 px-2 text-base-content/60 truncate max-w-[120px]" title={ticket.project}>
-                          <%= ticket.project || "-" %>
-                        </td>
-                        <td class="py-2 px-2">
-                          <%= if ticket.assignee == "you" do %>
-                            <span class="text-success font-semibold">you</span>
-                          <% else %>
-                            <span class="text-base-content/50"><%= ticket.assignee || "-" %></span>
-                          <% end %>
-                        </td>
-                      </tr>
-                    <% end %>
-                  </tbody>
-                </table>
+            <%= if @linear_tickets == [] do %>
+              <div class="glass-panel rounded-lg p-4 text-center">
+                <div class="text-base-content/40 font-mono text-xs">[NO TICKETS]</div>
+                <div class="text-base-content/60 text-xs">No tickets in Triage, Backlog, or Todo</div>
               </div>
-            </div>
+            <% else %>
+              <div class="glass-panel rounded-lg p-3">
+                <div class="overflow-x-auto">
+                  <table class="w-full text-xs font-mono">
+                    <thead>
+                      <tr class="text-base-content/50 border-b border-white/10">
+                        <th class="text-left py-2 px-2 w-16"></th>
+                        <th class="text-left py-2 px-2 w-24">ID</th>
+                        <th class="text-left py-2 px-2">Title</th>
+                        <th class="text-left py-2 px-2 w-20">Status</th>
+                        <th class="text-left py-2 px-2 w-32">Project</th>
+                        <th class="text-left py-2 px-2 w-24">Assignee</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for ticket <- @linear_tickets do %>
+                        <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td class="py-2 px-2">
+                            <button
+                              phx-click="work_on_ticket"
+                              phx-value-id={ticket.id}
+                              class="px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-[10px] font-bold"
+                              title="Work on this ticket"
+                            >
+                              ▶ Work
+                            </button>
+                          </td>
+                          <td class="py-2 px-2">
+                            <a 
+                              href={ticket.url} 
+                              target="_blank" 
+                              class="text-accent hover:text-accent/80 hover:underline"
+                            >
+                              <%= ticket.id %>
+                            </a>
+                          </td>
+                          <td class="py-2 px-2 text-white truncate max-w-xs" title={ticket.title}>
+                            <%= ticket.title %>
+                          </td>
+                          <td class="py-2 px-2">
+                            <span class={linear_status_badge(ticket.status)}>
+                              <%= ticket.status %>
+                            </span>
+                          </td>
+                          <td class="py-2 px-2 text-base-content/60 truncate max-w-[120px]" title={ticket.project}>
+                            <%= ticket.project || "-" %>
+                          </td>
+                          <td class="py-2 px-2">
+                            <%= if ticket.assignee == "you" do %>
+                              <span class="text-success font-semibold">you</span>
+                            <% else %>
+                              <span class="text-base-content/50"><%= ticket.assignee || "-" %></span>
+                            <% end %>
+                          </td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            <% end %>
           <% end %>
-        <% end %>
+        </div>
       </div>
 
       <!-- Relationship Graph -->

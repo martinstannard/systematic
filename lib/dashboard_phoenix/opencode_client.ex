@@ -2,48 +2,44 @@ defmodule DashboardPhoenix.OpenCodeClient do
   @moduledoc """
   Client for communicating with the OpenCode ACP server.
   
-  The ACP (Agent Client Protocol) uses JSON-RPC for communication.
-  This client handles:
-  - Initializing a connection
-  - Creating sessions
-  - Sending prompts/tasks
-  - Receiving streaming updates
+  The ACP server exposes a REST API:
+  - GET /session - list sessions
+  - POST /session - create a new session
+  - POST /session/{id}/message - send a message to a session
   
-  The OpenCode ACP server exposes a JSON-RPC endpoint over HTTP.
+  Messages use the format: {"parts": [{"type": "text", "text": "..."}]}
   """
   require Logger
 
   alias DashboardPhoenix.OpenCodeServer
 
-  @default_timeout 60_000
+  @default_timeout 120_000
 
   @doc """
   Send a task/prompt to the OpenCode ACP server.
   
   This will:
   1. Ensure the server is running
-  2. Initialize a connection
-  3. Create a new session
-  4. Send the prompt
-  5. Return the session ID for tracking
+  2. Create a new session
+  3. Send the prompt
+  4. Return immediately (task runs async in OpenCode)
   
   Options:
   - :cwd - working directory for the task (default: core-platform)
-  - :callback - function to call with streaming updates
+  - :timeout - request timeout in ms
   """
   def send_task(prompt, opts \\ []) do
-    cwd = Keyword.get(opts, :cwd, "/home/martins/code/core-platform")
-    callback = Keyword.get(opts, :callback, &default_callback/1)
+    cwd = Keyword.get(opts, :cwd, "/home/martins/work/core-platform")
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
     
     # Ensure server is running
     case ensure_server_running(cwd) do
       {:ok, port} ->
         base_url = "http://127.0.0.1:#{port}"
         
-        with {:ok, _init_result} <- initialize_connection(base_url),
-             {:ok, session_id} <- create_session(base_url),
-             {:ok, _} <- send_prompt(base_url, session_id, prompt, callback) do
-          {:ok, %{session_id: session_id, port: port}}
+        with {:ok, session} <- create_session(base_url, timeout),
+             {:ok, _} <- send_message(base_url, session["id"], prompt, timeout) do
+          {:ok, %{session_id: session["id"], slug: session["slug"], port: port}}
         end
         
       {:error, reason} ->
@@ -58,15 +54,90 @@ defmodule DashboardPhoenix.OpenCodeClient do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
         base_url = "http://127.0.0.1:#{port}"
-        # Try a simple request to verify the server is responsive
-        case Req.get("#{base_url}/", receive_timeout: 5000) do
-          {:ok, %{status: code}} when code in [200, 404] -> :ok
-          {:ok, _} -> :ok
+        case Req.get("#{base_url}/session", receive_timeout: 5000) do
+          {:ok, %{status: 200}} -> :ok
+          {:ok, %{status: code}} -> {:error, "Unexpected status: #{code}"}
           {:error, reason} -> {:error, reason}
         end
       _ ->
         {:error, :not_running}
     end
+  end
+
+  @doc """
+  List all sessions from the OpenCode server.
+  """
+  def list_sessions do
+    case OpenCodeServer.status() do
+      %{running: true, port: port} ->
+        base_url = "http://127.0.0.1:#{port}"
+        case Req.get("#{base_url}/session", receive_timeout: 5000) do
+          {:ok, %{status: 200, body: body}} when is_list(body) -> {:ok, body}
+          {:ok, %{status: 200, body: body}} when is_binary(body) -> 
+            Jason.decode(body)
+          {:error, reason} -> {:error, reason}
+        end
+      _ ->
+        {:error, :not_running}
+    end
+  end
+
+  @doc """
+  List sessions formatted for dashboard display.
+  Returns a list of maps with: id, slug, title, status, created_at, file_changes
+  """
+  def list_sessions_formatted do
+    case list_sessions() do
+      {:ok, sessions} when is_list(sessions) ->
+        formatted = sessions
+        |> Enum.map(&format_session/1)
+        |> Enum.sort_by(& &1.created_at, {:desc, DateTime})
+        {:ok, formatted}
+      
+      {:error, :not_running} ->
+        {:error, :not_running}
+      
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp format_session(session) do
+    time = session["time"] || %{}
+    summary = session["summary"] || %{}
+    
+    created_at = case time["created"] do
+      ts when is_integer(ts) -> DateTime.from_unix!(ts, :millisecond)
+      _ -> nil
+    end
+    
+    updated_at = case time["updated"] do
+      ts when is_integer(ts) -> DateTime.from_unix!(ts, :millisecond)
+      _ -> nil
+    end
+    
+    # Determine status based on activity
+    status = cond do
+      session["parentID"] -> "subagent"
+      updated_at && DateTime.diff(DateTime.utc_now(), updated_at, :second) < 60 -> "active"
+      true -> "idle"
+    end
+    
+    %{
+      id: session["id"],
+      slug: session["slug"],
+      title: session["title"] || session["slug"],
+      status: status,
+      directory: session["directory"],
+      created_at: created_at,
+      updated_at: updated_at,
+      file_changes: %{
+        additions: summary["additions"] || 0,
+        deletions: summary["deletions"] || 0,
+        files: summary["files"] || 0
+      },
+      parent_id: session["parentID"]
+    }
   end
 
   # Private functions
@@ -80,155 +151,60 @@ defmodule DashboardPhoenix.OpenCodeClient do
     end
   end
 
-  defp initialize_connection(base_url) do
-    # ACP Initialize request
-    request = %{
-      jsonrpc: "2.0",
-      id: generate_id(),
-      method: "initialize",
-      params: %{
-        clientInfo: %{
-          name: "DashboardPhoenix",
-          version: "1.0.0"
-        },
-        clientCapabilities: %{
-          terminal: true,
-          "fs.readTextFile": false,
-          "fs.writeTextFile": false
-        }
-      }
-    }
+  defp create_session(base_url, timeout) do
+    Logger.info("[OpenCodeClient] Creating new session...")
     
-    send_jsonrpc_request(base_url, request)
-  end
-
-  defp create_session(base_url) do
-    # ACP session/new request
-    request = %{
-      jsonrpc: "2.0",
-      id: generate_id(),
-      method: "session/new",
-      params: %{}
-    }
-    
-    case send_jsonrpc_request(base_url, request) do
-      {:ok, %{"result" => %{"sessionId" => session_id}}} ->
-        {:ok, session_id}
-      {:ok, result} ->
-        # Try to extract session ID from various response formats
-        session_id = get_in(result, ["result", "sessionId"]) || 
-                     get_in(result, ["sessionId"]) ||
-                     generate_id()
-        {:ok, session_id}
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp send_prompt(base_url, session_id, prompt, callback) do
-    # ACP prompt request
-    request = %{
-      jsonrpc: "2.0",
-      id: generate_id(),
-      method: "prompt",
-      params: %{
-        sessionId: session_id,
-        content: [
-          %{type: "text", text: prompt}
-        ]
-      }
-    }
-    
-    # For streaming, we'll use a simple approach first
-    # The full ACP streaming uses SSE or WebSocket
-    
-    case send_jsonrpc_request(base_url, request) do
-      {:ok, result} ->
-        # Call callback with the result
-        callback.({:result, result})
-        {:ok, result}
-      {:error, reason} ->
-        callback.({:error, reason})
-        {:error, reason}
-    end
-  end
-
-  defp send_jsonrpc_request(base_url, request) do
-    url = "#{base_url}/jsonrpc"
-    body = Jason.encode!(request)
-    
-    case Req.post(url, body: body, headers: [{"content-type", "application/json"}], receive_timeout: @default_timeout) do
-      {:ok, %{status: 200, body: response_body}} when is_binary(response_body) ->
-        case Jason.decode(response_body) do
-          {:ok, result} -> {:ok, result}
+    case Req.post("#{base_url}/session", 
+      json: %{},
+      receive_timeout: timeout
+    ) do
+      {:ok, %{status: 200, body: body}} when is_map(body) ->
+        Logger.info("[OpenCodeClient] Created session: #{body["id"]} (#{body["slug"]})")
+        {:ok, body}
+        
+      {:ok, %{status: 200, body: body}} when is_binary(body) ->
+        case Jason.decode(body) do
+          {:ok, session} -> {:ok, session}
           {:error, _} -> {:error, "Invalid JSON response"}
         end
         
-      {:ok, %{status: 200, body: response_body}} when is_map(response_body) ->
-        # Req might auto-decode JSON
-        {:ok, response_body}
-        
       {:ok, %{status: code, body: body}} ->
-        body_str = if is_binary(body), do: body, else: inspect(body)
-        Logger.warning("[OpenCodeClient] Unexpected status #{code}: #{String.slice(body_str, 0, 200)}")
-        # The server might be returning HTML for unknown paths
-        # Try alternative endpoints
-        try_alternative_endpoints(base_url, request)
-        
-      {:error, %{reason: reason}} ->
-        {:error, reason}
+        Logger.error("[OpenCodeClient] Failed to create session: #{code} - #{inspect(body)}")
+        {:error, "Failed to create session: #{code}"}
         
       {:error, reason} ->
+        Logger.error("[OpenCodeClient] Request failed: #{inspect(reason)}")
         {:error, reason}
     end
   end
 
-  defp try_alternative_endpoints(base_url, request) do
-    # Try different possible endpoints for the JSON-RPC API
-    endpoints = [
-      "/api",
-      "/rpc",
-      "/api/jsonrpc",
-      "/"  # Some servers accept POST to root
-    ]
+  defp send_message(base_url, session_id, prompt, _timeout) do
+    Logger.info("[OpenCodeClient] Sending message to session #{session_id}...")
     
-    body = Jason.encode!(request)
+    # OpenCode expects messages in parts format
+    payload = %{
+      parts: [
+        %{type: "text", text: prompt}
+      ]
+    }
     
-    Enum.reduce_while(endpoints, {:error, "No working endpoint found"}, fn endpoint, _acc ->
-      url = "#{base_url}#{endpoint}"
-      
-      case Req.post(url, body: body, headers: [{"content-type", "application/json"}], receive_timeout: @default_timeout) do
-        {:ok, %{status: 200, body: response_body}} when is_binary(response_body) ->
-          case Jason.decode(response_body) do
-            {:ok, %{"result" => _} = result} -> {:halt, {:ok, result}}
-            {:ok, %{"error" => _} = result} -> {:halt, {:ok, result}}
-            _ -> {:cont, {:error, "Invalid response format"}}
-          end
-        {:ok, %{status: 200, body: response_body}} when is_map(response_body) ->
-          if Map.has_key?(response_body, "result") or Map.has_key?(response_body, "error") do
-            {:halt, {:ok, response_body}}
-          else
-            {:cont, {:error, "Invalid response format"}}
-          end
-        _ -> 
-          {:cont, {:error, "No working endpoint found"}}
+    # Fire and forget - spawn a task to send the message
+    # We return immediately since OpenCode will take minutes to complete
+    url = "#{base_url}/session/#{session_id}/message"
+    
+    Task.start(fn ->
+      case Req.post(url, json: payload, receive_timeout: 600_000) do
+        {:ok, %{status: code}} when code in [200, 201, 202] ->
+          Logger.info("[OpenCodeClient] OpenCode task completed successfully")
+        {:ok, %{status: code, body: body}} ->
+          Logger.warning("[OpenCodeClient] OpenCode returned #{code}: #{inspect(body)}")
+        {:error, reason} ->
+          Logger.warning("[OpenCodeClient] OpenCode request ended: #{inspect(reason)}")
       end
     end)
-  end
-
-  defp default_callback({:result, result}) do
-    Logger.info("[OpenCodeClient] Result: #{inspect(result)}")
-  end
-  
-  defp default_callback({:error, reason}) do
-    Logger.error("[OpenCodeClient] Error: #{inspect(reason)}")
-  end
-  
-  defp default_callback({:update, update}) do
-    Logger.debug("[OpenCodeClient] Update: #{inspect(update)}")
-  end
-
-  defp generate_id do
-    :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+    
+    # Return immediately - task is running in background
+    Logger.info("[OpenCodeClient] Message dispatched to OpenCode (running in background)")
+    {:ok, :sent}
   end
 end

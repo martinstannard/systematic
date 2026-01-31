@@ -16,7 +16,7 @@ defmodule DashboardPhoenix.OpenCodeServer do
 
   @default_port 9100
   @opencode_bin "/usr/bin/opencode"
-  @default_cwd "/home/martins/code/core-platform"
+  @default_cwd "/home/martins/work/core-platform"
   
   @pubsub DashboardPhoenix.PubSub
   @topic "opencode_server"
