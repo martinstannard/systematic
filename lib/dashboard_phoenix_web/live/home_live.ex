@@ -46,6 +46,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Calculate main session activity count for warning
     main_activity_count = Enum.count(progress, & &1.agent == "main")
     
+    # Load persisted PR state (tickets that have PRs created)
+    pr_created_tickets = load_pr_state()
+    
     socket = assign(socket,
       process_stats: ProcessMonitor.get_stats(processes),
       recent_processes: processes,
@@ -57,7 +60,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agents: coding_agents,
       graph_data: graph_data,
       dismissed_sessions: MapSet.new(),  # Track dismissed session IDs
-      show_main_entries: true,            # Toggle for main session visibility
+      show_main_entries: true,            # Toggle for main session visibility (legacy)
+      progress_filter: "all",              # Filter: "all", "main", or specific agent name
       show_completed: true,               # Toggle for completed sub-agents visibility
       main_activity_count: main_activity_count,
       expanded_outputs: MapSet.new(),     # Track which outputs are expanded
@@ -66,6 +70,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_last_updated: linear_data.last_updated,
       linear_error: linear_data.error,
       tickets_in_progress: tickets_in_progress,
+      pr_created_tickets: pr_created_tickets,
       # Work modal state
       show_work_modal: false,
       work_ticket_id: nil,
@@ -76,9 +81,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
       opencode_sessions: opencode_sessions,
       # Work in progress
       work_in_progress: false,
-      work_sent: false,
       work_error: nil,
+      # Model selections
+      claude_model: "anthropic/claude-sonnet-4-20250514",  # Default to sonnet
+      opencode_model: "gemini-2.5-pro",  # Default to gemini pro
       # Panel collapse states
+      config_collapsed: false,
       linear_collapsed: false,
       opencode_collapsed: false,
       coding_agents_collapsed: false,
@@ -86,9 +94,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       live_progress_collapsed: false,
       agent_activity_collapsed: false,
       system_processes_collapsed: false,
-      process_relationships_collapsed: false,
-      # Progress filter
-      progress_filter: "all"  # "all", "main", or specific agent label
+      process_relationships_collapsed: false
     )
     
     socket = if connected?(socket) do
@@ -246,12 +252,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, show_main_entries: !socket.assigns.show_main_entries)}
   end
 
-  def handle_event("toggle_show_completed", _, socket) do
-    {:noreply, assign(socket, show_completed: !socket.assigns.show_completed)}
-  end
-
   def handle_event("set_progress_filter", %{"filter" => filter}, socket) do
     {:noreply, assign(socket, progress_filter: filter)}
+  end
+
+  def handle_event("toggle_show_completed", _, socket) do
+    {:noreply, assign(socket, show_completed: !socket.assigns.show_completed)}
   end
 
   def handle_event("toggle_output", %{"ts" => ts_str}, socket) do
@@ -332,6 +338,23 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, coding_agent_pref: new_pref)}
   end
 
+  def handle_event("select_claude_model", %{"model" => model}, socket) do
+    socket = assign(socket, claude_model: model)
+    {:noreply, push_model_selections(socket)}
+  end
+
+  def handle_event("select_opencode_model", %{"model" => model}, socket) do
+    socket = assign(socket, opencode_model: model)
+    {:noreply, push_model_selections(socket)}
+  end
+
+  # Restore model selections from localStorage via JS hook
+  def handle_event("restore_model_selections", %{"claude_model" => claude_model, "opencode_model" => opencode_model}, socket) when is_binary(claude_model) and is_binary(opencode_model) do
+    {:noreply, assign(socket, claude_model: claude_model, opencode_model: opencode_model)}
+  end
+
+  def handle_event("restore_model_selections", _, socket), do: {:noreply, socket}
+
   # OpenCode server controls
   def handle_event("start_opencode_server", _, socket) do
     case OpenCodeServer.start_server() do
@@ -392,25 +415,113 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  # Request PR creation for a ticket that has active work
+  def handle_event("request_ticket_pr", %{"id" => ticket_id}, socket) do
+    work_info = Map.get(socket.assigns.tickets_in_progress, ticket_id)
+    
+    if work_info do
+      pr_prompt = """
+      The work on #{ticket_id} looks complete. Please create a Pull Request with:
+      1. A clear, descriptive title referencing #{ticket_id}
+      2. A detailed description explaining what was changed and why
+      3. Include the Linear ticket link in the PR description
+      
+      Use `gh pr create` to create the PR. After creating the PR, report back with the PR URL.
+      """
+
+      result = case work_info.type do
+        :opencode ->
+          # Send to OpenCode session
+          OpenCodeClient.send_message(work_info.session_id, pr_prompt)
+        
+        :subagent ->
+          # Send to OpenClaw sub-agent via sessions_send
+          alias DashboardPhoenix.OpenClawClient
+          OpenClawClient.send_message(pr_prompt, channel: "webchat")
+      end
+
+      case result do
+        {:ok, _} ->
+          # Mark ticket as having PR requested
+          pr_created = MapSet.put(socket.assigns.pr_created_tickets, ticket_id)
+          save_pr_state(pr_created)
+          
+          socket = socket
+          |> assign(pr_created_tickets: pr_created)
+          |> put_flash(:info, "PR requested for #{ticket_id}")
+          {:noreply, socket}
+        
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to request PR: #{inspect(reason)}")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "No active work found for #{ticket_id}")}
+    end
+  end
+
+  # Request super review for a ticket that has a PR
+  def handle_event("request_super_review", %{"id" => ticket_id}, socket) do
+    review_prompt = """
+    🔍 **Super Review Request**
+    
+    Please perform a comprehensive code review for the PR related to ticket #{ticket_id}:
+    
+    1. Check out the PR branch
+    2. Review all code changes for:
+       - Code quality and best practices
+       - Potential bugs or edge cases
+       - Performance implications
+       - Security concerns
+       - Test coverage
+    3. Verify the implementation matches the ticket requirements
+    4. Leave detailed review comments on the PR
+    5. Approve or request changes as appropriate
+    
+    Use `gh pr view` to find the PR and `gh pr diff` to see changes.
+    """
+
+    # Send to main agent to spawn a review sub-agent
+    alias DashboardPhoenix.OpenClawClient
+    
+    case OpenClawClient.send_message(review_prompt, channel: "webchat") do
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Super review requested for #{ticket_id}")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(reason)}")}
+    end
+  end
+
+  # Clear PR state for a ticket (e.g., when PR is merged)
+  def handle_event("clear_ticket_pr", %{"id" => ticket_id}, socket) do
+    pr_created = MapSet.delete(socket.assigns.pr_created_tickets, ticket_id)
+    save_pr_state(pr_created)
+    {:noreply, assign(socket, pr_created_tickets: pr_created)}
+  end
+
   # Execute work on ticket using OpenCode or OpenClaw
   def handle_event("execute_work", _, socket) do
     ticket_id = socket.assigns.work_ticket_id
     ticket_details = socket.assigns.work_ticket_details
     coding_pref = socket.assigns.coding_agent_pref
-    tickets_in_progress = socket.assigns.tickets_in_progress
+    claude_model = socket.assigns.claude_model
+    opencode_model = socket.assigns.opencode_model
     
-    # Check if ticket already has work in progress
-    if Map.has_key?(tickets_in_progress, ticket_id) do
-      work_info = Map.get(tickets_in_progress, ticket_id)
-      work_type = if work_info.type == :opencode, do: "OpenCode", else: "sub-agent"
-      
+    # Check if work already exists for this ticket
+    if Map.has_key?(socket.assigns.tickets_in_progress, ticket_id) do
+      work_info = Map.get(socket.assigns.tickets_in_progress, ticket_id)
+      agent_type = if work_info.type == :opencode, do: "OpenCode", else: "sub-agent"
       socket = socket
-      |> put_flash(:error, "Work already in progress for #{ticket_id} (#{work_type})")
       |> assign(show_work_modal: false)
-      
+      |> put_flash(:error, "Work already in progress for #{ticket_id} (#{agent_type}: #{work_info[:slug] || work_info[:label]})")
       {:noreply, socket}
     else
-      cond do
+      execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model)
+    end
+  end
+
+  # Actually execute the work when no duplicate exists
+  defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model) do
+    cond do
       # If OpenCode mode is selected
       coding_pref == :opencode ->
         # Build the prompt from ticket details
@@ -423,34 +534,33 @@ defmodule DashboardPhoenixWeb.HomeLive do
         Please analyze this ticket and implement the required changes.
         """
         
-        # Start work in background
+        # Start work in background, passing selected model
         parent = self()
         Task.start(fn ->
-          result = OpenCodeClient.send_task(prompt)
+          result = OpenCodeClient.send_task(prompt, model: opencode_model)
           send(parent, {:work_result, result})
         end)
         
         socket = socket
         |> assign(work_in_progress: true, work_error: nil)
-        |> put_flash(:info, "Starting work with OpenCode...")
+        |> put_flash(:info, "Starting work with OpenCode (#{opencode_model})...")
         {:noreply, socket}
       
       # Claude mode - send to OpenClaw to spawn a sub-agent
       true ->
         alias DashboardPhoenix.OpenClawClient
         
-        # Start work in background
+        # Start work in background, passing selected model
         parent = self()
         Task.start(fn ->
-          result = OpenClawClient.work_on_ticket(ticket_id, ticket_details)
+          result = OpenClawClient.work_on_ticket(ticket_id, ticket_details, model: claude_model)
           send(parent, {:work_result, result})
         end)
         
         socket = socket
         |> assign(work_in_progress: true, work_error: nil, show_work_modal: false)
-        |> put_flash(:info, "Sending work request to OpenClaw...")
+        |> put_flash(:info, "Sending work request to OpenClaw (#{claude_model})...")
         {:noreply, socket}
-      end
     end
   end
 
@@ -475,6 +585,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Push current panel state to JS for localStorage persistence
   defp push_panel_state(socket) do
     panels = %{
+      "config" => socket.assigns.config_collapsed,
       "linear" => socket.assigns.linear_collapsed,
       "opencode" => socket.assigns.opencode_collapsed,
       "coding_agents" => socket.assigns.coding_agents_collapsed,
@@ -485,6 +596,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "process_relationships" => socket.assigns.process_relationships_collapsed
     }
     push_event(socket, "save_panel_state", %{panels: panels})
+  end
+
+  # Push current model selections to JS for localStorage persistence
+  defp push_model_selections(socket) do
+    models = %{
+      "claude_model" => socket.assigns.claude_model,
+      "opencode_model" => socket.assigns.opencode_model
+    }
+    push_event(socket, "save_model_selections", %{models: models})
   end
 
   # Build agent activity from sessions and progress events
@@ -849,6 +969,29 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
   defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
 
+  # PR state persistence - stores which tickets have PRs created
+  @pr_state_file Path.expand("~/.openclaw/systematic-pr-state.json")
+
+  defp load_pr_state do
+    case File.read(@pr_state_file) do
+      {:ok, content} ->
+        case Jason.decode(content) do
+          {:ok, %{"pr_created" => tickets}} when is_list(tickets) ->
+            MapSet.new(tickets)
+          _ ->
+            MapSet.new()
+        end
+      {:error, _} ->
+        MapSet.new()
+    end
+  end
+
+  defp save_pr_state(pr_created) do
+    content = Jason.encode!(%{"pr_created" => MapSet.to_list(pr_created)})
+    File.mkdir_p!(Path.dirname(@pr_state_file))
+    File.write!(@pr_state_file, content)
+  end
+
   def render(assigns) do
     ~H"""
     <div class="space-y-4" id="panel-state-container" phx-hook="PanelState">
@@ -857,17 +1000,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
         <div class="flex items-center space-x-4">
           <h1 class="text-sm font-bold tracking-widest text-base-content">SYSTEMATIC</h1>
           <span class="text-[10px] text-base-content/60 font-mono">AGENT CONTROL</span>
-          
-          <!-- LiveDashboard Link -->
-          <a 
-            href="/dashboard" 
-            target="_blank" 
-            class="flex items-center space-x-1 px-2 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors text-blue-400 hover:text-blue-300 text-xs font-mono"
-            title="Open Phoenix LiveDashboard"
-          >
-            <span>📊</span>
-            <span>Dashboard</span>
-          </a>
           
           <!-- Theme Toggle -->
           <button
@@ -887,58 +1019,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
           </button>
         </div>
         
-        <!-- Coding Agent Toggle + OpenCode Server Status -->
+        <!-- Status Info -->
         <div class="flex items-center space-x-4">
-          <!-- Coding Agent Selector -->
-          <div class="flex items-center space-x-2">
-            <span class="text-[10px] font-mono text-base-content/50 uppercase">Coding Agent:</span>
-            <button 
-              phx-click="toggle_coding_agent"
-              class={"flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all duration-200 " <> 
-                if(@coding_agent_pref == :opencode, 
-                  do: "bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30",
-                  else: "bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30"
-                )}
-              title="Click to toggle between OpenCode (Gemini) and Claude sub-agents"
-            >
-              <%= if @coding_agent_pref == :opencode do %>
-                <span class="text-lg">💻</span>
-                <span class="text-xs font-mono font-bold text-blue-400">OpenCode</span>
-                <span class="text-[9px] font-mono text-blue-400/60">(Gemini)</span>
-              <% else %>
-                <span class="text-lg">🤖</span>
-                <span class="text-xs font-mono font-bold text-purple-400">Claude</span>
-                <span class="text-[9px] font-mono text-purple-400/60">(Sub-agents)</span>
-              <% end %>
-            </button>
-          </div>
-          
           <!-- OpenCode Server Status (shown when OpenCode mode is selected) -->
           <%= if @coding_agent_pref == :opencode do %>
-            <div class="flex items-center space-x-2 border-l border-white/20 pl-4">
+            <div class="flex items-center space-x-2">
               <span class="text-[10px] font-mono text-base-content/50 uppercase">ACP Server:</span>
               <%= if @opencode_server_status.running do %>
                 <div class="flex items-center space-x-2">
                   <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
                   <span class="text-[10px] font-mono text-success">Running</span>
                   <span class="text-[9px] font-mono text-base-content/40">:<%=@opencode_server_status.port %></span>
-                  <button 
-                    phx-click="stop_opencode_server"
-                    class="text-[10px] font-mono px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40"
-                  >
-                    Stop
-                  </button>
                 </div>
               <% else %>
                 <div class="flex items-center space-x-2">
                   <span class="w-2 h-2 rounded-full bg-base-content/30"></span>
                   <span class="text-[10px] font-mono text-base-content/50">Stopped</span>
-                  <button 
-                    phx-click="start_opencode_server"
-                    class="text-[10px] font-mono px-2 py-0.5 rounded bg-success/20 text-success hover:bg-success/40"
-                  >
-                    Start
-                  </button>
                 </div>
               <% end %>
             </div>
@@ -1032,6 +1128,140 @@ defmodule DashboardPhoenixWeb.HomeLive do
         </div>
       </div>
 
+      <!-- Config Panel -->
+      <div class="space-y-3">
+        <div 
+          class="flex items-center justify-between px-1 cursor-pointer select-none hover:opacity-80 transition-opacity"
+          phx-click="toggle_panel"
+          phx-value-panel="config"
+        >
+          <div class="flex items-center space-x-3">
+            <span class={"text-xs transition-transform duration-200 " <> if(@config_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
+            <span class="text-xs font-mono text-accent uppercase tracking-wider">⚙️ Config</span>
+          </div>
+        </div>
+        
+        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@config_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
+          <div class="glass-panel rounded-lg p-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              <!-- Coding Agent Selection -->
+              <div class="space-y-3">
+                <div class="text-xs font-mono text-accent uppercase tracking-wider">Coding Agent</div>
+                <div class="space-y-2">
+                  <button 
+                    phx-click="toggle_coding_agent"
+                    class={"flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 w-full text-left " <> 
+                      if(@coding_agent_pref == :opencode, 
+                        do: "bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30",
+                        else: "bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30"
+                      )}
+                    title="Click to toggle between OpenCode (Gemini) and Claude sub-agents"
+                  >
+                    <%= if @coding_agent_pref == :opencode do %>
+                      <span class="text-2xl">💻</span>
+                      <div class="flex-1">
+                        <div class="text-sm font-mono font-bold text-blue-400">OpenCode</div>
+                        <div class="text-xs text-blue-400/70">Gemini-powered coding agent</div>
+                      </div>
+                    <% else %>
+                      <span class="text-2xl">🤖</span>
+                      <div class="flex-1">
+                        <div class="text-sm font-mono font-bold text-purple-400">Claude</div>
+                        <div class="text-xs text-purple-400/70">Claude sub-agents</div>
+                      </div>
+                    <% end %>
+                  </button>
+                  
+                  <!-- OpenCode Server Controls -->
+                  <%= if @coding_agent_pref == :opencode do %>
+                    <div class="pl-4 space-y-2 border-l-2 border-blue-500/30">
+                      <div class="text-xs font-mono text-base-content/60">ACP Server Status</div>
+                      <%= if @opencode_server_status.running do %>
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+                            <span class="text-xs font-mono text-success">Running on port <%= @opencode_server_status.port %></span>
+                          </div>
+                          <button 
+                            phx-click="stop_opencode_server"
+                            class="text-xs font-mono px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40"
+                          >
+                            Stop
+                          </button>
+                        </div>
+                      <% else %>
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-base-content/30"></span>
+                            <span class="text-xs font-mono text-base-content/50">Stopped</span>
+                          </div>
+                          <button 
+                            phx-click="start_opencode_server"
+                            class="text-xs font-mono px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40"
+                          >
+                            Start
+                          </button>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+              
+              <!-- Model Selection -->
+              <div class="space-y-3">
+                <div class="text-xs font-mono text-accent uppercase tracking-wider">Model Selection</div>
+                
+                <!-- Claude Model Selector -->
+                <div class="space-y-2">
+                  <div class="text-xs font-mono text-purple-400 font-semibold">🤖 Claude Model</div>
+                  <select 
+                    phx-change="select_claude_model"
+                    name="model"
+                    class="w-full text-sm font-mono bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-400 focus:outline-none focus:border-purple-500/50 hover:bg-purple-500/20 transition-colors"
+                  >
+                    <option value="anthropic/claude-opus-4-5" selected={@claude_model == "anthropic/claude-opus-4-5"}>Claude Opus (opus)</option>
+                    <option value="anthropic/claude-sonnet-4-20250514" selected={@claude_model == "anthropic/claude-sonnet-4-20250514"}>Claude Sonnet (sonnet)</option>
+                  </select>
+                  <div class="text-xs text-base-content/50">Used when spawning Claude sub-agents</div>
+                </div>
+                
+                <!-- OpenCode Model Selector -->
+                <div class="space-y-2">
+                  <div class="text-xs font-mono text-blue-400 font-semibold">💻 OpenCode Model</div>
+                  <select 
+                    phx-change="select_opencode_model"
+                    name="model"
+                    class="w-full text-sm font-mono bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-blue-400 focus:outline-none focus:border-blue-500/50 hover:bg-blue-500/20 transition-colors"
+                  >
+                    <option value="gemini-2.5-pro" selected={@opencode_model == "gemini-2.5-pro"}>Gemini 2.5 Pro</option>
+                    <option value="gemini-2.5-flash" selected={@opencode_model == "gemini-2.5-flash"}>Gemini 2.5 Flash</option>
+                  </select>
+                  <div class="text-xs text-base-content/50">Used for OpenCode sessions <span class="text-base-content/40">(interface ready, not yet supported by ACP)</span></div>
+                </div>
+                
+                <!-- Current Selection Summary -->
+                <div class="pt-2 border-t border-white/10">
+                  <div class="text-xs text-base-content/60 mb-1">Active Configuration:</div>
+                  <div class="text-sm font-mono">
+                    <%= if @coding_agent_pref == :opencode do %>
+                      <span class="text-blue-400">💻 OpenCode</span>
+                      <span class="text-base-content/40"> with </span>
+                      <span class="text-blue-300"><%= @opencode_model %></span>
+                    <% else %>
+                      <span class="text-purple-400">🤖 Claude</span>
+                      <span class="text-base-content/40"> with </span>
+                      <span class="text-purple-300"><%= @claude_model |> String.replace("anthropic/claude-", "") |> String.replace("-4-5", "") |> String.replace("-4-20250514", "") %></span>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Linear Tickets Panel -->
       <div class="space-y-3">
         <div 
@@ -1077,7 +1307,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
                         <th class="text-left py-2 px-2">Title</th>
                         <th class="text-left py-2 px-2 w-20">Status</th>
                         <th class="text-left py-2 px-2 w-36">Work</th>
-                        <th class="text-left py-2 px-2 w-32">Project</th>
+                        <th class="text-left py-2 px-2 w-28">Actions</th>
+                        <th class="text-left py-2 px-2 w-28">Project</th>
                         <th class="text-left py-2 px-2 w-24">Assignee</th>
                       </tr>
                     </thead>
@@ -1147,6 +1378,44 @@ defmodule DashboardPhoenixWeb.HomeLive do
                               <% end %>
                             <% else %>
                               <span class="text-base-content/30 text-[10px]">-</span>
+                            <% end %>
+                          </td>
+                          <td class="py-2 px-2">
+                            <% has_pr = MapSet.member?(@pr_created_tickets, ticket.id) %>
+                            <%= cond do %>
+                              <% has_pr -> %>
+                                <%!-- PR exists - show Super Review button --%>
+                                <div class="flex items-center space-x-1">
+                                  <button
+                                    phx-click="request_super_review"
+                                    phx-value-id={ticket.id}
+                                    class="px-2 py-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 transition-colors text-[10px] font-bold"
+                                    title="Request super review for PR"
+                                  >
+                                    🔍 Review
+                                  </button>
+                                  <button
+                                    phx-click="clear_ticket_pr"
+                                    phx-value-id={ticket.id}
+                                    class="px-1 py-1 rounded bg-base-content/10 text-base-content/40 hover:text-error hover:bg-error/20 transition-colors text-[10px]"
+                                    title="Clear PR state"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              <% work_info != nil -> %>
+                                <%!-- Work in progress - show PR button --%>
+                                <button
+                                  phx-click="request_ticket_pr"
+                                  phx-value-id={ticket.id}
+                                  class="px-2 py-1 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 transition-colors text-[10px] font-bold"
+                                  title="Request PR creation"
+                                >
+                                  📝 PR
+                                </button>
+                              <% true -> %>
+                                <%!-- No work - show dash --%>
+                                <span class="text-base-content/30 text-[10px]">-</span>
                             <% end %>
                           </td>
                           <td class="py-2 px-2 text-base-content/60 truncate max-w-[120px]" title={ticket.project}>
@@ -1258,18 +1527,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
                             >
                               View ↗
                             </a>
-                            <button
-                              phx-click="request_opencode_pr"
-                              phx-value-id={session.id}
-                              class={"px-2 py-1 rounded transition-colors text-[10px] " <> 
-                                if(session.file_changes.files > 0, 
-                                  do: "bg-accent/30 text-accent hover:bg-accent/50 font-semibold",
-                                  else: "bg-accent/20 text-accent/70 hover:text-accent hover:bg-accent/40"
-                                )}
-                              title="Request PR creation"
-                            >
-                              📝 PR
-                            </button>
                             <button
                               phx-click="close_opencode_session"
                               phx-value-id={session.id}
@@ -1580,14 +1837,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
             <% end %>
           </div>
           <div class="flex items-center space-x-2" onclick="event.stopPropagation()">
-            <!-- Toggle main entries -->
-            <button 
-              phx-click="toggle_main_entries" 
-              class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@show_main_entries, do: "bg-green-500/20 text-green-400", else: "bg-base-content/10 text-base-content/40")}
-              title={if @show_main_entries, do: "Click to hide main session entries", else: "Click to show main session entries"}
-            >
-              <%= if @show_main_entries, do: "👁 main", else: "🚫 main" %>
-            </button>
             <button phx-click="clear_progress" class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20">
               CLEAR
             </button>
@@ -1595,67 +1844,39 @@ defmodule DashboardPhoenixWeb.HomeLive do
         </div>
         
         <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-          <!-- Filter Buttons -->
-          <div class="mb-3 flex items-center space-x-2 flex-wrap">
-            <span class="text-[10px] font-mono text-base-content/50 uppercase mr-2">Filter:</span>
-            
-            <!-- All button -->
+        <!-- Agent Filter Bar -->
+        <% unique_agents = @agent_progress |> Enum.map(& &1.agent) |> Enum.uniq() |> Enum.sort() %>
+        <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
+          <span class="text-[10px] font-mono text-base-content/50 mr-1">Filter:</span>
+          <button 
+            phx-click="set_progress_filter" 
+            phx-value-filter="all"
+            class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@progress_filter == "all", do: "bg-accent/30 text-accent font-bold", else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
+          >
+            All
+          </button>
+          <%= for agent <- unique_agents do %>
             <button 
               phx-click="set_progress_filter" 
-              phx-value-filter="all"
-              class={"px-2 py-1 rounded text-[10px] font-mono transition-colors " <> 
-                if(@progress_filter == "all", 
+              phx-value-filter={agent}
+              class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> 
+                if(@progress_filter == agent, 
                   do: "bg-accent/30 text-accent font-bold", 
-                  else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
+                  else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
+                ) <> " " <> agent_color(agent)}
+              title={"Filter by #{agent}"}
             >
-              All
+              <%= agent %>
             </button>
-            
-            <!-- Main button -->
-            <button 
-              phx-click="set_progress_filter" 
-              phx-value-filter="main"
-              class={"px-2 py-1 rounded text-[10px] font-mono transition-colors " <> 
-                if(@progress_filter == "main", 
-                  do: "bg-yellow-500/30 text-yellow-400 font-bold", 
-                  else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
-            >
-              Main
-            </button>
-            
-            <!-- Active Sub-Agent Labels -->
-            <% active_agents = @agent_sessions
-              |> Enum.filter(fn s -> s.status in ["running", "idle"] end)
-              |> Enum.map(fn s -> s.label || s.id end)
-              |> Enum.filter(fn label -> label != "main" and label != nil end)
-              |> Enum.uniq()
-              |> Enum.take(8) %>  <!-- Limit to 8 to prevent UI overflow -->
-            <%= for agent_label <- active_agents do %>
-              <button 
-                phx-click="set_progress_filter" 
-                phx-value-filter={agent_label}
-                class={"px-2 py-1 rounded text-[10px] font-mono transition-colors truncate max-w-[100px] " <> 
-                  if(@progress_filter == agent_label, 
-                    do: "bg-purple-500/30 text-purple-400 font-bold", 
-                    else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
-                title={agent_label}
-              >
-                <%= agent_label %>
-              </button>
-            <% end %>
-          </div>
-          
+          <% end %>
+        </div>
         <div class="glass-panel rounded-lg p-3 h-[400px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom">
           <%= if @agent_progress == [] do %>
             <div class="text-base-content/40 text-center py-8">
               Waiting for agent activity...
             </div>
           <% else %>
-            <% filtered_progress = case @progress_filter do
-              "all" -> @agent_progress
-              "main" -> Enum.filter(@agent_progress, & &1.agent == "main")
-              filter -> Enum.filter(@agent_progress, & &1.agent == filter)
-            end %>
+            <% filtered_progress = if @progress_filter == "all", do: @agent_progress, else: Enum.filter(@agent_progress, & &1.agent == @progress_filter) %>
             <%= for event <- filtered_progress do %>
               <% is_main = event.agent == "main" %>
               <% has_output = event.output != "" and event.output != nil %>
@@ -1664,7 +1885,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <div class={"py-1 border-b border-white/5 last:border-0 " <> if(is_main, do: "opacity-50", else: "")}>
                 <div class="flex items-start space-x-2">
                   <span class="text-base-content/40 w-14 flex-shrink-0"><%= format_time(event.ts) %></span>
-                  <span class={"w-28 flex-shrink-0 truncate " <> agent_color(event.agent)} title={event.agent}>
+                  <span class={"w-32 flex-shrink-0 truncate " <> agent_color(event.agent)} title={event.agent}>
                     <%= if is_main, do: "⚠️ ", else: "" %><%= event.agent %>
                   </span>
                   <span class={"w-14 flex-shrink-0 font-bold " <> action_color(event.action)}><%= event.action %></span>
@@ -1902,8 +2123,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <div class="flex items-center justify-between mb-3">
                 <div class="text-xs font-mono text-accent uppercase tracking-wider">Start Working</div>
                 <div class={"text-[10px] font-mono px-2 py-1 rounded " <> if(@coding_agent_pref == :opencode, do: "bg-blue-500/20 text-blue-400", else: "bg-purple-500/20 text-purple-400")}>
-                  Using: <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode", else: "🤖 Claude" %>
+                  Using: <%= if @coding_agent_pref == :opencode, do: "💻 OpenCode (#{@opencode_model})", else: "🤖 Claude (#{@claude_model |> String.replace("anthropic/claude-", "") |> String.replace("-4-5", "") |> String.replace("-4-20250514", "")})" %>
                 </div>
+              </div>
+              
+              <div class="text-xs text-base-content/60 mb-4">
+                Configure coding agent and models in the ⚙️ Config panel above.
               </div>
               
               <%= if @coding_agent_pref == :opencode do %>

@@ -54,9 +54,24 @@ const Hooks = {
         }
       }
       
+      // Load saved model selections from localStorage and send to LiveView
+      const savedModels = localStorage.getItem("systematic:models")
+      if (savedModels) {
+        try {
+          const modelState = JSON.parse(savedModels)
+          this.pushEvent("restore_model_selections", modelState)
+        } catch (e) {
+          console.error("Failed to parse model selections:", e)
+        }
+      }
+      
       // Listen for save events from LiveView
       this.handleEvent("save_panel_state", ({ panels }) => {
         localStorage.setItem("systematic:panels", JSON.stringify(panels))
+      })
+      
+      this.handleEvent("save_model_selections", ({ models }) => {
+        localStorage.setItem("systematic:models", JSON.stringify(models))
       })
     }
   },
