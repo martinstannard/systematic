@@ -46,9 +46,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Calculate main session activity count for warning
     main_activity_count = Enum.count(progress, & &1.agent == "main")
     
-    # Load persisted PR state (tickets that have PRs created)
-    pr_created_tickets = load_pr_state()
-    
     socket = assign(socket,
       process_stats: ProcessMonitor.get_stats(processes),
       recent_processes: processes,
@@ -60,8 +57,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agents: coding_agents,
       graph_data: graph_data,
       dismissed_sessions: MapSet.new(),  # Track dismissed session IDs
-      show_main_entries: true,            # Toggle for main session visibility (legacy)
-      progress_filter: "all",              # Filter: "all", "main", or specific agent name
+      show_main_entries: true,            # Toggle for main session visibility
       show_completed: true,               # Toggle for completed sub-agents visibility
       main_activity_count: main_activity_count,
       expanded_outputs: MapSet.new(),     # Track which outputs are expanded
@@ -70,7 +66,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_last_updated: linear_data.last_updated,
       linear_error: linear_data.error,
       tickets_in_progress: tickets_in_progress,
-      pr_created_tickets: pr_created_tickets,
       # Work modal state
       show_work_modal: false,
       work_ticket_id: nil,
@@ -90,7 +85,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       live_progress_collapsed: false,
       agent_activity_collapsed: false,
       system_processes_collapsed: false,
-      process_relationships_collapsed: false
+      process_relationships_collapsed: false,
+      # Progress filter
+      progress_filter: "all"  # "all", "main", or specific agent label
     )
     
     socket = if connected?(socket) do
@@ -248,12 +245,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, show_main_entries: !socket.assigns.show_main_entries)}
   end
 
-  def handle_event("set_progress_filter", %{"filter" => filter}, socket) do
-    {:noreply, assign(socket, progress_filter: filter)}
-  end
-
   def handle_event("toggle_show_completed", _, socket) do
     {:noreply, assign(socket, show_completed: !socket.assigns.show_completed)}
+  end
+
+  def handle_event("set_progress_filter", %{"filter" => filter}, socket) do
+    {:noreply, assign(socket, progress_filter: filter)}
   end
 
   def handle_event("toggle_output", %{"ts" => ts_str}, socket) do
@@ -323,8 +320,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
     )}
   end
 
-  # Removed: copy_spawn_command handler no longer needed
-  # Both OpenCode and Claude modes now use execute_work directly
+  def handle_event("copy_spawn_command", _, socket) do
+    # The actual copy happens via JS hook, this is just for feedback
+    {:noreply, put_flash(socket, :info, "Command copied to clipboard!")}
+  end
 
   def handle_event("toggle_coding_agent", _, socket) do
     AgentPreferences.toggle_coding_agent()
@@ -392,111 +391,25 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
-  # Request PR creation for a ticket that has active work
-  def handle_event("request_ticket_pr", %{"id" => ticket_id}, socket) do
-    work_info = Map.get(socket.assigns.tickets_in_progress, ticket_id)
-    
-    if work_info do
-      pr_prompt = """
-      The work on #{ticket_id} looks complete. Please create a Pull Request with:
-      1. A clear, descriptive title referencing #{ticket_id}
-      2. A detailed description explaining what was changed and why
-      3. Include the Linear ticket link in the PR description
-      
-      Use `gh pr create` to create the PR. After creating the PR, report back with the PR URL.
-      """
-
-      result = case work_info.type do
-        :opencode ->
-          # Send to OpenCode session
-          OpenCodeClient.send_message(work_info.session_id, pr_prompt)
-        
-        :subagent ->
-          # Send to OpenClaw sub-agent via sessions_send
-          alias DashboardPhoenix.OpenClawClient
-          OpenClawClient.send_message(pr_prompt, channel: "webchat")
-      end
-
-      case result do
-        {:ok, _} ->
-          # Mark ticket as having PR requested
-          pr_created = MapSet.put(socket.assigns.pr_created_tickets, ticket_id)
-          save_pr_state(pr_created)
-          
-          socket = socket
-          |> assign(pr_created_tickets: pr_created)
-          |> put_flash(:info, "PR requested for #{ticket_id}")
-          {:noreply, socket}
-        
-        {:error, reason} ->
-          {:noreply, put_flash(socket, :error, "Failed to request PR: #{inspect(reason)}")}
-      end
-    else
-      {:noreply, put_flash(socket, :error, "No active work found for #{ticket_id}")}
-    end
-  end
-
-  # Request super review for a ticket that has a PR
-  def handle_event("request_super_review", %{"id" => ticket_id}, socket) do
-    review_prompt = """
-    🔍 **Super Review Request**
-    
-    Please perform a comprehensive code review for the PR related to ticket #{ticket_id}:
-    
-    1. Check out the PR branch
-    2. Review all code changes for:
-       - Code quality and best practices
-       - Potential bugs or edge cases
-       - Performance implications
-       - Security concerns
-       - Test coverage
-    3. Verify the implementation matches the ticket requirements
-    4. Leave detailed review comments on the PR
-    5. Approve or request changes as appropriate
-    
-    Use `gh pr view` to find the PR and `gh pr diff` to see changes.
-    """
-
-    # Send to main agent to spawn a review sub-agent
-    alias DashboardPhoenix.OpenClawClient
-    
-    case OpenClawClient.send_message(review_prompt, channel: "webchat") do
-      {:ok, _} ->
-        {:noreply, put_flash(socket, :info, "Super review requested for #{ticket_id}")}
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to request review: #{inspect(reason)}")}
-    end
-  end
-
-  # Clear PR state for a ticket (e.g., when PR is merged)
-  def handle_event("clear_ticket_pr", %{"id" => ticket_id}, socket) do
-    pr_created = MapSet.delete(socket.assigns.pr_created_tickets, ticket_id)
-    save_pr_state(pr_created)
-    {:noreply, assign(socket, pr_created_tickets: pr_created)}
-  end
-
   # Execute work on ticket using OpenCode or OpenClaw
   def handle_event("execute_work", _, socket) do
     ticket_id = socket.assigns.work_ticket_id
     ticket_details = socket.assigns.work_ticket_details
     coding_pref = socket.assigns.coding_agent_pref
+    tickets_in_progress = socket.assigns.tickets_in_progress
     
-    # Check if work already exists for this ticket
-    if Map.has_key?(socket.assigns.tickets_in_progress, ticket_id) do
-      work_info = Map.get(socket.assigns.tickets_in_progress, ticket_id)
-      agent_type = if work_info.type == :opencode, do: "OpenCode", else: "sub-agent"
+    # Check if ticket already has work in progress
+    if Map.has_key?(tickets_in_progress, ticket_id) do
+      work_info = Map.get(tickets_in_progress, ticket_id)
+      work_type = if work_info.type == :opencode, do: "OpenCode", else: "sub-agent"
+      
       socket = socket
+      |> put_flash(:error, "Work already in progress for #{ticket_id} (#{work_type})")
       |> assign(show_work_modal: false)
-      |> put_flash(:error, "Work already in progress for #{ticket_id} (#{agent_type}: #{work_info[:slug] || work_info[:label]})")
+      
       {:noreply, socket}
     else
-      execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref)
-    end
-  end
-
-  # Actually execute the work when no duplicate exists
-  defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref) do
-    cond do
+      cond do
       # If OpenCode mode is selected
       coding_pref == :opencode ->
         # Build the prompt from ticket details
@@ -536,6 +449,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
         |> assign(work_in_progress: true, work_error: nil, show_work_modal: false)
         |> put_flash(:info, "Sending work request to OpenClaw...")
         {:noreply, socket}
+      end
     end
   end
 
@@ -934,29 +848,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
   defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
 
-  # PR state persistence - stores which tickets have PRs created
-  @pr_state_file Path.expand("~/.openclaw/systematic-pr-state.json")
-
-  defp load_pr_state do
-    case File.read(@pr_state_file) do
-      {:ok, content} ->
-        case Jason.decode(content) do
-          {:ok, %{"pr_created" => tickets}} when is_list(tickets) ->
-            MapSet.new(tickets)
-          _ ->
-            MapSet.new()
-        end
-      {:error, _} ->
-        MapSet.new()
-    end
-  end
-
-  defp save_pr_state(pr_created) do
-    content = Jason.encode!(%{"pr_created" => MapSet.to_list(pr_created)})
-    File.mkdir_p!(Path.dirname(@pr_state_file))
-    File.write!(@pr_state_file, content)
-  end
-
   def render(assigns) do
     ~H"""
     <div class="space-y-4" id="panel-state-container" phx-hook="PanelState">
@@ -965,6 +856,17 @@ defmodule DashboardPhoenixWeb.HomeLive do
         <div class="flex items-center space-x-4">
           <h1 class="text-sm font-bold tracking-widest text-base-content">SYSTEMATIC</h1>
           <span class="text-[10px] text-base-content/60 font-mono">AGENT CONTROL</span>
+          
+          <!-- LiveDashboard Link -->
+          <a 
+            href="/dashboard" 
+            target="_blank" 
+            class="flex items-center space-x-1 px-2 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors text-blue-400 hover:text-blue-300 text-xs font-mono"
+            title="Open Phoenix LiveDashboard"
+          >
+            <span>📊</span>
+            <span>Dashboard</span>
+          </a>
           
           <!-- Theme Toggle -->
           <button
@@ -1174,8 +1076,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                         <th class="text-left py-2 px-2">Title</th>
                         <th class="text-left py-2 px-2 w-20">Status</th>
                         <th class="text-left py-2 px-2 w-36">Work</th>
-                        <th class="text-left py-2 px-2 w-28">Actions</th>
-                        <th class="text-left py-2 px-2 w-28">Project</th>
+                        <th class="text-left py-2 px-2 w-32">Project</th>
                         <th class="text-left py-2 px-2 w-24">Assignee</th>
                       </tr>
                     </thead>
@@ -1185,7 +1086,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
                         <tr class={"border-b border-white/5 hover:bg-white/5 transition-colors " <> if(work_info, do: "bg-accent/5", else: "")}>
                           <td class="py-2 px-2">
                             <%= if work_info do %>
-                              <span class="px-3 py-1 rounded bg-success/20 text-success text-[10px] font-bold animate-pulse" title="Work in progress">
+                              <span class="px-2 py-1 rounded bg-success/20 text-success text-[10px] font-bold animate-pulse" title="Work in progress">
                                 ⚡ Active
                               </span>
                             <% else %>
@@ -1245,44 +1146,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
                               <% end %>
                             <% else %>
                               <span class="text-base-content/30 text-[10px]">-</span>
-                            <% end %>
-                          </td>
-                          <td class="py-2 px-2">
-                            <% has_pr = MapSet.member?(@pr_created_tickets, ticket.id) %>
-                            <%= cond do %>
-                              <% has_pr -> %>
-                                <%!-- PR exists - show Super Review button --%>
-                                <div class="flex items-center space-x-1">
-                                  <button
-                                    phx-click="request_super_review"
-                                    phx-value-id={ticket.id}
-                                    class="px-2 py-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 transition-colors text-[10px] font-bold"
-                                    title="Request super review for PR"
-                                  >
-                                    🔍 Review
-                                  </button>
-                                  <button
-                                    phx-click="clear_ticket_pr"
-                                    phx-value-id={ticket.id}
-                                    class="px-1 py-1 rounded bg-base-content/10 text-base-content/40 hover:text-error hover:bg-error/20 transition-colors text-[10px]"
-                                    title="Clear PR state"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              <% work_info != nil -> %>
-                                <%!-- Work in progress - show PR button --%>
-                                <button
-                                  phx-click="request_ticket_pr"
-                                  phx-value-id={ticket.id}
-                                  class="px-2 py-1 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 transition-colors text-[10px] font-bold"
-                                  title="Request PR creation"
-                                >
-                                  📝 PR
-                                </button>
-                              <% true -> %>
-                                <%!-- No work - show dash --%>
-                                <span class="text-base-content/30 text-[10px]">-</span>
                             <% end %>
                           </td>
                           <td class="py-2 px-2 text-base-content/60 truncate max-w-[120px]" title={ticket.project}>
@@ -1394,6 +1257,18 @@ defmodule DashboardPhoenixWeb.HomeLive do
                             >
                               View ↗
                             </a>
+                            <button
+                              phx-click="request_opencode_pr"
+                              phx-value-id={session.id}
+                              class={"px-2 py-1 rounded transition-colors text-[10px] " <> 
+                                if(session.file_changes.files > 0, 
+                                  do: "bg-accent/30 text-accent hover:bg-accent/50 font-semibold",
+                                  else: "bg-accent/20 text-accent/70 hover:text-accent hover:bg-accent/40"
+                                )}
+                              title="Request PR creation"
+                            >
+                              📝 PR
+                            </button>
                             <button
                               phx-click="close_opencode_session"
                               phx-value-id={session.id}
@@ -1704,6 +1579,14 @@ defmodule DashboardPhoenixWeb.HomeLive do
             <% end %>
           </div>
           <div class="flex items-center space-x-2" onclick="event.stopPropagation()">
+            <!-- Toggle main entries -->
+            <button 
+              phx-click="toggle_main_entries" 
+              class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@show_main_entries, do: "bg-green-500/20 text-green-400", else: "bg-base-content/10 text-base-content/40")}
+              title={if @show_main_entries, do: "Click to hide main session entries", else: "Click to show main session entries"}
+            >
+              <%= if @show_main_entries, do: "👁 main", else: "🚫 main" %>
+            </button>
             <button phx-click="clear_progress" class="text-[10px] font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20">
               CLEAR
             </button>
@@ -1711,39 +1594,67 @@ defmodule DashboardPhoenixWeb.HomeLive do
         </div>
         
         <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0 opacity-0", else: "max-h-[2000px] opacity-100")}>
-        <!-- Agent Filter Bar -->
-        <% unique_agents = @agent_progress |> Enum.map(& &1.agent) |> Enum.uniq() |> Enum.sort() %>
-        <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
-          <span class="text-[10px] font-mono text-base-content/50 mr-1">Filter:</span>
-          <button 
-            phx-click="set_progress_filter" 
-            phx-value-filter="all"
-            class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> if(@progress_filter == "all", do: "bg-accent/30 text-accent font-bold", else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
-          >
-            All
-          </button>
-          <%= for agent <- unique_agents do %>
+          <!-- Filter Buttons -->
+          <div class="mb-3 flex items-center space-x-2 flex-wrap">
+            <span class="text-[10px] font-mono text-base-content/50 uppercase mr-2">Filter:</span>
+            
+            <!-- All button -->
             <button 
               phx-click="set_progress_filter" 
-              phx-value-filter={agent}
-              class={"text-[10px] font-mono px-2 py-0.5 rounded transition-colors " <> 
-                if(@progress_filter == agent, 
+              phx-value-filter="all"
+              class={"px-2 py-1 rounded text-[10px] font-mono transition-colors " <> 
+                if(@progress_filter == "all", 
                   do: "bg-accent/30 text-accent font-bold", 
-                  else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20"
-                ) <> " " <> agent_color(agent)}
-              title={"Filter by #{agent}"}
+                  else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
             >
-              <%= agent %>
+              All
             </button>
-          <% end %>
-        </div>
+            
+            <!-- Main button -->
+            <button 
+              phx-click="set_progress_filter" 
+              phx-value-filter="main"
+              class={"px-2 py-1 rounded text-[10px] font-mono transition-colors " <> 
+                if(@progress_filter == "main", 
+                  do: "bg-yellow-500/30 text-yellow-400 font-bold", 
+                  else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
+            >
+              Main
+            </button>
+            
+            <!-- Active Sub-Agent Labels -->
+            <% active_agents = @agent_sessions
+              |> Enum.filter(fn s -> s.status in ["running", "idle"] end)
+              |> Enum.map(fn s -> s.label || s.id end)
+              |> Enum.filter(fn label -> label != "main" and label != nil end)
+              |> Enum.uniq()
+              |> Enum.take(8) %>  <!-- Limit to 8 to prevent UI overflow -->
+            <%= for agent_label <- active_agents do %>
+              <button 
+                phx-click="set_progress_filter" 
+                phx-value-filter={agent_label}
+                class={"px-2 py-1 rounded text-[10px] font-mono transition-colors truncate max-w-[100px] " <> 
+                  if(@progress_filter == agent_label, 
+                    do: "bg-purple-500/30 text-purple-400 font-bold", 
+                    else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20")}
+                title={agent_label}
+              >
+                <%= agent_label %>
+              </button>
+            <% end %>
+          </div>
+          
         <div class="glass-panel rounded-lg p-3 h-[400px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom">
           <%= if @agent_progress == [] do %>
             <div class="text-base-content/40 text-center py-8">
               Waiting for agent activity...
             </div>
           <% else %>
-            <% filtered_progress = if @progress_filter == "all", do: @agent_progress, else: Enum.filter(@agent_progress, & &1.agent == @progress_filter) %>
+            <% filtered_progress = case @progress_filter do
+              "all" -> @agent_progress
+              "main" -> Enum.filter(@agent_progress, & &1.agent == "main")
+              filter -> Enum.filter(@agent_progress, & &1.agent == filter)
+            end %>
             <%= for event <- filtered_progress do %>
               <% is_main = event.agent == "main" %>
               <% has_output = event.output != "" and event.output != nil %>
@@ -1752,7 +1663,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <div class={"py-1 border-b border-white/5 last:border-0 " <> if(is_main, do: "opacity-50", else: "")}>
                 <div class="flex items-start space-x-2">
                   <span class="text-base-content/40 w-14 flex-shrink-0"><%= format_time(event.ts) %></span>
-                  <span class={"w-32 flex-shrink-0 truncate " <> agent_color(event.agent)} title={event.agent}>
+                  <span class={"w-28 flex-shrink-0 truncate " <> agent_color(event.agent)} title={event.agent}>
                     <%= if is_main, do: "⚠️ ", else: "" %><%= event.agent %>
                   </span>
                   <span class={"w-14 flex-shrink-0 font-bold " <> action_color(event.action)}><%= event.action %></span>
@@ -2041,36 +1952,35 @@ defmodule DashboardPhoenixWeb.HomeLive do
                   </p>
                 </div>
               <% else %>
-                <!-- Claude Mode -->
-                <div class="space-y-4">
-                  <!-- Work Error -->
-                  <%= if @work_error do %>
-                    <div class="bg-error/20 text-error rounded-lg p-3 text-sm font-mono">
-                      <%= @work_error %>
-                    </div>
-                  <% end %>
+                <!-- Claude Mode - Copy Command -->
+                <div class="space-y-3">
+                  <p class="text-sm text-base-content/70">
+                    Copy the command below to spawn a Claude sub-agent that will work on this ticket:
+                  </p>
                   
-                  <!-- Execute Work Button -->
-                  <div class="flex items-center space-x-3">
-                    <button
-                      phx-click="execute_work"
-                      disabled={@work_in_progress or @work_ticket_loading}
-                      class={"flex-1 py-3 rounded-lg text-sm font-mono font-bold transition-all " <> 
-                        if(@work_in_progress, 
-                          do: "bg-purple-500/30 text-purple-300 cursor-wait",
-                          else: "bg-purple-500/20 text-purple-400 hover:bg-purple-500/40"
-                        )}
+                  <% spawn_command = "Work on #{@work_ticket_id}" %>
+                  <div class="relative">
+                    <div 
+                      id="spawn-command" 
+                      class="text-sm font-mono bg-black/50 rounded-lg p-4 pr-16 text-green-400 cursor-pointer hover:bg-black/60 transition-colors"
+                      phx-hook="CopyToClipboard"
+                      data-copy={spawn_command}
                     >
-                      <%= if @work_in_progress do %>
-                        <span class="inline-block animate-spin mr-2">⟳</span> Sending to OpenClaw...
-                      <% else %>
-                        🤖 Execute Work with Claude
-                      <% end %>
+                      <%= spawn_command %>
+                    </div>
+                    <button
+                      class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/40 transition-colors text-xs font-mono"
+                      phx-click="copy_spawn_command"
+                      id="copy-btn"
+                      phx-hook="CopyToClipboard"
+                      data-copy={spawn_command}
+                    >
+                      📋 Copy
                     </button>
                   </div>
                   
                   <p class="text-[10px] text-base-content/50">
-                    This will send the ticket details to OpenClaw to spawn a Claude sub-agent automatically.
+                    Tip: Paste this into your OpenClaw chat to spawn a sub-agent for this ticket.
                   </p>
                 </div>
               <% end %>
