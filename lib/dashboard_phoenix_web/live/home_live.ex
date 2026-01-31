@@ -1459,23 +1459,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
   defp truncate_title(title), do: title
 
-  defp format_linear_time(nil), do: ""
-  defp format_linear_time(%DateTime{} = dt) do
-    now = DateTime.utc_now()
-    diff = DateTime.diff(now, dt, :second)
-    cond do
-      diff < 60 -> "#{diff}s ago"
-      diff < 3600 -> "#{div(diff, 60)}m ago"
-      diff < 86400 -> "#{div(diff, 3600)}h ago"
-      true -> Calendar.strftime(dt, "%H:%M")
-    end
-  end
-  defp format_linear_time(_), do: ""
-
-  defp linear_status_badge("Triage"), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
-  defp linear_status_badge("Todo"), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px]"
-  defp linear_status_badge("Backlog"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
-  defp linear_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+  # Linear-related helpers moved to LinearComponent
 
   defp opencode_status_badge("active"), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px] animate-pulse"
   defp opencode_status_badge("subagent"), do: "px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px]"
@@ -1645,12 +1629,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     File.write!(@pr_state_file, content)
   end
 
-  # Linear filter button styling helpers
-  defp linear_filter_button_active("Triage"), do: "bg-red-500/30 text-red-400 border border-red-500/50"
-  defp linear_filter_button_active("Backlog"), do: "bg-blue-500/30 text-blue-400 border border-blue-500/50"
-  defp linear_filter_button_active("Todo"), do: "bg-yellow-500/30 text-yellow-400 border border-yellow-500/50"
-  defp linear_filter_button_active("In Review"), do: "bg-purple-500/30 text-purple-400 border border-purple-500/50"
-  defp linear_filter_button_active(_), do: "bg-accent/30 text-accent border border-accent/50"
+  # Linear filter button styling moved to LinearComponent
 
   def render(assigns) do
     ~H"""
