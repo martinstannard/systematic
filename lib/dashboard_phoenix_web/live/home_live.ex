@@ -24,6 +24,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       Process.send_after(self(), :update_processes, 100)
       :timer.send_interval(2_000, :update_processes)
       :timer.send_interval(5_000, :refresh_opencode_sessions)
+      # Async load Linear tickets to avoid blocking mount
+      send(self(), :load_linear_tickets)
     end
 
     processes = ProcessMonitor.list_processes()
@@ -34,7 +36,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
     agent_activity = build_agent_activity(sessions, progress)
     coding_agents = CodingAgentMonitor.list_agents()
     coding_agent_pref = AgentPreferences.get_coding_agent()
-    linear_data = LinearMonitor.get_tickets()
     opencode_status = OpenCodeServer.status()
     opencode_sessions = fetch_opencode_sessions(opencode_status)
     
@@ -66,9 +67,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
       main_activity_count: main_activity_count,
       expanded_outputs: MapSet.new(),     # Track which outputs are expanded
       coding_agent_pref: coding_agent_pref,  # Coding agent preference (opencode/claude)
-      linear_tickets: linear_data.tickets,
-      linear_last_updated: linear_data.last_updated,
-      linear_error: linear_data.error,
+      # Linear tickets - loaded async to avoid blocking mount
+      linear_tickets: [],
+      linear_last_updated: nil,
+      linear_error: nil,
+      linear_loading: true,
       linear_status_filter: "Todo",
       tickets_in_progress: tickets_in_progress,
       pr_created_tickets: pr_created_tickets,
@@ -150,12 +153,34 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, coding_agent_pref: String.to_atom(prefs.coding_agent))}
   end
 
-  # Handle Linear ticket updates
+  # Handle Linear ticket updates (from PubSub)
   def handle_info({:linear_update, data}, socket) do
     {:noreply, assign(socket,
       linear_tickets: data.tickets,
       linear_last_updated: data.last_updated,
-      linear_error: data.error
+      linear_error: data.error,
+      linear_loading: false
+    )}
+  end
+
+  # Handle async Linear ticket loading (initial mount)
+  def handle_info(:load_linear_tickets, socket) do
+    # Fetch in a Task to avoid blocking the LiveView process
+    parent = self()
+    Task.start(fn ->
+      linear_data = LinearMonitor.get_tickets()
+      send(parent, {:linear_loaded, linear_data})
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle Linear tickets loaded result
+  def handle_info({:linear_loaded, data}, socket) do
+    {:noreply, assign(socket,
+      linear_tickets: data.tickets,
+      linear_last_updated: data.last_updated,
+      linear_error: data.error,
+      linear_loading: false
     )}
   end
 
@@ -1286,7 +1311,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
               <div class="flex items-center space-x-2">
                 <span class={"text-xs transition-transform duration-200 " <> if(@linear_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
                 <span class="text-xs font-mono text-accent uppercase tracking-wider">🎫 Linear</span>
-                <span class="text-[10px] font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
+                <%= if @linear_loading do %>
+                  <span class="throbber-small"></span>
+                <% else %>
+                  <span class="text-[10px] font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
+                <% end %>
               </div>
               <button phx-click="refresh_linear" class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">↻</button>
             </div>
@@ -1312,23 +1341,33 @@ defmodule DashboardPhoenixWeb.HomeLive do
                 
                 <!-- Ticket List -->
                 <div class="space-y-1 max-h-[300px] overflow-y-auto">
-                  <%= for ticket <- Enum.filter(@linear_tickets, & &1.status == @linear_status_filter) |> Enum.take(10) do %>
-                    <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
-                    <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono " <> if(work_info, do: "bg-accent/10", else: "hover:bg-white/5")}>
-                      <%= if work_info do %>
-                        <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
-                      <% else %>
-                        <button
-                          phx-click="work_on_ticket"
-                          phx-value-id={ticket.id}
-                          class="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
-                        >
-                          ▶
-                        </button>
-                      <% end %>
-                      <a href={ticket.url} target="_blank" class="text-accent hover:underline"><%= ticket.id %></a>
-                      <span class="text-white truncate flex-1" title={ticket.title}><%= ticket.title %></span>
+                  <%= if @linear_loading do %>
+                    <div class="flex items-center justify-center py-4 space-x-2">
+                      <span class="throbber-small"></span>
+                      <span class="text-xs text-base-content/50 font-mono">Loading tickets...</span>
                     </div>
+                  <% else %>
+                    <%= if @linear_error do %>
+                      <div class="text-xs text-error/70 py-2 px-2"><%= @linear_error %></div>
+                    <% end %>
+                    <%= for ticket <- Enum.filter(@linear_tickets, & &1.status == @linear_status_filter) |> Enum.take(10) do %>
+                      <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
+                      <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono " <> if(work_info, do: "bg-accent/10", else: "hover:bg-white/5")}>
+                        <%= if work_info do %>
+                          <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
+                        <% else %>
+                          <button
+                            phx-click="work_on_ticket"
+                            phx-value-id={ticket.id}
+                            class="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
+                          >
+                            ▶
+                          </button>
+                        <% end %>
+                        <a href={ticket.url} target="_blank" class="text-accent hover:underline"><%= ticket.id %></a>
+                        <span class="text-white truncate flex-1" title={ticket.title}><%= ticket.title %></span>
+                      </div>
+                    <% end %>
                   <% end %>
                 </div>
               </div>
