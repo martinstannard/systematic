@@ -11,7 +11,7 @@ defmodule DashboardPhoenix.LinearMonitor do
   @topic "linear_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for URLs
   @linear_cli "/home/martins/.npm-global/bin/linear"
-  @states ["Triage", "Backlog", "Todo"]
+  @states ["Triage", "Backlog", "Todo", "In Review"]
 
   # Client API
 
