@@ -41,6 +41,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   defp priority_row_class(:low), do: "border-l-2 border-blue-500/50"
   defp priority_row_class(_), do: ""
 
+  defp wip_row_class(nil), do: "hover:bg-white/5"
+  defp wip_row_class(_work_info), do: "bg-accent/10 border-r-2 border-success/50"
+
   defp status_icon("open"), do: "○"
   defp status_icon("closed"), do: "●"
   defp status_icon(_), do: "◌"
@@ -93,14 +96,17 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
               <%= if @chainlink_error do %>
                 <div class="text-xs text-error/70 py-2 px-2"><%= @chainlink_error %></div>
               <% end %>
-              <%= if Enum.empty?(@chainlink_issues) and not @chainlink_error do %>
+              <%= if Enum.empty?(@chainlink_issues) and is_nil(@chainlink_error) do %>
                 <div class="text-xs text-base-content/50 py-2 px-2 font-mono">No open issues</div>
               <% end %>
               <%= for issue <- @chainlink_issues do %>
                 <% work_info = Map.get(@chainlink_work_in_progress, issue.id) %>
-                <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono " <> priority_row_class(issue.priority) <> " " <> if(work_info, do: "bg-accent/10", else: "hover:bg-white/5")}>
+                <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
                   <%= if work_info do %>
-                    <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse" title={"Work in progress: #{work_info[:label]}"}></span>
+                    <div class="flex items-center space-x-1" title={"Work in progress: #{work_info[:label]}"}>
+                      <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
+                      <span class="text-[9px] text-success/70 truncate max-w-[60px]"><%= work_info[:label] || "Working" %></span>
+                    </div>
                   <% else %>
                     <button
                       phx-click="work_on_chainlink"
