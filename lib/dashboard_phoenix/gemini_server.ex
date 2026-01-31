@@ -14,7 +14,7 @@ defmodule DashboardPhoenix.GeminiServer do
   use GenServer
   require Logger
 
-  @gemini_bin "/usr/bin/gemini"
+  @gemini_bin "/home/martins/.npm-global/bin/gemini"
   @default_cwd "/home/martins/work/core-platform"
   
   @pubsub DashboardPhoenix.PubSub
