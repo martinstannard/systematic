@@ -19,7 +19,7 @@ defmodule DashboardPhoenix.LinearMonitor do
   @max_poll_interval_ms 300_000  # 5 minutes max backoff
   @topic "linear_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for URLs
-  @states ["Triaging", "Backlog", "Todo", "In Review"]
+  @states ["Triage", "Backlog", "Todo", "In Review"]
   @cli_timeout_ms 30_000
   @cache_ttl_ms 45_000  # Cache CLI results for 45 seconds
   @persistence_file "linear_state.json"
