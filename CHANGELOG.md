@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- Config: Add Round Robin agent distribution mode (#93)
+- Fix: Rate limiter should normalize command paths to match config keys (#94)
 - Fix: Investigate and test Unmerged Branches merge button (#86)
 - Deploy: Live confirmation event and notification (#91)
 - Deploy: Health check after restart (#90)
