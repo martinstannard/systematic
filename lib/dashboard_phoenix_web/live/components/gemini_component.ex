@@ -72,7 +72,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
           <% end %>
         </div>
         <%= if @gemini_server_status.running do %>
-          <button phx-click="clear_output" phx-target={@myself} class="text-[10px] text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">Clear</button>
+          <button phx-click="clear_output" phx-target={@myself} class="text-xs text-base-content/40 hover:text-accent" onclick="event.stopPropagation()">Clear</button>
         <% end %>
       </div>
       
@@ -80,14 +80,14 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
         <div class="px-3 pb-3">
           <%= if not @gemini_server_status.running do %>
             <div class="text-center py-4">
-              <div class="text-[10px] text-base-content/40 mb-2">Gemini CLI not running</div>
+              <div class="text-xs text-base-content/40 mb-2">Gemini CLI not running</div>
               <button phx-click="start_server" phx-target={@myself} class="text-xs px-3 py-1.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40">
                 ✨ Start Gemini
               </button>
             </div>
           <% else %>
             <!-- Status -->
-            <div class="flex items-center justify-between mb-2 text-[10px] font-mono">
+            <div class="flex items-center justify-between mb-2 text-xs font-mono">
               <div class="flex items-center space-x-2">
                 <span class="text-base-content/50">Status:</span>
                 <%= if @gemini_server_status[:busy] do %>
@@ -99,7 +99,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
                 <span class="text-base-content/50">Dir:</span>
                 <span class="text-blue-400 truncate max-w-[150px]" title={@gemini_server_status.cwd}><%= @gemini_server_status.cwd %></span>
               </div>
-              <button phx-click="stop_server" phx-target={@myself} class="px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40 text-[10px]">
+              <button phx-click="stop_server" phx-target={@myself} class="px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40 text-xs">
                 Stop
               </button>
             </div>

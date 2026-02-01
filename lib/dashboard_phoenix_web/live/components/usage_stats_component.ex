@@ -24,7 +24,7 @@ defmodule DashboardPhoenixWeb.Live.Components.UsageStatsComponent do
     <div class="panel-content-compact">
       <div class="flex items-center justify-between panel-header-compact">
         <span class="text-panel-label text-secondary">📊 Usage</span>
-        <button phx-click="refresh_stats" phx-target={@myself} class="text-[10px] text-base-content/40 hover:text-secondary">↻</button>
+        <button phx-click="refresh_stats" phx-target={@myself} class="text-xs text-base-content/40 hover:text-secondary">↻</button>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>

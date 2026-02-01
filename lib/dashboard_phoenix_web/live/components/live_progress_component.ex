@@ -63,13 +63,13 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
           <span class={"panel-chevron " <> if(@live_progress_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">📡</span>
           <span class="text-panel-label text-secondary">Live Feed</span>
-          <span class="text-[10px] font-mono text-base-content/50 text-tabular"><%= @agent_progress_count %></span>
+          <span class="text-xs font-mono text-base-content/50 text-tabular"><%= @agent_progress_count %></span>
         </div>
-        <button phx-click="clear_progress" phx-target={@myself} class="text-[10px] text-base-content/40 hover:text-secondary px-2 py-1">Clear</button>
+        <button phx-click="clear_progress" phx-target={@myself} class="text-xs text-base-content/40 hover:text-secondary px-2 py-1">Clear</button>
       </div>
       
       <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0", else: "max-h-[400px] flex-1")}>
-        <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-[10px]" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream">
+        <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream">
           <div :for={{dom_id, event} <- @progress_events} id={dom_id} class="py-0.5 flex items-start space-x-1">
             <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
             <span class={agent_color(event.agent) <> " w-20 flex-shrink-0 truncate"}><%= event.agent %></span>

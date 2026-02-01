@@ -52,14 +52,14 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             <%= if @main_agent_session.status == "running" do %>
               <span class="status-beacon text-warning"></span>
             <% else %>
-              <span class={"px-1.5 py-0.5 rounded text-[10px] " <> status_badge(@main_agent_session.status)}>
+              <span class={"px-1.5 py-0.5 rounded text-xs " <> status_badge(@main_agent_session.status)}>
                 <%= @main_agent_session.status %>
               </span>
             <% end %>
           </div>
           <div class="flex items-center space-x-2">
             <% {_type, model_name, model_icon} = agent_type_from_model(Map.get(@main_agent_session, :model)) %>
-            <span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px]" title={Map.get(@main_agent_session, :model)}>
+            <span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs" title={Map.get(@main_agent_session, :model)}>
               <%= model_icon %> <%= model_name %>
             </span>
           </div>
@@ -75,7 +75,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
                 <%= if current_action do %>
                   <div class="flex items-center space-x-2 mb-2">
                     <span class="status-activity-ring text-purple-400"></span>
-                    <span class="text-[10px] text-purple-400/70">Current:</span>
+                    <span class="text-xs text-purple-400/70">Current:</span>
                     <span class="text-purple-300 text-xs font-mono truncate" title={current_action}>
                       <%= current_action %>
                     </span>
@@ -95,7 +95,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
               
               <!-- Recent Actions -->
               <%= if @recent_actions != [] do %>
-                <div class="text-[10px] text-base-content/40 space-y-0.5 max-h-[100px] overflow-y-auto">
+                <div class="text-xs text-base-content/40 space-y-0.5 max-h-[100px] overflow-y-auto">
                   <%= for action <- @recent_actions do %>
                     <div class="truncate" title={action}>✓ <%= action %></div>
                   <% end %>
@@ -104,7 +104,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             </div>
             
             <!-- Stats Footer -->
-            <div class="pt-2 border-t border-purple-500/20 flex items-center justify-between text-[10px] font-mono">
+            <div class="pt-2 border-t border-purple-500/20 flex items-center justify-between text-xs font-mono">
               <div class="flex items-center space-x-3 text-base-content/50">
                 <span>↓ <%= format_tokens(Map.get(@main_agent_session, :tokens_in, 0)) %></span>
                 <span>↑ <%= format_tokens(Map.get(@main_agent_session, :tokens_out, 0)) %></span>
@@ -123,7 +123,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
           <div class="flex items-center space-x-2">
             <span class="text-xs">▼</span>
             <span class="text-panel-label text-base-content/60">🐙 Dave</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] bg-base-content/20 text-base-content/60">
+            <span class="px-1.5 py-0.5 rounded text-xs bg-base-content/20 text-base-content/60">
               offline
             </span>
           </div>

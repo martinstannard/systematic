@@ -89,7 +89,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         <button
           phx-click="refresh_chainlink"
           phx-target={@myself}
-          class="text-[10px] text-base-content/40 hover:text-accent"
+          class="text-xs text-base-content/40 hover:text-accent"
           onclick="event.stopPropagation()"
           aria-label="Refresh Chainlink issues"
         >
@@ -133,7 +133,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       phx-click="work_on_chainlink"
                       phx-value-id={issue.id}
                       phx-target={@myself}
-                      class="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
+                      class="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
                       title="Start work on this issue"
                       aria-label={"Start work on issue #" <> to_string(issue.id)}
                     >

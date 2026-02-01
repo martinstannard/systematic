@@ -135,7 +135,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
         <button
           phx-click="refresh_branches"
           phx-target={@myself}
-          class="text-[10px] text-base-content/40 hover:text-accent"
+          class="text-xs text-base-content/40 hover:text-accent"
           onclick="event.stopPropagation()"
           aria-label="Refresh branches"
         >
@@ -179,12 +179,12 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                     <div class="flex items-center space-x-1 ml-2">
                       <%= if @branch_merge_pending == branch.name do %>
                         <!-- Merge Confirmation -->
-                        <span class="text-[10px] text-warning mr-1">Merge?</span>
+                        <span class="text-xs text-warning mr-1">Merge?</span>
                         <button
                           phx-click="execute_merge_branch"
                           phx-target={@myself}
                           phx-value-name={branch.name}
-                          class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 text-[10px]"
+                          class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 text-xs"
                           aria-label={"Confirm merge of branch " <> branch.name}
                         >
                           ✓
@@ -192,7 +192,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                         <button
                           phx-click="cancel_merge_branch"
                           phx-target={@myself}
-                          class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-[10px]"
+                          class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs"
                           aria-label="Cancel merge"
                         >
                           ✗
@@ -200,12 +200,12 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                       <% else %>
                         <%= if @branch_delete_pending == branch.name do %>
                           <!-- Delete Confirmation -->
-                          <span class="text-[10px] text-error mr-1">Delete?</span>
+                          <span class="text-xs text-error mr-1">Delete?</span>
                           <button
                             phx-click="execute_delete_branch"
                             phx-target={@myself}
                             phx-value-name={branch.name}
-                            class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 text-[10px]"
+                            class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 text-xs"
                             aria-label={"Confirm delete of branch " <> branch.name}
                           >
                             ✓
@@ -213,7 +213,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                           <button
                             phx-click="cancel_delete_branch"
                             phx-target={@myself}
-                            class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-[10px]"
+                            class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs"
                             aria-label="Cancel delete"
                           >
                             ✗
@@ -224,7 +224,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                             phx-click="confirm_merge_branch"
                             phx-target={@myself}
                             phx-value-name={branch.name}
-                            class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 text-[10px]"
+                            class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 text-xs"
                             title="Merge to main"
                             aria-label={"Merge branch " <> branch.name <> " to main"}
                           >
@@ -234,7 +234,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                             phx-click="confirm_delete_branch"
                             phx-target={@myself}
                             phx-value-name={branch.name}
-                            class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 text-[10px]"
+                            class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/40 text-xs"
                             title="Delete branch"
                             aria-label={"Delete branch " <> branch.name}
                           >
@@ -246,7 +246,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                   </div>
 
                   <!-- Last Commit Info -->
-                  <div class="flex items-center space-x-2 text-[10px] text-base-content/50">
+                  <div class="flex items-center space-x-2 text-xs text-base-content/50">
                     <%= if branch.last_commit_message do %>
                       <span class="truncate flex-1" title={branch.last_commit_message}><%= branch.last_commit_message %></span>
                       <span>•</span>
@@ -262,7 +262,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
 
                   <!-- Worktree Path if applicable -->
                   <%= if branch.has_worktree do %>
-                    <div class="text-[10px] text-green-400/60 mt-1 truncate" title={branch.worktree_path}>
+                    <div class="text-xs text-green-400/60 mt-1 truncate" title={branch.worktree_path}>
                       📁 <%= branch.worktree_path %>
                     </div>
                   <% end %>
@@ -273,7 +273,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
 
           <!-- Last Updated -->
           <%= if @branches_last_updated do %>
-            <div class="text-[9px] text-base-content/30 mt-2 text-right font-mono">
+            <div class="text-xs text-base-content/30 mt-2 text-right font-mono">
               Updated <%= format_branch_time(@branches_last_updated) %>
             </div>
           <% end %>

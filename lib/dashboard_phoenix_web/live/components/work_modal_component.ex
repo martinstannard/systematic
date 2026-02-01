@@ -100,7 +100,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
         <div class="border-t border-accent/20 pt-4">
           <div class="flex items-center justify-between mb-3">
             <div class="text-panel-label text-primary">Start Working</div>
-            <div class={"text-[10px] font-mono px-3 py-1 rounded panel-status " <> coding_agent_badge_class(@coding_agent_pref)}>
+            <div class={"text-xs font-mono px-3 py-1 rounded panel-status " <> coding_agent_badge_class(@coding_agent_pref)}>
               <span class="status-beacon text-current"></span>
               <span class="ml-2">Using: <%= coding_agent_badge_text(@coding_agent_pref) %></span>
             </div>

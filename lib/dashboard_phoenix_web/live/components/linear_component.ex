@@ -67,10 +67,10 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   # Helper functions
 
-  defp linear_status_badge("Triaging"), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
-  defp linear_status_badge("Todo"), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px]"
-  defp linear_status_badge("Backlog"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
-  defp linear_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+  defp linear_status_badge("Triaging"), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-xs"
+  defp linear_status_badge("Todo"), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs"
+  defp linear_status_badge("Backlog"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs"
+  defp linear_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-xs"
 
   defp linear_filter_button_active("Triaging"), do: "bg-red-500/30 text-red-400 border border-red-500/50"
   defp linear_filter_button_active("Backlog"), do: "bg-blue-500/30 text-blue-400 border border-blue-500/50"
@@ -100,13 +100,13 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
           <%= if @linear_loading do %>
             <span class="status-activity-ring text-accent"></span>
           <% else %>
-            <span class="text-[10px] font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
+            <span class="text-xs font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
           <% end %>
         </div>
         <button 
           phx-click="refresh_linear" 
           phx-target={@myself}
-          class="text-[10px] text-base-content/40 hover:text-accent" 
+          class="text-xs text-base-content/40 hover:text-accent" 
           onclick="event.stopPropagation()"
           aria-label="Refresh Linear tickets"
         >
@@ -124,7 +124,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                 phx-click="set_linear_filter"
                 phx-value-status={status}
                 phx-target={@myself}
-                class={"px-2 py-0.5 rounded text-[10px] font-mono transition-all " <> 
+                class={"px-2 py-0.5 rounded text-xs font-mono transition-all " <> 
                   if(@linear_status_filter == status,
                     do: linear_filter_button_active(status),
                     else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
@@ -159,7 +159,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                       phx-click="work_on_ticket"
                       phx-value-id={ticket.id}
                       phx-target={@myself}
-                      class="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
+                      class="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
                       aria-label={"Start work on ticket " <> ticket.id}
                       title={"Start work on ticket " <> ticket.id}
                     >

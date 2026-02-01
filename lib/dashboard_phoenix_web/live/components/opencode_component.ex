@@ -67,10 +67,10 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
 
   # Helper functions
 
-  defp opencode_status_badge("active"), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-[10px] animate-pulse"
-  defp opencode_status_badge("subagent"), do: "px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px]"
-  defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
-  defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
+  defp opencode_status_badge("active"), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-xs animate-pulse"
+  defp opencode_status_badge("subagent"), do: "px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs"
+  defp opencode_status_badge("idle"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs"
+  defp opencode_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-xs"
 
   @impl true
   def render(assigns) do
@@ -93,14 +93,14 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
           <span class="text-panel-label text-accent">OpenCode</span>
           <%= if @opencode_server_status.running do %>
             <span class="status-beacon text-success"></span>
-            <span class="text-[10px] font-mono text-base-content/50"><%= length(@opencode_sessions) %></span>
+            <span class="text-xs font-mono text-base-content/50"><%= length(@opencode_sessions) %></span>
           <% end %>
         </div>
         <%= if @opencode_server_status.running do %>
           <button
             phx-click="refresh_opencode_sessions"
             phx-target={@myself}
-            class="text-[10px] text-base-content/40 hover:text-accent"
+            class="text-xs text-base-content/40 hover:text-accent"
             onclick="event.stopPropagation()"
             aria-label="Refresh OpenCode sessions"
           >
@@ -114,7 +114,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
           <%= if not @opencode_server_status.running do %>
             <!-- Server Not Running -->
             <div class="text-center py-4">
-              <div class="text-[10px] text-base-content/40 mb-2">ACP Server not running</div>
+              <div class="text-xs text-base-content/40 mb-2">ACP Server not running</div>
               <button
                 phx-click="start_opencode_server"
                 phx-target={@myself}
@@ -127,14 +127,14 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
           <% else %>
             <!-- Server Controls -->
             <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
-              <div class="flex items-center space-x-2 text-[10px] font-mono">
+              <div class="flex items-center space-x-2 text-xs font-mono">
                 <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
                 <span class="text-success">Running on :<%= @opencode_server_status.port %></span>
               </div>
               <button
                 phx-click="stop_opencode_server"
                 phx-target={@myself}
-                class="text-[10px] px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40"
+                class="text-xs px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40"
                 aria-label="Stop OpenCode ACP server"
               >
                 Stop
@@ -162,7 +162,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
                           phx-click="request_opencode_pr"
                           phx-target={@myself}
                           phx-value-id={session.id}
-                          class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 text-[10px]"
+                          class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 text-xs"
                           title="Request PR creation"
                           aria-label={"Request PR for session " <> session.slug}
                         >
@@ -173,7 +173,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
                         phx-click="close_opencode_session"
                         phx-target={@myself}
                         phx-value-id={session.id}
-                        class="px-1.5 py-0.5 rounded bg-error/20 text-error hover:bg-error/40 text-[10px]"
+                        class="px-1.5 py-0.5 rounded bg-error/20 text-error hover:bg-error/40 text-xs"
                         title="Close session"
                         aria-label={"Close session " <> session.slug}
                       >
@@ -184,14 +184,14 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
 
                   <!-- Session Title (if different from slug) -->
                   <%= if session.title && session.title != session.slug do %>
-                    <div class="text-[10px] text-base-content/50 truncate mb-1" title={session.title}>
+                    <div class="text-xs text-base-content/50 truncate mb-1" title={session.title}>
                       <%= session.title %>
                     </div>
                   <% end %>
 
                   <!-- File Changes -->
                   <%= if session.file_changes.files > 0 do %>
-                    <div class="flex items-center space-x-2 text-[10px]">
+                    <div class="flex items-center space-x-2 text-xs">
                       <span class="text-base-content/40"><%= session.file_changes.files %> files</span>
                       <span class="text-green-400">+<%= session.file_changes.additions %></span>
                       <span class="text-red-400">-<%= session.file_changes.deletions %></span>
@@ -200,7 +200,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
 
                   <!-- Directory -->
                   <%= if session.directory do %>
-                    <div class="text-[10px] text-base-content/30 truncate mt-1" title={session.directory}>
+                    <div class="text-xs text-base-content/30 truncate mt-1" title={session.directory}>
                       📁 <%= session.directory %>
                     </div>
                   <% end %>

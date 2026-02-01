@@ -82,7 +82,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
               <span class={"panel-chevron " <> if(@coding_agents_collapsed, do: "collapsed", else: "")}>▼</span>
               <span class="panel-icon opacity-60">💻</span>
               <span class="text-panel-label text-base-content/60">Coding Agents</span>
-              <span class="text-[10px] font-mono text-base-content/50"><%= @coding_agents_count %></span>
+              <span class="text-xs font-mono text-base-content/50"><%= @coding_agents_count %></span>
             </div>
           </div>
           
@@ -95,7 +95,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
                       <span class="text-white font-bold"><%= agent.type %></span>
                       <button phx-click="kill_process" phx-value-pid={agent.pid} phx-target={@myself} class="text-error/50 hover:text-error">✕</button>
                     </div>
-                    <div class="text-[10px] text-base-content/50 mt-1">
+                    <div class="text-xs text-base-content/50 mt-1">
                       CPU: <%= agent.cpu %>% | MEM: <%= agent.memory %>%
                     </div>
                   </div>
@@ -119,14 +119,14 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
               <span class={"panel-chevron " <> if(@system_processes_collapsed, do: "collapsed", else: "")}>▼</span>
               <span class="panel-icon opacity-60">⚙️</span>
               <span class="text-panel-label text-base-content/60">System</span>
-              <span class="text-[10px] font-mono text-base-content/50"><%= @recent_processes_count %></span>
+              <span class="text-xs font-mono text-base-content/50"><%= @recent_processes_count %></span>
             </div>
           </div>
           
           <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@system_processes_collapsed, do: "max-h-0", else: "max-h-[150px]")}>
             <div class="px-3 pb-3 grid grid-cols-2 gap-1">
               <%= for process <- @limited_recent_processes do %>
-                <div class="px-2 py-1 rounded bg-white/5 text-[10px] font-mono">
+                <div class="px-2 py-1 rounded bg-white/5 text-xs font-mono">
                   <div class="text-white truncate"><%= process.name %></div>
                   <div class="text-base-content/50">CPU: <%= Map.get(process, :cpu_usage, "?") %> | MEM: <%= Map.get(process, :memory_usage, "?") %></div>
                 </div>

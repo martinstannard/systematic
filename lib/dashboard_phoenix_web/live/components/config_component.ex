@@ -97,7 +97,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
           <span class="panel-icon opacity-60">⚙️</span>
           <span class="text-panel-label text-base-content/60">Config</span>
         </div>
-        <div class="flex items-center space-x-2 text-[10px] font-mono text-base-content/40">
+        <div class="flex items-center space-x-2 text-xs font-mono text-base-content/40">
           <span><%= if @coding_agent_pref == :opencode, do: "OpenCode + #{@opencode_model}", else: "Claude + #{String.replace(@claude_model, "anthropic/claude-", "")}" %></span>
         </div>
       </div>
@@ -107,7 +107,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <!-- Coding Agent Toggle (3-way) -->
             <div>
-              <div class="text-[10px] font-mono text-base-content/50 mb-2">Coding Agent</div>
+              <div class="text-xs font-mono text-base-content/50 mb-2">Coding Agent</div>
               <div class="flex rounded-lg overflow-hidden border border-white/10">
                 <button 
                   phx-click="set_coding_agent"
@@ -153,7 +153,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
             
             <!-- Claude Model -->
             <div>
-              <div class="text-[10px] font-mono text-base-content/50 mb-2">Claude Model</div>
+              <div class="text-xs font-mono text-base-content/50 mb-2">Claude Model</div>
               <select 
                 phx-change="select_claude_model"
                 phx-target={@myself}
@@ -167,7 +167,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
             
             <!-- OpenCode Model -->
             <div>
-              <div class="text-[10px] font-mono text-base-content/50 mb-2">OpenCode Model</div>
+              <div class="text-xs font-mono text-base-content/50 mb-2">OpenCode Model</div>
               <select 
                 phx-change="select_opencode_model"
                 phx-target={@myself}

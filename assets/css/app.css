@@ -129,10 +129,10 @@
   /* Typography scale */
   --text-title: 1.75rem;      /* 28px - commanding title */
   --text-section: 1rem;       /* 16px - section headers */
-  --text-panel: 0.6875rem;    /* 11px - panel labels */
+  --text-panel: 0.75rem;      /* 12px - panel labels (was 11px) */
   --text-body: 0.875rem;      /* 14px - body text */
   --text-small: 0.75rem;      /* 12px - labels, values */
-  --text-micro: 0.625rem;     /* 10px - captions, hints */
+  --text-micro: 0.75rem;      /* 12px - captions, hints (was 10px) */
 }
 
 /* Base typography classes */
