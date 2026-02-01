@@ -32,7 +32,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   # Default preferences
   @default_prefs %{
     coding_agent: "opencode",  # "opencode", "claude", or "gemini"
-    agent_mode: "single",       # "single" or "round_robin"
+    agent_mode: "round_robin",       # "single" or "round_robin"
     last_agent: "claude",       # Last agent used in round_robin mode
     updated_at: nil
   }
