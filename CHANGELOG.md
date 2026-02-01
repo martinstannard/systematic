@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- UI: Add Visual Grouping and Section Separation (#45)
 - Improve test isolation with proper mocking (#41)
 - Add graceful error handling for missing CLI tools (#39)
 - Add graceful error handling for missing CLI tools (#39)
