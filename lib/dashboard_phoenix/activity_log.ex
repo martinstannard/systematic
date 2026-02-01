@@ -31,7 +31,7 @@ defmodule DashboardPhoenix.ActivityLog do
 
   @max_events 50
   @pubsub_topic "activity_log:events"
-  @valid_event_types ~w(code_complete merge_started merge_complete restart_triggered restart_complete test_passed test_failed task_started)a
+  @valid_event_types ~w(code_complete merge_started merge_complete restart_triggered restart_complete deploy_complete restart_failed test_passed test_failed task_started)a
 
   # Client API
 
