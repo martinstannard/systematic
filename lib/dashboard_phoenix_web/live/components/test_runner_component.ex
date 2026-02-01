@@ -52,7 +52,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
 
   def render(assigns) do
     ~H"""
-    <div class="space-y-3">
+    <div class="space-y-4">
       <button 
         phx-click="toggle_test_runner_panel"
         phx-target={@myself}
@@ -73,7 +73,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
         </div>
       </button>
 
-      <div class={["space-y-3", @test_runner_collapsed && "hidden"]}>
+      <div class={["space-y-4 px-4 pb-4", @test_runner_collapsed && "hidden"]}>
         <!-- Test Controls -->
         <div class="flex gap-2 flex-wrap">
           <button 

@@ -53,25 +53,25 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
               <span class="status-beacon text-warning" aria-label="Running" role="status"></span>
               <span class="sr-only">Running</span>
             <% else %>
-              <span class={"px-1.5 py-0.5text-xs " <> status_badge(@main_agent_session.status)} role="status">
+              <span class={"px-2 py-1 text-xs rounded " <> status_badge(@main_agent_session.status)} role="status">
                 <%= @main_agent_session.status %>
               </span>
             <% end %>
           </div>
           <div class="flex items-center space-x-2">
             <% {_type, model_name, model_icon} = agent_type_from_model(Map.get(@main_agent_session, :model)) %>
-            <span class="px-1.5 py-0.5bg-purple-500/20 text-purple-400 text-xs" title={Map.get(@main_agent_session, :model)}>
+            <span class="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded" title={Map.get(@main_agent_session, :model)}>
               <%= model_icon %> <%= model_name %>
             </span>
           </div>
         </div>
         
         <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@dave_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-          <div class="px-3 pb-3">
+          <div class="px-4 pb-4">
             <% current_action = Map.get(@main_agent_session, :current_action) %>
             
             <!-- Current Activity -->
-            <div class="py-2">
+            <div class="py-3">
               <%= if @main_agent_session.status == "running" do %>
                 <%= if current_action do %>
                   <div class="flex items-center space-x-2 mb-2" role="status" aria-live="polite">
@@ -105,7 +105,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             </div>
             
             <!-- Stats Footer -->
-            <div class="pt-2 border-t border-purple-500/20 flex items-center justify-between text-xs font-mono">
+            <div class="pt-3 border-t border-purple-500/20 flex items-center justify-between text-xs font-mono">
               <div class="flex items-center space-x-3 text-base-content/50">
                 <span>↓ <%= format_tokens(Map.get(@main_agent_session, :tokens_in, 0)) %></span>
                 <span>↑ <%= format_tokens(Map.get(@main_agent_session, :tokens_out, 0)) %></span>
@@ -124,7 +124,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
           <div class="flex items-center space-x-2">
             <span class="text-xs">▼</span>
             <span class="text-panel-label text-base-content/60">🐙 Dave</span>
-            <span class="px-1.5 py-0.5text-xs bg-base-content/20 text-base-content/60">
+            <span class="px-2 py-1 text-xs bg-base-content/20 text-base-content/60 rounded">
               offline
             </span>
           </div>

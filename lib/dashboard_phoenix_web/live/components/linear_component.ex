@@ -107,16 +107,16 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
       </div>
       
       <div id="linear-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@linear_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-3 pb-3">
+        <div class="px-4 pb-4">
           <!-- Status Filter -->
-          <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
+          <div class="flex items-center space-x-2 mb-3 flex-wrap gap-2">
             <%= for status <- ["Triaging", "Backlog", "Todo", "In Review"] do %>
               <% count = Map.get(@linear_counts, status, 0) %>
               <button
                 phx-click="set_linear_filter"
                 phx-value-status={status}
                 phx-target={@myself}
-                class={"px-2 py-0.5text-xs font-mono transition-all " <> 
+                class={"px-2.5 py-1 text-xs font-mono transition-all rounded " <> 
                   if(@linear_status_filter == status,
                     do: linear_filter_button_active(status),
                     else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
@@ -131,7 +131,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
           </div>
           
           <!-- Ticket List -->
-          <div class="space-y-1 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="Linear ticket list">
+          <div class="space-y-2 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="Linear ticket list">
             <%= if @linear_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
@@ -143,7 +143,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
               <% end %>
               <%= for ticket <- @linear_filtered_tickets do %>
                 <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
-                <div class={"flex items-center space-x-2 px-2 py-1.5text-xs font-mono transition-all " <> if(work_info, do: "panel-work bg-accent/15 border border-accent/30", else: "panel-status hover:bg-accent/10 hover:border-accent/30")}>
+                <div class={"flex items-center space-x-3 px-3 py-2 text-xs font-mono transition-all rounded " <> if(work_info, do: "panel-work bg-accent/15 border border-accent/30", else: "panel-status hover:bg-accent/10 hover:border-accent/30")}>
                   <%= if work_info do %>
                     <span class="w-1.5 h-1.5 bg-success" aria-hidden="true"></span>
                     <span class="sr-only">Work in progress</span>
@@ -152,7 +152,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                       phx-click="work_on_ticket"
                       phx-value-id={ticket.id}
                       phx-target={@myself}
-                      class="text-xs px-1.5 py-0.5bg-accent/20 text-accent hover:bg-accent/40"
+                      class="text-xs px-2 py-1 bg-accent/20 text-accent hover:bg-accent/40 rounded"
                       aria-label={"Start work on ticket " <> ticket.id}
                       title={"Start work on ticket " <> ticket.id}
                     >

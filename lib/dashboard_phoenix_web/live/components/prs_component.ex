@@ -146,9 +146,9 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
       </div>
 
       <div id="prs-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@prs_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-3 pb-3">
+        <div class="px-4 pb-4">
           <!-- PR List -->
-          <div class="space-y-2 max-h-[350px] overflow-y-auto" role="region" aria-live="polite" aria-label="Pull requests list">
+          <div class="space-y-3 max-h-[350px] overflow-y-auto" role="region" aria-live="polite" aria-label="Pull requests list">
             <%= if @github_prs_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
@@ -165,12 +165,12 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                 <% pr_work_info = Map.get(@prs_in_progress, pr.number) %>
                 <% status_bg = pr_status_bg(pr) %>
                 <% verification = Map.get(@pr_verifications, pr.url) %>
-                <div class={"px-2 py-2text-xs font-mono " <>
+                <div class={"px-3 py-3 text-xs font-mono rounded " <>
                   if(pr_work_info,
                     do: "bg-accent/10 border-2 border-accent/50",
                     else: "panel-status hover:bg-accent/10 border border-accent/20 hover:border-accent/40 transition-all #{status_bg}")}>
                   <!-- PR Title and Number -->
-                  <div class="flex items-start justify-between mb-1">
+                  <div class="flex items-start justify-between mb-2">
                     <div class="flex-1 min-w-0">
                       <a href={pr.url} target="_blank" class="text-white hover:text-accent flex items-center space-x-1">
                         <%= if pr_work_info do %>
@@ -196,7 +196,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                   </div>
 
                   <!-- Author and Branch -->
-                  <div class="flex items-center space-x-2 text-xs text-base-content/50 mb-1.5">
+                  <div class="flex items-center space-x-2 text-xs text-base-content/50 mb-2">
                     <span>by <span class="text-base-content/70"><%= pr.author %></span></span>
                     <span>•</span>
                     <span class="truncate text-blue-400" title={pr.branch}><%= pr.branch %></span>
@@ -205,7 +205,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                   </div>
 
                   <!-- Status Row: CI, Review, and Tickets -->
-                  <div class="flex items-center space-x-2 flex-wrap gap-1">
+                  <div class="flex items-center space-x-2 flex-wrap gap-2">
                     <!-- CI Status -->
                     <span class={pr_ci_badge(pr.ci_status)} title={"CI Status: " <> pr_ci_text(pr.ci_status)} aria-label={"CI Status: " <> pr_ci_text(pr.ci_status)}>
                       <%= pr_ci_icon(pr.ci_status) %> CI

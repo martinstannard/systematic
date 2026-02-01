@@ -48,8 +48,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-data overflow-hidden mb-3">
-      <div class="flex items-center justify-between px-3 py-2">
+    <div class="panel-data overflow-hidden mb-4">
+      <div class="flex items-center justify-between px-4 py-3">
         <div
           class="panel-header-interactive flex items-center space-x-2 select-none flex-1 py-1 -mx-1 px-1"
           phx-click="toggle_panel"
@@ -63,7 +63,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
       </div>
 
       <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[600px]")}>
-        <div class="px-3 pb-3 overflow-y-auto max-h-[580px] space-y-1" id="activity-panel-events">
+        <div class="px-4 pb-4 overflow-y-auto max-h-[580px] space-y-2" id="activity-panel-events">
           <%= if @events == [] do %>
             <div class="text-xs text-base-content/40 py-2 text-center italic">
               No recent activity
@@ -71,12 +71,12 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
           <% else %>
             <%= for event <- Enum.take(@events, 50) do %>
               <div
-                class={"py-1.5 px-2 cursor-pointer transition-colors " <> event_bg_class(event.type)}
+                class={"py-2 px-3 cursor-pointer transition-colors rounded " <> event_bg_class(event.type)}
                 phx-click="toggle_expand"
                 phx-value-id={event.id}
                 phx-target={@myself}
               >
-                <div class="flex items-center space-x-2 text-xs">
+                <div class="flex items-center space-x-3 text-xs">
                   <span class={event_icon_class(event.type)}><%= event_icon(event.type) %></span>
                   <span class="text-cyan-400/70 w-14 flex-shrink-0 font-mono">
                     <%= format_time(event.timestamp) %>

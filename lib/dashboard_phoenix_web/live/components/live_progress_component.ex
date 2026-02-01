@@ -61,7 +61,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
   def render(assigns) do
     ~H"""
     <div class="panel-data overflow-hidden flex-1 min-h-[200px]">
-      <div class="flex items-center justify-between px-3 py-2">
+      <div class="flex items-center justify-between px-4 py-3">
         <div 
           class="panel-header-interactive flex items-center space-x-2 select-none flex-1 py-1 -mx-1 px-1"
           phx-click="toggle_panel"
@@ -76,8 +76,8 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
       </div>
       
       <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0", else: "max-h-[400px] flex-1")}>
-        <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream">
-          <div :for={{dom_id, event} <- @progress_events} id={dom_id} class="py-0.5 flex items-start space-x-1">
+        <div class="px-4 pb-4 h-full max-h-[350px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream">
+          <div :for={{dom_id, event} <- @progress_events} id={dom_id} class="py-1 flex items-start space-x-2">
             <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
             <span class={"flex-shrink-0 px-1 rounded-[2px] text-[9px] uppercase font-bold " <> type_color(Map.get(event, :agent_type))}>
               <%= Map.get(event, :agent_type) || "???" %>

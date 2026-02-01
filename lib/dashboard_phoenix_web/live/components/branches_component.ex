@@ -145,9 +145,9 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
       </div>
 
       <div id="branches-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@branches_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-3 pb-3">
+        <div class="px-4 pb-4">
           <!-- Branch List -->
-          <div class="space-y-2 max-h-[350px] overflow-y-auto" role="region" aria-live="polite" aria-label="Unmerged branches list">
+          <div class="space-y-3 max-h-[350px] overflow-y-auto" role="region" aria-live="polite" aria-label="Unmerged branches list">
             <%= if @branches_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
@@ -161,7 +161,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                 <div class="text-ui-caption text-base-content/60 py-4 text-center">No unmerged branches</div>
               <% end %>
               <%= for branch <- @unmerged_branches do %>
-                <div class="px-2 py-2panel-status hover:bg-accent/10 border border-accent/20 hover:border-accent/40 transition-all">
+                <div class="px-3 py-3 panel-status hover:bg-accent/10 border border-accent/20 hover:border-accent/40 transition-all rounded">
                   <!-- Branch Name and Actions -->
                   <div class="flex items-start justify-between mb-1">
                     <div class="flex items-center space-x-2 min-w-0">
@@ -171,7 +171,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                         <span class="text-base-content/30">🔀</span>
                       <% end %>
                       <span class="text-ui-body text-white truncate" title={branch.name}><%= branch.name %></span>
-                      <span class="px-1.5 py-0.5bg-blue-500/20 text-blue-400 text-ui-caption">
+                      <span class="px-2 py-1 bg-blue-500/20 text-blue-400 text-ui-caption rounded">
                         +<%= branch.commits_ahead %>
                       </span>
                     </div>
@@ -185,7 +185,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                           phx-click="execute_merge_branch"
                           phx-target={@myself}
                           phx-value-name={branch.name}
-                          class="px-1.5 py-0.5bg-green-500/20 text-green-400 hover:bg-green-500/40 text-xs"
+                          class="px-2 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/40 text-xs rounded"
                           aria-label={"Confirm merge of branch " <> branch.name}
                         >
                           ✓
@@ -193,7 +193,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                         <button
                           phx-click="cancel_merge_branch"
                           phx-target={@myself}
-                          class="px-1.5 py-0.5bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs"
+                          class="px-2 py-1 bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs rounded"
                           aria-label="Cancel merge"
                         >
                           ✗
@@ -206,7 +206,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                             phx-click="execute_delete_branch"
                             phx-target={@myself}
                             phx-value-name={branch.name}
-                            class="px-1.5 py-0.5bg-red-500/20 text-red-400 hover:bg-red-500/40 text-xs"
+                            class="px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/40 text-xs rounded"
                             aria-label={"Confirm delete of branch " <> branch.name}
                           >
                             ✓
@@ -214,7 +214,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                           <button
                             phx-click="cancel_delete_branch"
                             phx-target={@myself}
-                            class="px-1.5 py-0.5bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs"
+                            class="px-2 py-1 bg-base-content/10 text-base-content/60 hover:bg-base-content/20 text-xs rounded"
                             aria-label="Cancel delete"
                           >
                             ✗
@@ -225,7 +225,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                             phx-click="confirm_merge_branch"
                             phx-target={@myself}
                             phx-value-name={branch.name}
-                            class="px-1.5 py-0.5bg-green-500/20 text-green-400 hover:bg-green-500/40 text-xs"
+                            class="px-2 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/40 text-xs rounded"
                             title="Merge to main"
                             aria-label={"Merge branch " <> branch.name <> " to main"}
                           >
@@ -235,7 +235,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                             phx-click="confirm_delete_branch"
                             phx-target={@myself}
                             phx-value-name={branch.name}
-                            class="px-1.5 py-0.5bg-red-500/20 text-red-400 hover:bg-red-500/40 text-xs"
+                            class="px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/40 text-xs rounded"
                             title="Delete branch"
                             aria-label={"Delete branch " <> branch.name}
                           >
