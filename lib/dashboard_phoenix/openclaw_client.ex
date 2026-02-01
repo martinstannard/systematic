@@ -14,6 +14,32 @@ defmodule DashboardPhoenix.OpenClawClient do
   alias DashboardPhoenix.CommandRunner
   @behaviour DashboardPhoenix.Behaviours.OpenClawClientBehaviour
 
+  # Type definitions
+  @typedoc "Options for work_on_ticket: :model"
+  @type work_opts :: [model: String.t() | nil]
+
+  @typedoc "Options for send_message: :channel"
+  @type send_opts :: [channel: String.t()]
+
+  @typedoc "Options for spawn_subagent: :name, :model, :thinking, :post_mode"
+  @type subagent_opts :: [
+          name: String.t(),
+          model: String.t() | nil,
+          thinking: String.t(),
+          post_mode: String.t()
+        ]
+
+  @typedoc "Work result with ticket info"
+  @type work_result :: %{ticket_id: String.t(), output: String.t()}
+
+  @typedoc "Subagent spawn result"
+  @type subagent_result :: %{
+          optional(:job_id) => String.t(),
+          optional(:name) => String.t(),
+          optional(:response) => map(),
+          optional(:output) => String.t()
+        }
+
   @doc """
   Send a work request to OpenClaw to spawn a coding agent for a ticket.
   
@@ -22,6 +48,7 @@ defmodule DashboardPhoenix.OpenClawClient do
   - :details - Ticket description/details
   - :model - Model to use for the sub-agent (e.g., "anthropic/claude-opus-4-5")
   """
+  @spec work_on_ticket(String.t(), String.t() | nil, work_opts()) :: {:ok, work_result()} | {:error, String.t()}
   def work_on_ticket(ticket_id, details, opts \\ []) do
     model = Keyword.get(opts, :model, nil)
     
@@ -64,6 +91,7 @@ defmodule DashboardPhoenix.OpenClawClient do
   @doc """
   Send a raw message to the OpenClaw main session.
   """
+  @spec send_message(String.t(), send_opts()) :: {:ok, :sent}
   def send_message(message, opts \\ []) do
     channel = Keyword.get(opts, :channel, "webchat")
     
@@ -113,6 +141,7 @@ defmodule DashboardPhoenix.OpenClawClient do
   - :thinking - Thinking level (off|minimal|low|medium|high)
   - :post_mode - What to post back to main ("summary"|"full")
   """
+  @spec spawn_subagent(String.t(), subagent_opts()) :: {:ok, subagent_result()} | {:error, String.t()}
   def spawn_subagent(task_message, opts \\ []) do
     name = Keyword.get(opts, :name, "task-#{:rand.uniform(999_999)}")
     model = Keyword.get(opts, :model)
@@ -173,6 +202,7 @@ defmodule DashboardPhoenix.OpenClawClient do
   end
 
   # Format error reasons into human-readable strings
+  @spec format_error(term()) :: String.t()
   defp format_error(%{reason: reason}) when is_atom(reason), do: to_string(reason)
   defp format_error(%{original: original}) when is_atom(original), do: to_string(original)
   defp format_error(reason) when is_atom(reason), do: to_string(reason)
@@ -180,6 +210,7 @@ defmodule DashboardPhoenix.OpenClawClient do
   defp format_error(reason), do: inspect(reason)
 
   # Build the work message that tells the agent to spawn a coding sub-agent
+  @spec build_work_message(String.t(), String.t() | nil, String.t() | nil) :: String.t()
   defp build_work_message(ticket_id, details, model) do
     model_instruction = if model do
       "\n**Model:** Use #{model} for the sub-agent when spawning.\n"

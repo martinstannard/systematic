@@ -9,6 +9,41 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   alias DashboardPhoenix.{CLITools, Paths, ProcessParser, StatePersistence, Status}
 
+  # Type definitions
+  @typedoc "Agent type classification"
+  @type agent_type :: :openclaw | :claude_code | :opencode | :codex | :unknown
+
+  @typedoc "Action performed by an agent"
+  @type action :: %{
+          action: String.t(),
+          target: String.t() | nil,
+          timestamp: DateTime.t() | nil
+        }
+
+  @typedoc "Agent activity information"
+  @type agent_activity :: %{
+          id: String.t(),
+          session_id: String.t(),
+          type: agent_type(),
+          model: String.t(),
+          cwd: String.t() | nil,
+          status: String.t(),
+          last_action: action() | nil,
+          recent_actions: list(action()),
+          files_worked: list(String.t()),
+          last_activity: DateTime.t(),
+          tool_call_count: non_neg_integer()
+        }
+
+  @typedoc "Internal GenServer state"
+  @type state :: %{
+          agents: %{optional(String.t()) => agent_activity()},
+          session_offsets: %{optional(String.t()) => non_neg_integer()},
+          last_poll: non_neg_integer() | nil,
+          polling: boolean(),
+          last_cache_cleanup: non_neg_integer()
+        }
+
   @poll_interval 5_000  # 5 seconds - less aggressive updates
   @max_recent_actions 10
   @cli_timeout_ms 10_000
@@ -19,8 +54,11 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   @file_retry_attempts 3
   @file_retry_delay 100
 
+  @spec openclaw_sessions_dir() :: String.t()
   defp openclaw_sessions_dir, do: Paths.openclaw_sessions_dir()
 
+  @doc "Starts the AgentActivityMonitor GenServer."
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
@@ -29,10 +67,13 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   Get current activity for all monitored agents.
   Returns a list of agent activity maps.
   """
+  @spec get_activity() :: list(agent_activity())
   def get_activity do
     GenServer.call(__MODULE__, :get_activity, 5_000)
   end
 
+  @doc "Subscribe to agent activity updates via PubSub."
+  @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "agent_activity")
   end
@@ -40,6 +81,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   # GenServer callbacks
 
   @impl true
+  @spec init(term()) :: {:ok, state()}
   def init(_) do
     # Create ETS table for transcript caching
     # Key: path, Value: {mtime, agent_data}
@@ -81,6 +123,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     {:ok, state}
   end
 
+  @spec fix_loaded_state(map()) :: state()
   defp fix_loaded_state(state) do
     # Remove template from agents map if it leaked through (it shouldn't if load is correct)
     agents = Map.delete(state.agents, :__template__)
@@ -108,6 +151,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   end
 
   @impl true
+  @spec handle_call(:get_activity, GenServer.from(), state()) :: {:reply, list(agent_activity()), state()}
   def handle_call(:get_activity, _from, state) do
     activities = state.agents
     |> Map.values()
@@ -117,6 +161,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   end
 
   @impl true
+  @spec handle_info(:poll | {:poll_complete, state()} | {:poll_error, term()} | :cleanup_cache, state()) :: {:noreply, state()}
   def handle_info(:poll, state) do
     # Prevent concurrent polls - critical for race condition fix
     if state.polling do
@@ -166,14 +211,17 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     {:noreply, %{state | last_cache_cleanup: System.system_time(:millisecond)}}
   end
 
+  @spec schedule_poll() :: reference()
   defp schedule_poll do
     Process.send_after(self(), :poll, @poll_interval)
   end
 
+  @spec schedule_cache_cleanup() :: reference()
   defp schedule_cache_cleanup do
     Process.send_after(self(), :cleanup_cache, @cache_cleanup_interval)
   end
 
+  @spec cleanup_transcript_cache() :: :ok
   defp cleanup_transcript_cache do
     try do
       # Get all cache entries
@@ -199,6 +247,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     end
   end
 
+  @spec poll_agent_activity(state()) :: state()
   defp poll_agent_activity(state) do
     # Combine multiple sources with proper error handling
     {openclaw_agents, new_offsets} = parse_openclaw_sessions_with_offsets(state)
@@ -227,11 +276,13 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     updated_state
   end
 
+  @spec parse_openclaw_sessions_with_offsets(state()) :: {%{optional(String.t()) => agent_activity()}, map()}
   defp parse_openclaw_sessions_with_offsets(state) do
     {agents, offsets} = parse_openclaw_sessions(state)
     {agents, offsets}
   end
 
+  @spec parse_openclaw_sessions(state()) :: {%{optional(String.t()) => agent_activity()}, map()}
   defp parse_openclaw_sessions(state) do
     sessions_dir = openclaw_sessions_dir()
     
@@ -290,6 +341,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
       {%{}, state.session_offsets}
   end
 
+  @spec parse_session_file(String.t(), String.t(), term(), map()) :: agent_activity() | nil
   defp parse_session_file(path, filename, mtime, offsets) do
     # Atomic cache lookup with proper error handling
     case safe_cache_lookup(path, mtime) do
@@ -306,6 +358,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     end
   end
 
+  @spec safe_cache_lookup(String.t(), term()) :: {:hit, agent_activity()} | {:miss, :not_found | :mtime_changed}
   defp safe_cache_lookup(path, expected_mtime) do
     try do
       case :ets.lookup(@transcript_cache_table, path) do
@@ -323,6 +376,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     end
   end
 
+  @spec parse_and_cache_session(String.t(), String.t(), term(), map()) :: agent_activity() | nil
   defp parse_and_cache_session(path, filename, mtime, offsets) do
     case read_file_with_retry_and_offset(path, Map.get(offsets, path, 0)) do
       {:ok, content, new_offset} ->
@@ -359,10 +413,12 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
       nil
   end
 
+  @spec read_file_with_retry_and_offset(String.t(), non_neg_integer()) :: {:ok, String.t(), non_neg_integer()} | {:error, term()}
   defp read_file_with_retry_and_offset(path, offset) do
     read_file_with_retry(path, offset, @file_retry_attempts)
   end
 
+  @spec read_file_with_retry(String.t(), non_neg_integer(), non_neg_integer()) :: {:ok, String.t(), non_neg_integer()} | {:error, term()}
   defp read_file_with_retry(_path, _offset, 0) do
     {:error, :max_retries_exceeded}
   end
@@ -419,6 +475,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     end
   end
 
+  @spec safe_cache_insert(String.t(), term(), agent_activity()) :: true | :ok
   defp safe_cache_insert(path, mtime, agent) do
     try do
       :ets.insert(@transcript_cache_table, {path, mtime, agent})
@@ -428,6 +485,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     end
   end
 
+  @spec parse_jsonl_line(String.t()) :: map() | nil
   defp parse_jsonl_line(line) do
     case Jason.decode(line) do
       {:ok, data} -> data
@@ -444,6 +502,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
       nil
   end
 
+  @spec extract_agent_activity(list(map()), String.t()) :: agent_activity()
   defp extract_agent_activity(events, filename) do
     # Find session info
     session_event = Enum.find(events, & &1["type"] == "session")
@@ -515,6 +574,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     }
   end
 
+  @spec extract_files_from_tool_call(map()) :: list(String.t())
   defp extract_files_from_tool_call(%{name: name, arguments: args}) when is_map(args) do
     cond do
       name in ["Read", "read"] -> [args["path"] || args["file_path"]] |> Enum.reject(&is_nil/1)
@@ -526,6 +586,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   end
   defp extract_files_from_tool_call(_), do: []
 
+  @spec extract_files_from_command(term()) :: list(String.t())
   defp extract_files_from_command(command) when is_binary(command) do
     # Extract file paths from common commands
     Regex.scan(~r{(?:^|\s)([~/.][\w./\-]+\.\w+)}, command)
@@ -534,6 +595,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   end
   defp extract_files_from_command(_), do: []
 
+  @spec determine_status(map() | nil, list(map())) :: String.t()
   defp determine_status(last_message, tool_calls) do
     cond do
       is_nil(last_message) -> Status.idle()
@@ -546,11 +608,13 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     end
   end
 
+  @spec has_pending_tool_calls?(map()) :: boolean()
   defp has_pending_tool_calls?(message) do
     content = message["message"]["content"] || []
     Enum.any?(content, & is_map(&1) and &1["type"] == "toolCall")
   end
 
+  @spec format_action(map() | nil) :: action() | nil
   defp format_action(nil), do: nil
   defp format_action(%{name: name, arguments: args, timestamp: ts}) do
     target = cond do
@@ -567,6 +631,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     }
   end
 
+  @spec parse_timestamp(term()) :: DateTime.t()
   defp parse_timestamp(nil), do: DateTime.utc_now()
   defp parse_timestamp(ts) when is_binary(ts) do
     case DateTime.from_iso8601(ts) do
@@ -579,6 +644,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   end
   defp parse_timestamp(_), do: DateTime.utc_now()
 
+  @spec find_coding_agent_processes() :: %{optional(String.t()) => agent_activity()}
   defp find_coding_agent_processes do
     ProcessParser.list_processes(
       sort: "-start_time",
@@ -589,12 +655,14 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     |> Map.new(fn a -> {a.id, a} end)
   end
 
+  @spec coding_agent_process?(String.t()) :: boolean()
   defp coding_agent_process?(line) do
     ProcessParser.contains_patterns?(line, ~w(claude opencode codex)) and
     not String.contains?(String.downcase(line), "grep") and
     not String.contains?(String.downcase(line), "ps aux")
   end
 
+  @spec transform_process_to_agent(map()) :: agent_activity()
   defp transform_process_to_agent(%{pid: pid, cpu: cpu, mem: mem, start: start, command: command}) do
     type = detect_agent_type(command)
     cwd = get_process_cwd(pid)
@@ -617,6 +685,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     }
   end
 
+  @spec detect_agent_type(String.t()) :: agent_type()
   defp detect_agent_type(command) do
     cmd_lower = String.downcase(command)
     cond do
@@ -627,6 +696,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     end
   end
 
+  @spec detect_model_from_command(String.t()) :: String.t()
   defp detect_model_from_command(command) do
     cond do
       String.contains?(command, "opus") -> "claude-opus"
@@ -636,6 +706,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     end
   end
 
+  @spec get_process_cwd(String.t() | integer()) :: String.t() | nil
   defp get_process_cwd(pid) do
     proc_path = "/proc/#{pid}/cwd"
     case File.read_link(proc_path) do
@@ -658,6 +729,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
       nil
   end
 
+  @spec get_recently_modified_files(String.t() | nil) :: list(String.t())
   defp get_recently_modified_files(nil), do: []
   defp get_recently_modified_files(cwd) do
     case CLITools.run_if_available("find", [cwd, "-maxdepth", "3", "-type", "f", "-mmin", "-5", 
@@ -680,16 +752,19 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     _ -> []
   end
 
+  @spec merge_agent_info(map(), map(), map()) :: %{optional(String.t()) => agent_activity()}
   defp merge_agent_info(openclaw_agents, process_agents, _existing) do
     # Prefer OpenClaw session data, supplement with process info
     Map.merge(process_agents, openclaw_agents)
   end
 
+  @spec broadcast_activity(map()) :: :ok | {:error, term()}
   defp broadcast_activity(agents) do
     activities = agents |> Map.values() |> Enum.sort_by(& &1.last_activity, {:desc, DateTime})
     Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, "agent_activity", {:agent_activity, activities})
   end
 
+  @spec truncate(term(), pos_integer()) :: String.t()
   defp truncate(str, max) when is_binary(str) do
     if String.length(str) > max do
       String.slice(str, 0, max - 3) <> "..."
