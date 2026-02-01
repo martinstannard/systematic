@@ -69,6 +69,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agents_loading: true,
       # Coding agent preference - loaded async
       coding_agent_pref: :opencode,  # Default value
+      # Agent distribution mode and round-robin state
+      agent_mode: "single",           # "single" or "round_robin"
+      last_agent: "claude",           # Last agent used in round_robin mode
       # Graph data - computed after data loads
       graph_data: %{nodes: [], links: []},
       # UI state
@@ -297,7 +300,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle agent preferences updates
   def handle_info({:preferences_updated, prefs}, socket) do
-    {:noreply, assign(socket, coding_agent_pref: String.to_atom(prefs.coding_agent))}
+    {:noreply, assign(socket,
+      coding_agent_pref: String.to_atom(prefs.coding_agent),
+      agent_mode: prefs.agent_mode,
+      last_agent: prefs.last_agent
+    )}
   end
 
   # Handle LinearComponent messages
@@ -795,26 +802,30 @@ defmodule DashboardPhoenixWeb.HomeLive do
     parent = self()
     Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       try do
-        pref = AgentPreferences.get_coding_agent()
-        send(parent, {:preferences_loaded, pref})
+        prefs = AgentPreferences.get_preferences()
+        send(parent, {:preferences_loaded, prefs})
       rescue
         e ->
           require Logger
           Logger.error("Failed to load preferences: #{inspect(e)}")
-          send(parent, {:preferences_loaded, :opencode})
+          send(parent, {:preferences_loaded, %{coding_agent: "opencode", agent_mode: "single", last_agent: "claude"}})
       catch
         :exit, reason ->
           require Logger
           Logger.error("Preferences load exited: #{inspect(reason)}")
-          send(parent, {:preferences_loaded, :opencode})
+          send(parent, {:preferences_loaded, %{coding_agent: "opencode", agent_mode: "single", last_agent: "claude"}})
       end
     end)
     {:noreply, socket}
   end
 
   # Handle preferences loaded result
-  def handle_info({:preferences_loaded, pref}, socket) do
-    {:noreply, assign(socket, coding_agent_pref: pref)}
+  def handle_info({:preferences_loaded, prefs}, socket) do
+    {:noreply, assign(socket,
+      coding_agent_pref: String.to_atom(prefs.coding_agent),
+      agent_mode: prefs.agent_mode,
+      last_agent: prefs.last_agent
+    )}
   end
 
   # Handle async OpenCode status loading (initial mount)
@@ -1242,6 +1253,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, coding_agent_pref: agent_atom)}
   end
 
+  def handle_info({:config_component, :set_agent_mode, mode}, socket) do
+    AgentPreferences.set_agent_mode(mode)
+    {:noreply, assign(socket, agent_mode: mode)}
+  end
+
   def handle_info({:config_component, :select_claude_model, model}, socket) do
     socket = assign(socket, claude_model: model)
     {:noreply, push_model_selections(socket)}
@@ -1346,7 +1362,19 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   def handle_info({:work_modal_component, :execute_work, {ticket_id, ticket_details, coding_pref, claude_model, opencode_model}}, socket) do
-    execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model)
+    # In round_robin mode, get next agent and update state
+    {effective_pref, socket} = case socket.assigns.agent_mode do
+      "round_robin" ->
+        {:ok, next_agent} = AgentPreferences.next_agent()
+        # Update socket with the new last_agent (inverse of what we got)
+        new_last = if next_agent == :claude, do: "claude", else: "opencode"
+        {next_agent, assign(socket, last_agent: new_last)}
+      
+      "single" ->
+        {coding_pref, socket}
+    end
+    
+    execute_work_for_ticket(socket, ticket_id, ticket_details, effective_pref, claude_model, opencode_model)
   end
 
   def handle_info({:live_progress_component, :clear_progress}, socket) do
