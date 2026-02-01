@@ -1,0 +1,27 @@
+{
+  "dismissed_sessions": [],
+  "models": {
+    "claude_model": "anthropic/claude-opus-4-5",
+    "opencode_model": "gemini-3-pro"
+  },
+  "panels": {
+    "activity": false,
+    "agent_activity": false,
+    "branches": false,
+    "chainlink": true,
+    "chat": true,
+    "coding_agents": false,
+    "config": false,
+    "dave": false,
+    "gemini": false,
+    "linear": true,
+    "live_progress": false,
+    "opencode": false,
+    "process_relationships": false,
+    "prs": false,
+    "subagents": false,
+    "system_processes": false,
+    "work_panel": false
+  },
+  "updated_at": "2026-02-01T10:21:41.365750Z"
+}

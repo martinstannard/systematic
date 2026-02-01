@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Reliability: Implement state persistence for critical monitors (#78)
+- Reliability: Add comprehensive error handling for file operations (#76)
 - Perf: Reduce external CLI command overhead (#73)
 - Fix rate limit warnings in journalctl logs (#105)
 - Live Feed: Add agent type to messages (#101)

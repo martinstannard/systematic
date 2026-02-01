@@ -62,14 +62,14 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
         </div>
       </div>
 
-      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[200px]")}>
-        <div class="px-3 pb-3 overflow-y-auto max-h-[180px] space-y-1" id="activity-panel-events">
+      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[600px]")}>
+        <div class="px-3 pb-3 overflow-y-auto max-h-[580px] space-y-1" id="activity-panel-events">
           <%= if @events == [] do %>
             <div class="text-xs text-base-content/40 py-2 text-center italic">
               No recent activity
             </div>
           <% else %>
-            <%= for event <- Enum.take(@events, 10) do %>
+            <%= for event <- Enum.take(@events, 50) do %>
               <div
                 class={"py-1.5 px-2 cursor-pointer transition-colors " <> event_bg_class(event.type)}
                 phx-click="toggle_expand"
@@ -78,13 +78,13 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
               >
                 <div class="flex items-center space-x-2 text-xs">
                   <span class={event_icon_class(event.type)}><%= event_icon(event.type) %></span>
-                  <span class="text-base-content/40 w-14 flex-shrink-0 font-mono">
+                  <span class="text-cyan-400/70 w-14 flex-shrink-0 font-mono">
                     <%= format_time(event.timestamp) %>
                   </span>
-                  <span class={event_type_class(event.type) <> " font-semibold w-24 flex-shrink-0"}>
+                  <span class={event_type_class(event.type) <> " font-semibold w-36 flex-shrink-0"}>
                     <%= event_type_label(event.type) %>
                   </span>
-                  <span class="text-base-content/80 truncate flex-1">
+                  <span class="text-base-content/90 truncate flex-1">
                     <%= event.message %>
                   </span>
                 </div>
@@ -119,6 +119,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_icon(:test_passed), do: "✅"
   defp event_icon(:test_failed), do: "❌"
   defp event_icon(:task_started), do: "▶️"
+  defp event_icon(:subagent_started), do: "🤖"
+  defp event_icon(:subagent_completed), do: "✅"
+  defp event_icon(:subagent_failed), do: "💥"
   defp event_icon(:git_commit), do: "📝"
   defp event_icon(:git_merge), do: "🔀"
   defp event_icon(_), do: "•"
@@ -135,6 +138,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_type_class(:test_passed), do: "text-emerald-400"
   defp event_type_class(:test_failed), do: "text-red-400"
   defp event_type_class(:task_started), do: "text-yellow-400"
+  defp event_type_class(:subagent_started), do: "text-sky-400"
+  defp event_type_class(:subagent_completed), do: "text-emerald-400"
+  defp event_type_class(:subagent_failed), do: "text-red-400"
   defp event_type_class(:git_commit), do: "text-orange-400"
   defp event_type_class(:git_merge), do: "text-purple-400"
   defp event_type_class(_), do: "text-base-content/60"
@@ -150,6 +156,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_icon_class(:test_passed), do: "text-emerald-400"
   defp event_icon_class(:test_failed), do: "text-red-400"
   defp event_icon_class(:task_started), do: "text-yellow-400"
+  defp event_icon_class(:subagent_started), do: "text-sky-400"
+  defp event_icon_class(:subagent_completed), do: "text-emerald-400"
+  defp event_icon_class(:subagent_failed), do: "text-red-400"
   defp event_icon_class(:git_commit), do: "text-orange-400"
   defp event_icon_class(:git_merge), do: "text-purple-400"
   defp event_icon_class(_), do: "text-base-content/40"
@@ -165,6 +174,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_bg_class(:test_passed), do: "hover:bg-emerald-500/10"
   defp event_bg_class(:test_failed), do: "hover:bg-red-500/10"
   defp event_bg_class(:task_started), do: "hover:bg-yellow-500/10"
+  defp event_bg_class(:subagent_started), do: "hover:bg-sky-500/10"
+  defp event_bg_class(:subagent_completed), do: "hover:bg-emerald-500/10"
+  defp event_bg_class(:subagent_failed), do: "hover:bg-red-500/10"
   defp event_bg_class(:git_commit), do: "hover:bg-orange-500/10"
   defp event_bg_class(:git_merge), do: "hover:bg-purple-500/10"
   defp event_bg_class(_), do: "hover:bg-base-content/5"
@@ -180,6 +192,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_type_label(:test_passed), do: "Tests Passed"
   defp event_type_label(:test_failed), do: "Tests Failed"
   defp event_type_label(:task_started), do: "Task Started"
+  defp event_type_label(:subagent_started), do: "Sub-agent Started"
+  defp event_type_label(:subagent_completed), do: "Sub-agent Done"
+  defp event_type_label(:subagent_failed), do: "Sub-agent Failed"
   defp event_type_label(:git_commit), do: "Git Commit"
   defp event_type_label(:git_merge), do: "Git Merge"
   defp event_type_label(type), do: type |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
