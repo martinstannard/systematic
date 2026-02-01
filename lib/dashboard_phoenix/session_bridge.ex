@@ -16,8 +16,8 @@ defmodule DashboardPhoenix.SessionBridge do
   alias DashboardPhoenix.FileUtils
   alias DashboardPhoenix.ActivityLog
   
-  @base_poll_interval 1000   # Start responsive at 1s 
-  @max_poll_interval 2000    # Back off to 2s when idle
+  @base_poll_interval 5000   # Start at 5s 
+  @max_poll_interval 10000   # Back off to 10s when idle
   @backoff_increment 250     # Increase by 250ms each idle poll
   @max_progress_events 100
   @max_transcript_offsets 50  # Limit transcript_offsets map size

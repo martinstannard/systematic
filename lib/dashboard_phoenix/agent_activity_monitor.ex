@@ -9,7 +9,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   alias DashboardPhoenix.{CLITools, Paths, ProcessParser}
 
-  @poll_interval 1_000  # 1 second for responsive updates
+  @poll_interval 5_000  # 5 seconds - less aggressive updates
   @max_recent_actions 10
   @cli_timeout_ms 10_000
 
