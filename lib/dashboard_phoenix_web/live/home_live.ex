@@ -136,15 +136,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
         show_completed: true,
         main_activity_count: 0,
         expanded_outputs: MapSet.new(),
-        # Linear tickets - loaded async
-        linear_tickets: [],
-        linear_filtered_tickets: [],
-        linear_tickets_count: 0,
-        linear_counts: %{},
-        linear_last_updated: nil,
-        linear_error: nil,
-        linear_loading: true,
-        linear_status_filter: Status.in_review(),
+        # Linear tickets - managed by LinearComponent (smart component)
+        # Only need collapsed state for panel wrapper
         # Work in progress tracking - computed after data loads
         tickets_in_progress: %{},
         pr_created_tickets: MapSet.new(),
@@ -266,7 +259,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       send(self(), :load_gemini_status)
       send(self(), :load_pr_verifications)
       send(self(), :load_pr_state)
-      send(self(), :load_linear_tickets)
+      # Linear tickets handled by smart component - just subscribe for forwarding
       send(self(), :load_chainlink_issues)
       send(self(), :load_github_prs)
       send(self(), :load_branches)
@@ -508,29 +501,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
      )}
   end
 
-  # Handle LinearComponent messages
-  def handle_info({:linear_component, :set_filter, status}, socket) do
-    # Recalculate filtered tickets when status filter changes
-    linear_filtered_tickets =
-      socket.assigns.linear_tickets
-      |> Enum.filter(&(&1.status == status))
-      |> Enum.take(10)
-
-    {:noreply,
-     assign(socket,
-       linear_status_filter: status,
-       linear_filtered_tickets: linear_filtered_tickets
-     )}
-  end
-
+  # Handle LinearComponent messages (smart component - only cross-component concerns)
   def handle_info({:linear_component, :toggle_panel}, socket) do
     socket = assign(socket, linear_collapsed: !socket.assigns.linear_collapsed)
     {:noreply, push_panel_state(socket)}
-  end
-
-  def handle_info({:linear_component, :refresh}, socket) do
-    DashboardPhoenix.LinearMonitor.refresh()
-    {:noreply, socket}
   end
 
   def handle_info({:linear_component, :work_on_ticket, ticket_id}, socket) do
@@ -551,25 +525,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
-  # Handle Linear ticket updates (from PubSub)
+  # Handle Linear ticket updates (from PubSub) - forward to smart component
   def handle_info({:linear_update, data}, socket) do
-    linear_counts = Enum.frequencies_by(data.tickets, & &1.status)
-    # Pre-filter tickets for current status and limit to 10
-    linear_filtered_tickets =
-      data.tickets
-      |> Enum.filter(&(&1.status == socket.assigns.linear_status_filter))
-      |> Enum.take(10)
-
-    {:noreply,
-     assign(socket,
-       linear_tickets: data.tickets,
-       linear_filtered_tickets: linear_filtered_tickets,
-       linear_tickets_count: length(data.tickets),
-       linear_counts: linear_counts,
-       linear_last_updated: data.last_updated,
-       linear_error: data.error,
-       linear_loading: false
-     )}
+    send_update(LinearComponent, id: :linear, linear_data: data)
+    {:noreply, socket}
   end
 
   # Handle ChainlinkComponent messages
@@ -1354,56 +1313,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, pr_created_tickets: pr_created)}
   end
 
-  # Handle async Linear ticket loading (initial mount)
-  def handle_info(:load_linear_tickets, socket) do
-    # Fetch in a supervised Task to avoid blocking and catch crashes
-    parent = self()
-
-    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-      try do
-        linear_data = LinearMonitor.get_tickets()
-        send(parent, {:linear_loaded, linear_data})
-      rescue
-        e ->
-          require Logger
-          Logger.error("Failed to load Linear tickets: #{inspect(e)}")
-
-          send(
-            parent,
-            {:linear_loaded,
-             %{tickets: [], last_updated: nil, error: "Load failed: #{inspect(e)}"}}
-          )
-      catch
-        :exit, reason ->
-          require Logger
-          Logger.error("Linear tickets load exited: #{inspect(reason)}")
-          send(parent, {:linear_loaded, %{tickets: [], last_updated: nil, error: "Load timeout"}})
-      end
-    end)
-
-    {:noreply, socket}
-  end
-
-  # Handle Linear tickets loaded result
-  def handle_info({:linear_loaded, data}, socket) do
-    linear_counts = Enum.frequencies_by(data.tickets, & &1.status)
-    # Pre-filter tickets for current status and limit to 10
-    linear_filtered_tickets =
-      data.tickets
-      |> Enum.filter(&(&1.status == socket.assigns.linear_status_filter))
-      |> Enum.take(10)
-
-    {:noreply,
-     assign(socket,
-       linear_tickets: data.tickets,
-       linear_filtered_tickets: linear_filtered_tickets,
-       linear_tickets_count: length(data.tickets),
-       linear_counts: linear_counts,
-       linear_last_updated: data.last_updated,
-       linear_error: data.error,
-       linear_loading: false
-     )}
-  end
+  # Linear ticket loading now handled by LinearComponent (smart component)
 
   # Handle async Chainlink issue loading (initial mount)
   def handle_info(:load_chainlink_issues, socket) do

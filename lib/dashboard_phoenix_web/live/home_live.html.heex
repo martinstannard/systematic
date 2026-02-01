@@ -40,27 +40,15 @@
     
     <!-- Core Work Panels -->
     <section class="space-y-4" aria-label="Work items: Linear tickets, Chainlink issues, Pull Requests, and Branches">
-      <!-- Linear Tickets Panel -->
+      <!-- Linear Tickets Panel (Smart Component - manages own state) -->
         <div class={[
           "panel-priority-high panel-accent-critical p-3 sm:p-4",
-          @linear_collapsed && "panel-collapsed",
-          DashboardPhoenix.PanelStatus.status_classes(:linear, %{
-            error: @linear_error, 
-            loading: @linear_loading, 
-            tickets: @linear_tickets
-          })
+          @linear_collapsed && "panel-collapsed"
         ]}>
           <.live_component
             module={LinearComponent}
-            id="linear-tickets"
-            linear_tickets={@linear_tickets}
-            linear_filtered_tickets={@linear_filtered_tickets}
-            linear_tickets_count={@linear_tickets_count}
-            linear_counts={@linear_counts}
-            linear_loading={@linear_loading}
-            linear_error={@linear_error}
-            linear_collapsed={@linear_collapsed}
-            linear_status_filter={@linear_status_filter}
+            id={:linear}
+            collapsed={@linear_collapsed}
             tickets_in_progress={@tickets_in_progress}
           />
         </div>
