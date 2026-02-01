@@ -20,7 +20,9 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
       <div class="flex items-center space-x-4">
         <div class="flex items-center space-x-2">
           <h1 class="text-system-title text-system-glow text-base-content">SYSTEMATIC</h1>
-          <span class={health_badge_class(@health_status)} title={health_tooltip(@health_status, @health_last_check)}></span>
+          <span class={health_badge_class(@health_status)} title={health_tooltip(@health_status, @health_last_check)} aria-label={health_text(@health_status)}>
+            <%= health_symbol(@health_status) %>
+          </span>
         </div>
         <span class="text-system-subtitle text-base-content/70">AGENT CONTROL</span>
         
@@ -56,14 +58,20 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
           <div class="flex items-center space-x-2">
             <span class="text-ui-label text-base-content/60">ACP:</span>
             <%= if @opencode_server_status.running do %>
-              <span class="status-beacon text-success"></span>
+              <span class="status-beacon text-success" title="OpenCode Server Online" aria-label="Online">
+                <%= server_status_symbol(true) %>
+              </span>
             <% else %>
-              <span class="status-marker-idle text-base-content/30"></span>
+              <span class="status-marker-idle text-base-content/30" title="OpenCode Server Offline" aria-label="Offline">
+                <%= server_status_symbol(false) %>
+              </span>
             <% end %>
           </div>
         <% end %>
         <div class="flex items-center space-x-1">
-          <span class={"px-2 py-0.5text-ui-caption " <> coding_agent_badge_class(@coding_agent_pref)}>
+          <span class={"px-2 py-0.5text-ui-caption " <> coding_agent_badge_class(@coding_agent_pref)} 
+                title={"Active coding agent: " <> coding_agent_badge_text(@coding_agent_pref)}
+                aria-label={"Active coding agent: " <> coding_agent_badge_text(@coding_agent_pref)}>
             <%= coding_agent_badge_text(@coding_agent_pref) %>
           </span>
         </div>
@@ -88,6 +96,24 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   defp health_badge_class(:unhealthy), do: "health-badge health-badge-unhealthy"
   defp health_badge_class(:checking), do: "health-badge health-badge-checking"
   defp health_badge_class(_), do: "health-badge health-badge-unknown"
+
+  # Health status text and symbols for accessibility
+  defp health_text(:healthy), do: "HEALTHY"
+  defp health_text(:unhealthy), do: "FAILED"
+  defp health_text(:checking), do: "CHECKING"
+  defp health_text(_), do: "UNKNOWN"
+
+  defp health_symbol(:healthy), do: "●"
+  defp health_symbol(:unhealthy), do: "✗"
+  defp health_symbol(:checking), do: "◔"
+  defp health_symbol(_), do: "◌"
+
+  # Server status helpers
+  defp server_status_text(true), do: "ONLINE"
+  defp server_status_text(false), do: "OFFLINE"
+
+  defp server_status_symbol(true), do: "●"
+  defp server_status_symbol(false), do: "○"
 
   defp health_tooltip(:healthy, last_check) do
     time_ago = format_time_ago(last_check)
