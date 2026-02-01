@@ -41,6 +41,11 @@ config :phoenix_live_view,
 config :dashboard_phoenix,
   # Disable live services in test
   disable_session_bridge: true,
+  # Use mock implementations in tests
+  file_system: DashboardPhoenix.Mocks.FileSystemMock,
+  session_bridge: DashboardPhoenix.Mocks.SessionBridgeMock,
+  opencode_client: DashboardPhoenix.Mocks.OpenCodeClientMock,
+  openclaw_client: DashboardPhoenix.Mocks.OpenClawClientMock,
   # Use mock paths to avoid real file access
   sessions_file: "/tmp/test_sessions.json",
   progress_file: "/tmp/test_progress.jsonl"

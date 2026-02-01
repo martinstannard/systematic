@@ -28,11 +28,17 @@ defmodule DashboardPhoenixWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import DashboardPhoenixWeb.ConnCase
+      import DashboardPhoenix.TestHelpers
+      import Mox
     end
   end
 
   setup tags do
     DashboardPhoenix.DataCase.setup_sandbox(tags)
+    
+    # Set up mocks for each test for proper isolation
+    DashboardPhoenix.TestHelpers.setup_mocks()
+    
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end
