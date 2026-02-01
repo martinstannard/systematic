@@ -26,7 +26,7 @@
     
     <!-- Usage Stats - Compact utility bar at top -->
     <div class={[
-      "glass-morphism panel-priority-compact panel-accent-reference rounded-xl relative",
+      "glass-morphism panel-priority-compact panel-accent-reference relative",
       DashboardPhoenix.PanelStatus.status_classes(:usage_stats, %{
         opencode: @usage_stats[:opencode] || %{},
         claude: @usage_stats[:claude] || %{}
@@ -42,7 +42,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
     <!-- CORE WORK - Linear / Chainlink / PRs / Branches                             -->
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <section class="glass-morphism rounded-xl p-5 section-core-work" style="border-radius: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(34, 197, 94, 0.5);">
+    <section class="glass-morphism p-5 section-core-work" style="border-radius: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(34, 197, 94, 0.5);">
       <div class="flex items-center gap-3 mb-4">
         <div class="status-beacon text-green-400"></div>
         <h2 class="text-section-header text-base-content font-semibold tracking-wide">
@@ -53,7 +53,7 @@
       <div class="space-y-3">
         <!-- Linear Tickets Panel (LiveComponent) - High Priority -->
         <div class={[
-          "panel-priority-high panel-accent-critical rounded-xl relative",
+          "panel-priority-high panel-accent-critical relative",
           DashboardPhoenix.PanelStatus.status_classes(:linear, %{
             error: @linear_error, 
             loading: @linear_loading, 
@@ -75,7 +75,7 @@
 
         <!-- Chainlink Issues Panel (LiveComponent) - High Priority -->
         <div class={[
-          "panel-priority-high panel-accent-critical rounded-xl relative",
+          "panel-priority-high panel-accent-critical relative",
           DashboardPhoenix.PanelStatus.status_classes(:chainlink, %{
             error: @chainlink_error,
             loading: @chainlink_loading,
@@ -96,7 +96,7 @@
 
         <!-- GitHub Pull Requests Panel - High Priority -->
         <div class={[
-          "panel-priority-high panel-accent-critical rounded-xl relative",
+          "panel-priority-high panel-accent-critical relative",
           DashboardPhoenix.PanelStatus.status_classes(:github_prs, %{
             error: @github_prs_error,
             loading: @github_prs_loading,
@@ -120,7 +120,7 @@
 
         <!-- Unmerged Branches Panel - Medium Priority -->
         <div class={[
-          "panel-priority-medium panel-accent-active rounded-xl relative",
+          "panel-priority-medium panel-accent-active relative",
           DashboardPhoenix.PanelStatus.status_classes(:branches, %{
             error: @branches_error,
             loading: @branches_loading,
@@ -145,7 +145,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
     <!-- AGENT STATUS - OpenCode / Gemini / Dave / Subagents / Progress              -->
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <section class="glass-morphism rounded-xl p-5 section-agent-status" style="border-radius: 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(168, 85, 247, 0.5);">
+    <section class="glass-morphism p-5 section-agent-status" style="border-radius: 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(168, 85, 247, 0.5);">
       <div class="flex items-center gap-3 mb-4">
         <div class="status-beacon text-purple-400"></div>
         <h2 class="text-section-header text-base-content font-semibold tracking-wide">
@@ -155,7 +155,7 @@
       </div>
       <div class="space-y-3">
         <!-- Dave Panel (Main Agent) - First/Top Priority -->
-        <div class="panel-priority-high panel-accent-active rounded-xl">
+        <div class="panel-priority-high panel-accent-active">
           <.live_component
             module={DaveComponent}
             id="dave-panel"
@@ -165,7 +165,7 @@
         </div>
 
         <!-- Live Progress Panel (LiveComponent) - Medium Priority -->
-        <div class="panel-priority-medium panel-accent-active rounded-xl">
+        <div class="panel-priority-medium panel-accent-active">
           <.live_component
             module={LiveProgressComponent}
             id="live-progress-panel"
@@ -177,7 +177,7 @@
 
         <!-- Sub-Agents Panel - Medium Priority -->
         <div class={[
-          "panel-priority-medium rounded-xl relative",
+          "panel-priority-medium relative",
           DashboardPhoenix.PanelStatus.status_classes(:subagents, %{
             sessions: @agent_sessions
           })
@@ -194,7 +194,7 @@
 
         <!-- OpenCode Sessions Panel (LiveComponent) - Quick Reference -->
         <div class={[
-          "panel-priority-compact panel-accent-reference rounded-xl relative",
+          "panel-priority-compact panel-accent-reference relative",
           DashboardPhoenix.PanelStatus.status_classes(:opencode, %{
             server_status: @opencode_server_status,
             sessions: @opencode_sessions
@@ -211,7 +211,7 @@
 
         <!-- Gemini CLI Panel (LiveComponent) - Medium Priority -->
         <div class={[
-          "panel-priority-medium rounded-xl relative",
+          "panel-priority-medium relative",
           DashboardPhoenix.PanelStatus.status_classes(:gemini, %{
             server_status: @gemini_server_status,
             output: @gemini_output
@@ -231,7 +231,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
     <!-- SYSTEM CONFIG - Config / Processes                                          -->
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <section class="glass-morphism rounded-xl p-5 section-system-config" style="border-radius: 16px; background: linear-gradient(135deg, rgba(249, 115, 22, 0.10) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(249, 115, 22, 0.5);">
+    <section class="glass-morphism p-5 section-system-config" style="border-radius: 16px; background: linear-gradient(135deg, rgba(249, 115, 22, 0.10) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(249, 115, 22, 0.5);">
       <div class="flex items-center gap-3 mb-4">
         <div class="status-beacon text-orange-400"></div>
         <h2 class="text-section-header text-base-content font-semibold tracking-wide">
@@ -241,7 +241,7 @@
       </div>
       <div class="space-y-3">
         <!-- Config Panel (LiveComponent) - Compact Reference -->
-        <div class="panel-priority-compact panel-accent-reference rounded-xl">
+        <div class="panel-priority-compact panel-accent-reference">
           <.live_component
             module={ConfigComponent}
             id="config-panel"
@@ -257,7 +257,7 @@
         </div>
 
         <!-- System Processes Panel (LiveComponent) - Medium Priority -->
-        <div class="panel-priority-medium rounded-xl">
+        <div class="panel-priority-medium">
           <.live_component
             module={SystemProcessesComponent}
             id="system-processes-panel"

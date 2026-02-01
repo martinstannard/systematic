@@ -327,7 +327,7 @@ body {
 .quantum-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: 0;
   background: currentColor;
   animation: quantum-pulse 1.5s ease-in-out infinite;
 }
@@ -426,7 +426,7 @@ button:focus-visible, .btn:focus-visible {
   width: 0;
   height: 0;
   background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
-  border-radius: 50%;
+  border-radius: 0;
   transform: translate(-50%, -50%);
   transition: width 0.6s ease-out, height 0.6s ease-out;
   pointer-events: none;
@@ -449,7 +449,7 @@ button:focus-visible, .btn:focus-visible {
   align-items: center;
   gap: 8px;
   padding: 4px 12px;
-  border-radius: 20px;
+  border-radius: 0;
   font-size: 0.75rem;
   font-weight: 600;
   background: rgba(139, 92, 246, 0.1);
@@ -461,7 +461,7 @@ button:focus-visible, .btn:focus-visible {
   content: "";
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: 0;
   background: currentColor;
   animation: status-pulse 2s ease-in-out infinite;
 }
@@ -534,7 +534,7 @@ button:focus-visible, .btn:focus-visible {
   );
   background-size: 200% 100%;
   animation: skeleton-wave 1.5s ease-in-out infinite;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 @keyframes skeleton-wave {
@@ -666,7 +666,7 @@ button:focus-visible, .btn:focus-visible {
     rgba(139, 92, 246, 0.9) 85%,
     transparent 100%
   );
-  border-radius: 12px 12px 0 0;
+  border-radius: 0;
   animation: critical-pulse 2.5s ease-in-out infinite;
   z-index: 2;
 }
@@ -685,7 +685,7 @@ button:focus-visible, .btn:focus-visible {
     rgba(168, 85, 247, 0.8) 70%,
     rgba(139, 92, 246, 0.9) 100%
   );
-  border-radius: 0 0 0 12px;
+  border-radius: 0;
   z-index: 1;
 }
 
@@ -728,7 +728,7 @@ button:focus-visible, .btn:focus-visible {
     rgba(239, 68, 68, 0.9) 85%,
     transparent 100%
   );
-  border-radius: 12px 12px 0 0;
+  border-radius: 0;
   z-index: 1;
 }
 
@@ -807,7 +807,7 @@ button:focus-visible, .btn:focus-visible {
     rgba(34, 197, 94, 0.9) 50%,
     rgba(34, 197, 94, 0.8) 100%
   );
-  border-radius: 0 0 0 12px;
+  border-radius: 0;
   animation: working-pulse 2s ease-in-out infinite;
 }
 
@@ -844,7 +844,7 @@ button:focus-visible, .btn:focus-visible {
     rgba(245, 158, 11, 0.7) 75%,
     transparent 100%
   );
-  border-radius: 12px 12px 0 0;
+  border-radius: 0;
 }
 
 /* Urgent state panels - High priority, needs immediate attention */
@@ -868,7 +868,7 @@ button:focus-visible, .btn:focus-visible {
     rgba(249, 115, 22, 0.8) 80%,
     transparent 100%
   );
-  border-radius: 12px 12px 0 0;
+  border-radius: 0;
   z-index: 1;
 }
 
@@ -998,7 +998,7 @@ button:focus-visible, .btn:focus-visible {
     rgba(34, 197, 94, 0.5) 50%,
     rgba(34, 197, 94, 0.9) 100%
   );
-  border-radius: 0 12px 12px 0;
+  border-radius: 0;
   animation: active-flow 2s ease-in-out infinite;
 }
 
@@ -1030,7 +1030,7 @@ button:focus-visible, .btn:focus-visible {
     rgba(59, 130, 246, 0.5) 50%, 
     transparent 100%
   );
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 /* =====================================================
@@ -1185,7 +1185,7 @@ button:focus-visible, .btn:focus-visible {
   position: relative;
   overflow: hidden;
   /* Subtle premium material feel */
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 /* Enhanced horizontal scan line system with neural grid */
@@ -1236,7 +1236,7 @@ button:focus-visible, .btn:focus-visible {
       rgba(139, 92, 246, 0.9) 90%,
       transparent 100%
     );
-  border-radius: 12px 12px 0 0;
+  border-radius: 0;
   animation: accent-pulse 4s ease-in-out infinite;
 }
 
@@ -1347,7 +1347,7 @@ button:focus-visible, .btn:focus-visible {
     rgba(59, 130, 246, 0.2) 50%,
     rgba(59, 130, 246, 0.6) 100%
   );
-  border-radius: 0 2px 2px 0;
+  border-radius: 0;
 }
 
 [data-theme="light"] .panel-data {
@@ -1570,7 +1570,7 @@ button:focus-visible, .btn:focus-visible {
   position: relative;
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: 0;
   background: 
     radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
     currentColor;
@@ -1583,7 +1583,7 @@ button:focus-visible, .btn:focus-visible {
   content: "";
   position: absolute;
   inset: -4px;
-  border-radius: 50%;
+  border-radius: 0;
   border: 2px solid currentColor;
   opacity: 0.5;
   animation: beacon-pulse-primary 2.5s ease-out infinite;
@@ -1593,7 +1593,7 @@ button:focus-visible, .btn:focus-visible {
   content: "";
   position: absolute;
   inset: -8px;
-  border-radius: 50%;
+  border-radius: 0;
   border: 1px solid currentColor;
   opacity: 0.3;
   animation: beacon-pulse-secondary 2.5s ease-out infinite 0.4s;
@@ -1641,7 +1641,7 @@ button:focus-visible, .btn:focus-visible {
 .status-signal-bar {
   width: 3px;
   background: currentColor;
-  border-radius: 1px;
+  border-radius: 0;
   transition: opacity 0.2s;
 }
 
@@ -1662,7 +1662,7 @@ button:focus-visible, .btn:focus-visible {
 .status-marker {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 0;
   background: currentColor;
 }
 
@@ -1675,7 +1675,7 @@ button:focus-visible, .btn:focus-visible {
 .status-activity-ring {
   width: 14px;
   height: 14px;
-  border-radius: 50%;
+  border-radius: 0;
   border: 2px solid transparent;
   border-top-color: currentColor;
   border-right-color: currentColor;
@@ -1969,7 +1969,7 @@ button:focus-visible, .btn:focus-visible {
   height: 14px;
   border: 2px solid rgba(251, 191, 36, 0.3);
   border-top-color: rgb(251, 191, 36);
-  border-radius: 50%;
+  border-radius: 0;
   animation: throbber-spin 0.8s linear infinite;
 }
 
@@ -1978,7 +1978,7 @@ button:focus-visible, .btn:focus-visible {
   height: 8px;
   border: 1.5px solid rgba(251, 191, 36, 0.3);
   border-top-color: rgb(251, 191, 36);
-  border-radius: 50%;
+  border-radius: 0;
   animation: throbber-spin 0.8s linear infinite;
 }
 
@@ -1997,7 +1997,7 @@ button:focus-visible, .btn:focus-visible {
   display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: 0;
   flex-shrink: 0;
 }
 
@@ -2077,14 +2077,14 @@ button:focus-visible, .btn:focus-visible {
 button:focus-visible {
   outline: 2px solid oklch(75% 0.2 200);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 /* Links focus state */
 a:focus-visible {
   outline: 2px solid oklch(75% 0.2 200);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 0;
 }
 
 /* Clickable divs with role="button" (panel toggles) */
@@ -2137,7 +2137,7 @@ textarea:focus-visible {
   background: oklch(25% 0.05 265);
   color: oklch(75% 0.2 200);
   border: 2px solid oklch(75% 0.2 200);
-  border-radius: 4px;
+  border-radius: 0;
   z-index: 9999;
   font-size: 14px;
   font-weight: bold;
@@ -2174,7 +2174,7 @@ textarea:focus-visible {
     rgba(34, 197, 94, 0.6) 80%, 
     transparent 100%
   );
-  border-radius: 16px 16px 0 0;
+  border-radius: 0;
 }
 
 /* Agent Status Section - Purple accent (OpenCode, Gemini, Dave, Subagents) */
@@ -2196,7 +2196,7 @@ textarea:focus-visible {
     rgba(168, 85, 247, 0.6) 80%, 
     transparent 100%
   );
-  border-radius: 16px 16px 0 0;
+  border-radius: 0;
 }
 
 /* System Config Section - Orange accent (config, processes) */
@@ -2218,7 +2218,7 @@ textarea:focus-visible {
     rgba(249, 115, 22, 0.6) 80%, 
     transparent 100%
   );
-  border-radius: 16px 16px 0 0;
+  border-radius: 0;
 }
 
 /* Light mode section adjustments */

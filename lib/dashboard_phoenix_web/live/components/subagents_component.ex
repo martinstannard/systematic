@@ -132,7 +132,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
     # Pre-calculated values are already available in assigns from update/2
 
     ~H"""
-    <div class="panel-work rounded-lg overflow-hidden" id="subagents">
+    <div class="panel-work overflow-hidden" id="subagents">
       <div 
         class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
@@ -151,7 +151,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
           <span class="text-xs font-mono text-base-content/50"><%= @sub_agent_sessions_count %></span>
           <%= if @running_count > 0 do %>
             <span class="status-beacon text-warning"></span>
-            <span class="px-1.5 py-0.5 rounded bg-warning/20 text-warning text-xs">
+            <span class="px-1.5 py-0.5bg-warning/20 text-warning text-xs">
               <%= @running_count %> active
             </span>
           <% end %>
@@ -160,7 +160,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
           <button 
             phx-click="clear_completed" 
             {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
-            class="text-xs px-2 py-0.5 rounded bg-base-content/10 text-base-content/50 hover:bg-accent/20 hover:text-accent transition-colors uppercase tracking-wider" 
+            class="text-xs px-2 py-0.5bg-base-content/10 text-base-content/50 hover:bg-accent/20 hover:text-accent transition-colors uppercase tracking-wider" 
             onclick="event.stopPropagation()"
             aria-label={"Clear " <> to_string(@completed_count) <> " completed sub-agent sessions"}
           >
@@ -183,7 +183,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
             <% limited_recent_actions = Map.get(session, :limited_recent_actions, []) %>
             <% start_time = session_start_timestamp(session) %>
             
-            <div class={"rounded-lg border text-xs font-mono transition-all " <> 
+            <div class={"border text-xs font-mono transition-all " <> 
               if(status == "running", 
                 do: "panel-work bg-warning/10 border-warning/40 shadow-lg", 
                 else: if(status == "completed", do: "panel-status bg-success/10 border-success/30", else: "panel-status"))}>
@@ -205,14 +205,14 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                 
                 <div class="flex items-center space-x-2 flex-shrink-0">
                   <!-- Agent Type Badge -->
-                  <span class={"px-1.5 py-0.5 rounded text-xs " <> agent_type_badge_class(agent_type)} title={Map.get(session, :model)}>
+                  <span class={"px-1.5 py-0.5text-xs " <> agent_type_badge_class(agent_type)} title={Map.get(session, :model)}>
                     <%= agent_icon %> <%= agent_name %>
                   </span>
                   
                   <!-- Live Duration (for running) or Static (for completed) -->
                   <%= if status == "running" do %>
                     <span 
-                      class="px-1.5 py-0.5 rounded bg-warning/20 text-warning text-xs tabular-nums"
+                      class="px-1.5 py-0.5bg-warning/20 text-warning text-xs tabular-nums"
                       id={"duration-#{session.id}"}
                       phx-hook="LiveDuration"
                       data-start-time={start_time}
@@ -221,7 +221,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                     </span>
                   <% else %>
                     <%= if Map.get(session, :runtime) do %>
-                      <span class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-xs tabular-nums">
+                      <span class="px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs tabular-nums">
                         <%= session.runtime %>
                       </span>
                     <% end %>

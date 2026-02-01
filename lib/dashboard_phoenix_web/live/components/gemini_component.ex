@@ -57,7 +57,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-work rounded-lg overflow-hidden">
+    <div class="panel-work overflow-hidden">
       <div 
         class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
@@ -81,7 +81,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
           <%= if not @gemini_server_status.running do %>
             <div class="text-center py-4">
               <div class="text-xs text-base-content/40 mb-2">Gemini CLI not running</div>
-              <button phx-click="start_server" phx-target={@myself} class="text-xs px-3 py-1.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40">
+              <button phx-click="start_server" phx-target={@myself} class="text-xs px-3 py-1.5bg-green-500/20 text-green-400 hover:bg-green-500/40">
                 ✨ Start Gemini
               </button>
             </div>
@@ -99,13 +99,13 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
                 <span class="text-base-content/50">Dir:</span>
                 <span class="text-blue-400 truncate max-w-[150px]" title={@gemini_server_status.cwd}><%= @gemini_server_status.cwd %></span>
               </div>
-              <button phx-click="stop_server" phx-target={@myself} class="px-2 py-0.5 rounded bg-error/20 text-error hover:bg-error/40 text-xs">
+              <button phx-click="stop_server" phx-target={@myself} class="px-2 py-0.5bg-error/20 text-error hover:bg-error/40 text-xs">
                 Stop
               </button>
             </div>
             
             <!-- Output - using data panel for terminal display -->
-            <div class="panel-data rounded-lg p-3 mb-2 max-h-[200px] overflow-y-auto" id="gemini-output" phx-hook="ScrollBottom">
+            <div class="panel-data p-3 mb-2 max-h-[200px] overflow-y-auto" id="gemini-output" phx-hook="ScrollBottom">
               <%= if @gemini_output == "" do %>
                 <div class="flex items-center space-x-2 text-base-content/50">
                   <span class="status-marker text-info opacity-50"></span>
@@ -118,7 +118,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
             
             <!-- Prompt Input - using status panel styling -->
             <form phx-submit="send_prompt" phx-target={@myself} class="flex items-center space-x-2">
-              <div class="flex-1 panel-status rounded border border-accent/30 focus-within:border-accent/60 transition-colors">
+              <div class="flex-1 panel-statusborder border-accent/30 focus-within:border-accent/60 transition-colors">
                 <input
                   type="text"
                   name="prompt"
@@ -129,7 +129,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
               </div>
               <button
                 type="submit"
-                class="panel-work px-3 py-1.5 rounded border border-success/40 text-success hover:border-success/60 hover:bg-success/10 text-ui-label font-mono transition-all"
+                class="panel-work px-3 py-1.5border border-success/40 text-success hover:border-success/60 hover:bg-success/10 text-ui-label font-mono transition-all"
                 aria-label="Send prompt to Gemini"
               >
                 <span class="status-hex text-current scale-75 inline-block"></span>

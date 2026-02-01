@@ -53,10 +53,10 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
 
   def render(assigns) do
     ~H"""
-    <div class="panel-data rounded-lg overflow-hidden flex-1 min-h-[200px]">
+    <div class="panel-data overflow-hidden flex-1 min-h-[200px]">
       <div class="flex items-center justify-between px-3 py-2">
         <div 
-          class="panel-header-interactive flex items-center space-x-2 select-none flex-1 py-1 -mx-1 px-1 rounded"
+          class="panel-header-interactive flex items-center space-x-2 select-none flex-1 py-1 -mx-1 px-1"
           phx-click="toggle_panel"
           phx-target={@myself}
         >

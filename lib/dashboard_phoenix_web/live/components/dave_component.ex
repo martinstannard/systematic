@@ -52,14 +52,14 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             <%= if @main_agent_session.status == "running" do %>
               <span class="status-beacon text-warning"></span>
             <% else %>
-              <span class={"px-1.5 py-0.5 rounded text-xs " <> status_badge(@main_agent_session.status)}>
+              <span class={"px-1.5 py-0.5text-xs " <> status_badge(@main_agent_session.status)}>
                 <%= @main_agent_session.status %>
               </span>
             <% end %>
           </div>
           <div class="flex items-center space-x-2">
             <% {_type, model_name, model_icon} = agent_type_from_model(Map.get(@main_agent_session, :model)) %>
-            <span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs" title={Map.get(@main_agent_session, :model)}>
+            <span class="px-1.5 py-0.5bg-purple-500/20 text-purple-400 text-xs" title={Map.get(@main_agent_session, :model)}>
               <%= model_icon %> <%= model_name %>
             </span>
           </div>
@@ -88,7 +88,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
                 <% end %>
               <% else %>
                 <div class="flex items-center space-x-2 mb-2">
-                  <span class="status-marker-idle w-2 h-2 rounded-full bg-purple-400"></span>
+                  <span class="status-marker-idle w-2 h-2 bg-purple-400"></span>
                   <span class="text-xs text-purple-400/60">Idle</span>
                 </div>
               <% end %>
@@ -123,7 +123,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
           <div class="flex items-center space-x-2">
             <span class="text-xs">▼</span>
             <span class="text-panel-label text-base-content/60">🐙 Dave</span>
-            <span class="px-1.5 py-0.5 rounded text-xs bg-base-content/20 text-base-content/60">
+            <span class="px-1.5 py-0.5text-xs bg-base-content/20 text-base-content/60">
               offline
             </span>
           </div>

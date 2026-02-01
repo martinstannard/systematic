@@ -44,10 +44,10 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
   # Helper functions
 
-  defp priority_badge(:high), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-ui-caption"
-  defp priority_badge(:medium), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-ui-caption"
-  defp priority_badge(:low), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-ui-caption"
-  defp priority_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-ui-caption"
+  defp priority_badge(:high), do: "px-1.5 py-0.5bg-red-500/20 text-red-400 text-ui-caption"
+  defp priority_badge(:medium), do: "px-1.5 py-0.5bg-yellow-500/20 text-yellow-400 text-ui-caption"
+  defp priority_badge(:low), do: "px-1.5 py-0.5bg-blue-500/20 text-blue-400 text-ui-caption"
+  defp priority_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-ui-caption"
 
   defp priority_row_class(:high), do: "border-l-2 border-red-500/50"
   defp priority_row_class(:medium), do: "border-l-2 border-yellow-500/50"
@@ -64,7 +64,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-work rounded-lg overflow-hidden">
+    <div class="panel-work overflow-hidden">
       <div
         class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
@@ -101,9 +101,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         <div class="px-3 pb-3">
           <!-- Priority Legend -->
           <div class="flex items-center space-x-2 mb-2 text-ui-caption text-base-content/60">
-            <span class="flex items-center"><span class="w-2 h-2 bg-red-500/50 rounded mr-1"></span>High</span>
-            <span class="flex items-center"><span class="w-2 h-2 bg-yellow-500/50 rounded mr-1"></span>Med</span>
-            <span class="flex items-center"><span class="w-2 h-2 bg-blue-500/50 rounded mr-1"></span>Low</span>
+            <span class="flex items-center"><span class="w-2 h-2 bg-red-500/50mr-1"></span>High</span>
+            <span class="flex items-center"><span class="w-2 h-2 bg-yellow-500/50mr-1"></span>Med</span>
+            <span class="flex items-center"><span class="w-2 h-2 bg-blue-500/50mr-1"></span>Low</span>
           </div>
 
           <!-- Issue List -->
@@ -122,10 +122,10 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
               <% end %>
               <%= for issue <- @chainlink_issues do %>
                 <% work_info = Map.get(@chainlink_work_in_progress, issue.id) %>
-                <div class={"flex items-center space-x-2 px-2 py-1.5 rounded " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
+                <div class={"flex items-center space-x-2 px-2 py-1.5" <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
                   <%= if work_info do %>
                     <div class="flex items-center space-x-1" title={"Work in progress: #{work_info[:label]}"}>
-                      <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
+                      <span class="w-1.5 h-1.5 bg-success animate-pulse"></span>
                       <span class="text-ui-caption text-success/70 truncate max-w-[60px]"><%= work_info[:label] || "Working" %></span>
                     </div>
                   <% else %>
@@ -133,7 +133,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       phx-click="work_on_chainlink"
                       phx-value-id={issue.id}
                       phx-target={@myself}
-                      class="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
+                      class="text-xs px-1.5 py-0.5bg-accent/20 text-accent hover:bg-accent/40"
                       title="Start work on this issue"
                       aria-label={"Start work on issue #" <> to_string(issue.id)}
                     >

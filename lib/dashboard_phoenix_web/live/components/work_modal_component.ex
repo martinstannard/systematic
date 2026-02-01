@@ -63,7 +63,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
     ~H"""
     <div class={"fixed inset-0 bg-space flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} phx-click="close_work_modal" phx-target={@myself}>
       <!-- Modal panel using agent panel style for distinctive presence -->
-      <div class="panel-agent agent-active rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" phx-click-away="close_work_modal" phx-target={@myself}>
+      <div class="panel-agent agent-active p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" phx-click-away="close_work_modal" phx-target={@myself}>
         <!-- Header with enhanced styling -->
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center space-x-3">
@@ -90,7 +90,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
             </div>
           <% else %>
             <!-- Data panel for code display instead of transparent background -->
-            <div class="panel-data rounded-lg p-4 max-h-64 overflow-y-auto">
+            <div class="panel-data p-4 max-h-64 overflow-y-auto">
               <pre class="text-ui-value text-base-content/90 whitespace-pre-wrap overflow-x-auto font-mono"><%= @work_ticket_details %></pre>
             </div>
           <% end %>
@@ -101,12 +101,12 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
           <div class="flex items-center justify-between mb-3">
             <div class="text-panel-label text-primary">Start Working</div>
             <%= if @agent_mode == "round_robin" do %>
-              <div class="text-xs font-mono px-3 py-1 rounded panel-status bg-warning/20 text-warning">
+              <div class="text-xs font-mono px-3 py-1panel-status bg-warning/20 text-warning">
                 <span class="status-beacon text-current"></span>
                 <span class="ml-2">🔄 Round Robin → Next: <%= if @last_agent == "claude", do: "OpenCode", else: "Claude" %></span>
               </div>
             <% else %>
-              <div class={"text-xs font-mono px-3 py-1 rounded panel-status " <> coding_agent_badge_class(@coding_agent_pref)}>
+              <div class={"text-xs font-mono px-3 py-1panel-status " <> coding_agent_badge_class(@coding_agent_pref)}>
                 <span class="status-beacon text-current"></span>
                 <span class="ml-2">Using: <%= coding_agent_badge_text(@coding_agent_pref) %></span>
               </div>
@@ -114,7 +114,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
           </div>
           
           <%= if @work_error do %>
-            <div class="panel-status bg-error/15 border-error/30 text-error rounded-lg p-3 text-ui-body mb-3">
+            <div class="panel-status bg-error/15 border-error/30 text-error p-3 text-ui-body mb-3">
               <span class="status-marker text-error"></span>
               <span class="ml-2"><%= @work_error %></span>
             </div>
@@ -125,7 +125,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
               phx-click="execute_work"
               phx-target={@myself}
               disabled={@work_in_progress or @work_ticket_loading or @work_sent}
-              class={"flex-1 py-3 rounded-lg text-ui-label font-bold transition-all border " <> 
+              class={"flex-1 py-3 text-ui-label font-bold transition-all border " <> 
                 cond do
                   @work_sent -> "panel-status bg-success/20 border-success/40 text-success"
                   @work_in_progress -> "panel-status bg-info/20 border-info/40 text-info cursor-wait"
@@ -148,7 +148,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
             <a 
               href={"https://linear.app/fresh-clinics/issue/#{@work_ticket_id}"} 
               target="_blank"
-              class="px-4 py-3 rounded-lg panel-status text-base-content/70 hover:text-accent transition-colors text-ui-label border border-base-content/20 hover:border-accent/40"
+              class="px-4 py-3 panel-status text-base-content/70 hover:text-accent transition-colors text-ui-label border border-base-content/20 hover:border-accent/40"
               aria-label="Open ticket in Linear"
             >
               Linear ↗

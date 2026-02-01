@@ -67,10 +67,10 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   # Helper functions
 
-  defp linear_status_badge("Triaging"), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-xs"
-  defp linear_status_badge("Todo"), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs"
-  defp linear_status_badge("Backlog"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs"
-  defp linear_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-xs"
+  defp linear_status_badge("Triaging"), do: "px-1.5 py-0.5bg-red-500/20 text-red-400 text-xs"
+  defp linear_status_badge("Todo"), do: "px-1.5 py-0.5bg-yellow-500/20 text-yellow-400 text-xs"
+  defp linear_status_badge("Backlog"), do: "px-1.5 py-0.5bg-blue-500/20 text-blue-400 text-xs"
+  defp linear_status_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs"
 
   defp linear_filter_button_active("Triaging"), do: "bg-red-500/30 text-red-400 border border-red-500/50"
   defp linear_filter_button_active("Backlog"), do: "bg-blue-500/30 text-blue-400 border border-blue-500/50"
@@ -124,7 +124,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                 phx-click="set_linear_filter"
                 phx-value-status={status}
                 phx-target={@myself}
-                class={"px-2 py-0.5 rounded text-xs font-mono transition-all " <> 
+                class={"px-2 py-0.5text-xs font-mono transition-all " <> 
                   if(@linear_status_filter == status,
                     do: linear_filter_button_active(status),
                     else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
@@ -151,15 +151,15 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
               <% end %>
               <%= for ticket <- @linear_filtered_tickets do %>
                 <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
-                <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono transition-all " <> if(work_info, do: "panel-work bg-accent/15 border border-accent/30", else: "panel-status hover:bg-accent/10 hover:border-accent/30")}>
+                <div class={"flex items-center space-x-2 px-2 py-1.5text-xs font-mono transition-all " <> if(work_info, do: "panel-work bg-accent/15 border border-accent/30", else: "panel-status hover:bg-accent/10 hover:border-accent/30")}>
                   <%= if work_info do %>
-                    <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
+                    <span class="w-1.5 h-1.5 bg-success animate-pulse"></span>
                   <% else %>
                     <button
                       phx-click="work_on_ticket"
                       phx-value-id={ticket.id}
                       phx-target={@myself}
-                      class="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
+                      class="text-xs px-1.5 py-0.5bg-accent/20 text-accent hover:bg-accent/40"
                       aria-label={"Start work on ticket " <> ticket.id}
                       title={"Start work on ticket " <> ticket.id}
                     >

@@ -16,7 +16,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-command rounded-lg px-4 py-2.5 flex items-center justify-between mb-3">
+    <div class="panel-command px-4 py-2.5 flex items-center justify-between mb-3">
       <div class="flex items-center space-x-4">
         <div class="flex items-center space-x-2">
           <h1 class="text-system-title text-system-glow text-base-content">SYSTEMATIC</h1>
@@ -28,7 +28,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
         <button
           id="theme-toggle"
           phx-hook="ThemeToggle"
-          class="p-1.5 rounded-lg bg-base-content/10 hover:bg-base-content/20 transition-colors"
+          class="p-1.5 bg-base-content/10 hover:bg-base-content/20 transition-colors"
           title="Toggle light/dark mode"
           aria-label="Toggle between light and dark theme"
           aria-pressed="false"
@@ -63,7 +63,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
           </div>
         <% end %>
         <div class="flex items-center space-x-1">
-          <span class={"px-2 py-0.5 rounded text-ui-caption " <> coding_agent_badge_class(@coding_agent_pref)}>
+          <span class={"px-2 py-0.5text-ui-caption " <> coding_agent_badge_class(@coding_agent_pref)}>
             <%= coding_agent_badge_text(@coding_agent_pref) %>
           </span>
         </div>

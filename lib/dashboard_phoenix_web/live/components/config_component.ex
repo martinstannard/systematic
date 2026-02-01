@@ -92,7 +92,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-status rounded-lg overflow-hidden">
+    <div class="panel-status overflow-hidden">
       <div 
         class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
@@ -120,7 +120,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
             <!-- Agent Distribution Mode -->
             <div>
               <div class="text-xs font-mono text-base-content/50 mb-2">Distribution</div>
-              <div class="flex rounded-lg overflow-hidden border border-white/10">
+              <div class="flex overflow-hidden border border-white/10">
                 <button 
                   phx-click="set_agent_mode"
                   phx-value-mode="single"
@@ -158,7 +158,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
             <!-- Coding Agent Toggle (3-way) - disabled in round_robin mode -->
             <div class={if @agent_mode == "round_robin", do: "opacity-50", else: ""}>
               <div class="text-xs font-mono text-base-content/50 mb-2">Coding Agent</div>
-              <div class="flex rounded-lg overflow-hidden border border-white/10">
+              <div class="flex overflow-hidden border border-white/10">
                 <button 
                   phx-click="set_coding_agent"
                   phx-value-agent="opencode"
@@ -211,7 +211,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                 phx-change="select_claude_model"
                 phx-target={@myself}
                 name="model"
-                class="w-full text-sm font-mono bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-400"
+                class="w-full text-sm font-mono bg-purple-500/10 border border-purple-500/30 px-3 py-2 text-purple-400"
               >
                 <option value="anthropic/claude-opus-4-5" selected={@claude_model == "anthropic/claude-opus-4-5"}>Opus</option>
                 <option value="anthropic/claude-sonnet-4-20250514" selected={@claude_model == "anthropic/claude-sonnet-4-20250514"}>Sonnet</option>
@@ -225,7 +225,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                 phx-change="select_opencode_model"
                 phx-target={@myself}
                 name="model"
-                class="w-full text-sm font-mono bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-blue-400"
+                class="w-full text-sm font-mono bg-blue-500/10 border border-blue-500/30 px-3 py-2 text-blue-400"
               >
                 <option value="gemini-3-pro" selected={@opencode_model == "gemini-3-pro"}>Gemini 3 Pro</option>
                 <option value="gemini-3-flash" selected={@opencode_model == "gemini-3-flash"}>Gemini 3 Flash</option>
@@ -249,9 +249,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                     <% end %>
                   </div>
                   <%= if @opencode_server_status.running do %>
-                    <button phx-click="stop_opencode_server" phx-target={@myself} class="text-xs px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40">Stop</button>
+                    <button phx-click="stop_opencode_server" phx-target={@myself} class="text-xs px-2 py-1bg-error/20 text-error hover:bg-error/40">Stop</button>
                   <% else %>
-                    <button phx-click="start_opencode_server" phx-target={@myself} class="text-xs px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">Start</button>
+                    <button phx-click="start_opencode_server" phx-target={@myself} class="text-xs px-2 py-1bg-success/20 text-success hover:bg-success/40">Start</button>
                   <% end %>
                 </div>
               <% @coding_agent_pref == :gemini -> %>
@@ -270,9 +270,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                     <% end %>
                   </div>
                   <%= if @gemini_server_status.running do %>
-                    <button phx-click="stop_gemini_server" phx-target={@myself} class="text-xs px-2 py-1 rounded bg-error/20 text-error hover:bg-error/40">Stop</button>
+                    <button phx-click="stop_gemini_server" phx-target={@myself} class="text-xs px-2 py-1bg-error/20 text-error hover:bg-error/40">Stop</button>
                   <% else %>
-                    <button phx-click="start_gemini_server" phx-target={@myself} class="text-xs px-2 py-1 rounded bg-success/20 text-success hover:bg-success/40">Start</button>
+                    <button phx-click="start_gemini_server" phx-target={@myself} class="text-xs px-2 py-1bg-success/20 text-success hover:bg-success/40">Start</button>
                   <% end %>
                 </div>
               <% true -> %>
