@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.PRMonitor do
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.{CommandRunner, CLITools}
+  alias DashboardPhoenix.CLITools
 
   @poll_interval_ms 60_000  # 60 seconds
   @topic "pr_updates"

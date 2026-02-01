@@ -107,12 +107,12 @@ defmodule DashboardPhoenix.CommandRunner do
       {:ok, {output, 0}} ->
         {:ok, output}
         
-      {:ok, {output, exit_code}} ->
-        {:error, {:exit, exit_code, output}}
-        
       {:ok, {:exception, reason}} ->
         Logger.warning("CommandRunner exception in #{command}: #{inspect(reason)}")
         {:error, {:exception, reason}}
+        
+      {:ok, {output, exit_code}} ->
+        {:error, {:exit, exit_code, output}}
         
       nil ->
         Logger.warning("CommandRunner timeout after #{timeout}ms: #{command} #{inspect(args)}")

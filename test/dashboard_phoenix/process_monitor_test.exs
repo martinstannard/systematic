@@ -61,7 +61,8 @@ defmodule DashboardPhoenix.ProcessMonitorTest do
       interesting_patterns = ~w(opencode openclaw-tui openclaw-gateway)
       
       for process <- processes do
-        command_lower = String.downcase(process.command)
+        # Check details instead of command as command might be truncated
+        command_lower = String.downcase(process.details)
         assert Enum.any?(interesting_patterns, &String.contains?(command_lower, &1))
       end
     end

@@ -11,8 +11,6 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
-  alias DashboardPhoenix.{OpenCodeClient, GeminiServer, LinearMonitor}
-
   @impl true
   def update(assigns, socket) do
     {:ok, assign(socket, assigns)}

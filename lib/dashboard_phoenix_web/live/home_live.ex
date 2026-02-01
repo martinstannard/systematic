@@ -36,12 +36,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.BranchMonitor
   alias DashboardPhoenix.AgentPreferences
   alias DashboardPhoenix.OpenCodeServer
-  alias DashboardPhoenix.OpenCodeClient
   alias DashboardPhoenix.GeminiServer
   alias DashboardPhoenix.ClientFactory
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
-  alias DashboardPhoenix.PanelStatus
   alias DashboardPhoenix.HealthCheck
 
   def mount(_params, _session, socket) do
@@ -1732,44 +1730,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
-  defp handle_super_review_request(ticket_id, socket) do
-    review_prompt = """
-    🔍 **Super Review Request for #{ticket_id}**
-    
-    Please perform a comprehensive code review for the PR related to ticket #{ticket_id}:
-    
-    1. Check out the PR branch
-    2. Review all code changes for:
-       - Code quality and best practices
-       - Potential bugs or edge cases
-       - Performance implications
-       - Security concerns
-       - Test coverage
-    3. Verify the implementation matches the ticket requirements
-    4. Leave detailed review comments on the PR
-    5. Approve or request changes as appropriate
-    
-    Use `gh pr view` to find the PR and `gh pr diff` to see changes.
-    """
-
-    # Spawn an isolated sub-agent to do the review
-    
-    case ClientFactory.openclaw_client().spawn_subagent(review_prompt,
-      name: "ticket-review-#{ticket_id}",
-      thinking: "medium",
-      post_mode: "summary"
-    ) do
-      {:ok, %{job_id: job_id}} ->
-        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for #{ticket_id} (job: #{String.slice(job_id, 0, 8)}...)")}
-      
-      {:ok, _} ->
-        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for #{ticket_id}")}
-      
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to spawn review agent: #{inspect(reason)}")}
-    end
-  end
-
   # Handle request_super_review when id parameter is missing
   def handle_event("request_super_review", _params, socket) do
     {:noreply, put_flash(socket, :error, "Missing ticket ID for super review request")}
@@ -1987,6 +1947,44 @@ defmodule DashboardPhoenixWeb.HomeLive do
     push_event(socket, "save_model_selections", %{models: models})
   end
 
+  defp handle_super_review_request(ticket_id, socket) do
+    review_prompt = """
+    🔍 **Super Review Request for #{ticket_id}**
+    
+    Please perform a comprehensive code review for the PR related to ticket #{ticket_id}:
+    
+    1. Check out the PR branch
+    2. Review all code changes for:
+       - Code quality and best practices
+       - Potential bugs or edge cases
+       - Performance implications
+       - Security concerns
+       - Test coverage
+    3. Verify the implementation matches the ticket requirements
+    4. Leave detailed review comments on the PR
+    5. Approve or request changes as appropriate
+    
+    Use `gh pr view` to find the PR and `gh pr diff` to see changes.
+    """
+
+    # Spawn an isolated sub-agent to do the review
+    
+    case ClientFactory.openclaw_client().spawn_subagent(review_prompt,
+      name: "ticket-review-#{ticket_id}",
+      thinking: "medium",
+      post_mode: "summary"
+    ) do
+      {:ok, %{job_id: job_id}} ->
+        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for #{ticket_id} (job: #{String.slice(job_id, 0, 8)}...)")}
+      
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Review sub-agent spawned for #{ticket_id}")}
+      
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to spawn review agent: #{inspect(reason)}")}
+    end
+  end
+
   # build_agent_activity function moved to DashboardPhoenixWeb.HomeLiveCache for memoization
 
   # Build map of ticket_id -> work session info from OpenCode and sub-agent sessions
@@ -2070,10 +2068,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Map.new(subagent_work ++ opencode_work)
   end
 
-  # Build map of chainlink issue_id -> work session info from sub-agent sessions
-  # Looks for sessions with labels containing "ticket-" to detect active chainlink work
-  # Merges with existing manually started work
-  defp build_chainlink_work_in_progress(agent_sessions, current_work \\ %{}) do
+  # Optimized: Uses pre-extracted ticket IDs from enriched sessions (O(n) simple iteration)
+  # Previously: O(n*m) - ran regex on every session on every call
+  defp build_chainlink_work_in_progress(agent_sessions, current_work) do
+    # Filter for chainlink sessions (started by "chainlink-" prefix)
     detected_work = agent_sessions
     |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
     |> Enum.filter(fn session -> 
