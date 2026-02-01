@@ -100,10 +100,17 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
         <div class="border-t border-accent/20 pt-4">
           <div class="flex items-center justify-between mb-3">
             <div class="text-panel-label text-primary">Start Working</div>
-            <div class={"text-xs font-mono px-3 py-1 rounded panel-status " <> coding_agent_badge_class(@coding_agent_pref)}>
-              <span class="status-beacon text-current"></span>
-              <span class="ml-2">Using: <%= coding_agent_badge_text(@coding_agent_pref) %></span>
-            </div>
+            <%= if @agent_mode == "round_robin" do %>
+              <div class="text-xs font-mono px-3 py-1 rounded panel-status bg-warning/20 text-warning">
+                <span class="status-beacon text-current"></span>
+                <span class="ml-2">🔄 Round Robin → Next: <%= if @last_agent == "claude", do: "OpenCode", else: "Claude" %></span>
+              </div>
+            <% else %>
+              <div class={"text-xs font-mono px-3 py-1 rounded panel-status " <> coding_agent_badge_class(@coding_agent_pref)}>
+                <span class="status-beacon text-current"></span>
+                <span class="ml-2">Using: <%= coding_agent_badge_text(@coding_agent_pref) %></span>
+              </div>
+            <% end %>
           </div>
           
           <%= if @work_error do %>
