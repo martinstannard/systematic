@@ -16,7 +16,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="glass-header px-3 sm:px-6 py-3 sm:py-4 mb-4">
+    <header class="glass-header px-3 sm:px-6 py-3 sm:py-4 mb-4" role="banner">
       <!-- Mobile: Single row with logo, health, menu button -->
       <!-- Desktop: Full header with stats -->
       <div class="flex items-center justify-between">
@@ -24,11 +24,17 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
         <div class="flex items-center space-x-2 sm:space-x-4">
           <div class="flex items-center space-x-2">
             <h1 class="text-lg sm:text-2xl font-bold tracking-wide text-gray-900 dark:text-gray-100">SYSTEMATIC</h1>
-            <span class={health_badge_class(@health_status)} title={health_tooltip(@health_status, @health_last_check)} aria-label={health_text(@health_status)}>
-              <%= health_symbol(@health_status) %>
+            <span 
+              class={health_badge_class(@health_status)} 
+              title={health_tooltip(@health_status, @health_last_check)} 
+              role="status"
+              aria-label={"System health: " <> health_text(@health_status)}
+            >
+              <span aria-hidden="true"><%= health_symbol(@health_status) %></span>
+              <span class="sr-only"><%= health_text(@health_status) %></span>
             </span>
           </div>
-          <span class="hidden sm:inline text-ui-caption text-gray-500 dark:text-gray-400">Dashboard</span>
+          <span class="hidden sm:inline text-ui-caption text-gray-600 dark:text-gray-400">Dashboard</span>
           
           <!-- Theme Toggle - always visible -->
           <button
@@ -39,10 +45,10 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
             aria-label="Toggle between light and dark theme"
             aria-pressed="false"
           >
-            <svg class="sun-icon w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="sun-icon w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            <svg class="moon-icon w-5 h-5 text-indigo-400" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="moon-icon w-5 h-5 text-indigo-400" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
             </svg>
           </button>
@@ -94,7 +100,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
           </div>
         </div>
       </div>
-    </div>
+    </header>
     """
   end
 

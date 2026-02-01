@@ -56,6 +56,8 @@ defmodule DashboardPhoenixWeb.CoreComponents do
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
+      aria-live={if @kind == :error, do: "assertive", else: "polite"}
+      aria-atomic="true"
       class="toast toast-top toast-end z-50"
       {@rest}
     >
@@ -64,15 +66,20 @@ defmodule DashboardPhoenixWeb.CoreComponents do
         @kind == :info && "alert-info",
         @kind == :error && "alert-error"
       ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
+        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" aria-hidden="true" />
+        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" aria-hidden="true" />
         <div>
+          <span class="sr-only">{if @kind == :error, do: "Error: ", else: "Info: "}</span>
           <p :if={@title} class="font-semibold">{@title}</p>
           <p>{msg}</p>
         </div>
         <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
+        <button 
+          type="button" 
+          class="group self-start cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center" 
+          aria-label={gettext("Dismiss this notification")}
+        >
+          <.icon name="hero-x-mark" class="size-5 opacity-60 group-hover:opacity-100" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -412,10 +419,11 @@ defmodule DashboardPhoenixWeb.CoreComponents do
   """
   attr :name, :string, required: true
   attr :class, :string, default: "size-4"
+  attr :rest, :global, doc: "the arbitrary HTML attributes like aria-hidden"
 
   def icon(%{name: "hero-" <> _} = assigns) do
     ~H"""
-    <span class={[@name, @class]} />
+    <span class={[@name, @class]} {@rest} />
     """
   end
 

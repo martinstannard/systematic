@@ -287,7 +287,10 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
           
           <!-- Expand chevron indicator -->
           <%= if has_details?(assigns) do %>
-            <span class={"text-xs text-base-content/40 transition-transform duration-200 flex-shrink-0 " <> if(@expanded, do: "rotate-180", else: "")}>
+            <span 
+              class={"text-xs text-base-content/60 transition-transform duration-200 flex-shrink-0 " <> if(@expanded, do: "rotate-180", else: "")}
+              aria-hidden="true"
+            >
               ▼
             </span>
           <% end %>
@@ -378,25 +381,29 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
           
           <!-- Token Usage & Cost Stats -->
           <%= if @tokens_in > 0 || @tokens_out > 0 || @cost > 0 do %>
-            <div class="flex items-center justify-between text-xs bg-base-content/5 px-2 py-1.5 rounded">
+            <div class="flex items-center justify-between text-xs bg-base-content/5 px-2 py-1.5 rounded" role="group" aria-label="Token usage and cost">
               <div class="flex items-center gap-3">
                 <%= if @tokens_in > 0 do %>
                   <div class="flex items-center gap-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-info/60" aria-hidden="true"></span>
-                    <span class="text-base-content/60 font-mono tabular-nums">↓ <%= format_tokens(@tokens_in) %></span>
+                    <span class="text-base-content/60 font-mono tabular-nums" aria-label={"Input tokens: " <> format_tokens(@tokens_in)}>
+                      <span aria-hidden="true">↓</span> <%= format_tokens(@tokens_in) %>
+                    </span>
                   </div>
                 <% end %>
                 <%= if @tokens_out > 0 do %>
                   <div class="flex items-center gap-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-secondary/60" aria-hidden="true"></span>
-                    <span class="text-base-content/60 font-mono tabular-nums">↑ <%= format_tokens(@tokens_out) %></span>
+                    <span class="text-base-content/60 font-mono tabular-nums" aria-label={"Output tokens: " <> format_tokens(@tokens_out)}>
+                      <span aria-hidden="true">↑</span> <%= format_tokens(@tokens_out) %>
+                    </span>
                   </div>
                 <% end %>
               </div>
               <%= if @cost > 0 do %>
                 <div class="flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-success" aria-hidden="true"></span>
-                  <span class="text-success font-mono tabular-nums">$<%= Float.round(@cost, 4) %></span>
+                  <span class="text-success font-mono tabular-nums" aria-label={"Cost: $" <> to_string(Float.round(@cost, 4))}>$<%= Float.round(@cost, 4) %></span>
                 </div>
               <% end %>
             </div>
