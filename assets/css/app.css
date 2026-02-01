@@ -2,14 +2,11 @@
    https://tailwindcss.com/docs/configuration */
 
 /* Typography: Distinctive font imports for agent control interface
-   - JetBrains Mono: Primary display font for SYSTEMATIC title and headers (technical, premium)
-   - Fira Code: Secondary display font with ligatures for code displays
-   - Inter Variable: Modern variable font for body text (highly readable, variable weights)
-   - NOTE: Inter provides smooth weight transitions from 100-900
+   - Courier Prime: Primary display font for SYSTEMATIC title and headers (terminal readout style)
+   - IBM Plex Sans: Humanist sans-serif for body text (highly readable, technical character)
 */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap');
 
 @import "tailwindcss" source(none);
 @source "../css";
@@ -118,15 +115,15 @@
    ===================================================== */
 
 /* Font family definitions
-   - display: JetBrains Mono for commanding titles and headers (technical, premium)
-   - ui: Inter Variable for readable interface text (modern, clean)
-   - mono: Fira Code for code displays with ligatures
+   - display: Courier Prime for commanding titles and headers (terminal readout style)
+   - ui: IBM Plex Sans for readable interface text (technical, clean)
+   - mono: Courier Prime for code displays and data values
    - NO generic/system fonts - everything has character
 */
 :root {
-  --font-display: 'JetBrains Mono', 'Fira Code', monospace;
-  --font-ui: 'Inter', 'Inter Variable', sans-serif;
-  --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+  --font-display: 'Courier Prime', monospace;
+  --font-ui: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'Courier Prime', monospace;
   
   /* Typography scale - DRAMATIC hierarchy for command presence */
   --text-title: 2.5rem;       /* 40px - commanding title (large, bold) */
