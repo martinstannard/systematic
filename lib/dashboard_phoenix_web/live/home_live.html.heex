@@ -153,6 +153,16 @@
         <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">OpenCode • Gemini • Dave • Subagents</span>
       </div>
       <div class="space-y-3">
+        <!-- Dave Panel (Main Agent) - First/Top Priority -->
+        <div class="panel-priority-high panel-accent-active rounded-xl">
+          <.live_component
+            module={DaveComponent}
+            id="dave-panel"
+            agent_sessions={@agent_sessions}
+            dave_collapsed={@dave_collapsed}
+          />
+        </div>
+
         <!-- Live Progress Panel (LiveComponent) - Medium Priority -->
         <div class="panel-priority-medium panel-accent-active rounded-xl">
           <.live_component
@@ -161,6 +171,23 @@
             live_progress_collapsed={@live_progress_collapsed}
             agent_progress_count={@agent_progress_count}
             progress_events={@streams.progress_events}
+          />
+        </div>
+
+        <!-- Sub-Agents Panel - Medium Priority -->
+        <div class={[
+          "panel-priority-medium rounded-xl relative",
+          DashboardPhoenix.PanelStatus.status_classes(:subagents, %{
+            sessions: @agent_sessions
+          })
+        ]}>
+          <.live_component
+            module={SubagentsComponent}
+            id="subagents-panel"
+            agent_sessions={@agent_sessions}
+            subagents_collapsed={@subagents_collapsed}
+            dismissed_sessions={@dismissed_sessions}
+            show_completed={@show_completed}
           />
         </div>
 
@@ -195,33 +222,6 @@
             gemini_server_status={@gemini_server_status}
             gemini_output={@gemini_output}
             gemini_collapsed={@gemini_collapsed}
-          />
-        </div>
-
-        <!-- Dave Panel (Main Agent) - Medium Priority -->
-        <div class="panel-priority-medium panel-accent-active rounded-xl">
-          <.live_component
-            module={DaveComponent}
-            id="dave-panel"
-            agent_sessions={@agent_sessions}
-            dave_collapsed={@dave_collapsed}
-          />
-        </div>
-
-        <!-- Sub-Agents Panel - Medium Priority -->
-        <div class={[
-          "panel-priority-medium rounded-xl relative",
-          DashboardPhoenix.PanelStatus.status_classes(:subagents, %{
-            sessions: @agent_sessions
-          })
-        ]}>
-          <.live_component
-            module={SubagentsComponent}
-            id="subagents-panel"
-            agent_sessions={@agent_sessions}
-            subagents_collapsed={@subagents_collapsed}
-            dismissed_sessions={@dismissed_sessions}
-            show_completed={@show_completed}
           />
         </div>
       </div>

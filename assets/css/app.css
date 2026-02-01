@@ -126,13 +126,13 @@
   --font-ui: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
   
-  /* Typography scale */
-  --text-title: 1.75rem;      /* 28px - commanding title */
-  --text-section: 1rem;       /* 16px - section headers */
-  --text-panel: 0.75rem;      /* 12px - panel labels (was 11px) */
-  --text-body: 0.875rem;      /* 14px - body text */
-  --text-small: 0.75rem;      /* 12px - labels, values */
-  --text-micro: 0.75rem;      /* 12px - captions, hints (was 10px) */
+  /* Typography scale - increased for better legibility */
+  --text-title: 2rem;         /* 32px - commanding title (was 28px) */
+  --text-section: 1.125rem;   /* 18px - section headers (was 16px) */
+  --text-panel: 0.875rem;     /* 14px - panel labels (was 12px) */
+  --text-body: 1rem;          /* 16px - body text (was 14px) */
+  --text-small: 0.875rem;     /* 14px - labels, values (was 12px) */
+  --text-micro: 0.8125rem;    /* 13px - captions, hints (was 12px) */
 }
 
 /* Base typography classes */
@@ -165,7 +165,7 @@ body {
    Distinctive typography for agent control interface
    ============================================================= */
 
-/* SYSTEMATIC title - commanding presence, enhanced terminal aesthetic */
+/* SYSTEMATIC title - clean, crisp terminal aesthetic */
 .text-system-title {
   font-family: var(--font-display);
   font-size: var(--text-title);
@@ -173,20 +173,7 @@ body {
   letter-spacing: 0.25em;
   text-transform: uppercase;
   font-feature-settings: 'kern' 1, 'liga' 0, 'zero' 1;
-  /* Enhanced text shadow system for premium depth */
-  text-shadow: 
-    /* Primary shadow for structure */
-    0 2px 0 rgba(0, 0, 0, 0.4),
-    0 4px 8px rgba(0, 0, 0, 0.3),
-    /* Color accent shadows */
-    0 1px 0 rgba(139, 92, 246, 0.2),
-    0 0 12px rgba(139, 92, 246, 0.15),
-    /* Depth shadows */
-    0 6px 16px rgba(0, 0, 0, 0.2),
-    0 0 40px rgba(139, 92, 246, 0.08);
-  /* Subtle transform for visual interest */
-  transform: perspective(500px) rotateX(2deg);
-  transform-origin: bottom center;
+  /* Clean text - no glow for crisp legibility */
 }
 
 /* Subtitle - supporting text beside title */
@@ -256,99 +243,9 @@ body {
   letter-spacing: 0.03em;
 }
 
-/* Enhanced text glow effect - premium holographic aesthetic */
+/* Text glow class - disabled for crisp legibility */
 .text-system-glow {
-  text-shadow: 
-    /* Base structural shadows (from .text-system-title) */
-    0 2px 0 rgba(0, 0, 0, 0.4),
-    0 4px 8px rgba(0, 0, 0, 0.3),
-    0 6px 16px rgba(0, 0, 0, 0.2),
-    /* Primary glow system */
-    0 0 8px rgba(139, 92, 246, 0.8),
-    0 0 16px rgba(139, 92, 246, 0.6),
-    0 0 32px rgba(139, 92, 246, 0.4),
-    0 0 64px rgba(139, 92, 246, 0.25),
-    0 0 96px rgba(139, 92, 246, 0.15),
-    /* Secondary color harmonics */
-    0 0 12px rgba(168, 85, 247, 0.4),
-    0 0 24px rgba(168, 85, 247, 0.2),
-    /* Accent highlights */
-    0 1px 0 rgba(255, 255, 255, 0.1),
-    0 0 4px rgba(255, 255, 255, 0.05);
-  animation: glow-pulse 6s ease-in-out infinite alternate;
-  /* Add subtle backdrop filter effect */
-  backdrop-filter: blur(0.5px);
-}
-
-@keyframes glow-pulse {
-  0% {
-    filter: brightness(100%) saturate(100%) contrast(100%);
-    text-shadow: 
-      0 2px 0 rgba(0, 0, 0, 0.4),
-      0 4px 8px rgba(0, 0, 0, 0.3),
-      0 6px 16px rgba(0, 0, 0, 0.2),
-      0 0 8px rgba(139, 92, 246, 0.8),
-      0 0 16px rgba(139, 92, 246, 0.6),
-      0 0 32px rgba(139, 92, 246, 0.4),
-      0 0 64px rgba(139, 92, 246, 0.25),
-      0 0 96px rgba(139, 92, 246, 0.15),
-      0 0 12px rgba(168, 85, 247, 0.4),
-      0 0 24px rgba(168, 85, 247, 0.2),
-      0 1px 0 rgba(255, 255, 255, 0.1),
-      0 0 4px rgba(255, 255, 255, 0.05);
-  }
-  50% {
-    filter: brightness(110%) saturate(110%) contrast(105%);
-    text-shadow: 
-      0 2px 0 rgba(0, 0, 0, 0.4),
-      0 4px 8px rgba(0, 0, 0, 0.3),
-      0 6px 16px rgba(0, 0, 0, 0.2),
-      0 0 12px rgba(139, 92, 246, 0.9),
-      0 0 20px rgba(139, 92, 246, 0.7),
-      0 0 40px rgba(139, 92, 246, 0.5),
-      0 0 80px rgba(139, 92, 246, 0.3),
-      0 0 120px rgba(139, 92, 246, 0.2),
-      0 0 16px rgba(168, 85, 247, 0.5),
-      0 0 32px rgba(168, 85, 247, 0.25),
-      0 1px 0 rgba(255, 255, 255, 0.15),
-      0 0 8px rgba(255, 255, 255, 0.08);
-  }
-  100% {
-    filter: brightness(115%) saturate(120%) contrast(110%);
-    text-shadow: 
-      0 2px 0 rgba(0, 0, 0, 0.4),
-      0 4px 8px rgba(0, 0, 0, 0.3),
-      0 6px 16px rgba(0, 0, 0, 0.2),
-      0 0 16px rgba(139, 92, 246, 1),
-      0 0 24px rgba(139, 92, 246, 0.8),
-      0 0 48px rgba(139, 92, 246, 0.6),
-      0 0 96px rgba(139, 92, 246, 0.35),
-      0 0 144px rgba(139, 92, 246, 0.25),
-      0 0 20px rgba(168, 85, 247, 0.6),
-      0 0 40px rgba(168, 85, 247, 0.3),
-      0 1px 0 rgba(255, 255, 255, 0.2),
-      0 0 12px rgba(255, 255, 255, 0.1);
-  }
-}
-
-/* Light mode adjustments for text glow - elegant and sophisticated */
-[data-theme="light"] .text-system-glow {
-  text-shadow: 
-    /* Base structural shadows for light mode */
-    0 2px 0 rgba(109, 40, 217, 0.1),
-    0 4px 8px rgba(109, 40, 217, 0.08),
-    0 6px 16px rgba(109, 40, 217, 0.05),
-    /* Refined glow system for light backgrounds */
-    0 0 8px rgba(109, 40, 217, 0.4),
-    0 0 16px rgba(109, 40, 217, 0.25),
-    0 0 32px rgba(109, 40, 217, 0.15),
-    0 0 48px rgba(109, 40, 217, 0.08),
-    /* Secondary harmonics */
-    0 0 12px rgba(168, 85, 247, 0.3),
-    0 0 24px rgba(168, 85, 247, 0.15),
-    /* Subtle highlights */
-    0 1px 0 rgba(255, 255, 255, 0.6),
-    0 0 4px rgba(255, 255, 255, 0.3);
+  /* No glow effects - crisp text for readability */
 }
 
 /* Tabular numbers for consistent spacing in stats */
@@ -613,17 +510,9 @@ button:focus-visible, .btn:focus-visible {
   height: 300px;
 }
 
-/* Premium card hover effects */
+/* Card and panel base styles - no hover popout for readability */
 .card, .panel, .glass-morphism {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.card:hover, .panel:hover, .glass-morphism:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(139, 92, 246, 0.1),
-    0 0 30px rgba(139, 92, 246, 0.05);
 }
 
 /* Enhanced status indicators */
@@ -761,14 +650,7 @@ button:focus-visible, .btn:focus-visible {
   z-index: 10;
 }
 
-.panel-priority-high:hover {
-  transform: translateY(-4px) scale(1.03);
-  box-shadow: 
-    0 16px 60px -4px rgba(0, 0, 0, 0.6),
-    0 10px 32px -2px rgba(139, 92, 246, 0.4),
-    inset 0 2px 0 rgba(255, 255, 255, 0.18),
-    0 0 100px -15px rgba(139, 92, 246, 0.5);
-}
+/* No hover popout - keeps UI stable and readable */
 
 /* Medium-priority panels: Standard display with clear differentiation */
 .panel-priority-medium {
@@ -787,13 +669,7 @@ button:focus-visible, .btn:focus-visible {
   z-index: 5;
 }
 
-.panel-priority-medium:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 10px 28px -4px rgba(0, 0, 0, 0.45),
-    0 4px 12px -2px rgba(168, 85, 247, 0.25),
-    0 0 40px -8px rgba(168, 85, 247, 0.2);
-}
+/* No hover popout for medium panels */
 
 /* Quick-reference panels: Compact, recessed appearance */
 .panel-priority-compact {
@@ -814,10 +690,6 @@ button:focus-visible, .btn:focus-visible {
 
 .panel-priority-compact:hover {
   opacity: 1;
-  transform: translateY(-1px);
-  box-shadow: 
-    0 4px 12px -2px rgba(0, 0, 0, 0.35),
-    0 0 24px -6px rgba(59, 130, 246, 0.2);
 }
 
 /* Light mode adjustments */
@@ -1662,22 +1534,7 @@ button:focus-visible, .btn:focus-visible {
   pointer-events: none;
 }
 
-.panel-work:hover {
-  border-color: rgba(232, 121, 249, 0.3);
-  box-shadow: 
-    0 4px 20px -4px rgba(0, 0, 0, 0.5),
-    0 0 30px -8px rgba(232, 121, 249, 0.25);
-  transform: translateY(-1px);
-  transition: all 0.2s ease;
-}
-
-.panel-work:hover::before {
-  border-color: rgba(232, 121, 249, 0.6);
-}
-
-.panel-work:hover::after {
-  border-color: rgba(232, 121, 249, 0.3);
-}
+/* No hover popout for work panels - keeps UI stable */
 
 [data-theme="light"] .panel-work {
   background: rgba(255, 255, 255, 0.85);
@@ -2000,9 +1857,9 @@ button:focus-visible, .btn:focus-visible {
    Creates atmospheric depth and context with neural network aesthetics
    ===================================================== */
 
-/* Dark mode space background with enhanced depth */
+/* Dark mode space background - darker for better contrast */
 .bg-space {
-  background-color: oklch(8% 0.03 265);
+  background-color: oklch(5% 0.02 265);
   background-image: 
     /* Primary gradients for depth */
     radial-gradient(ellipse at 15% 10%, rgba(109, 40, 217, 0.25) 0%, transparent 45%), 
@@ -2228,9 +2085,7 @@ button:focus-visible, .btn:focus-visible {
   @apply bg-base-100/30 backdrop-blur-xl border-b border-white/5 sticky top-0 z-50 shadow-md;
 }
 
-.text-glow {
-  text-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
-}
+/* .text-glow disabled for crisp legibility */
 
 .status-dot {
   box-shadow: 0 0 8px currentColor;
@@ -2472,12 +2327,4 @@ textarea:focus-visible {
   border-left-color: rgba(249, 115, 22, 0.6);
 }
 
-/* Section hover effects for interactivity feedback */
-.section-core-work:hover,
-.section-agent-status:hover,
-.section-system-config:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
-}
+/* No section hover effects - keeps UI stable and readable */
