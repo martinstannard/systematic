@@ -222,6 +222,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
         os_pid: nil,
         health_check_timer: nil,
         restart_timer: nil,
+        cleanup_timer: nil,
         running: false
       }
 
@@ -234,12 +235,14 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
       # Create real timer refs for testing
       health_timer = Process.send_after(self(), :test_health, 100_000)
       restart_timer = Process.send_after(self(), :test_restart, 100_000)
+      cleanup_timer = Process.send_after(self(), :test_cleanup, 100_000)
       
       state = %{
         port_ref: nil,
         os_pid: nil,
         health_check_timer: health_timer,
         restart_timer: restart_timer,
+        cleanup_timer: cleanup_timer,
         running: false
       }
 
@@ -249,6 +252,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
       # Timers should be cancelled
       assert Process.read_timer(health_timer) == false
       assert Process.read_timer(restart_timer) == false
+      assert Process.read_timer(cleanup_timer) == false
     end
   end
 
