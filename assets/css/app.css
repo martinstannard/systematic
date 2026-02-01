@@ -995,56 +995,140 @@ button:focus-visible, .btn:focus-visible {
    More pronounced differences to guide user attention effectively
    ===================================================== */
 
-/* High-priority panels: Large, commanding presence - no glow */
+/* High-priority panels: Holographic ship subsystem display */
 .panel-priority-high {
   min-height: unset;
   padding: 0;
-  border-width: 3px;
+  border-width: 2px;
   font-size: 1.05em;
   box-shadow: 
-    0 4px 12px -2px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  background: rgba(15, 12, 35, 0.95);
-  backdrop-filter: blur(24px) saturate(1.3);
+    0 4px 20px -4px rgba(0, 0, 0, 0.5),
+    0 0 40px -10px rgba(139, 92, 246, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: 
+    linear-gradient(135deg,
+      rgba(15, 12, 35, 0.95) 0%,
+      rgba(20, 16, 45, 0.92) 50%,
+      rgba(15, 12, 35, 0.95) 100%
+    );
+  backdrop-filter: blur(24px) saturate(1.4);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   transform: scale(1.02);
   z-index: 10;
+  position: relative;
+  overflow: hidden;
 }
 
-/* No hover popout - keeps UI stable and readable */
+/* Holographic shimmer overlay for high-priority panels */
+.panel-priority-high::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(
+      135deg,
+      rgba(139, 92, 246, 0.03) 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.02) 60%,
+      transparent 100%
+    );
+  background-size: 300% 300%;
+  animation: panel-shimmer 20s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
 
-/* Medium-priority panels: Standard display with clear differentiation - no glow */
+/* Subtle scan lines for CRT effect */
+.panel-priority-high::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(255, 255, 255, 0.006) 3px,
+    rgba(255, 255, 255, 0.006) 6px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes panel-shimmer {
+  0%, 100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+}
+
+/* Medium-priority panels: Secondary ship display */
 .panel-priority-medium {
   min-height: unset;
   padding: 0;
   border-width: 1.5px;
   box-shadow: 
-    0 2px 8px -2px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  background: rgba(20, 16, 45, 0.85);
-  backdrop-filter: blur(14px);
+    0 2px 12px -3px rgba(0, 0, 0, 0.4),
+    0 0 20px -8px rgba(139, 92, 246, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: 
+    linear-gradient(180deg,
+      rgba(20, 16, 45, 0.88) 0%,
+      rgba(18, 14, 40, 0.92) 100%
+    );
+  backdrop-filter: blur(16px) saturate(1.2);
   transition: all 0.25s ease;
   z-index: 5;
+  position: relative;
+  overflow: hidden;
 }
 
-/* No hover popout for medium panels */
+/* Subtle atmospheric glow for medium panels */
+.panel-priority-medium::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.2) 20%,
+    rgba(139, 92, 246, 0.4) 50%,
+    rgba(139, 92, 246, 0.2) 80%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
 
-/* Quick-reference panels: Compact, recessed appearance - no glow */
+/* Quick-reference panels: Compact auxiliary display */
 .panel-priority-compact {
   min-height: unset;
   padding: 0;
   border-width: 1px;
   font-size: 0.9em;
-  opacity: 0.92;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  background: rgba(15, 12, 35, 0.5);
-  backdrop-filter: blur(8px);
+  opacity: 0.94;
+  box-shadow: 
+    0 1px 6px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: 
+    linear-gradient(180deg,
+      rgba(15, 12, 35, 0.7) 0%,
+      rgba(12, 10, 30, 0.75) 100%
+    );
+  backdrop-filter: blur(10px);
   transition: all 0.2s ease;
   z-index: 1;
+  position: relative;
 }
 
 .panel-priority-compact:hover {
   opacity: 1;
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Light mode adjustments - no glow */
@@ -1154,46 +1238,74 @@ button:focus-visible, .btn:focus-visible {
   z-index: 2;
 }
 
-/* Working state panels - Active processing indication */
+/* Working state panels - Active processing with particle effects */
 .panel-status-working {
   border-color: rgba(34, 197, 94, 0.7);
   position: relative;
   overflow: hidden;
 }
 
+/* Scanner sweep effect for working panels */
 .panel-status-working::before {
   content: "";
   position: absolute;
   top: 0;
-  left: -100%;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(90deg,
+  left: -50%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
     transparent 0%,
-    rgba(34, 197, 94, 0.8) 30%,
-    rgba(34, 197, 94, 1) 50%,
-    rgba(34, 197, 94, 0.8) 70%,
+    rgba(34, 197, 94, 0.02) 20%,
+    rgba(34, 197, 94, 0.08) 50%,
+    rgba(34, 197, 94, 0.02) 80%,
     transparent 100%
   );
-  animation: working-progress 3s ease-in-out infinite;
+  animation: working-sweep 3s ease-in-out infinite;
+  pointer-events: none;
   z-index: 1;
 }
 
+/* Vertical scanner line */
 .panel-status-working::after {
   content: "";
   position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg,
-    rgba(34, 197, 94, 0.8) 0%,
-    rgba(34, 197, 94, 0.9) 50%,
-    rgba(34, 197, 94, 0.8) 100%
+  top: 0;
+  left: -2px;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(34, 197, 94, 0.9) 30%,
+    rgba(34, 197, 94, 1) 50%,
+    rgba(34, 197, 94, 0.9) 70%,
+    transparent 100%
   );
-  border-radius: 0;
-  opacity: 0.8;
-  /* animation removed for static UI */
+  box-shadow: 
+    0 0 8px rgba(34, 197, 94, 0.6),
+    0 0 16px rgba(34, 197, 94, 0.3);
+  animation: working-line 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes working-sweep {
+  0% { left: -50%; }
+  100% { left: 150%; }
+}
+
+@keyframes working-line {
+  0% { left: -2px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+/* Floating particles overlay for working state */
+.panel-status-working > * {
+  position: relative;
+  z-index: 3;
 }
 
 /* Warning state panels - Attention needed - no glow */
@@ -1273,32 +1385,76 @@ button:focus-visible, .btn:focus-visible {
   transition: opacity 0.3s ease;
 }
 
-/* Loading state panels - Data being fetched */
+/* Loading state panels - Scanner sweep effect */
 .panel-status-loading {
   position: relative;
   overflow: hidden;
 }
 
+/* Primary scanner sweep */
 .panel-status-loading::before {
   content: "";
   position: absolute;
   top: 0;
-  left: -100%;
+  left: -50%;
   width: 50%;
   height: 100%;
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     transparent 0%,
-    rgba(139, 92, 246, 0.1) 50%,
+    rgba(139, 92, 246, 0.02) 15%,
+    rgba(139, 92, 246, 0.08) 40%,
+    rgba(168, 85, 247, 0.1) 50%,
+    rgba(139, 92, 246, 0.08) 60%,
+    rgba(139, 92, 246, 0.02) 85%,
     transparent 100%
   );
-  animation: loading-sweep 2s ease-in-out infinite;
-  z-index: 1;
+  animation: loading-sweep 2.5s ease-in-out infinite;
   pointer-events: none;
+  z-index: 1;
+}
+
+/* Vertical scanner bar */
+.panel-status-loading::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -2px;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.7) 20%,
+    rgba(168, 85, 247, 1) 50%,
+    rgba(139, 92, 246, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: 
+    0 0 10px rgba(139, 92, 246, 0.6),
+    0 0 20px rgba(168, 85, 247, 0.4),
+    0 0 30px rgba(139, 92, 246, 0.2);
+  animation: loading-line 2.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
 }
 
 @keyframes loading-sweep {
-  0% { left: -100%; }
+  0% { left: -50%; }
   100% { left: 150%; }
+}
+
+@keyframes loading-line {
+  0% { left: -2px; opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+/* Keep content above scanner effects */
+.panel-status-loading > * {
+  position: relative;
+  z-index: 3;
 }
 
 /* Panel attention badges - disabled for cleaner UI */
@@ -1525,49 +1681,67 @@ button:focus-visible, .btn:focus-visible {
    ===================================================== */
 
 /* =====================================================
-   COMMAND HEADER: Enhanced top-level control interface bar
-   Features sophisticated scan lines, neural grid, and premium materials
+   COMMAND HEADER: Ship Bridge Command Interface
+   The nerve center - holographic display with atmospheric effects
    ===================================================== */
 .panel-command {
-  background: rgba(15, 10, 35, 0.98);
-  backdrop-filter: blur(24px) saturate(1.3) brightness(1.1);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  border-bottom: 3px solid rgba(139, 92, 246, 0.5);
-  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
+  background: 
+    linear-gradient(180deg,
+      rgba(12, 8, 30, 0.98) 0%,
+      rgba(15, 10, 35, 0.96) 50%,
+      rgba(18, 12, 40, 0.98) 100%
+    );
+  backdrop-filter: blur(30px) saturate(1.4);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-bottom: 2px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 
+    0 4px 20px -4px rgba(0, 0, 0, 0.5),
+    0 0 40px -10px rgba(139, 92, 246, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   position: relative;
   overflow: hidden;
 }
 
-/* Enhanced horizontal scan line system with neural grid */
+/* Holographic scan lines and grid overlay */
 .panel-command::before {
   content: "";
   position: absolute;
   inset: 0;
   background: 
-    /* Primary scan lines */
+    /* Horizontal scan lines */
     repeating-linear-gradient(
       0deg,
       transparent 0px,
+      transparent 2px,
+      rgba(139, 92, 246, 0.02) 2px,
+      rgba(139, 92, 246, 0.02) 3px,
       transparent 3px,
-      rgba(139, 92, 246, 0.03) 3px,
-      rgba(139, 92, 246, 0.03) 4px,
-      transparent 4px,
-      transparent 8px
+      transparent 6px
     ),
-    /* Secondary vertical lines for grid effect */
+    /* Vertical data lines */
     repeating-linear-gradient(
       90deg,
       transparent 0px,
-      transparent 40px,
-      rgba(168, 85, 247, 0.02) 40px,
-      rgba(168, 85, 247, 0.02) 41px
+      transparent 60px,
+      rgba(168, 85, 247, 0.015) 60px,
+      rgba(168, 85, 247, 0.015) 61px
+    ),
+    /* Holographic shimmer */
+    linear-gradient(
+      135deg,
+      transparent 0%,
+      rgba(139, 92, 246, 0.02) 25%,
+      transparent 50%,
+      rgba(59, 130, 246, 0.02) 75%,
+      transparent 100%
     );
+  background-size: 100% 100%, 100% 100%, 400% 400%;
   pointer-events: none;
-  /* Subtle animation */
-  animation: scan-drift 8s ease-in-out infinite alternate;
+  animation: command-shimmer 15s ease-in-out infinite;
+  z-index: 0;
 }
 
-/* Enhanced top accent bar with prismatic effect */
+/* Top edge glow - bridge status indicator */
 .panel-command::after {
   content: "";
   position: absolute;
@@ -1579,39 +1753,50 @@ button:focus-visible, .btn:focus-visible {
     linear-gradient(
       90deg,
       transparent 0%,
-      rgba(139, 92, 246, 0.9) 10%,
-      rgba(168, 85, 247, 0.7) 30%,
-      rgba(59, 130, 246, 0.5) 50%,
-      rgba(168, 85, 247, 0.7) 70%,
-      rgba(139, 92, 246, 0.9) 90%,
+      rgba(139, 92, 246, 0.6) 5%,
+      rgba(168, 85, 247, 0.9) 20%,
+      rgba(59, 130, 246, 0.7) 35%,
+      rgba(168, 85, 247, 1) 50%,
+      rgba(59, 130, 246, 0.7) 65%,
+      rgba(168, 85, 247, 0.9) 80%,
+      rgba(139, 92, 246, 0.6) 95%,
       transparent 100%
     );
-  border-radius: 0;
-  animation: accent-pulse 4s ease-in-out infinite;
+  box-shadow: 
+    0 0 10px rgba(168, 85, 247, 0.4),
+    0 0 20px rgba(139, 92, 246, 0.2);
+  animation: command-pulse 6s ease-in-out infinite;
+  z-index: 1;
 }
 
-/* Scan drift animation */
-@keyframes scan-drift {
-  0% { 
-    opacity: 0.6;
-    transform: translateX(0px);
+@keyframes command-shimmer {
+  0%, 100% {
+    background-position: 0 0, 0 0, 0% 0%;
   }
-  100% { 
-    opacity: 0.8;
-    transform: translateX(2px);
+  50% {
+    background-position: 0 0, 0 0, 100% 100%;
   }
 }
 
-/* Accent pulse animation */
-@keyframes accent-pulse {
+@keyframes command-pulse {
   0%, 100% { 
     opacity: 0.8;
-    filter: brightness(100%);
+    box-shadow: 
+      0 0 10px rgba(168, 85, 247, 0.4),
+      0 0 20px rgba(139, 92, 246, 0.2);
   }
   50% { 
     opacity: 1;
-    filter: brightness(120%);
+    box-shadow: 
+      0 0 15px rgba(168, 85, 247, 0.6),
+      0 0 30px rgba(139, 92, 246, 0.3);
   }
+}
+
+/* Keep command header content above effects */
+.panel-command > * {
+  position: relative;
+  z-index: 2;
 }
 
 [data-theme="light"] .panel-command {
@@ -1848,12 +2033,16 @@ button:focus-visible, .btn:focus-visible {
    Premium status communication with sophisticated animations
    ===================================================== */
 
-/* Enhanced Beacon: Active/running state - no glow */
+/* Enhanced Beacon: Active/running state - pulsing with glow */
 .status-beacon {
   position: relative;
   width: 12px;
   height: 12px;
   background: currentColor;
+  animation: beacon-pulse 2s ease-in-out infinite;
+  box-shadow: 
+    0 0 8px currentColor,
+    0 0 16px currentColor;
 }
 
 .status-beacon::before {
@@ -1862,6 +2051,7 @@ button:focus-visible, .btn:focus-visible {
   inset: -4px;
   border: 2px solid currentColor;
   opacity: 0.5;
+  animation: beacon-ring 2s ease-in-out infinite;
 }
 
 .status-beacon::after {
@@ -1870,6 +2060,35 @@ button:focus-visible, .btn:focus-visible {
   inset: -8px;
   border: 1px solid currentColor;
   opacity: 0.3;
+  animation: beacon-ring 2s ease-in-out infinite 0.3s;
+}
+
+@keyframes beacon-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 
+      0 0 8px currentColor,
+      0 0 16px currentColor;
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+    box-shadow: 
+      0 0 12px currentColor,
+      0 0 24px currentColor;
+  }
+}
+
+@keyframes beacon-ring {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.15);
+  }
 }
 
 /* Signal: Connection strength indicator (1-3 bars) */
@@ -1967,84 +2186,666 @@ button:focus-visible, .btn:focus-visible {
 }
 
 /* =====================================================
-   BACKGROUND SYSTEM: Enhanced space-themed environment
-   Creates atmospheric depth and context with neural network aesthetics
+   BACKGROUND SYSTEM: ATMOSPHERIC SPACE ENVIRONMENT
+   A living, breathing cosmos with nebulae, aurora, and particle effects
    ===================================================== */
 
-/* Dark mode space background - darker for better contrast */
+/* Dark mode space background - immersive deep space */
 .bg-space {
-  background-color: oklch(5% 0.02 265);
-  background-image: 
-    /* Primary gradients for depth */
-    radial-gradient(ellipse at 15% 10%, rgba(109, 40, 217, 0.25) 0%, transparent 45%), 
-    radial-gradient(ellipse at 85% 90%, rgba(59, 130, 246, 0.25) 0%, transparent 45%),
-    radial-gradient(ellipse at 50% 50%, rgba(168, 85, 247, 0.08) 0%, transparent 60%),
-    /* Neural network grid pattern */
-    linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px),
-    /* Enhanced starfield */
-    url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='stars' width='300' height='300' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1.5' fill='rgba(255,255,255,0.2)'/%3E%3Ccircle cx='80' cy='120' r='0.8' fill='rgba(255,255,255,0.12)'/%3E%3Ccircle cx='160' cy='60' r='1' fill='rgba(255,255,255,0.15)'/%3E%3Ccircle cx='240' cy='200' r='1.8' fill='rgba(255,255,255,0.25)'/%3E%3Ccircle cx='50' cy='180' r='0.6' fill='rgba(255,255,255,0.1)'/%3E%3Ccircle cx='200' cy='40' r='1.2' fill='rgba(255,255,255,0.18)'/%3E%3Ccircle cx='280' cy='140' r='0.9' fill='rgba(255,255,255,0.14)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23stars)'/%3E%3C/svg%3E"),
-    /* Subtle noise texture for depth */
-    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
-  background-size: 
-    cover, cover, cover,  
-    60px 60px, 60px 60px,
-    300px 300px,
-    100px 100px;
-  background-attachment: fixed;
-  background-position: 
-    0% 0%, 100% 100%, 50% 50%,
-    0 0, 0 0,
-    0 0,
-    0 0;
+  background-color: oklch(3% 0.02 265);
+  position: relative;
   min-height: 100vh;
-  /* Subtle animation for living environment */
-  animation: space-shimmer 20s ease-in-out infinite alternate;
+  overflow: hidden;
 }
 
-/* Light mode background with enhanced sophistication */
-[data-theme="light"] .bg-space {
-  background-color: oklch(97% 0.005 265);
+/* Primary space layer - nebulae and cosmic dust */
+.bg-space::before {
+  content: "";
+  position: fixed;
+  inset: 0;
   background-image: 
-    /* Elegant gradient orbs */
-    radial-gradient(ellipse at 10% 15%, rgba(109, 40, 217, 0.12) 0%, transparent 50%), 
-    radial-gradient(ellipse at 90% 85%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(168, 85, 247, 0.05) 0%, transparent 60%),
-    /* Refined grid pattern */
-    linear-gradient(90deg, rgba(109, 40, 217, 0.04) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(109, 40, 217, 0.04) 1px, transparent 1px),
-    /* Sophisticated dot pattern */
-    url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='lightdots' width='80' height='80' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1.2' fill='rgba(109,40,217,0.08)'/%3E%3Ccircle cx='60' cy='60' r='0.8' fill='rgba(59,130,246,0.06)'/%3E%3Ccircle cx='40' cy='15' r='0.6' fill='rgba(168,85,247,0.05)'/%3E%3Ccircle cx='15' cy='50' r='1' fill='rgba(109,40,217,0.06)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23lightdots)'/%3E%3C/svg%3E"),
-    /* Paper texture for depth */
-    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='5' result='noise'/%3E%3CfeColorMatrix in='noise' type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)' opacity='0.015'/%3E%3C/svg%3E");
-  background-size: 
-    cover, cover, cover,
-    40px 40px, 40px 40px,
-    80px 80px,
-    200px 200px;
-  background-position: 
-    0% 0%, 100% 100%, 50% 50%,
-    0 0, 0 0,
-    0 0,
-    0 0;
+    /* Animated nebula clouds - layer 1 (purple/magenta) */
+    radial-gradient(ellipse 120% 80% at 20% 30%, 
+      rgba(147, 51, 234, 0.25) 0%, 
+      rgba(168, 85, 247, 0.15) 25%,
+      rgba(139, 92, 246, 0.08) 50%,
+      transparent 70%
+    ),
+    /* Animated nebula clouds - layer 2 (blue/cyan) */
+    radial-gradient(ellipse 100% 120% at 80% 70%, 
+      rgba(59, 130, 246, 0.2) 0%, 
+      rgba(96, 165, 250, 0.12) 30%,
+      rgba(147, 197, 253, 0.05) 50%,
+      transparent 65%
+    ),
+    /* Deep space glow - layer 3 (pink/red distant nebula) */
+    radial-gradient(ellipse 80% 60% at 65% 20%, 
+      rgba(244, 114, 182, 0.12) 0%, 
+      rgba(232, 121, 249, 0.08) 40%,
+      transparent 60%
+    ),
+    /* Central galactic core glow */
+    radial-gradient(ellipse 60% 40% at 50% 50%, 
+      rgba(139, 92, 246, 0.1) 0%, 
+      transparent 50%
+    );
+  background-size: 200% 200%, 180% 180%, 150% 150%, 100% 100%;
+  animation: nebula-drift 60s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* Subtle space shimmer animation */
-@keyframes space-shimmer {
+/* Secondary layer - stars and cosmic particles */
+.bg-space::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: 
+    /* Dense starfield - bright stars */
+    url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='stars' width='400' height='400' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1.8' fill='rgba(255,255,255,0.35)'/%3E%3Ccircle cx='120' cy='80' r='1.2' fill='rgba(255,255,255,0.25)'/%3E%3Ccircle cx='280' cy='40' r='2' fill='rgba(255,255,255,0.4)'/%3E%3Ccircle cx='350' cy='120' r='1' fill='rgba(255,255,255,0.2)'/%3E%3Ccircle cx='60' cy='180' r='1.5' fill='rgba(255,255,255,0.3)'/%3E%3Ccircle cx='200' cy='160' r='0.8' fill='rgba(255,255,255,0.15)'/%3E%3Ccircle cx='320' cy='200' r='1.3' fill='rgba(255,255,255,0.28)'/%3E%3Ccircle cx='80' cy='280' r='1' fill='rgba(255,255,255,0.18)'/%3E%3Ccircle cx='180' cy='320' r='1.6' fill='rgba(255,255,255,0.32)'/%3E%3Ccircle cx='260' cy='280' r='0.9' fill='rgba(255,255,255,0.16)'/%3E%3Ccircle cx='380' cy='340' r='1.4' fill='rgba(255,255,255,0.26)'/%3E%3Ccircle cx='40' cy='360' r='1.1' fill='rgba(255,255,255,0.22)'/%3E%3Ccircle cx='140' cy='240' r='2.2' fill='rgba(255,255,255,0.45)'/%3E%3Ccircle cx='300' cy='380' r='0.7' fill='rgba(255,255,255,0.14)'/%3E%3Ccircle cx='240' cy='100' r='1.7' fill='rgba(255,255,255,0.34)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23stars)'/%3E%3C/svg%3E"),
+    /* Secondary sparse starfield - dimmer distant stars */
+    url("data:image/svg+xml,%3Csvg width='600' height='600' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='dim-stars' width='600' height='600' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='50' cy='100' r='0.5' fill='rgba(200,220,255,0.1)'/%3E%3Ccircle cx='150' cy='50' r='0.6' fill='rgba(255,220,200,0.08)'/%3E%3Ccircle cx='300' cy='150' r='0.4' fill='rgba(220,200,255,0.09)'/%3E%3Ccircle cx='450' cy='80' r='0.5' fill='rgba(200,255,255,0.07)'/%3E%3Ccircle cx='100' cy='300' r='0.6' fill='rgba(255,200,220,0.08)'/%3E%3Ccircle cx='250' cy='400' r='0.4' fill='rgba(200,220,255,0.09)'/%3E%3Ccircle cx='400' cy='350' r='0.5' fill='rgba(255,255,200,0.07)'/%3E%3Ccircle cx='550' cy='250' r='0.4' fill='rgba(220,255,220,0.06)'/%3E%3Ccircle cx='200' cy='550' r='0.5' fill='rgba(255,220,255,0.08)'/%3E%3Ccircle cx='500' cy='500' r='0.6' fill='rgba(200,200,255,0.09)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23dim-stars)'/%3E%3C/svg%3E"),
+    /* Cosmic dust noise texture */
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  background-size: 400px 400px, 600px 600px, 200px 200px;
+  animation: starfield-twinkle 120s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Nebula drift animation - slow, organic movement */
+@keyframes nebula-drift {
   0% {
     background-position: 
-      0% 0%, 100% 100%, 50% 50%,
-      0 0, 0 0,
-      0 0,
-      0 0;
+      0% 0%, 
+      100% 100%, 
+      50% 0%,
+      50% 50%;
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    background-position: 
+      10% 5%, 
+      90% 95%, 
+      55% 10%,
+      48% 52%;
+  }
+  50% {
+    background-position: 
+      5% 10%, 
+      95% 90%, 
+      45% 5%,
+      52% 48%;
+    filter: hue-rotate(15deg);
+  }
+  75% {
+    background-position: 
+      -5% 8%, 
+      105% 92%, 
+      60% 15%,
+      50% 50%;
   }
   100% {
     background-position: 
-      2% 1%, 98% 99%, 52% 48%,
-      2px 2px, -2px 2px,
-      10px 10px,
-      5px 5px;
+      0% 0%, 
+      100% 100%, 
+      50% 0%,
+      50% 50%;
+    filter: hue-rotate(0deg);
   }
+}
+
+/* Starfield twinkle animation */
+@keyframes starfield-twinkle {
+  0% {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  100% {
+    background-position: 400px 400px, -300px 600px, 100px -100px;
+  }
+}
+
+/* Light mode - ethereal daytime atmosphere */
+[data-theme="light"] .bg-space {
+  background-color: oklch(98% 0.008 265);
+}
+
+[data-theme="light"] .bg-space::before {
+  background-image: 
+    /* Soft ethereal clouds */
+    radial-gradient(ellipse 150% 100% at 15% 20%, 
+      rgba(147, 51, 234, 0.08) 0%, 
+      rgba(168, 85, 247, 0.04) 40%,
+      transparent 60%
+    ),
+    radial-gradient(ellipse 120% 100% at 85% 80%, 
+      rgba(59, 130, 246, 0.08) 0%, 
+      rgba(96, 165, 250, 0.04) 40%,
+      transparent 60%
+    ),
+    radial-gradient(ellipse 80% 60% at 50% 10%, 
+      rgba(244, 114, 182, 0.05) 0%, 
+      transparent 50%
+    );
+  background-size: 200% 200%, 180% 180%, 150% 150%;
+  animation: nebula-drift 80s ease-in-out infinite;
+}
+
+[data-theme="light"] .bg-space::after {
+  background-image: 
+    /* Subtle dot pattern for texture */
+    url("data:image/svg+xml,%3Csvg width='80' height='80' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='lightdots' width='80' height='80' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1' fill='rgba(109,40,217,0.06)'/%3E%3Ccircle cx='60' cy='60' r='0.7' fill='rgba(59,130,246,0.05)'/%3E%3Ccircle cx='40' cy='15' r='0.5' fill='rgba(168,85,247,0.04)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23lightdots)'/%3E%3C/svg%3E"),
+    /* Paper texture */
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)' opacity='0.012'/%3E%3C/svg%3E");
+  background-size: 80px 80px, 200px 200px;
+  animation: none;
+}
+
+/* =====================================================
+   AURORA BOREALIS EFFECT: Dynamic light waves
+   Shimmering aurora effect for panel backgrounds
+   ===================================================== */
+
+/* Aurora container - applies to body for global effect */
+.aurora-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* Aurora wave effect - positioned at top of viewport */
+.aurora-wave {
+  position: absolute;
+  top: -50%;
+  left: -25%;
+  width: 150%;
+  height: 100%;
+  background: 
+    linear-gradient(180deg,
+      transparent 0%,
+      rgba(34, 197, 94, 0.03) 20%,
+      rgba(59, 130, 246, 0.05) 40%,
+      rgba(168, 85, 247, 0.04) 60%,
+      rgba(244, 114, 182, 0.03) 80%,
+      transparent 100%
+    );
+  filter: blur(60px);
+  animation: aurora-shimmer 25s ease-in-out infinite;
+  transform-origin: center top;
+}
+
+.aurora-wave:nth-child(2) {
+  animation-delay: -8s;
+  opacity: 0.7;
+  transform: scaleX(-1);
+}
+
+.aurora-wave:nth-child(3) {
+  animation-delay: -16s;
+  opacity: 0.5;
+  top: -30%;
+}
+
+@keyframes aurora-shimmer {
+  0%, 100% {
+    transform: translateX(-10%) skewX(-5deg) scaleY(1);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translateX(5%) skewX(3deg) scaleY(1.1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateX(15%) skewX(-3deg) scaleY(0.9);
+    opacity: 0.5;
+  }
+  75% {
+    transform: translateX(0%) skewX(5deg) scaleY(1.05);
+    opacity: 0.7;
+  }
+}
+
+[data-theme="light"] .aurora-wave {
+  background: 
+    linear-gradient(180deg,
+      transparent 0%,
+      rgba(34, 197, 94, 0.015) 20%,
+      rgba(59, 130, 246, 0.02) 40%,
+      rgba(168, 85, 247, 0.015) 60%,
+      transparent 100%
+    );
+  filter: blur(80px);
+}
+
+/* =====================================================
+   HOLOGRAPHIC PANEL EFFECTS: Floating display aesthetic
+   Chromatic aberration and scan lines for tech feel
+   ===================================================== */
+
+/* Holographic base effect for panels */
+.panel-holographic {
+  position: relative;
+  background: 
+    linear-gradient(135deg, 
+      rgba(15, 10, 35, 0.92) 0%,
+      rgba(20, 15, 45, 0.88) 50%,
+      rgba(15, 10, 35, 0.92) 100%
+    );
+  backdrop-filter: blur(20px) saturate(1.2);
+}
+
+/* Holographic shimmer overlay */
+.panel-holographic::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: 
+    /* Iridescent shimmer */
+    linear-gradient(
+      135deg,
+      rgba(139, 92, 246, 0.05) 0%,
+      rgba(59, 130, 246, 0.03) 25%,
+      rgba(244, 114, 182, 0.04) 50%,
+      rgba(34, 197, 94, 0.03) 75%,
+      rgba(139, 92, 246, 0.05) 100%
+    );
+  background-size: 400% 400%;
+  animation: holographic-shift 15s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Scan lines overlay for CRT effect */
+.panel-holographic::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(255, 255, 255, 0.008) 2px,
+    rgba(255, 255, 255, 0.008) 4px
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes holographic-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Light mode holographic */
+[data-theme="light"] .panel-holographic {
+  background: 
+    linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(250, 250, 255, 0.92) 50%,
+      rgba(255, 255, 255, 0.95) 100%
+    );
+}
+
+[data-theme="light"] .panel-holographic::before {
+  background: 
+    linear-gradient(
+      135deg,
+      rgba(139, 92, 246, 0.03) 0%,
+      rgba(59, 130, 246, 0.02) 25%,
+      rgba(244, 114, 182, 0.025) 50%,
+      rgba(34, 197, 94, 0.02) 75%,
+      rgba(139, 92, 246, 0.03) 100%
+    );
+  background-size: 400% 400%;
+}
+
+[data-theme="light"] .panel-holographic::after {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 0, 0, 0.005) 3px,
+    rgba(0, 0, 0, 0.005) 6px
+  );
+}
+
+/* =====================================================
+   PARTICLE SYSTEM: Floating cosmic particles
+   Subtle floating particles for active/working states
+   ===================================================== */
+
+/* Particle container for working panels */
+.particles-active {
+  position: relative;
+  overflow: hidden;
+}
+
+.particles-active::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(circle 2px at 10% 20%, rgba(34, 197, 94, 0.6) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 30% 70%, rgba(34, 197, 94, 0.5) 0%, transparent 100%),
+    radial-gradient(circle 1px at 50% 40%, rgba(34, 197, 94, 0.4) 0%, transparent 100%),
+    radial-gradient(circle 2px at 70% 80%, rgba(34, 197, 94, 0.55) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 90% 30%, rgba(34, 197, 94, 0.45) 0%, transparent 100%),
+    radial-gradient(circle 1px at 20% 90%, rgba(34, 197, 94, 0.35) 0%, transparent 100%),
+    radial-gradient(circle 2px at 80% 10%, rgba(34, 197, 94, 0.5) 0%, transparent 100%);
+  animation: particles-float 8s ease-in-out infinite;
+  pointer-events: none;
+  opacity: 0.8;
+  z-index: 1;
+}
+
+@keyframes particles-float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.8;
+  }
+  25% {
+    transform: translateY(-5px) translateX(3px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-8px) translateX(-2px);
+    opacity: 0.9;
+  }
+  75% {
+    transform: translateY(-3px) translateX(4px);
+    opacity: 0.7;
+  }
+}
+
+/* Purple particles for agent panels */
+.particles-agent::before {
+  background-image: 
+    radial-gradient(circle 2px at 15% 25%, rgba(168, 85, 247, 0.6) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 35% 65%, rgba(139, 92, 246, 0.5) 0%, transparent 100%),
+    radial-gradient(circle 1px at 55% 35%, rgba(192, 132, 252, 0.4) 0%, transparent 100%),
+    radial-gradient(circle 2px at 75% 75%, rgba(168, 85, 247, 0.55) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 85% 25%, rgba(139, 92, 246, 0.45) 0%, transparent 100%);
+}
+
+/* Error/warning particles - red/orange */
+.particles-error::before {
+  background-image: 
+    radial-gradient(circle 2px at 12% 22%, rgba(239, 68, 68, 0.6) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 38% 68%, rgba(248, 113, 113, 0.5) 0%, transparent 100%),
+    radial-gradient(circle 1px at 52% 42%, rgba(239, 68, 68, 0.4) 0%, transparent 100%),
+    radial-gradient(circle 2px at 78% 78%, rgba(248, 113, 113, 0.55) 0%, transparent 100%);
+  animation: particles-float 4s ease-in-out infinite;
+}
+
+/* =====================================================
+   SCANNER SWEEP: Loading state effects
+   Radar-style scanning animation for loading panels
+   ===================================================== */
+
+/* Scanner sweep for loading states */
+.scanner-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanner-sweep::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.03) 20%,
+    rgba(139, 92, 246, 0.1) 50%,
+    rgba(139, 92, 246, 0.03) 80%,
+    transparent 100%
+  );
+  animation: scanner-pass 2.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Vertical scanner bar */
+.scanner-sweep::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -2px;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.8) 50%,
+    transparent 100%
+  );
+  box-shadow: 
+    0 0 10px rgba(139, 92, 246, 0.5),
+    0 0 20px rgba(139, 92, 246, 0.3);
+  animation: scanner-line 2.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes scanner-pass {
+  0% { left: -50%; }
+  100% { left: 150%; }
+}
+
+@keyframes scanner-line {
+  0% { left: -2px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+/* Green scanner for success/working */
+.scanner-sweep-success::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(34, 197, 94, 0.03) 20%,
+    rgba(34, 197, 94, 0.1) 50%,
+    rgba(34, 197, 94, 0.03) 80%,
+    transparent 100%
+  );
+}
+
+.scanner-sweep-success::after {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(34, 197, 94, 0.8) 50%,
+    transparent 100%
+  );
+  box-shadow: 
+    0 0 10px rgba(34, 197, 94, 0.5),
+    0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+/* =====================================================
+   SHIP SUBSYSTEM PANELS: Environmental storytelling
+   Panels styled as spaceship control interfaces
+   ===================================================== */
+
+/* Subsystem panel base - ship hull aesthetic */
+.panel-subsystem {
+  position: relative;
+  background: 
+    linear-gradient(180deg,
+      rgba(20, 16, 45, 0.95) 0%,
+      rgba(15, 12, 35, 0.98) 100%
+    );
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+/* Hull rivets/bolts decorative corners */
+.panel-subsystem::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 6px;
+  height: 6px;
+  background: rgba(139, 92, 246, 0.4);
+  box-shadow: 
+    calc(100% - 22px) 0 0 rgba(139, 92, 246, 0.4),
+    0 calc(100% - 22px) 0 rgba(139, 92, 246, 0.3),
+    calc(100% - 22px) calc(100% - 22px) 0 rgba(139, 92, 246, 0.3);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* System status bar at top */
+.panel-subsystem::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 2px;
+  background: 
+    linear-gradient(90deg,
+      transparent 0%,
+      rgba(139, 92, 246, 0.3) 10%,
+      rgba(139, 92, 246, 0.6) 20%,
+      rgba(139, 92, 246, 0.6) 80%,
+      rgba(139, 92, 246, 0.3) 90%,
+      transparent 100%
+    );
+  z-index: 1;
+}
+
+/* Subsystem types with color coding */
+.panel-subsystem-navigation {
+  --subsystem-color: rgba(59, 130, 246, 0.6);
+}
+
+.panel-subsystem-navigation::after {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(59, 130, 246, 0.3) 10%,
+    rgba(59, 130, 246, 0.6) 20%,
+    rgba(59, 130, 246, 0.6) 80%,
+    rgba(59, 130, 246, 0.3) 90%,
+    transparent 100%
+  );
+}
+
+.panel-subsystem-engineering {
+  --subsystem-color: rgba(34, 197, 94, 0.6);
+}
+
+.panel-subsystem-engineering::after {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(34, 197, 94, 0.3) 10%,
+    rgba(34, 197, 94, 0.6) 20%,
+    rgba(34, 197, 94, 0.6) 80%,
+    rgba(34, 197, 94, 0.3) 90%,
+    transparent 100%
+  );
+}
+
+.panel-subsystem-comms {
+  --subsystem-color: rgba(249, 115, 22, 0.6);
+}
+
+.panel-subsystem-comms::after {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(249, 115, 22, 0.3) 10%,
+    rgba(249, 115, 22, 0.6) 20%,
+    rgba(249, 115, 22, 0.6) 80%,
+    rgba(249, 115, 22, 0.3) 90%,
+    transparent 100%
+  );
+}
+
+/* Light mode subsystem panels */
+[data-theme="light"] .panel-subsystem {
+  background: 
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(250, 250, 252, 0.95) 100%
+    );
+  border-color: rgba(139, 92, 246, 0.15);
+}
+
+[data-theme="light"] .panel-subsystem::before {
+  background: rgba(139, 92, 246, 0.25);
+  box-shadow: 
+    calc(100% - 22px) 0 0 rgba(139, 92, 246, 0.25),
+    0 calc(100% - 22px) 0 rgba(139, 92, 246, 0.2),
+    calc(100% - 22px) calc(100% - 22px) 0 rgba(139, 92, 246, 0.2);
+}
+
+/* =====================================================
+   VIEWPORT OVERLAY: Full-screen ambient effects
+   Global atmospheric layer for depth
+   ===================================================== */
+
+/* Vignette effect for depth */
+.vignette-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 80% at 50% 50%,
+    transparent 0%,
+    transparent 60%,
+    rgba(0, 0, 0, 0.15) 100%
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
+
+[data-theme="light"] .vignette-overlay {
+  background: radial-gradient(
+    ellipse 80% 80% at 50% 50%,
+    transparent 0%,
+    transparent 70%,
+    rgba(0, 0, 0, 0.03) 100%
+  );
+}
+
+/* =====================================================
+   MESH GRADIENT UTILITIES
+   Multi-point gradient backgrounds for rich visuals
+   ===================================================== */
+
+/* Cosmic mesh gradient */
+.mesh-cosmic {
+  background: 
+    radial-gradient(at 40% 20%, rgba(147, 51, 234, 0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, rgba(34, 197, 94, 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(244, 114, 182, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%);
+}
+
+/* Nebula mesh for panels */
+.mesh-nebula {
+  background: 
+    radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(244, 114, 182, 0.06) 0px, transparent 50%);
+}
+
+[data-theme="light"] .mesh-cosmic,
+[data-theme="light"] .mesh-nebula {
+  opacity: 0.5;
 }
 
 /* Dark mode glass panel (default) */
@@ -2487,20 +3288,42 @@ textarea:focus-visible {
 }
 
 /* =====================================================
-   DASHBOARD SECTION GROUPING: Visual Hierarchy
-   Three main sections with distinct visual identity
+   DASHBOARD SECTION GROUPING: Ship Deck Zones
+   Three main sections styled as distinct ship compartments
    ===================================================== */
 
-/* Section transitions and shared styles */
+/* Section transitions and shared styles - ship deck aesthetic */
 .section-core-work,
 .section-agent-status,
 .section-system-config {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
-/* Core Work Section - Green accent (tickets, PRs, branches) */
+/* Atmospheric glow effect for all sections */
+.section-core-work::after,
+.section-agent-status::after,
+.section-system-config::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    ellipse at center,
+    var(--section-glow-color, rgba(139, 92, 246, 0.03)) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Core Work Section - Engineering Deck (Green) */
 .section-core-work {
-  position: relative;
+  --section-glow-color: rgba(34, 197, 94, 0.04);
 }
 
 .section-core-work::before {
@@ -2512,17 +3335,22 @@ textarea:focus-visible {
   height: 3px;
   background: linear-gradient(90deg, 
     transparent 0%, 
-    rgba(34, 197, 94, 0.6) 20%, 
-    rgba(34, 197, 94, 0.8) 50%, 
-    rgba(34, 197, 94, 0.6) 80%, 
+    rgba(34, 197, 94, 0.4) 10%,
+    rgba(34, 197, 94, 0.8) 30%, 
+    rgba(34, 197, 94, 1) 50%, 
+    rgba(34, 197, 94, 0.8) 70%, 
+    rgba(34, 197, 94, 0.4) 90%,
     transparent 100%
   );
-  border-radius: 0;
+  box-shadow: 
+    0 0 10px rgba(34, 197, 94, 0.3),
+    0 0 20px rgba(34, 197, 94, 0.15);
+  z-index: 1;
 }
 
-/* Agent Status Section - Purple accent (OpenCode, Gemini, Dave, Subagents) */
+/* Agent Status Section - Command Deck (Purple) */
 .section-agent-status {
-  position: relative;
+  --section-glow-color: rgba(168, 85, 247, 0.05);
 }
 
 .section-agent-status::before {
@@ -2534,17 +3362,22 @@ textarea:focus-visible {
   height: 3px;
   background: linear-gradient(90deg, 
     transparent 0%, 
-    rgba(168, 85, 247, 0.6) 20%, 
-    rgba(168, 85, 247, 0.8) 50%, 
-    rgba(168, 85, 247, 0.6) 80%, 
+    rgba(168, 85, 247, 0.4) 10%,
+    rgba(168, 85, 247, 0.8) 30%, 
+    rgba(168, 85, 247, 1) 50%, 
+    rgba(168, 85, 247, 0.8) 70%, 
+    rgba(168, 85, 247, 0.4) 90%,
     transparent 100%
   );
-  border-radius: 0;
+  box-shadow: 
+    0 0 10px rgba(168, 85, 247, 0.3),
+    0 0 20px rgba(168, 85, 247, 0.15);
+  z-index: 1;
 }
 
-/* System Config Section - Orange accent (config, processes) */
+/* System Config Section - Operations Deck (Orange) */
 .section-system-config {
-  position: relative;
+  --section-glow-color: rgba(249, 115, 22, 0.04);
 }
 
 .section-system-config::before {
@@ -2556,12 +3389,25 @@ textarea:focus-visible {
   height: 3px;
   background: linear-gradient(90deg, 
     transparent 0%, 
-    rgba(249, 115, 22, 0.6) 20%, 
-    rgba(249, 115, 22, 0.8) 50%, 
-    rgba(249, 115, 22, 0.6) 80%, 
+    rgba(249, 115, 22, 0.4) 10%,
+    rgba(249, 115, 22, 0.8) 30%, 
+    rgba(249, 115, 22, 1) 50%, 
+    rgba(249, 115, 22, 0.8) 70%, 
+    rgba(249, 115, 22, 0.4) 90%,
     transparent 100%
   );
-  border-radius: 0;
+  box-shadow: 
+    0 0 10px rgba(249, 115, 22, 0.3),
+    0 0 20px rgba(249, 115, 22, 0.15);
+  z-index: 1;
+}
+
+/* Section content stays above atmospheric effects */
+.section-core-work > *,
+.section-agent-status > *,
+.section-system-config > * {
+  position: relative;
+  z-index: 2;
 }
 
 /* Light mode section adjustments */
@@ -2872,4 +3718,265 @@ textarea:focus-visible {
   .agent-cards-grid {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
+}
+
+/* =====================================================
+   TWINKLING STARS: Animated bright stars
+   Random twinkling effect for select stars
+   ===================================================== */
+
+/* Twinkling star overlay - scattered bright points */
+.twinkle-stars {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.twinkle-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: white;
+  animation: twinkle var(--twinkle-duration, 3s) ease-in-out infinite;
+  animation-delay: var(--twinkle-delay, 0s);
+}
+
+.twinkle-star::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0.2) 30%,
+    transparent 70%
+  );
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* Different twinkle speeds */
+.twinkle-fast { --twinkle-duration: 1.5s; }
+.twinkle-medium { --twinkle-duration: 3s; }
+.twinkle-slow { --twinkle-duration: 5s; }
+
+/* =====================================================
+   BREATHING ATMOSPHERE: Subtle global pulse
+   Living environment effect
+   ===================================================== */
+
+/* Global breathing effect for the entire space */
+@keyframes atmosphere-breathe {
+  0%, 100% {
+    filter: brightness(1) saturate(1);
+  }
+  50% {
+    filter: brightness(1.02) saturate(1.05);
+  }
+}
+
+/* Apply breathing to space background */
+@media (prefers-reduced-motion: no-preference) {
+  .bg-space {
+    animation: atmosphere-breathe 8s ease-in-out infinite;
+  }
+}
+
+/* =====================================================
+   COSMIC DUST: Floating particle overlay
+   Very subtle floating dust particles
+   ===================================================== */
+
+.cosmic-dust {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image: 
+    radial-gradient(circle 1px at 15% 25%, rgba(255, 255, 255, 0.15) 0%, transparent 100%),
+    radial-gradient(circle 1px at 85% 15%, rgba(255, 255, 255, 0.12) 0%, transparent 100%),
+    radial-gradient(circle 1px at 45% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 100%),
+    radial-gradient(circle 1px at 75% 85%, rgba(255, 255, 255, 0.13) 0%, transparent 100%),
+    radial-gradient(circle 1px at 25% 55%, rgba(255, 255, 255, 0.11) 0%, transparent 100%),
+    radial-gradient(circle 1px at 55% 35%, rgba(255, 255, 255, 0.14) 0%, transparent 100%),
+    radial-gradient(circle 1px at 95% 45%, rgba(255, 255, 255, 0.09) 0%, transparent 100%),
+    radial-gradient(circle 1px at 5% 95%, rgba(255, 255, 255, 0.12) 0%, transparent 100%);
+  animation: dust-drift 40s linear infinite;
+}
+
+@keyframes dust-drift {
+  0% {
+    transform: translateY(0) translateX(0);
+  }
+  100% {
+    transform: translateY(-100px) translateX(50px);
+  }
+}
+
+[data-theme="light"] .cosmic-dust {
+  opacity: 0.3;
+}
+
+/* =====================================================
+   DATA STREAM EFFECT: For active/streaming panels
+   Digital data flow visualization
+   ===================================================== */
+
+.data-stream-active {
+  position: relative;
+  overflow: hidden;
+}
+
+.data-stream-active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 8px;
+  width: 2px;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 4px,
+    rgba(34, 197, 94, 0.6) 4px,
+    rgba(34, 197, 94, 0.6) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+  animation: data-flow 1s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes data-flow {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 16px;
+  }
+}
+
+/* =====================================================
+   PANEL GLOW EFFECTS: Ambient lighting
+   Subtle glow for different panel states
+   ===================================================== */
+
+/* Ambient glow for high-priority panels */
+.panel-glow-purple {
+  box-shadow: 
+    0 4px 20px -4px rgba(0, 0, 0, 0.5),
+    0 0 30px -10px rgba(139, 92, 246, 0.2),
+    0 0 60px -20px rgba(168, 85, 247, 0.1);
+}
+
+.panel-glow-green {
+  box-shadow: 
+    0 4px 20px -4px rgba(0, 0, 0, 0.5),
+    0 0 30px -10px rgba(34, 197, 94, 0.2),
+    0 0 60px -20px rgba(34, 197, 94, 0.1);
+}
+
+.panel-glow-orange {
+  box-shadow: 
+    0 4px 20px -4px rgba(0, 0, 0, 0.5),
+    0 0 30px -10px rgba(249, 115, 22, 0.2),
+    0 0 60px -20px rgba(249, 115, 22, 0.1);
+}
+
+.panel-glow-blue {
+  box-shadow: 
+    0 4px 20px -4px rgba(0, 0, 0, 0.5),
+    0 0 30px -10px rgba(59, 130, 246, 0.2),
+    0 0 60px -20px rgba(59, 130, 246, 0.1);
+}
+
+/* =====================================================
+   REDUCED MOTION: Accessibility
+   Disable animations for users who prefer reduced motion
+   ===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-space::before,
+  .bg-space::after,
+  .aurora-wave,
+  .panel-priority-high::before,
+  .panel-status-working::before,
+  .panel-status-working::after,
+  .panel-status-loading::before,
+  .panel-status-loading::after,
+  .status-beacon,
+  .status-beacon::before,
+  .status-beacon::after,
+  .cosmic-dust,
+  .data-stream-active::before {
+    animation: none !important;
+  }
+  
+  .bg-space {
+    animation: none !important;
+  }
+  
+  /* Provide static alternatives */
+  .status-beacon {
+    box-shadow: 0 0 8px currentColor;
+  }
+}
+
+/* =====================================================
+   LIGHT MODE: Atmospheric adjustments
+   Softer effects for light theme
+   ===================================================== */
+
+[data-theme="light"] .aurora-layer {
+  opacity: 0.5;
+}
+
+[data-theme="light"] .vignette-overlay {
+  opacity: 0.3;
+}
+
+[data-theme="light"] .panel-priority-high::before {
+  background: 
+    linear-gradient(
+      135deg,
+      rgba(139, 92, 246, 0.02) 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.015) 60%,
+      transparent 100%
+    );
+}
+
+[data-theme="light"] .panel-priority-high::after {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 4px,
+    rgba(0, 0, 0, 0.003) 4px,
+    rgba(0, 0, 0, 0.003) 8px
+  );
+}
+
+[data-theme="light"] .panel-status-working::before,
+[data-theme="light"] .panel-status-loading::before {
+  opacity: 0.5;
+}
+
+[data-theme="light"] .panel-status-working::after,
+[data-theme="light"] .panel-status-loading::after {
+  opacity: 0.6;
 }
