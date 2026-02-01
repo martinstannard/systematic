@@ -21,6 +21,7 @@ defmodule DashboardPhoenix.SessionBridge do
   @max_progress_events 100
   @max_transcript_offsets 50  # Limit transcript_offsets map size
   @transcript_cleanup_interval 300_000  # Clean up old transcripts every 5 minutes
+  @directory_scan_cache_ttl 5000  # Cache directory listings for 5 seconds
 
   defp sessions_file do
     Paths.sessions_file()
@@ -70,7 +71,8 @@ defmodule DashboardPhoenix.SessionBridge do
       last_cleanup: System.system_time(:millisecond),
       # Performance caches (Ticket #70)
       sessions_cache: %{parsed: nil, mtime: nil},  # Cached parsed sessions.json
-      transcript_details_cache: %{}  # %{session_id => %{mtime: _, size: _, details: _}}
+      transcript_details_cache: %{},  # %{session_id => %{mtime: _, size: _, details: _}}
+      directory_scan_cache: %{files: nil, timestamp: 0}  # Cache directory listings
     }}
   end
 
@@ -169,65 +171,66 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   # Clean up old transcript offsets to prevent unbounded memory growth
-  # Optimized: Single pass file stat collection, reuse stat info
+  # Optimized: Single pass file stat collection, reuse cached directory scan
   defp cleanup_old_transcript_offsets(state) do
     dir = transcripts_dir()
     cutoff = System.system_time(:second) - 3600  # Keep files from last hour
     
-    case File.ls(dir) do
-      {:ok, files} ->
-        # Single pass: collect stats for all relevant files at once
-        jsonl_files = files
-        |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
-        |> Enum.reject(&(&1 == "sessions.json"))
-        
-        # Batch stat all files once
-        file_stats = jsonl_files
-        |> Enum.map(fn file ->
-          path = Path.join(dir, file)
-          case File.stat(path) do
-            {:ok, %{mtime: mtime}} ->
-              epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-              {file, epoch}
-            _ -> 
-              nil
-          end
-        end)
-        |> Enum.reject(&is_nil/1)
-        |> Map.new()
-        
-        # Filter to recent files using pre-collected stats
-        active_files = file_stats
-        |> Enum.filter(fn {_file, epoch} -> epoch > cutoff end)
-        |> Enum.map(fn {file, _epoch} -> file end)
-        |> MapSet.new()
-        
-        # Clean up transcript_offsets - keep only recent files and limit size
-        # Sort by pre-collected epoch (descending) to keep most recent
-        cleaned_offsets = state.transcript_offsets
-        |> Enum.filter(fn {filename, _offset} -> MapSet.member?(active_files, filename) end)
-        |> Enum.sort_by(fn {filename, _offset} -> 
-          Map.get(file_stats, filename, 0)
-        end, :desc)
-        |> Enum.take(@max_transcript_offsets)
-        |> Map.new()
-        
-        # Log cleanup stats and telemetry
-        old_count = map_size(state.transcript_offsets)
-        new_count = map_size(cleaned_offsets)
-        if old_count > new_count do
-          require Logger
-          Logger.info("SessionBridge: Cleaned up transcript offsets: #{old_count} -> #{new_count}")
+    {files, new_state} = get_cached_directory_files(state, dir)
+    
+    if files != [] do
+      # Single pass: collect stats for all relevant files at once
+      jsonl_files = files
+      |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
+      |> Enum.reject(&(&1 == "sessions.json"))
+      
+      # Batch stat all files once
+      file_stats = jsonl_files
+      |> Enum.map(fn file ->
+        path = Path.join(dir, file)
+        case File.stat(path) do
+          {:ok, %{mtime: mtime}} ->
+            epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
+            {file, epoch}
+          _ -> 
+            nil
         end
-        
-        # Log periodic telemetry (every cleanup cycle)
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Map.new()
+      
+      # Filter to recent files using pre-collected stats
+      active_files = file_stats
+      |> Enum.filter(fn {_file, epoch} -> epoch > cutoff end)
+      |> Enum.map(fn {file, _epoch} -> file end)
+      |> MapSet.new()
+      
+      # Clean up transcript_offsets - keep only recent files and limit size
+      # Sort by pre-collected epoch (descending) to keep most recent
+      cleaned_offsets = new_state.transcript_offsets
+      |> Enum.filter(fn {filename, _offset} -> MapSet.member?(active_files, filename) end)
+      |> Enum.sort_by(fn {filename, _offset} -> 
+        Map.get(file_stats, filename, 0)
+      end, :desc)
+      |> Enum.take(@max_transcript_offsets)
+      |> Map.new()
+      
+      # Log cleanup stats and telemetry
+      old_count = map_size(new_state.transcript_offsets)
+      new_count = map_size(cleaned_offsets)
+      if old_count > new_count do
         require Logger
-        Logger.info("SessionBridge telemetry: transcript_offsets=#{new_count}/#{@max_transcript_offsets}, progress_events=#{length(state.progress)}/#{@max_progress_events}, sessions=#{length(state.sessions)}")
-        
-        %{state | transcript_offsets: cleaned_offsets, last_cleanup: System.system_time(:millisecond)}
-        
-      _ ->
-        state
+        Logger.info("SessionBridge: Cleaned up transcript offsets: #{old_count} -> #{new_count}")
+      end
+      
+      # Log periodic telemetry (every cleanup cycle)
+      require Logger
+      Logger.info("SessionBridge telemetry: transcript_offsets=#{new_count}/#{@max_transcript_offsets}, progress_events=#{length(new_state.progress)}/#{@max_progress_events}, sessions=#{length(new_state.sessions)}")
+      
+      %{new_state | transcript_offsets: cleaned_offsets, last_cleanup: System.system_time(:millisecond)}
+    else
+      # Directory scan failed or no files
+      new_state
     end
   end
 
@@ -297,56 +300,79 @@ defmodule DashboardPhoenix.SessionBridge do
     end
   end
 
-  # Optimized: Single-pass directory scan with batched stat calls
+  # Get cached directory listing if still valid, otherwise refresh
+  defp get_cached_directory_files(state, dir) do
+    now = System.system_time(:millisecond)
+    cache = state.directory_scan_cache
+    
+    if cache.files && (now - cache.timestamp) < @directory_scan_cache_ttl do
+      # Use cached files
+      {cache.files, state}
+    else
+      # Refresh directory listing
+      case File.ls(dir) do
+        {:ok, files} ->
+          new_cache = %{files: files, timestamp: now}
+          new_state = %{state | directory_scan_cache: new_cache}
+          {files, new_state}
+        {:error, _} ->
+          {[], state}
+      end
+    end
+  end
+
+  # Optimized: Single-pass directory scan with batched stat calls + directory caching
   defp do_poll_transcripts(state) do
     dir = transcripts_dir()
-    case File.ls(dir) do
-      {:ok, files} ->
-        cutoff = System.system_time(:second) - 600  # Last 10 minutes
+    
+    {files, new_state} = get_cached_directory_files(state, dir)
+    
+    if files != [] do
+      cutoff = System.system_time(:second) - 600  # Last 10 minutes
+      
+      # Single pass: filter to jsonl files and batch stat
+      jsonl_files = files
+      |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
+      |> Enum.reject(&(&1 == "sessions.json"))
         
-        # Single pass: filter to jsonl files and batch stat
-        jsonl_files = files
-        |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
-        |> Enum.reject(&(&1 == "sessions.json"))
-        
-        # Batch stat all candidate files once
-        recent_files = jsonl_files
-        |> Enum.map(fn file ->
-          path = Path.join(dir, file)
-          case File.stat(path) do
-            {:ok, %{mtime: mtime, size: size}} ->
-              epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-              if epoch > cutoff, do: {path, file, size}, else: nil
-            _ -> nil
-          end
-        end)
-        |> Enum.reject(&is_nil/1)
-        |> Enum.sort_by(fn {_, _, size} -> size end, :desc)
-        |> Enum.take(5)  # Top 5 most recent/active
-        
-        # Extract new tool calls from each file, using cached sessions for labels
-        {new_events, new_offsets} = 
-          Enum.reduce(recent_files, {[], state.transcript_offsets}, fn {path, file, _size}, {events_acc, offsets_acc} ->
-            offset = Map.get(offsets_acc, file, 0)
-            {new_events, new_offset} = extract_tool_calls_from_transcript(path, file, offset, state.sessions_cache.parsed)
-            {events_acc ++ new_events, Map.put(offsets_acc, file, new_offset)}
-          end)
-        
-        if new_events != [] do
-          # Merge and deduplicate by timestamp
-          updated_progress = (state.progress ++ new_events)
-          |> Enum.uniq_by(& &1.ts)
-          |> Enum.sort_by(& &1.ts)
-          |> Enum.take(-@max_progress_events)
-          
-          broadcast_progress(new_events)
-          %{state | progress: updated_progress, transcript_offsets: new_offsets}
-        else
-          %{state | transcript_offsets: new_offsets}
+      # Batch stat all candidate files once
+      recent_files = jsonl_files
+      |> Enum.map(fn file ->
+        path = Path.join(dir, file)
+        case File.stat(path) do
+          {:ok, %{mtime: mtime, size: size}} ->
+            epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
+            if epoch > cutoff, do: {path, file, size}, else: nil
+          _ -> nil
         end
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.sort_by(fn {_, _, size} -> size end, :desc)
+      |> Enum.take(5)  # Top 5 most recent/active
+      
+      # Extract new tool calls from each file, using cached sessions for labels
+      {new_events, new_offsets} = 
+        Enum.reduce(recent_files, {[], new_state.transcript_offsets}, fn {path, file, _size}, {events_acc, offsets_acc} ->
+          offset = Map.get(offsets_acc, file, 0)
+          {new_events, new_offset} = extract_tool_calls_from_transcript(path, file, offset, new_state.sessions_cache.parsed)
+          {events_acc ++ new_events, Map.put(offsets_acc, file, new_offset)}
+        end)
+      
+      if new_events != [] do
+        # Merge and deduplicate by timestamp
+        updated_progress = (new_state.progress ++ new_events)
+        |> Enum.uniq_by(& &1.ts)
+        |> Enum.sort_by(& &1.ts)
+        |> Enum.take(-@max_progress_events)
         
-      _ ->
-        state
+        broadcast_progress(new_events)
+        %{new_state | progress: updated_progress, transcript_offsets: new_offsets}
+      else
+        %{new_state | transcript_offsets: new_offsets}
+      end
+    else
+      # No files found or directory scan failed
+      new_state
     end
   end
 
@@ -361,7 +387,11 @@ defmodule DashboardPhoenix.SessionBridge do
             File.close(file)
             
             # Extract session label using cached sessions map (no file read!)
-            session_id = String.replace(filename, ".jsonl", "")
+            # Optimize: avoid string allocation by using binary pattern matching
+            session_id = case filename do
+              <<session::binary-size(byte_size(filename) - 6), ".jsonl">> -> session
+              _ -> filename  # fallback for non-.jsonl files
+            end
             agent_label = get_session_label_from_cache(session_id, sessions_map)
             
             # Parse all lines, collecting tool calls and results
