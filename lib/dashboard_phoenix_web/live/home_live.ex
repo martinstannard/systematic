@@ -196,8 +196,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:ok, socket}
   end
 
-  # Handle live progress updates
-  def handle_info({:progress, events}, socket) do
+  # Handle live progress updates (with validation for proper test isolation)
+  def handle_info({:progress, events}, socket) when is_list(events) do
     updated = (socket.assigns.agent_progress ++ events) |> Enum.take(-100)
     activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(socket.assigns.agent_sessions, updated)
     main_activity_count = Enum.count(updated, & &1.agent == "main")
@@ -211,8 +211,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, agent_progress: updated, agent_progress_count: agent_progress_count, agent_activity: activity, main_activity_count: main_activity_count)}
   end
 
-  # Handle session updates
-  def handle_info({:sessions, raw_sessions}, socket) do
+  # Handle malformed progress data gracefully (test isolation)
+  def handle_info({:progress, _invalid}, socket) do
+    {:noreply, socket}
+  end
+
+  # Handle session updates (with validation for proper test isolation)
+  def handle_info({:sessions, raw_sessions}, socket) when is_list(raw_sessions) do
     # Enrich sessions with extracted ticket/PR data once (O(n) instead of O(n*m))
     sessions = Enum.map(raw_sessions, &enrich_agent_session/1)
     activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, socket.assigns.agent_progress)
@@ -221,6 +226,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
     chainlink_work_in_progress = build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
     agent_sessions_count = length(sessions)
     {:noreply, assign(socket, agent_sessions: sessions, agent_sessions_count: agent_sessions_count, agent_activity: activity, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress, chainlink_work_in_progress: chainlink_work_in_progress)}
+  end
+
+  # Handle malformed session data gracefully (test isolation)
+  def handle_info({:sessions, _invalid}, socket) do
+    {:noreply, socket}
   end
 
   # Handle stats updates
@@ -1432,6 +1442,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("toggle_show_completed", _, socket) do
     {:noreply, assign(socket, show_completed: !socket.assigns.show_completed)}
+  end
+
+  def handle_event("toggle_main_entries", _, socket) do
+    {:noreply, assign(socket, show_main_entries: !socket.assigns.show_main_entries)}
   end
 
   def handle_event("refresh_stats", _, socket) do

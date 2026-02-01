@@ -15,38 +15,42 @@ defmodule DashboardPhoenix.TestHelpers do
   @doc """
   Sets up all mocks for a test with default behaviors.
   Call this in test setup to enable proper test isolation.
+  Uses `stub` instead of `expect` for functions that may be called multiple times.
   """
   def setup_mocks do
-    # File system mock setup
+    # Reset rate limiter for test isolation
+    DashboardPhoenix.RateLimiter.reset()
+
+    # File system mock setup - use stub for functions called multiple times
     FileSystemMock
-    |> expect(:read, fn _path -> {:ok, ""} end)
-    |> expect(:write, fn _path, _content -> :ok end)
-    |> expect(:write!, fn _path, _content -> :ok end)
-    |> expect(:rm, fn _path -> :ok end)
-    |> expect(:exists?, fn _path -> false end)
-    |> expect(:atomic_write, fn _path, _content -> :ok end)
+    |> stub(:read, fn _path -> {:ok, ""} end)
+    |> stub(:write, fn _path, _content -> :ok end)
+    |> stub(:write!, fn _path, _content -> :ok end)
+    |> stub(:rm, fn _path -> :ok end)
+    |> stub(:exists?, fn _path -> false end)
+    |> stub(:atomic_write, fn _path, _content -> :ok end)
 
     # Session bridge mock setup
     SessionBridgeMock
-    |> expect(:get_sessions, fn -> [] end)
-    |> expect(:get_progress, fn -> [] end)
-    |> expect(:subscribe, fn -> :ok end)
-    |> expect(:clear_progress, fn -> :ok end)
+    |> stub(:get_sessions, fn -> [] end)
+    |> stub(:get_progress, fn -> [] end)
+    |> stub(:subscribe, fn -> :ok end)
+    |> stub(:clear_progress, fn -> :ok end)
 
     # OpenCode client mock setup
     OpenCodeClientMock
-    |> expect(:send_task, fn _prompt, _opts -> {:ok, %{session_id: "mock-session-123"}} end)
-    |> expect(:health_check, fn -> :ok end)
-    |> expect(:list_sessions, fn -> {:ok, []} end)
-    |> expect(:list_sessions_formatted, fn -> {:ok, []} end)
-    |> expect(:send_message, fn _session_id, _message -> {:ok, :sent} end)
-    |> expect(:delete_session, fn _session_id -> :ok end)
+    |> stub(:send_task, fn _prompt, _opts -> {:ok, %{session_id: "mock-session-123"}} end)
+    |> stub(:health_check, fn -> :ok end)
+    |> stub(:list_sessions, fn -> {:ok, []} end)
+    |> stub(:list_sessions_formatted, fn -> {:ok, []} end)
+    |> stub(:send_message, fn _session_id, _message -> {:ok, :sent} end)
+    |> stub(:delete_session, fn _session_id -> :ok end)
 
     # OpenClaw client mock setup
     OpenClawClientMock
-    |> expect(:work_on_ticket, fn _ticket_id, _details, _opts -> {:ok, %{ticket_id: "mock-ticket"}} end)
-    |> expect(:send_message, fn _message, _opts -> {:ok, :sent} end)
-    |> expect(:spawn_subagent, fn _prompt, _opts -> {:ok, %{job_id: "mock-job-123"}} end)
+    |> stub(:work_on_ticket, fn _ticket_id, _details, _opts -> {:ok, %{ticket_id: "mock-ticket"}} end)
+    |> stub(:send_message, fn _message, _opts -> {:ok, :sent} end)
+    |> stub(:spawn_subagent, fn _prompt, _opts -> {:ok, %{job_id: "mock-job-123"}} end)
 
     :ok
   end

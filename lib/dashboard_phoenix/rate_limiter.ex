@@ -83,6 +83,14 @@ defmodule DashboardPhoenix.RateLimiter do
     GenServer.call(__MODULE__, :get_state)
   end
 
+  @doc """
+  Reset all rate limit buckets to full tokens.
+  Useful for test isolation to ensure each test starts with fresh limits.
+  """
+  def reset do
+    GenServer.call(__MODULE__, :reset)
+  end
+
   # Server implementation
 
   @impl true
@@ -130,6 +138,24 @@ defmodule DashboardPhoenix.RateLimiter do
   @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call(:reset, _from, state) do
+    # Reset all buckets to full tokens for test isolation
+    buckets = 
+      @rate_limits
+      |> Enum.into(%{}, fn {command, limit} ->
+        bucket_size = Map.get(@bucket_sizes, command, limit)
+        {command, %{tokens: bucket_size, max_tokens: bucket_size}}
+      end)
+
+    new_state = %{state | 
+      buckets: buckets,
+      last_refill: System.monotonic_time(:millisecond)
+    }
+
+    {:reply, :ok, new_state}
   end
 
   @impl true

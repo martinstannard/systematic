@@ -4,7 +4,8 @@ defmodule DashboardPhoenix.CommandRunnerTest do
   alias DashboardPhoenix.CommandRunner
 
   setup do
-    # Rate limiter is already started by the application
+    # Reset rate limiter before each test for proper test isolation
+    DashboardPhoenix.RateLimiter.reset()
     :ok
   end
 

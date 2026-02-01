@@ -4,8 +4,8 @@ defmodule DashboardPhoenix.RateLimiterTest do
   alias DashboardPhoenix.RateLimiter
 
   setup do
-    # For simplicity, just test against the global instance
-    # In a real scenario, we'd want isolated instances, but this works for basic functionality testing
+    # Reset rate limiter before each test for proper test isolation
+    RateLimiter.reset()
     :ok
   end
 
@@ -20,19 +20,20 @@ defmodule DashboardPhoenix.RateLimiterTest do
     end
 
     test "different commands have independent rate limits" do
-      # Use unique command names to avoid test interference
-      gh_cmd = "test_gh_#{:rand.uniform(10000)}"
-      linear_cmd = "test_linear_#{:rand.uniform(10000)}"
+      # Use actual commands with different buckets to test independence
+      # "gh" has 30 tokens, "linear" has 40 tokens - these are separate buckets
+      gh_cmd = "gh"
+      linear_cmd = "linear"
       
-      # Exhaust one command's tokens (using default 20 for unknown commands)
-      for _ <- 1..20 do
+      # Exhaust gh's tokens (30)
+      for _ <- 1..30 do
         assert RateLimiter.acquire(gh_cmd) == :ok
       end
       
-      # Should be rate limited now
+      # gh should be rate limited now
       assert RateLimiter.acquire(gh_cmd) == {:error, :rate_limited}
       
-      # Different command should still work
+      # linear should still work (different bucket)
       assert RateLimiter.acquire(linear_cmd) == :ok
     end
 
@@ -51,22 +52,27 @@ defmodule DashboardPhoenix.RateLimiterTest do
   end
 
   describe "token refill" do
+    @tag :slow
     test "tokens are refilled over time" do
-      # Use unique command to avoid interference
-      test_cmd = "refill_test_#{:rand.uniform(10000)}"
+      # Use "gh" command which has 30 req/min (0.5 tokens/sec)
+      # After 3 seconds we should have at least 1 token
+      test_cmd = "gh"
       
-      # Exhaust tokens (using default 20 for unknown commands)
-      for _ <- 1..20 do
+      # Reset to ensure we start with full bucket
+      RateLimiter.reset()
+      
+      # Exhaust all 30 tokens for gh
+      for _ <- 1..30 do
         assert RateLimiter.acquire(test_cmd) == :ok
       end
       
-      # Should be rate limited
+      # Should be rate limited now
       assert RateLimiter.acquire(test_cmd) == {:error, :rate_limited}
       
-      # Wait for refill (need to wait a bit for tokens to refill)
-      Process.sleep(2_100)  # Just over 2 seconds
+      # Wait for refill (30 req/min = 0.5 tokens/sec, need 3s for 1.5 tokens)
+      Process.sleep(3_100)
       
-      # Should be able to acquire again
+      # Should be able to acquire again (at least 1 token refilled)
       assert RateLimiter.acquire(test_cmd) == :ok
     end
   end
