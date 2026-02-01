@@ -88,6 +88,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # Linear tickets - loaded async
       linear_tickets: [],
       linear_filtered_tickets: [],
+      linear_tickets_count: 0,
       linear_counts: %{},
       linear_last_updated: nil,
       linear_error: nil,
@@ -99,6 +100,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       prs_in_progress: %{},
       # Chainlink issues - loaded async
       chainlink_issues: [],
+      chainlink_issues_count: 0,
       chainlink_last_updated: nil,
       chainlink_error: nil,
       chainlink_loading: true,
@@ -106,11 +108,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
       chainlink_work_in_progress: load_persisted_chainlink_work(),
       # GitHub PRs - loaded async
       github_prs: [],
+      github_prs_count: 0,
       github_prs_last_updated: nil,
       github_prs_error: nil,
       github_prs_loading: true,
       # Unmerged branches - loaded async
       unmerged_branches: [],
+      unmerged_branches_count: 0,
       branches_worktrees: %{},
       branches_last_updated: nil,
       branches_error: nil,
@@ -404,8 +408,15 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle Linear ticket updates (from PubSub)
   def handle_info({:linear_update, data}, socket) do
     linear_counts = Enum.frequencies_by(data.tickets, & &1.status)
+    # Pre-filter tickets for current status and limit to 10
+    linear_filtered_tickets = data.tickets
+    |> Enum.filter(& &1.status == socket.assigns.linear_status_filter)
+    |> Enum.take(10)
+    
     {:noreply, assign(socket,
       linear_tickets: data.tickets,
+      linear_filtered_tickets: linear_filtered_tickets,
+      linear_tickets_count: length(data.tickets),
       linear_counts: linear_counts,
       linear_last_updated: data.last_updated,
       linear_error: data.error,
@@ -482,6 +493,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:chainlink_update, data}, socket) do
     {:noreply, assign(socket,
       chainlink_issues: data.issues,
+      chainlink_issues_count: length(data.issues),
       chainlink_last_updated: data.last_updated,
       chainlink_error: data.error,
       chainlink_loading: false
@@ -1051,6 +1063,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket,
       linear_tickets: data.tickets,
       linear_filtered_tickets: linear_filtered_tickets,
+      linear_tickets_count: length(data.tickets),
       linear_counts: linear_counts,
       linear_last_updated: data.last_updated,
       linear_error: data.error,
@@ -1084,6 +1097,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:chainlink_loaded, data}, socket) do
     {:noreply, assign(socket,
       chainlink_issues: data.issues,
+      chainlink_issues_count: length(data.issues),
       chainlink_last_updated: data.last_updated,
       chainlink_error: data.error,
       chainlink_loading: false
@@ -1094,6 +1108,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:pr_update, data}, socket) do
     {:noreply, assign(socket,
       github_prs: data.prs,
+      github_prs_count: length(data.prs),
       github_prs_last_updated: data.last_updated,
       github_prs_error: data.error,
       github_prs_loading: false
@@ -1132,6 +1147,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:github_prs_loaded, data}, socket) do
     {:noreply, assign(socket,
       github_prs: data.prs,
+      github_prs_count: length(data.prs),
       github_prs_last_updated: data.last_updated,
       github_prs_error: data.error,
       github_prs_loading: false
@@ -1142,6 +1158,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:branch_update, data}, socket) do
     {:noreply, assign(socket,
       unmerged_branches: data.branches,
+      unmerged_branches_count: length(data.branches),
       branches_worktrees: data.worktrees,
       branches_last_updated: data.last_updated,
       branches_error: data.error,
@@ -1175,6 +1192,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:branches_loaded, data}, socket) do
     {:noreply, assign(socket,
       unmerged_branches: data.branches,
+      unmerged_branches_count: length(data.branches),
       branches_worktrees: data.worktrees,
       branches_last_updated: data.last_updated,
       branches_error: data.error,

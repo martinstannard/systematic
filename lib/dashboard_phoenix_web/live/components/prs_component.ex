@@ -131,7 +131,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading pull requests</span>
           <% else %>
-            <span class="text-xs font-mono text-base-content/50"><%= length(@github_prs) %></span>
+            <span class="text-xs font-mono text-base-content/50"><%= @github_prs_count %></span>
           <% end %>
         </div>
         <button
