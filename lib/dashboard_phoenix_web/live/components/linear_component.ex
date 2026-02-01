@@ -67,12 +67,12 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   # Helper functions
 
-  defp linear_status_badge("Triage"), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
+  defp linear_status_badge("Triaging"), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px]"
   defp linear_status_badge("Todo"), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px]"
   defp linear_status_badge("Backlog"), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]"
   defp linear_status_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-[10px]"
 
-  defp linear_filter_button_active("Triage"), do: "bg-red-500/30 text-red-400 border border-red-500/50"
+  defp linear_filter_button_active("Triaging"), do: "bg-red-500/30 text-red-400 border border-red-500/50"
   defp linear_filter_button_active("Backlog"), do: "bg-blue-500/30 text-blue-400 border border-blue-500/50"
   defp linear_filter_button_active("Todo"), do: "bg-yellow-500/30 text-yellow-400 border border-yellow-500/50"
   defp linear_filter_button_active("In Review"), do: "bg-purple-500/30 text-purple-400 border border-purple-500/50"
@@ -118,7 +118,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
         <div class="px-3 pb-3">
           <!-- Status Filter -->
           <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
-            <%= for status <- ["Triage", "Backlog", "Todo", "In Review"] do %>
+            <%= for status <- ["Triaging", "Backlog", "Todo", "In Review"] do %>
               <% count = Map.get(@linear_counts, status, 0) %>
               <button
                 phx-click="set_linear_filter"

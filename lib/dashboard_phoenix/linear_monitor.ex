@@ -12,7 +12,7 @@ defmodule DashboardPhoenix.LinearMonitor do
   @poll_interval_ms 30_000  # 30 seconds
   @topic "linear_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for URLs
-  @states ["Triage", "Backlog", "Todo", "In Review"]
+  @states ["Triaging", "Backlog", "Todo", "In Review"]
   @cli_timeout_ms 30_000
 
   defp linear_cli, do: Paths.linear_cli()
