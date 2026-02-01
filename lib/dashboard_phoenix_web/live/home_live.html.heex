@@ -1,6 +1,6 @@
 <div class="min-h-screen flex flex-col" id="panel-state-container" phx-hook="PanelState">
-  <!-- Header Component with Neural Pulse Effect -->
-  <div class="neural-pulse">
+  <!-- Header Component -->
+  <div>
     <.live_component
       module={HeaderComponent}
       id="header"
@@ -16,7 +16,7 @@
     
     <!-- Usage Stats - Compact utility bar at top -->
     <div class={[
-      "glass-morphism panel-priority-compact panel-accent-reference rounded-xl neural-pulse relative",
+      "glass-morphism panel-priority-compact panel-accent-reference rounded-xl relative",
       DashboardPhoenix.PanelStatus.status_classes(:usage_stats, %{
         opencode: @usage_stats[:opencode] || %{},
         claude: @usage_stats[:claude] || %{}
@@ -32,7 +32,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
     <!-- CORE WORK - Linear / Chainlink / PRs / Branches                             -->
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream section-core-work" style="border-radius: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(34, 197, 94, 0.5);">
+    <section class="glass-morphism rounded-xl p-5 section-core-work" style="border-radius: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(34, 197, 94, 0.5);">
       <div class="flex items-center gap-3 mb-4">
         <div class="status-beacon text-green-400"></div>
         <h2 class="text-section-header text-base-content font-semibold tracking-wide">
@@ -50,9 +50,6 @@
             tickets: @linear_tickets
           })
         ]}>
-          <%= if DashboardPhoenix.PanelStatus.attention_badge(:linear, %{tickets: @linear_tickets}) do %>
-            <div class={["panel-attention-badge", DashboardPhoenix.PanelStatus.attention_badge(:linear, %{tickets: @linear_tickets})]}></div>
-          <% end %>
           <.live_component
             module={LinearComponent}
             id="linear-tickets"
@@ -76,9 +73,6 @@
             work_in_progress: @chainlink_work_in_progress
           })
         ]}>
-          <%= if DashboardPhoenix.PanelStatus.attention_badge(:chainlink, %{issues: @chainlink_issues}) do %>
-            <div class={["panel-attention-badge", DashboardPhoenix.PanelStatus.attention_badge(:chainlink, %{issues: @chainlink_issues})]}></div>
-          <% end %>
           <.live_component
             module={ChainlinkComponent}
             id="chainlink-issues"
@@ -100,9 +94,6 @@
             verifications: @pr_verifications
           })
         ]}>
-          <%= if DashboardPhoenix.PanelStatus.attention_badge(:github_prs, %{prs: @github_prs}) do %>
-            <div class={["panel-attention-badge", DashboardPhoenix.PanelStatus.attention_badge(:github_prs, %{prs: @github_prs})]}></div>
-          <% end %>
           <.live_component
             module={PRsComponent}
             id="prs-panel"
@@ -144,7 +135,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
     <!-- AGENT STATUS - OpenCode / Gemini / Dave / Subagents / Progress              -->
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream section-agent-status" style="border-radius: 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(168, 85, 247, 0.5);">
+    <section class="glass-morphism rounded-xl p-5 section-agent-status" style="border-radius: 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(168, 85, 247, 0.5);">
       <div class="flex items-center gap-3 mb-4">
         <div class="status-beacon text-purple-400"></div>
         <h2 class="text-section-header text-base-content font-semibold tracking-wide">
@@ -230,7 +221,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
     <!-- SYSTEM CONFIG - Config / Processes                                          -->
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <section class="glass-morphism rounded-xl p-5 neural-pulse section-system-config" style="border-radius: 16px; background: linear-gradient(135deg, rgba(249, 115, 22, 0.10) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(249, 115, 22, 0.5);">
+    <section class="glass-morphism rounded-xl p-5 section-system-config" style="border-radius: 16px; background: linear-gradient(135deg, rgba(249, 115, 22, 0.10) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(249, 115, 22, 0.5);">
       <div class="flex items-center gap-3 mb-4">
         <div class="status-beacon text-orange-400"></div>
         <h2 class="text-section-header text-base-content font-semibold tracking-wide">
