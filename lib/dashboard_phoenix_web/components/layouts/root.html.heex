@@ -31,6 +31,9 @@
     </script>
   </head>
   <body class="bg-space text-base-content antialiased">
-    {@inner_content}
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div id="main-content" tabindex="-1">
+      {@inner_content}
+    </div>
   </body>
 </html>

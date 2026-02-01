@@ -52,30 +52,33 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
 
   def render(assigns) do
     ~H"""
-    <div class="space-y-4">
+    <div class="space-y-3" role="region" aria-label="Test Runner">
       <button 
         phx-click="toggle_test_runner_panel"
         phx-target={@myself}
         class="panel-header-button w-full"
         type="button"
+        aria-expanded={if(@test_runner_collapsed, do: "false", else: "true")}
+        aria-controls="test-runner-content"
+        aria-label={"Toggle Test Runner panel. Status: #{if @test_running, do: "Running", else: get_test_status(@recent_test_events)}"}
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+            <div class="w-2 h-2 rounded-full bg-blue-500" aria-hidden="true"></div>
             <span class="text-panel-header font-medium">Test Runner</span>
-            <span class="text-ui-caption">
+            <span class="text-ui-caption" aria-live="polite">
               <%= if @test_running, do: "Running...", else: get_test_status(@recent_test_events) %>
             </span>
           </div>
-          <div class="text-ui-secondary">
+          <div class="text-ui-secondary" aria-hidden="true">
             <%= if @test_runner_collapsed, do: "▼", else: "▲" %>
           </div>
         </div>
       </button>
 
-      <div class={["space-y-4 px-4 pb-4", @test_runner_collapsed && "hidden"]}>
+      <div id="test-runner-content" class={["space-y-3", @test_runner_collapsed && "hidden"]}>
         <!-- Test Controls -->
-        <div class="flex gap-2 flex-wrap">
+        <div class="flex gap-2 flex-wrap" role="group" aria-label="Test controls">
           <button 
             phx-click="run_all_tests"
             phx-target={@myself}
@@ -85,11 +88,14 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
               @test_running && "opacity-50 cursor-not-allowed"
             ]}
             type="button"
+            aria-label={if @test_running, do: "Tests running, please wait", else: "Run all tests"}
+            aria-busy={if @test_running, do: "true", else: "false"}
           >
             <%= if @test_running, do: "Running...", else: "Run All Tests" %>
           </button>
           
           <div class="flex gap-1">
+            <label for="test-pattern-input" class="sr-only">Test pattern filter</label>
             <input 
               type="text" 
               placeholder="Test pattern..."
@@ -100,6 +106,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
               phx-target={@myself}
               phx-value-pattern=""
               disabled={@test_running}
+              aria-label="Enter test pattern to filter tests"
             />
             <button 
               phx-click="run_test_pattern"
@@ -109,6 +116,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
               onclick="this.setAttribute('phx-value-pattern', document.getElementById('test-pattern-input').value)"
               disabled={@test_running}
               type="button"
+              aria-label="Run tests matching pattern"
             >
               Run
             </button>
@@ -117,16 +125,20 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
 
         <!-- Recent Test Results -->
         <%= if length(@recent_test_events) > 0 do %>
-          <div class="space-y-2">
-            <h4 class="text-ui-secondary text-sm">Recent Test Results</h4>
-            <div class="space-y-1 max-h-32 overflow-y-auto">
+          <div class="space-y-2" role="region" aria-label="Recent test results">
+            <h4 class="text-ui-secondary text-sm" id="recent-tests-heading">Recent Test Results</h4>
+            <div class="space-y-1 max-h-32 overflow-y-auto" role="list" aria-labelledby="recent-tests-heading" aria-live="polite">
               <%= for event <- @recent_test_events do %>
-                <div class={[
-                  "flex items-start gap-2 text-xs p-2 rounded",
-                  event.type == :test_passed && "bg-green-50 text-green-800",
-                  event.type == :test_failed && "bg-red-50 text-red-800"
-                ]}>
-                  <div class="flex-shrink-0 mt-0.5">
+                <div 
+                  class={[
+                    "flex items-start gap-2 text-xs p-2 rounded",
+                    event.type == :test_passed && "bg-green-50 text-green-800",
+                    event.type == :test_failed && "bg-red-50 text-red-800"
+                  ]}
+                  role="listitem"
+                  aria-label={"Test #{if event.type == :test_passed, do: "passed", else: "failed"}: #{event.message}"}
+                >
+                  <div class="flex-shrink-0 mt-0.5" aria-hidden="true">
                     <%= if event.type == :test_passed do %>
                       <div class="w-2 h-2 rounded-full bg-green-500"></div>
                     <% else %>
@@ -136,9 +148,9 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
                   <div class="flex-1 min-w-0">
                     <div class="font-medium truncate"><%= event.message %></div>
                     <div class="text-ui-caption">
-                      <%= Calendar.strftime(event.timestamp, "%H:%M:%S") %>
+                      <span class="sr-only">Time: </span><%= Calendar.strftime(event.timestamp, "%H:%M:%S") %>
                       <%= if event.details[:total] do %>
-                        • <%= event.details.passed %>/<%=event.details.total%> passed
+                        • <span class="sr-only">Results: </span><%= event.details.passed %>/<%=event.details.total%> passed
                       <% end %>
                     </div>
                   </div>
@@ -147,7 +159,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
             </div>
           </div>
         <% else %>
-          <div class="text-ui-secondary text-sm">No recent test runs</div>
+          <div class="text-ui-secondary text-sm" role="status">No recent test runs</div>
         <% end %>
       </div>
     </div>

@@ -38,40 +38,46 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
 
   def render(assigns) do
     ~H"""
-    <div class="panel-content-standard" id="dave">
+    <div class="panel-content-standard" id="dave" role="region" aria-label="Dave - Main agent status">
       <%= if @main_agent_session do %>
         <div 
           class="panel-header-standard panel-header-interactive flex items-center justify-between select-none"
           phx-click="toggle_panel"
           phx-target={@myself}
+          role="button"
+          tabindex="0"
+          aria-expanded={if(@dave_collapsed, do: "false", else: "true")}
+          aria-controls="dave-panel-content"
+          aria-label="Toggle Dave panel"
+          onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
         >
           <div class="flex items-center space-x-2">
-            <span class={"panel-chevron " <> if(@dave_collapsed, do: "collapsed", else: "")}>▼</span>
-            <span class="panel-icon">🐙</span>
+            <span class={"panel-chevron " <> if(@dave_collapsed, do: "collapsed", else: "")} aria-hidden="true">▼</span>
+            <span class="panel-icon" aria-hidden="true">🐙</span>
             <span class="text-panel-label text-purple-400">Dave</span>
             <%= if @main_agent_session.status == "running" do %>
-              <span class="status-beacon text-warning" aria-label="Running" role="status"></span>
+              <span class="status-beacon text-warning" aria-hidden="true"></span>
               <span class="sr-only">Running</span>
             <% else %>
-              <span class={"px-2 py-1 text-xs rounded " <> status_badge(@main_agent_session.status)} role="status">
+              <span class={"px-1.5 py-0.5text-xs " <> status_badge(@main_agent_session.status)} role="status">
                 <%= @main_agent_session.status %>
               </span>
             <% end %>
           </div>
           <div class="flex items-center space-x-2">
             <% {_type, model_name, model_icon} = agent_type_from_model(Map.get(@main_agent_session, :model)) %>
-            <span class="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded" title={Map.get(@main_agent_session, :model)}>
-              <%= model_icon %> <%= model_name %>
+            <span class="px-1.5 py-0.5bg-purple-500/20 text-purple-400 text-xs" title={Map.get(@main_agent_session, :model)} aria-label={"Using model: #{model_name}"}>
+              <span aria-hidden="true"><%= model_icon %></span> <%= model_name %>
             </span>
           </div>
         </div>
         
-        <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@dave_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-          <div class="px-4 pb-4">
+        <div id="dave-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@dave_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+          <div class="px-3 pb-3">
             <% current_action = Map.get(@main_agent_session, :current_action) %>
             
             <!-- Current Activity -->
-            <div class="py-3">
+            <div class="py-2">
               <%= if @main_agent_session.status == "running" do %>
                 <%= if current_action do %>
                   <div class="flex items-center space-x-2 mb-2" role="status" aria-live="polite">
@@ -105,7 +111,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             </div>
             
             <!-- Stats Footer -->
-            <div class="pt-3 border-t border-purple-500/20 flex items-center justify-between text-xs font-mono">
+            <div class="pt-2 border-t border-purple-500/20 flex items-center justify-between text-xs font-mono">
               <div class="flex items-center space-x-3 text-base-content/50">
                 <span>↓ <%= format_tokens(Map.get(@main_agent_session, :tokens_in, 0)) %></span>
                 <span>↑ <%= format_tokens(Map.get(@main_agent_session, :tokens_out, 0)) %></span>
@@ -124,7 +130,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
           <div class="flex items-center space-x-2">
             <span class="text-xs">▼</span>
             <span class="text-panel-label text-base-content/60">🐙 Dave</span>
-            <span class="px-2 py-1 text-xs bg-base-content/20 text-base-content/60 rounded">
+            <span class="px-1.5 py-0.5text-xs bg-base-content/20 text-base-content/60">
               offline
             </span>
           </div>
