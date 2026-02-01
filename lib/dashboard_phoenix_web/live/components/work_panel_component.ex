@@ -64,6 +64,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   defp build_claude_agents(assigns) do
     show_completed = Map.get(assigns, :show_completed, true)
     dismissed_sessions = Map.get(assigns, :dismissed_sessions, MapSet.new())
+    chainlink_work = Map.get(assigns, :chainlink_work_in_progress, %{})
     
     assigns.agent_sessions
     |> Enum.reject(fn s -> Map.get(s, :session_key) == "agent:main:main" end)
@@ -77,11 +78,19 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       |> Map.get(:recent_actions, [])
       |> Enum.take(-5)
       
+      # Try to find stored work info for this session (by matching label to ticket-N pattern)
+      label = Map.get(s, :label, "")
+      stored_work = find_stored_work_info(label, chainlink_work)
+      
+      # Use stored agent_type/model if available, otherwise fall back to session data
+      agent_type = Map.get(stored_work, :agent_type) || "claude"
+      model = Map.get(s, :model) || Map.get(stored_work, :model)
+      
       %{
         id: Map.get(s, :id, "claude-#{:erlang.phash2(s)}"),
-        type: "claude",
-        model: Map.get(s, :model),
-        name: Map.get(s, :label) || String.slice(Map.get(s, :id, ""), 0, 12),
+        type: agent_type,
+        model: model,
+        name: label || String.slice(Map.get(s, :id, ""), 0, 12),
         task: Map.get(s, :task_summary),
         status: s.status,
         runtime: Map.get(s, :runtime),
@@ -97,6 +106,20 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       }
     end)
   end
+  
+  # Find stored work info by matching session label to chainlink ticket patterns
+  defp find_stored_work_info(label, chainlink_work) when is_binary(label) and is_map(chainlink_work) do
+    # Match "ticket-N" pattern in label to find the issue ID
+    case Regex.run(~r/ticket-(\d+)/, label) do
+      [_, issue_id_str] ->
+        case Integer.parse(issue_id_str) do
+          {issue_id, ""} -> Map.get(chainlink_work, issue_id, %{})
+          _ -> %{}
+        end
+      _ -> %{}
+    end
+  end
+  defp find_stored_work_info(_, _), do: %{}
 
   defp build_opencode_agents(assigns) do
     assigns.opencode_sessions

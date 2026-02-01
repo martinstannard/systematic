@@ -494,37 +494,82 @@ defmodule DashboardPhoenixWeb.HomeLive do
       
       # Spawn a sub-agent to work on it
       
-      case ClientFactory.openclaw_client().spawn_subagent(prompt,
-        name: "chainlink-#{issue_id}",
-        thinking: "low",
-        post_mode: "summary"
-      ) do
-        {:ok, result} ->
-          # Track that work is in progress (handle both job_id and name-only responses)
-          job_id = Map.get(result, :job_id, "unknown")
-          name = Map.get(result, :name, "chainlink-#{issue_id}")
-          work_info = %{label: name, job_id: job_id, type: :subagent}
-          
-          # Persist to tracker for survival across restarts
-          ChainlinkWorkTracker.start_work(issue_id, work_info)
-          
-          chainlink_wip = Map.put(socket.assigns.chainlink_work_in_progress, issue_id, work_info)
-          
-          # Log task started event
-          ActivityLog.log_event(:task_started, "Work started on Chainlink ##{issue_id}", %{
-            issue_id: issue_id,
-            title: issue.title,
-            priority: issue.priority,
-            agent: "claude"
-          })
-          
-          socket = socket
-          |> assign(chainlink_work_in_progress: chainlink_wip)
-          |> put_flash(:info, "Started work on Chainlink ##{issue_id}")
-          {:noreply, socket}
+      # Use coding preference (Claude vs OpenCode) like Linear tickets
+      coding_pref = socket.assigns.coding_pref
+      
+      case coding_pref do
+        :opencode ->
+          # Spawn via OpenCode
+          opencode_model = socket.assigns.opencode_model
+          case ClientFactory.opencode_client().send_task(prompt, model: opencode_model) do
+            {:ok, _result} ->
+              work_info = %{
+                label: "chainlink-#{issue_id}",
+                agent_type: "opencode",
+                model: opencode_model,
+                started_at: DateTime.utc_now() |> DateTime.to_iso8601()
+              }
+              
+              ChainlinkWorkTracker.start_work(issue_id, work_info)
+              chainlink_wip = Map.put(socket.assigns.chainlink_work_in_progress, issue_id, work_info)
+              
+              ActivityLog.log_event(:task_started, "Work started on Chainlink ##{issue_id}", %{
+                issue_id: issue_id,
+                title: issue.title,
+                priority: issue.priority,
+                agent: "opencode",
+                model: opencode_model
+              })
+              
+              socket = socket
+              |> assign(chainlink_work_in_progress: chainlink_wip)
+              |> put_flash(:info, "Started work on Chainlink ##{issue_id} with OpenCode (#{opencode_model})")
+              {:noreply, socket}
+            
+            {:error, reason} ->
+              {:noreply, put_flash(socket, :error, "Failed to start OpenCode work: #{inspect(reason)}")}
+          end
         
-        {:error, reason} ->
-          {:noreply, put_flash(socket, :error, "Failed to start work: #{inspect(reason)}")}
+        _ ->
+          # Default: spawn Claude sub-agent
+          claude_model = socket.assigns.claude_model
+          
+          case ClientFactory.openclaw_client().spawn_subagent(prompt,
+            name: "chainlink-#{issue_id}",
+            thinking: "low",
+            post_mode: "summary",
+            model: claude_model
+          ) do
+            {:ok, result} ->
+              job_id = Map.get(result, :job_id, "unknown")
+              name = Map.get(result, :name, "chainlink-#{issue_id}")
+              work_info = %{
+                label: name,
+                job_id: job_id,
+                agent_type: "claude",
+                model: claude_model,
+                started_at: DateTime.utc_now() |> DateTime.to_iso8601()
+              }
+              
+              ChainlinkWorkTracker.start_work(issue_id, work_info)
+              chainlink_wip = Map.put(socket.assigns.chainlink_work_in_progress, issue_id, work_info)
+              
+              ActivityLog.log_event(:task_started, "Work started on Chainlink ##{issue_id}", %{
+                issue_id: issue_id,
+                title: issue.title,
+                priority: issue.priority,
+                agent: "claude",
+                model: claude_model
+              })
+              
+              socket = socket
+              |> assign(chainlink_work_in_progress: chainlink_wip)
+              |> put_flash(:info, "Started work on Chainlink ##{issue_id} with Claude (#{claude_model})")
+              {:noreply, socket}
+            
+            {:error, reason} ->
+              {:noreply, put_flash(socket, :error, "Failed to start work: #{inspect(reason)}")}
+          end
       end
     else
       {:noreply, put_flash(socket, :error, "Issue ##{issue_id} not found")}
