@@ -5,24 +5,24 @@
     "opencode_model": "gemini-3-pro"
   },
   "panels": {
-    "activity": false,
+    "activity": true,
     "agent_activity": false,
-    "branches": false,
+    "branches": true,
     "chainlink": false,
     "chat": true,
     "coding_agents": false,
     "config": false,
-    "dave": false,
+    "dave": true,
     "gemini": false,
-    "linear": false,
+    "linear": true,
     "live_progress": false,
     "opencode": false,
     "process_relationships": false,
-    "prs": false,
+    "prs": true,
     "subagents": false,
     "system_processes": false,
     "test_runner": false,
     "work_panel": false
   },
-  "updated_at": "2026-02-01T10:35:51.219839Z"
+  "updated_at": "2026-02-01T10:39:04.013609Z"
 }

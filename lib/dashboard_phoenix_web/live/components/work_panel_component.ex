@@ -8,10 +8,11 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   - Gemini CLI (✨)
   
   Each card shows:
-  - Agent icon
+  - Agent icon and type indicator
   - Task/session name
   - Duration (real-time for running agents)
   - Color-coded state (running=green, completed=blue, failed=red, idle=gray)
+  - **Expandable details** with recent messages, token usage, cost, etc.
   """
   use DashboardPhoenixWeb, :live_component
   
@@ -19,7 +20,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
 
   @impl true
   def update(assigns, socket) do
-    # Build unified agent list for cards
+    # Build unified agent list for cards with full details
     agents = build_agent_list(assigns)
     
     # Count active agents for header
@@ -27,9 +28,16 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       Map.get(a, :status) in ["running", "active", "idle"]
     end)
     
+    # Count by type for summary
+    type_counts = agents
+    |> Enum.group_by(& &1.type)
+    |> Enum.map(fn {type, list} -> {type, length(list)} end)
+    |> Enum.into(%{})
+    
     updated_assigns = assigns
     |> Map.put(:agents, agents)
     |> Map.put(:active_count, active_count)
+    |> Map.put(:type_counts, type_counts)
 
     {:ok, assign(socket, updated_assigns)}
   end
@@ -62,8 +70,13 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     |> Enum.filter(fn s -> s.status in ["running", "idle", "completed"] end)
     |> Enum.reject(fn s -> MapSet.member?(dismissed_sessions, Map.get(s, :id)) end)
     |> Enum.filter(fn s -> show_completed or s.status != "completed" end)
-    |> Enum.take(5)
+    |> Enum.take(10)  # Show more agents now that they're expandable
     |> Enum.map(fn s ->
+      # Get recent actions (limit to last 5)
+      recent_actions = s
+      |> Map.get(:recent_actions, [])
+      |> Enum.take(-5)
+      
       %{
         id: Map.get(s, :id, "claude-#{:erlang.phash2(s)}"),
         type: "claude",
@@ -73,23 +86,43 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
         status: s.status,
         runtime: Map.get(s, :runtime),
         updated_at: Map.get(s, :updated_at),
-        created_at: Map.get(s, :created_at)
+        created_at: Map.get(s, :created_at),
+        # Extended details for expansion
+        tokens_in: Map.get(s, :tokens_in, 0),
+        tokens_out: Map.get(s, :tokens_out, 0),
+        cost: Map.get(s, :cost, 0),
+        current_action: Map.get(s, :current_action),
+        recent_actions: recent_actions,
+        result_snippet: Map.get(s, :result_snippet)
       }
     end)
   end
 
   defp build_opencode_agents(assigns) do
     assigns.opencode_sessions
-    |> Enum.take(5)
+    |> Enum.take(10)  # Show more agents now that they're expandable
     |> Enum.map(fn s ->
+      # OpenCode sessions may have different field names
+      recent_actions = s
+      |> Map.get(:recent_actions, [])
+      |> Enum.take(-5)
+      
       %{
         id: Map.get(s, :id, "opencode-#{s.slug}"),
         type: "opencode",
+        model: Map.get(s, :model),
         name: s.slug,
         task: s.title,
         status: s.status,
-        runtime: nil,
-        start_time: nil
+        runtime: Map.get(s, :runtime),
+        start_time: Map.get(s, :start_time),
+        # Extended details for expansion
+        tokens_in: Map.get(s, :tokens_in, 0),
+        tokens_out: Map.get(s, :tokens_out, 0),
+        cost: Map.get(s, :cost, 0),
+        current_action: Map.get(s, :current_action),
+        recent_actions: recent_actions,
+        result_snippet: Map.get(s, :result_snippet)
       }
     end)
   end
@@ -98,12 +131,19 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     status = assigns.gemini_server_status
     if status.running do
       busy = Map.get(status, :busy, false)
-      last_activity = if assigns.gemini_output != "" do
+      
+      # Extract last few lines as recent activity
+      recent_output = if assigns.gemini_output != "" do
         assigns.gemini_output
         |> String.split("\n")
-        |> Enum.take(-1)
-        |> Enum.join()
-        |> String.slice(0, 50)
+        |> Enum.filter(&(String.trim(&1) != ""))
+        |> Enum.take(-5)
+      else
+        []
+      end
+      
+      last_activity = if recent_output != [] do
+        List.last(recent_output) |> String.slice(0, 100)
       else
         nil
       end
@@ -111,11 +151,19 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       [%{
         id: "gemini-cli",
         type: "gemini",
+        model: "gemini-2.0-flash",
         name: "Gemini CLI",
         task: last_activity,
         status: if(busy, do: "running", else: "idle"),
         runtime: nil,
-        start_time: nil
+        start_time: nil,
+        # Extended details for expansion
+        tokens_in: 0,
+        tokens_out: 0,
+        cost: 0,
+        current_action: if(busy, do: last_activity, else: nil),
+        recent_actions: recent_output,
+        result_snippet: nil
       }]
     else
       []
@@ -127,6 +175,12 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     send(self(), {:work_panel_component, :toggle_panel})
     {:noreply, socket}
   end
+
+  # Helper for type indicator badge
+  defp type_badge_class("claude"), do: "bg-purple-500/20 text-purple-400"
+  defp type_badge_class("opencode"), do: "bg-blue-500/20 text-blue-400"
+  defp type_badge_class("gemini"), do: "bg-green-500/20 text-green-400"
+  defp type_badge_class(_), do: "bg-gray-500/20 text-gray-400"
 
   @impl true
   def render(assigns) do
@@ -150,32 +204,33 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
           <span class="text-xs font-mono text-base-content/50"><%= length(@agents) %></span>
           <%= if @active_count > 0 do %>
             <span class="status-beacon text-success"></span>
-            <span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs">
+            <span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
               <%= @active_count %> active
             </span>
           <% end %>
         </div>
-        <!-- Agent type legend -->
-        <div class="flex items-center space-x-3 text-xs text-base-content/60">
-          <span class="flex items-center space-x-1">
-            <span>🟣</span><span>Claude</span>
-          </span>
-          <span class="flex items-center space-x-1">
-            <span>🔷</span><span>OpenCode</span>
-          </span>
-          <span class="flex items-center space-x-1">
-            <span>✨</span><span>Gemini</span>
-          </span>
+        <!-- Type summary badges -->
+        <div class="flex items-center gap-1.5">
+          <%= for {type, count} <- @type_counts do %>
+            <span class={"px-1.5 py-0.5 text-xs rounded font-mono " <> type_badge_class(type)}>
+              <%= count %> <%= type %>
+            </span>
+          <% end %>
         </div>
       </div>
 
-      <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[800px]")}>
+      <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[1000px]")}>
         <div class="px-3 pb-3">
           <%= if @agents == [] do %>
             <div class="text-xs text-base-content/40 py-8 text-center font-mono">
               No active agents
             </div>
           <% else %>
+            <!-- Hint about expandable cards -->
+            <div class="text-xs text-base-content/40 mb-2 text-center">
+              Click cards to expand details
+            </div>
+            
             <div class="agent-cards-grid">
               <%= for agent <- @agents do %>
                 <.live_component 
