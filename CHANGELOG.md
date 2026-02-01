@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- UI: Implement visible focus states for keyboard navigation (#49)
 - UI: Add ARIA labels and states for accessibility (#44)
 - Investigate potential memory growth in monitors (#40)
 - Add rate limiting to external API calls (#33)
