@@ -6,6 +6,7 @@ defmodule DashboardPhoenix.Application do
   use Application
 
   @impl true
+  @spec start(Application.start_type(), term()) :: {:ok, pid()} | {:error, {:already_started, pid()}} | {:error, term()}
   def start(_type, _args) do
     # Initialize CLI tools cache
     DashboardPhoenix.CLITools.ensure_cache_table()
@@ -93,6 +94,7 @@ defmodule DashboardPhoenix.Application do
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.
   @impl true
+  @spec config_change(keyword(), keyword(), [atom()]) :: :ok
   def config_change(changed, _new, removed) do
     DashboardPhoenixWeb.Endpoint.config_change(changed, removed)
     :ok

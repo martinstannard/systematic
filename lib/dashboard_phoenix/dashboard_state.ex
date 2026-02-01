@@ -49,6 +49,7 @@ defmodule DashboardPhoenix.DashboardState do
 
   # Client API
 
+  @spec start_link(keyword()) :: {:ok, pid()} | {:error, term()}
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__, hibernate_after: 15_000)
   end
@@ -56,6 +57,7 @@ defmodule DashboardPhoenix.DashboardState do
   @doc """
   Get all persisted state.
   """
+  @spec get_state() :: map()
   def get_state do
     GenServer.call(__MODULE__, :get_state)
   end
@@ -64,6 +66,7 @@ defmodule DashboardPhoenix.DashboardState do
   Get panel collapse states.
   Returns a map of panel_name => collapsed boolean.
   """
+  @spec get_panels() :: map()
   def get_panels do
     state = get_state()
     state.panels
@@ -72,6 +75,7 @@ defmodule DashboardPhoenix.DashboardState do
   @doc """
   Get collapsed state for a specific panel.
   """
+  @spec get_panel(atom()) :: boolean()
   def get_panel(panel_name) when is_atom(panel_name) do
     panels = get_panels()
     Map.get(panels, panel_name, false)
@@ -80,6 +84,7 @@ defmodule DashboardPhoenix.DashboardState do
   @doc """
   Set panel collapsed state.
   """
+  @spec set_panel(atom(), boolean()) :: :ok
   def set_panel(panel_name, collapsed) when is_atom(panel_name) and is_boolean(collapsed) do
     GenServer.call(__MODULE__, {:set_panel, panel_name, collapsed})
   end
@@ -87,6 +92,7 @@ defmodule DashboardPhoenix.DashboardState do
   @doc """
   Set all panel states at once.
   """
+  @spec set_panels(map()) :: :ok
   def set_panels(panels) when is_map(panels) do
     GenServer.call(__MODULE__, {:set_panels, panels})
   end
@@ -95,6 +101,7 @@ defmodule DashboardPhoenix.DashboardState do
   Get dismissed session IDs.
   Returns a list of session IDs.
   """
+  @spec get_dismissed_sessions() :: [binary()]
   def get_dismissed_sessions do
     state = get_state()
     state.dismissed_sessions
@@ -124,6 +131,7 @@ defmodule DashboardPhoenix.DashboardState do
   @doc """
   Check if a session is dismissed.
   """
+  @spec session_dismissed?(binary()) :: boolean()
   def session_dismissed?(session_id) when is_binary(session_id) do
     session_id in get_dismissed_sessions()
   end
@@ -132,6 +140,7 @@ defmodule DashboardPhoenix.DashboardState do
   Get model selections.
   Returns a map with :claude_model and :opencode_model.
   """
+  @spec get_models() :: map()
   def get_models do
     state = get_state()
     state.models
@@ -161,6 +170,7 @@ defmodule DashboardPhoenix.DashboardState do
   @doc """
   Subscribe to state changes.
   """
+  @spec subscribe() :: :ok
   def subscribe do
     Phoenix.PubSub.subscribe(@pubsub, @topic)
   end
