@@ -269,6 +269,12 @@ defmodule DashboardPhoenix.OpenCodeServer do
   end
 
   @impl true
+  def handle_info({port_ref, msg}, state) when is_port(port_ref) do
+    Logger.debug("[OpenCodeServer] Ignoring message from stale port: #{inspect(msg)}")
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_info(msg, state) do
     Logger.debug("[OpenCodeServer] Unhandled message: #{inspect(msg)}")
     {:noreply, state}
@@ -579,29 +585,38 @@ defmodule DashboardPhoenix.OpenCodeServer do
   end
 
   defp handle_process_exit(state, exit_status) do
-    # Record this as a failure
-    state_with_failure = record_failure(state)
-
-    # Clear running state
-    cleared_state = %{
-      state_with_failure
-      | running: false,
-        os_pid: nil,
-        port_ref: nil,
-        health_status: :unknown
-    }
+    # Record this as a failure unless it was a SIGTERM (143) or success (0)
+    state_with_failure =
+      if exit_status in [0, 143] do
+        # Just clear the process state without treating it as a crash
+        %{
+          state
+          | running: false,
+            os_pid: nil,
+            port_ref: nil,
+            health_status: :unknown,
+            consecutive_failures: 0
+        }
+      else
+        record_failure(state)
+        |> Map.put(:running, false)
+        |> Map.put(:os_pid, nil)
+        |> Map.put(:port_ref, nil)
+        |> Map.put(:health_status, :unknown)
+      end
 
     # Cancel health check timer
     final_state =
-      if cleared_state.health_check_timer do
-        Process.cancel_timer(cleared_state.health_check_timer)
-        %{cleared_state | health_check_timer: nil}
+      if state_with_failure.health_check_timer do
+        Process.cancel_timer(state_with_failure.health_check_timer)
+        %{state_with_failure | health_check_timer: nil}
       else
-        cleared_state
+        state_with_failure
       end
 
-    # Schedule restart if auto_restart is enabled and circuit breaker allows
-    if final_state.auto_restart && final_state.cwd do
+    # Schedule restart if auto_restart is enabled, it was an error exit, and circuit breaker allows
+    # Status 143 is SIGTERM, typically sent by systemd or manual stop, so we don't auto-restart
+    if final_state.auto_restart && final_state.cwd && exit_status not in [0, 143] do
       schedule_restart(final_state, final_state.cwd, exit_status)
     else
       final_state

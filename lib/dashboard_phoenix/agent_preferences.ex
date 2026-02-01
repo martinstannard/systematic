@@ -64,11 +64,17 @@ defmodule DashboardPhoenix.AgentPreferences do
 
   @doc """
   Set coding agent preference.
-  agent should be "opencode", "claude", or "gemini"
+  agent should be "opencode", "claude", or "gemini" (or atoms)
   """
-  @spec set_coding_agent(binary()) :: :ok
-  def set_coding_agent(agent) when agent in @valid_agents do
-    GenServer.call(__MODULE__, {:set_coding_agent, agent})
+  @spec set_coding_agent(binary() | atom()) :: :ok
+  def set_coding_agent(agent) do
+    agent_str = if is_atom(agent), do: Atom.to_string(agent), else: agent
+
+    if agent_str in @valid_agents do
+      GenServer.call(__MODULE__, {:set_coding_agent, agent_str})
+    else
+      {:error, :invalid_agent}
+    end
   end
 
   @doc """

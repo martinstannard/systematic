@@ -295,7 +295,7 @@ defmodule DashboardPhoenix.GeminiServer do
   def handle_info({:prompt_complete, {:error, :timeout}}, state) do
     Logger.error("[GeminiServer] Prompt timed out")
 
-    error_msg = "\n[ERROR] Command timed out after 2 minutes\n"
+    error_msg = "\n[ERROR] Command timed out after 10 minutes\n"
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_output, error_msg})
 
     new_state = %{state | busy: false}
@@ -341,7 +341,7 @@ defmodule DashboardPhoenix.GeminiServer do
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_output, "\n> #{prompt}\n\n"})
 
     case CommandRunner.run(gemini_path, [prompt],
-           timeout: 120_000,
+           timeout: 600_000,  # 10 minutes for coding work
            cd: cwd,
            stderr_to_stdout: true,
            env: [{"NO_COLOR", "1"}, {"TERM", "dumb"}]
