@@ -243,14 +243,21 @@ defmodule DashboardPhoenix.OpenCodeClient do
     # We return immediately since OpenCode will take minutes to complete
     url = "#{base_url}/session/#{session_id}/message"
     
-    Task.start(fn ->
-      case Req.post(url, json: payload, receive_timeout: 600_000) do
-        {:ok, %{status: code}} when code in [200, 201, 202] ->
-          Logger.info("[OpenCodeClient] OpenCode task completed successfully")
-        {:ok, %{status: code, body: body}} ->
-          Logger.warning("[OpenCodeClient] OpenCode returned #{code}: #{inspect(body)}")
-        {:error, reason} ->
-          Logger.warning("[OpenCodeClient] OpenCode request ended: #{inspect(reason)}")
+    # Use supervised task to prevent silent crashes and enable resource control
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        case Req.post(url, json: payload, receive_timeout: 600_000) do
+          {:ok, %{status: code}} when code in [200, 201, 202] ->
+            Logger.info("[OpenCodeClient] OpenCode task completed successfully")
+          {:ok, %{status: code, body: body}} ->
+            Logger.warning("[OpenCodeClient] OpenCode returned #{code}: #{inspect(body)}")
+          {:error, reason} ->
+            Logger.warning("[OpenCodeClient] OpenCode request ended: #{inspect(reason)}")
+        end
+      rescue
+        e ->
+          Logger.error("[OpenCodeClient] Task crashed in send_message: #{Exception.message(e)}")
+          Logger.error("[OpenCodeClient] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}")
       end
     end)
     
@@ -271,15 +278,21 @@ defmodule DashboardPhoenix.OpenCodeClient do
     
     url = "#{base_url}/session/#{session_id}/message"
     
-    # Fire and forget - spawn a task to send the message
-    Task.start(fn ->
-      case Req.post(url, json: payload, receive_timeout: 600_000) do
-        {:ok, %{status: code}} when code in [200, 201, 202] ->
-          Logger.info("[OpenCodeClient] Message sent successfully to session #{session_id}")
-        {:ok, %{status: code, body: body}} ->
-          Logger.warning("[OpenCodeClient] OpenCode returned #{code}: #{inspect(body)}")
-        {:error, reason} ->
-          Logger.warning("[OpenCodeClient] OpenCode request failed: #{format_error(reason)}")
+    # Fire and forget - use supervised task to prevent silent crashes
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        case Req.post(url, json: payload, receive_timeout: 600_000) do
+          {:ok, %{status: code}} when code in [200, 201, 202] ->
+            Logger.info("[OpenCodeClient] Message sent successfully to session #{session_id}")
+          {:ok, %{status: code, body: body}} ->
+            Logger.warning("[OpenCodeClient] OpenCode returned #{code}: #{inspect(body)}")
+          {:error, reason} ->
+            Logger.warning("[OpenCodeClient] OpenCode request failed: #{format_error(reason)}")
+        end
+      rescue
+        e ->
+          Logger.error("[OpenCodeClient] Task crashed in send_message_to_session: #{Exception.message(e)}")
+          Logger.error("[OpenCodeClient] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}")
       end
     end)
     

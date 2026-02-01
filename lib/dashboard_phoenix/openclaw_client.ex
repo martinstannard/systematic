@@ -78,16 +78,23 @@ defmodule DashboardPhoenix.OpenClawClient do
     Logger.info("[OpenClawClient] Sending message (async): #{String.slice(message, 0, 100)}...")
     
     # Fire and forget - don't block waiting for agent response
-    Task.start(fn ->
-      case CommandRunner.run("openclaw", args, timeout: 30_000, stderr_to_stdout: true) do
-        {:ok, _output} ->
-          Logger.info("[OpenClawClient] Message delivered successfully")
-        {:error, :timeout} ->
-          Logger.error("[OpenClawClient] Message delivery timed out after 30s")
-        {:error, {:exit, code, output}} ->
-          Logger.error("[OpenClawClient] Command failed (#{code}): #{output}")
-        {:error, reason} ->
-          Logger.error("[OpenClawClient] Command error: #{inspect(reason)}")
+    # Use supervised task to prevent silent crashes and enable resource control
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        case CommandRunner.run("openclaw", args, timeout: 30_000, stderr_to_stdout: true) do
+          {:ok, _output} ->
+            Logger.info("[OpenClawClient] Message delivered successfully")
+          {:error, :timeout} ->
+            Logger.error("[OpenClawClient] Message delivery timed out after 30s")
+          {:error, {:exit, code, output}} ->
+            Logger.error("[OpenClawClient] Command failed (#{code}): #{output}")
+          {:error, reason} ->
+            Logger.error("[OpenClawClient] Command error: #{inspect(reason)}")
+        end
+      rescue
+        e ->
+          Logger.error("[OpenClawClient] Task crashed: #{Exception.message(e)}")
+          Logger.error("[OpenClawClient] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}")
       end
     end)
     
