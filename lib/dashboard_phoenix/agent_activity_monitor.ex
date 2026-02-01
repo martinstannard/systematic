@@ -13,6 +13,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   @max_recent_actions 10
   @cli_timeout_ms 10_000
   @persistence_file "agent_activity_state.json"
+  @transcript_cache_table :transcript_cache
 
   defp openclaw_sessions_dir, do: Paths.openclaw_sessions_dir()
 
@@ -36,6 +37,15 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   @impl true
   def init(_) do
+    # Create ETS table for transcript caching
+    # Key: path, Value: {mtime, agent_data}
+    # Delete existing table to ensure clean state (handles restarts and tests)
+    case :ets.whereis(@transcript_cache_table) do
+      :undefined -> :ok
+      _ref -> :ets.delete(@transcript_cache_table)
+    end
+    :ets.new(@transcript_cache_table, [:named_table, :set, :public])
+    
     schedule_poll()
     
     default_agent = %{
@@ -135,14 +145,14 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
           case File.stat(path) do
             {:ok, %{mtime: mtime}} ->
               epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-              if epoch > cutoff, do: {path, file, epoch}, else: nil
+              if epoch > cutoff, do: {path, file, mtime}, else: nil
             _ -> nil
           end
         end)
         |> Enum.reject(&is_nil/1)
-        |> Enum.sort_by(fn {_, _, epoch} -> epoch end, :desc)
+        |> Enum.sort_by(fn {_, _, mtime} -> mtime end, :desc)
         |> Enum.take(5)  # Monitor top 5 most recent sessions
-        |> Enum.map(fn {path, file, _} -> parse_session_file(path, file, state.session_offsets) end)
+        |> Enum.map(fn {path, file, mtime} -> parse_session_file(path, file, mtime, state.session_offsets) end)
         |> Enum.reject(&is_nil/1)
         |> Map.new(fn agent -> {agent.id, agent} end)
       _ ->
@@ -150,8 +160,20 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     end
   end
 
-  defp parse_session_file(path, filename, _offsets) do
-    # Read the last portion of the file (tail approach)
+  defp parse_session_file(path, filename, mtime, _offsets) do
+    # Check cache - use cached data if mtime unchanged
+    case :ets.lookup(@transcript_cache_table, path) do
+      [{^path, ^mtime, cached_agent}] ->
+        # Cache hit - mtime unchanged, return cached data
+        cached_agent
+        
+      _ ->
+        # Cache miss or mtime changed - parse and cache
+        parse_and_cache_session(path, filename, mtime)
+    end
+  end
+
+  defp parse_and_cache_session(path, filename, mtime) do
     case File.read(path) do
       {:ok, content} ->
         lines = String.split(content, "\n", trim: true)
@@ -159,7 +181,13 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
         |> Enum.map(&parse_jsonl_line/1)
         |> Enum.reject(&is_nil/1)
         
-        extract_agent_activity(events, filename)
+        agent = extract_agent_activity(events, filename)
+        
+        # Cache the result with mtime
+        :ets.insert(@transcript_cache_table, {path, mtime, agent})
+        
+        agent
+        
       _ ->
         nil
     end
