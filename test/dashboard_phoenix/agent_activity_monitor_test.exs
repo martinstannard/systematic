@@ -2,6 +2,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
   use ExUnit.Case, async: true
 
   alias DashboardPhoenix.AgentActivityMonitor
+  alias DashboardPhoenix.Status
 
   describe "parse_timestamp/1 logic" do
     test "parses ISO8601 string" do
@@ -100,7 +101,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
 
   describe "determine_status/2 logic" do
     test "returns 'idle' for nil message" do
-      assert determine_status(nil, []) == "idle"
+      assert determine_status(nil, []) == Status.idle()
     end
 
     test "returns 'executing' when assistant has pending tool calls" do
@@ -125,12 +126,12 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
 
     test "returns 'idle' with no tool calls" do
       message = %{"message" => %{"role" => "assistant", "content" => []}}
-      assert determine_status(message, []) == "idle"
+      assert determine_status(message, []) == Status.idle()
     end
 
     test "returns 'active' as default with tool calls" do
       message = %{"message" => %{"role" => "assistant", "content" => []}}
-      assert determine_status(message, [%{name: "exec"}]) == "active"
+      assert determine_status(message, [%{name: "exec"}]) == Status.active()
     end
   end
 
@@ -281,7 +282,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
   end
   defp extract_from_command(_), do: []
 
-  defp determine_status(nil, _), do: "idle"
+  defp determine_status(nil, _), do: Status.idle()
   defp determine_status(message, tool_calls) do
     role = get_in(message, ["message", "role"])
     content = get_in(message, ["message", "content"]) || []
@@ -291,8 +292,8 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
       role == "assistant" and has_tool_calls -> "executing"
       role == "toolResult" -> "thinking"
       role == "user" -> "processing"
-      length(tool_calls) == 0 -> "idle"
-      true -> "active"
+      length(tool_calls) == 0 -> Status.idle()
+      true -> Status.active()
     end
   end
 

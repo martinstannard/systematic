@@ -7,6 +7,8 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.Status
+
   @impl true
   def update(assigns, socket) do
     # Pre-calculate filtered sessions and counts to improve template performance
@@ -16,7 +18,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
 
     visible_sessions = sub_agent_sessions
     |> Enum.reject(fn s -> MapSet.member?(assigns.dismissed_sessions, s.id) end)
-    |> Enum.reject(fn s -> !assigns.show_completed && s.status == "completed" end)
+    |> Enum.reject(fn s -> !assigns.show_completed && s.status == Status.completed() end)
     |> Enum.map(fn session ->
       # Pre-calculate recent actions to avoid template computation
       recent_actions = session
@@ -28,8 +30,8 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
 
     # Count both "running" (< 1 min) and "idle" (1-5 mins) as active
     # since "idle" just means a brief pause, not that the agent completed
-    running_count = Enum.count(sub_agent_sessions, fn s -> s.status in ["running", "idle"] end)
-    completed_count = Enum.count(visible_sessions, fn s -> s.status == "completed" end)
+    running_count = Enum.count(sub_agent_sessions, fn s -> s.status in [Status.running(), Status.idle()] end)
+    completed_count = Enum.count(visible_sessions, fn s -> s.status == Status.completed() end)
     sub_agent_sessions_count = length(sub_agent_sessions)
 
     updated_assigns = assigns
@@ -57,12 +59,16 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
   # Helper functions
 
   # Session status badges
-  defp status_badge("running"), do: "bg-warning/20 text-warning"
-  defp status_badge("idle"), do: "bg-info/20 text-info"
-  defp status_badge("completed"), do: "bg-success/20 text-success/60"
-  defp status_badge("done"), do: "bg-success/20 text-success"
-  defp status_badge("error"), do: "bg-error/20 text-error"
-  defp status_badge(_), do: "bg-base-content/10 text-base-content/60"
+  defp status_badge(status) do
+    cond do
+      status == Status.running() -> "bg-warning/20 text-warning"
+      status == Status.idle() -> "bg-info/20 text-info"
+      status == Status.completed() -> "bg-success/20 text-success/60"
+      status == Status.done() -> "bg-success/20 text-success"
+      status == Status.error() -> "bg-error/20 text-error"
+      true -> "bg-base-content/10 text-base-content/60"
+    end
+  end
 
   # Format token counts
   defp format_tokens(n) when is_integer(n) and n >= 1_000_000 do
@@ -184,18 +190,18 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
             <% start_time = session_start_timestamp(session) %>
             
             <div class={"border text-xs font-mono transition-all " <> 
-              if(status == "running", 
+              if(status == Status.running(), 
                 do: "panel-work bg-warning/10 border-warning/40 shadow-lg", 
-                else: if(status == "completed", do: "panel-status bg-success/10 border-success/30", else: "panel-status"))}>
+                else: if(status == Status.completed(), do: "panel-status bg-success/10 border-success/30", else: "panel-status"))}>
               
               <!-- Header Row: Status, Label, Agent Type, Duration -->
               <div class="flex flex-wrap items-start justify-between gap-3 px-4 py-3 border-b border-accent/20">
                 <div class="flex items-start space-x-2 min-w-0 flex-1">
-                  <%= if status == "running" do %>
+                  <%= if status == Status.running() do %>
                     <span class="throbber-small flex-shrink-0 mt-0.5"></span>
                   <% else %>
-                    <span class={"flex-shrink-0 mt-0.5 " <> if(status == "completed", do: "text-success", else: "text-info")}>
-                      <%= if status == "completed", do: "✓", else: "○" %>
+                    <span class={"flex-shrink-0 mt-0.5 " <> if(status == Status.completed(), do: "text-success", else: "text-info")}>
+                      <%= if status == Status.completed(), do: "✓", else: "○" %>
                     </span>
                   <% end %>
                   <span class="text-white font-medium break-words" title={Map.get(session, :label) || Map.get(session, :id)}>
@@ -210,7 +216,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                   </span>
                   
                   <!-- Live Duration (for running) or Static (for completed) -->
-                  <%= if status == "running" do %>
+                  <%= if status == Status.running() do %>
                     <span 
                       class="px-1.5 py-0.5bg-warning/20 text-warning text-xs tabular-nums"
                       id={"duration-#{session.id}"}
@@ -243,7 +249,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
               <% end %>
               
               <!-- Live Work Status (for running agents) -->
-              <%= if status == "running" do %>
+              <%= if status == Status.running() do %>
                 <div class="px-4 py-3">
                   <%= if current_action do %>
                     <div class="flex items-center space-x-2 mb-1">
@@ -269,7 +275,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
               <% end %>
               
               <!-- Result snippet for completed agents -->
-              <%= if status == "completed" && Map.get(session, :result_snippet) do %>
+              <%= if status == Status.completed() && Map.get(session, :result_snippet) do %>
                 <div class="px-4 py-3">
                   <div class="text-xs text-success/70 mb-0.5">Result</div>
                   <div class="text-base-content/70 text-xs truncate" title={session.result_snippet}>

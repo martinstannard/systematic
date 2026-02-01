@@ -1,6 +1,8 @@
 {
-  "43": {
-    "label": "manual-work",
-    "started_at": "2026-02-01T11:20:13.994840Z"
+  "42": {
+    "label": "test-agent",
+    "type": "subagent",
+    "started_at": "2026-02-01T12:35:05.846889Z",
+    "job_id": "job-123"
   }
 }

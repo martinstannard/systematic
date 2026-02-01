@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   require Logger
 
-  alias DashboardPhoenix.{CLITools, Paths, ProcessParser, StatePersistence}
+  alias DashboardPhoenix.{CLITools, Paths, ProcessParser, StatePersistence, Status}
 
   @poll_interval 5_000  # 5 seconds - less aggressive updates
   @max_recent_actions 10
@@ -536,13 +536,13 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   defp determine_status(last_message, tool_calls) do
     cond do
-      is_nil(last_message) -> "idle"
+      is_nil(last_message) -> Status.idle()
       last_message["message"]["role"] == "assistant" and 
         has_pending_tool_calls?(last_message) -> "executing"
       last_message["message"]["role"] == "toolResult" -> "thinking"
       last_message["message"]["role"] == "user" -> "processing"
-      length(tool_calls) == 0 -> "idle"
-      true -> "active"
+      length(tool_calls) == 0 -> Status.idle()
+      true -> Status.active()
     end
   end
 
@@ -605,7 +605,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
       type: type,
       model: detect_model_from_command(command),
       cwd: cwd,
-      status: if(cpu > 5.0, do: "busy", else: "idle"),
+      status: if(cpu > 5.0, do: Status.busy(), else: Status.idle()),
       last_action: nil,
       recent_actions: [],
       files_worked: get_recently_modified_files(cwd),

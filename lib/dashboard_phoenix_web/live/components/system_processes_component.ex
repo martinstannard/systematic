@@ -19,6 +19,8 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.Status
+
   def update(assigns, socket) do
     # Pre-calculate limited recent processes to avoid template computation
     limited_recent_processes = Enum.take(assigns.recent_processes, 4)
@@ -88,7 +90,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
             <div class="px-4 pb-4">
               <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <%= for agent <- @coding_agents do %>
-                  <div class={"px-3 py-2 text-xs font-mono rounded " <> if(agent.status == "running", do: "bg-warning/10", else: "bg-white/5")}>
+                  <div class={"px-3 py-2 text-xs font-mono rounded " <> if(agent.status == Status.running(), do: "bg-warning/10", else: "bg-white/5")}>
                     <div class="flex items-center justify-between">
                       <span class="text-white font-bold"><%= agent.type %></span>
                       <button phx-click="kill_process" phx-value-pid={agent.pid} phx-target={@myself} class="text-error/50 hover:text-error">✕</button>

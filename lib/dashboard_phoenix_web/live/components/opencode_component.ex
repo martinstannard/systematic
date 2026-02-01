@@ -9,6 +9,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
   use DashboardPhoenixWeb, :live_component
 
   alias DashboardPhoenix.InputValidator
+  alias DashboardPhoenix.Status
 
   @impl true
   def update(assigns, socket) do
@@ -67,20 +68,32 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
 
   # Helper functions
 
-  defp opencode_status_badge("active"), do: "px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded"
-  defp opencode_status_badge("subagent"), do: "px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded"
-  defp opencode_status_badge("idle"), do: "px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded"
-  defp opencode_status_badge(_), do: "px-2 py-1 bg-base-content/10 text-base-content/60 text-xs rounded"
+  defp opencode_status_badge(status) do
+    cond do
+      status == Status.active() -> "px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded"
+      status == "subagent" -> "px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded"
+      status == Status.idle() -> "px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded"
+      true -> "px-2 py-1 bg-base-content/10 text-base-content/60 text-xs rounded"
+    end
+  end
 
-  defp opencode_status_symbol("active"), do: "●"
-  defp opencode_status_symbol("subagent"), do: "◆"
-  defp opencode_status_symbol("idle"), do: "○"
-  defp opencode_status_symbol(_), do: "◌"
+  defp opencode_status_symbol(status) do
+    cond do
+      status == Status.active() -> "●"
+      status == "subagent" -> "◆"
+      status == Status.idle() -> "○"
+      true -> "◌"
+    end
+  end
 
-  defp opencode_status_text("active"), do: "active"
-  defp opencode_status_text("subagent"), do: "subagent"
-  defp opencode_status_text("idle"), do: "idle"
-  defp opencode_status_text(status), do: status || "unknown"
+  defp opencode_status_text(status) do
+    cond do
+      status == Status.active() -> Status.active()
+      status == "subagent" -> "subagent"
+      status == Status.idle() -> Status.idle()
+      true -> status || "unknown"
+    end
+  end
 
   @impl true
   def render(assigns) do
@@ -169,7 +182,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
 
                     <!-- Action Buttons -->
                     <div class="flex items-center space-x-1 ml-2">
-                      <%= if session.status in ["active", "idle"] do %>
+                      <%= if session.status in [Status.active(), Status.idle()] do %>
                         <button
                           phx-click="request_opencode_pr"
                           phx-target={@myself}
