@@ -1701,3 +1701,107 @@ textarea:focus-visible {
   font-weight: bold;
   box-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
 }
+
+/* =====================================================
+   DASHBOARD SECTION GROUPING: Visual Hierarchy
+   Three main sections with distinct visual identity
+   ===================================================== */
+
+/* Section transitions and shared styles */
+.section-core-work,
+.section-agent-status,
+.section-system-config {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Core Work Section - Green accent (tickets, PRs, branches) */
+.section-core-work {
+  position: relative;
+}
+
+.section-core-work::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(34, 197, 94, 0.6) 20%, 
+    rgba(34, 197, 94, 0.8) 50%, 
+    rgba(34, 197, 94, 0.6) 80%, 
+    transparent 100%
+  );
+  border-radius: 16px 16px 0 0;
+}
+
+/* Agent Status Section - Purple accent (OpenCode, Gemini, Dave, Subagents) */
+.section-agent-status {
+  position: relative;
+}
+
+.section-agent-status::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(168, 85, 247, 0.6) 20%, 
+    rgba(168, 85, 247, 0.8) 50%, 
+    rgba(168, 85, 247, 0.6) 80%, 
+    transparent 100%
+  );
+  border-radius: 16px 16px 0 0;
+}
+
+/* System Config Section - Orange accent (config, processes) */
+.section-system-config {
+  position: relative;
+}
+
+.section-system-config::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(249, 115, 22, 0.6) 20%, 
+    rgba(249, 115, 22, 0.8) 50%, 
+    rgba(249, 115, 22, 0.6) 80%, 
+    transparent 100%
+  );
+  border-radius: 16px 16px 0 0;
+}
+
+/* Light mode section adjustments */
+[data-theme="light"] .section-core-work {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, rgba(255, 255, 255, 0.8) 100%);
+  border-left-color: rgba(34, 197, 94, 0.6);
+}
+
+[data-theme="light"] .section-agent-status {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(255, 255, 255, 0.8) 100%);
+  border-left-color: rgba(168, 85, 247, 0.6);
+}
+
+[data-theme="light"] .section-system-config {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(255, 255, 255, 0.8) 100%);
+  border-left-color: rgba(249, 115, 22, 0.6);
+}
+
+/* Section hover effects for interactivity feedback */
+.section-core-work:hover,
+.section-agent-status:hover,
+.section-system-config:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}

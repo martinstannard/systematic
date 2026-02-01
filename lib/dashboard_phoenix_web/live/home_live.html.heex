@@ -11,162 +11,152 @@
     />
   </div>
 
-  <!-- Main Two-Column Layout -->
-  <div class="flex-1 flex flex-col lg:flex-row gap-3 min-h-0">
+  <!-- Main Dashboard Layout -->
+  <div class="flex-1 flex flex-col gap-6 overflow-y-auto">
     
-    <!-- LEFT: Removed chat panel - use OpenClaw Control UI at https://balgownie.tail1b57dd.ts.net:8443/ -->
-
-    <!-- Main Panels (full width, chat removed) -->
-    <div class="w-full flex flex-col gap-6 overflow-y-auto">
-      
-      <!-- MONITORING SECTION -->
-      <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream" style="border-radius: 16px;">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="status-beacon text-blue-400"></div>
-          <h2 class="text-section-header text-base-content font-semibold tracking-wide">
-            <span class="terminal-cursor">Monitoring & Stats</span>
-          </h2>
-        </div>
-        <div class="space-y-3">
-          <!-- Usage Stats Panel (LiveComponent) -->
-          <.live_component
-            module={UsageStatsComponent}
-            id="usage-stats"
-            usage_stats={@usage_stats}
-          />
-
-          <!-- Live Progress Panel (LiveComponent) -->
-          <.live_component
-            module={LiveProgressComponent}
-            id="live-progress-panel"
-            live_progress_collapsed={@live_progress_collapsed}
-            agent_progress_count={@agent_progress_count}
-            progress_events={@streams.progress_events}
-          />
-        </div>
-      </section>
-
-      <!-- TASK MANAGEMENT SECTION -->
-      <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream" style="border-radius: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05);">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="status-beacon text-green-400"></div>
-          <h2 class="text-section-header text-base-content font-semibold tracking-wide">
-            <span class="terminal-cursor">Task Management</span>
-          </h2>
-        </div>
-        <div class="space-y-3">
-          <!-- Linear Tickets Panel (LiveComponent) -->
-          <.live_component
-            module={LinearComponent}
-            id="linear-tickets"
-            linear_tickets={@linear_tickets}
-            linear_counts={@linear_counts}
-            linear_loading={@linear_loading}
-            linear_error={@linear_error}
-            linear_collapsed={@linear_collapsed}
-            linear_status_filter={@linear_status_filter}
-            tickets_in_progress={@tickets_in_progress}
-          />
-
-          <!-- Chainlink Issues Panel (LiveComponent) -->
-          <.live_component
-            module={ChainlinkComponent}
-            id="chainlink-issues"
-            chainlink_issues={@chainlink_issues}
-            chainlink_loading={@chainlink_loading}
-            chainlink_error={@chainlink_error}
-            chainlink_collapsed={@chainlink_collapsed}
-            chainlink_work_in_progress={@chainlink_work_in_progress}
-          />
-
-          <!-- GitHub Pull Requests Panel -->
-          <.live_component
-            module={PRsComponent}
-            id="prs-panel"
-            github_prs={@github_prs}
-            github_prs_loading={@github_prs_loading}
-            github_prs_error={@github_prs_error}
-            github_prs_last_updated={@github_prs_last_updated}
-            prs_collapsed={@prs_collapsed}
-            prs_in_progress={@prs_in_progress}
-            pr_verifications={@pr_verifications}
-            pr_fix_pending={@pr_fix_pending}
-          />
-
-          <!-- Unmerged Branches Panel -->
-          <.live_component
-            module={BranchesComponent}
-            id="branches-panel"
-            unmerged_branches={@unmerged_branches}
-            branches_loading={@branches_loading}
-            branches_error={@branches_error}
-            branches_last_updated={@branches_last_updated}
-            branches_collapsed={@branches_collapsed}
-            branch_merge_pending={@branch_merge_pending}
-            branch_delete_pending={@branch_delete_pending}
-          />
-        </div>
-      </section>
-
-      <!-- CODING AGENTS SECTION -->
-      <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream" style="border-radius: 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05);">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="status-beacon text-purple-400"></div>
-          <h2 class="text-section-header text-base-content font-semibold tracking-wide">
-            <span class="terminal-cursor">Coding Agents</span>
-          </h2>
-        </div>
-        <div class="space-y-3">
-          <!-- OpenCode Sessions Panel (LiveComponent) -->
-          <.live_component
-            module={OpenCodeComponent}
-            id="opencode-panel"
-            opencode_server_status={@opencode_server_status}
-            opencode_sessions={@opencode_sessions}
-            opencode_collapsed={@opencode_collapsed}
-          />
-
-          <!-- Gemini CLI Panel (LiveComponent) -->
-          <.live_component
-            module={GeminiComponent}
-            id="gemini-panel"
-            gemini_server_status={@gemini_server_status}
-            gemini_output={@gemini_output}
-            gemini_collapsed={@gemini_collapsed}
-          />
-
-          <!-- Dave Panel (Main Agent) -->
-          <.live_component
-            module={DaveComponent}
-            id="dave-panel"
-            agent_sessions={@agent_sessions}
-            dave_collapsed={@dave_collapsed}
-          />
-
-          <!-- Sub-Agents Panel -->
-          <.live_component
-            module={SubagentsComponent}
-            id="subagents-panel"
-            agent_sessions={@agent_sessions}
-            subagents_collapsed={@subagents_collapsed}
-            dismissed_sessions={@dismissed_sessions}
-            show_completed={@show_completed}
-          />
-        </div>
-      </section>
+    <!-- Usage Stats - Compact utility bar at top -->
+    <div class="glass-morphism rounded-xl p-4 neural-pulse" style="border-radius: 12px;">
+      <.live_component
+        module={UsageStatsComponent}
+        id="usage-stats"
+        usage_stats={@usage_stats}
+      />
     </div>
-  </div>
 
-  <!-- Bottom Panels Row (Less Important - Collapsed by Default) -->
-  <div class="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
-    
-    <!-- SYSTEM CONFIGURATION SECTION -->
-    <section class="glass-morphism rounded-xl p-5 neural-pulse" style="border-radius: 16px; background: linear-gradient(135deg, rgba(249, 115, 22, 0.10) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05);">
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- CORE WORK - Linear / Chainlink / PRs / Branches                             -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream section-core-work" style="border-radius: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(34, 197, 94, 0.5);">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="status-beacon text-green-400"></div>
+        <h2 class="text-section-header text-base-content font-semibold tracking-wide">
+          <span class="terminal-cursor">Core Work</span>
+        </h2>
+        <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">Tickets • PRs • Branches</span>
+      </div>
+      <div class="space-y-3">
+        <!-- Linear Tickets Panel (LiveComponent) -->
+        <.live_component
+          module={LinearComponent}
+          id="linear-tickets"
+          linear_tickets={@linear_tickets}
+          linear_counts={@linear_counts}
+          linear_loading={@linear_loading}
+          linear_error={@linear_error}
+          linear_collapsed={@linear_collapsed}
+          linear_status_filter={@linear_status_filter}
+          tickets_in_progress={@tickets_in_progress}
+        />
+
+        <!-- Chainlink Issues Panel (LiveComponent) -->
+        <.live_component
+          module={ChainlinkComponent}
+          id="chainlink-issues"
+          chainlink_issues={@chainlink_issues}
+          chainlink_loading={@chainlink_loading}
+          chainlink_error={@chainlink_error}
+          chainlink_collapsed={@chainlink_collapsed}
+          chainlink_work_in_progress={@chainlink_work_in_progress}
+        />
+
+        <!-- GitHub Pull Requests Panel -->
+        <.live_component
+          module={PRsComponent}
+          id="prs-panel"
+          github_prs={@github_prs}
+          github_prs_loading={@github_prs_loading}
+          github_prs_error={@github_prs_error}
+          github_prs_last_updated={@github_prs_last_updated}
+          prs_collapsed={@prs_collapsed}
+          prs_in_progress={@prs_in_progress}
+          pr_verifications={@pr_verifications}
+          pr_fix_pending={@pr_fix_pending}
+        />
+
+        <!-- Unmerged Branches Panel -->
+        <.live_component
+          module={BranchesComponent}
+          id="branches-panel"
+          unmerged_branches={@unmerged_branches}
+          branches_loading={@branches_loading}
+          branches_error={@branches_error}
+          branches_last_updated={@branches_last_updated}
+          branches_collapsed={@branches_collapsed}
+          branch_merge_pending={@branch_merge_pending}
+          branch_delete_pending={@branch_delete_pending}
+        />
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- AGENT STATUS - OpenCode / Gemini / Dave / Subagents / Progress              -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream section-agent-status" style="border-radius: 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(168, 85, 247, 0.5);">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="status-beacon text-purple-400"></div>
+        <h2 class="text-section-header text-base-content font-semibold tracking-wide">
+          <span class="terminal-cursor">Agent Status</span>
+        </h2>
+        <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">OpenCode • Gemini • Dave • Subagents</span>
+      </div>
+      <div class="space-y-3">
+        <!-- Live Progress Panel (LiveComponent) - Agent activity feed -->
+        <.live_component
+          module={LiveProgressComponent}
+          id="live-progress-panel"
+          live_progress_collapsed={@live_progress_collapsed}
+          agent_progress_count={@agent_progress_count}
+          progress_events={@streams.progress_events}
+        />
+
+        <!-- OpenCode Sessions Panel (LiveComponent) -->
+        <.live_component
+          module={OpenCodeComponent}
+          id="opencode-panel"
+          opencode_server_status={@opencode_server_status}
+          opencode_sessions={@opencode_sessions}
+          opencode_collapsed={@opencode_collapsed}
+        />
+
+        <!-- Gemini CLI Panel (LiveComponent) -->
+        <.live_component
+          module={GeminiComponent}
+          id="gemini-panel"
+          gemini_server_status={@gemini_server_status}
+          gemini_output={@gemini_output}
+          gemini_collapsed={@gemini_collapsed}
+        />
+
+        <!-- Dave Panel (Main Agent) -->
+        <.live_component
+          module={DaveComponent}
+          id="dave-panel"
+          agent_sessions={@agent_sessions}
+          dave_collapsed={@dave_collapsed}
+        />
+
+        <!-- Sub-Agents Panel -->
+        <.live_component
+          module={SubagentsComponent}
+          id="subagents-panel"
+          agent_sessions={@agent_sessions}
+          subagents_collapsed={@subagents_collapsed}
+          dismissed_sessions={@dismissed_sessions}
+          show_completed={@show_completed}
+        />
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- SYSTEM CONFIG - Config / Processes                                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <section class="glass-morphism rounded-xl p-5 neural-pulse section-system-config" style="border-radius: 16px; background: linear-gradient(135deg, rgba(249, 115, 22, 0.10) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(249, 115, 22, 0.5);">
       <div class="flex items-center gap-3 mb-4">
         <div class="status-beacon text-orange-400"></div>
         <h2 class="text-section-header text-base-content font-semibold tracking-wide">
-          <span class="terminal-cursor">System & Configuration</span>
+          <span class="terminal-cursor">System Config</span>
         </h2>
+        <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">Configuration • Processes</span>
       </div>
       <div class="space-y-3">
         <!-- Config Panel (LiveComponent) -->
