@@ -29,7 +29,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   defp sessions_dir, do: Path.join(storage_dir(), "session")
 
   def start_link(_opts) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__, hibernate_after: 15_000)
   end
 
   def get_progress do

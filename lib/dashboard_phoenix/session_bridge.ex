@@ -28,8 +28,11 @@ defmodule DashboardPhoenix.SessionBridge do
   @backoff_increment 250     # Increase by 250ms each idle poll
   @max_progress_events 100
   @max_transcript_offsets 50  # Limit transcript_offsets map size
+  @max_transcript_details_cache 100  # Limit cached transcript details
+  @max_sessions 50  # Limit stored sessions
   @transcript_cleanup_interval 300_000  # Clean up old transcripts every 5 minutes
   @directory_scan_cache_ttl 5000  # Cache directory listings for 5 seconds
+  @gc_interval 300_000  # Trigger GC every 5 minutes
   
   # ETS table name for fast reads
   @ets_table :session_bridge_data
@@ -43,7 +46,7 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   def start_link(_opts) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__, hibernate_after: 15_000)
   end
 
   @doc """
@@ -115,6 +118,7 @@ defmodule DashboardPhoenix.SessionBridge do
     
     schedule_poll(@base_poll_interval)
     schedule_transcript_cleanup()
+    schedule_gc()
     {:ok, %{
       sessions: [],
       progress: [],
@@ -184,6 +188,27 @@ defmodule DashboardPhoenix.SessionBridge do
     {:noreply, new_state}
   end
 
+  @impl true
+  def handle_info(:gc_trigger, state) do
+    # Enforce cache size limits before GC
+    new_state = enforce_cache_limits(state)
+    
+    # Trigger garbage collection
+    alias DashboardPhoenix.MemoryUtils
+    MemoryUtils.trigger_gc(__MODULE__)
+    
+    # Log telemetry periodically
+    MemoryUtils.log_telemetry(__MODULE__, %{
+      sessions: length(new_state.sessions),
+      progress_events: length(new_state.progress),
+      transcript_offsets: map_size(new_state.transcript_offsets),
+      transcript_details_cache: map_size(new_state.transcript_details_cache)
+    })
+    
+    schedule_gc()
+    {:noreply, new_state}
+  end
+
   # Write current state to ETS for non-blocking reads (Ticket #71)
   defp update_ets(state) do
     :ets.insert(@ets_table, {:sessions, state.sessions})
@@ -205,6 +230,35 @@ defmodule DashboardPhoenix.SessionBridge do
 
   defp schedule_transcript_cleanup do
     Process.send_after(self(), :cleanup_transcripts, @transcript_cleanup_interval)
+  end
+
+  defp schedule_gc do
+    Process.send_after(self(), :gc_trigger, @gc_interval)
+  end
+
+  # Enforce cache size limits to prevent memory growth (Ticket #79)
+  defp enforce_cache_limits(state) do
+    # Limit transcript_details_cache using LRU eviction
+    transcript_cache = if map_size(state.transcript_details_cache) > @max_transcript_details_cache do
+      state.transcript_details_cache
+      |> Enum.sort_by(fn {_id, data} -> data.mtime end, :desc)
+      |> Enum.take(@max_transcript_details_cache)
+      |> Map.new()
+    else
+      state.transcript_details_cache
+    end
+    
+    # Limit sessions list
+    sessions = Enum.take(state.sessions, @max_sessions)
+    
+    # Limit progress events
+    progress = Enum.take(state.progress, -@max_progress_events)
+    
+    %{state | 
+      transcript_details_cache: transcript_cache,
+      sessions: sessions,
+      progress: progress
+    }
   end
 
   # Refresh sessions.json cache if mtime changed

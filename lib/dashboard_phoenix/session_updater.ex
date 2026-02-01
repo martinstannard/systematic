@@ -10,7 +10,7 @@ defmodule DashboardPhoenix.SessionUpdater do
   @update_interval 1_000  # 1 second
 
   def start_link(_opts) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__, hibernate_after: 15_000)
   end
 
   @impl true

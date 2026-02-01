@@ -18,11 +18,12 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   @max_cache_entries 1000
   @file_retry_attempts 3
   @file_retry_delay 100
+  @gc_interval 300_000  # Trigger GC every 5 minutes (Ticket #79)
 
   defp openclaw_sessions_dir, do: Paths.openclaw_sessions_dir()
 
   def start_link(_opts) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__, hibernate_after: 15_000)
   end
 
   @doc """
@@ -52,6 +53,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     
     schedule_poll()
     schedule_cache_cleanup()
+    schedule_gc()
     
     default_agent = %{
       id: "",
@@ -166,12 +168,24 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     {:noreply, %{state | last_cache_cleanup: System.system_time(:millisecond)}}
   end
 
+  @impl true
+  def handle_info(:gc_trigger, state) do
+    alias DashboardPhoenix.MemoryUtils
+    MemoryUtils.trigger_gc(__MODULE__)
+    schedule_gc()
+    {:noreply, state}
+  end
+
   defp schedule_poll do
     Process.send_after(self(), :poll, @poll_interval)
   end
 
   defp schedule_cache_cleanup do
     Process.send_after(self(), :cleanup_cache, @cache_cleanup_interval)
+  end
+
+  defp schedule_gc do
+    Process.send_after(self(), :gc_trigger, @gc_interval)
   end
 
   defp cleanup_transcript_cache do
