@@ -1971,3 +1971,95 @@ textarea:focus-visible {
   white-space: nowrap;
   border-width: 0;
 }
+
+/* =====================================================
+   INTERACTIVE BUTTON SYSTEM: Enhanced Click Targets
+   Minimum 44x44px touch targets for accessibility (WCAG 2.1 AAA)
+   Clear hover states with visual feedback
+   ===================================================== */
+
+/* Icon button with text - for panel headers (Refresh, etc.) */
+.btn-interactive-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: var(--font-ui);
+  font-size: var(--text-micro);
+  font-weight: 500;
+}
+
+.btn-interactive-icon:hover {
+  transform: translateY(-1px);
+}
+
+.btn-interactive-icon:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-interactive-icon:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Small inline button - for row actions (Work button) */
+.btn-interactive-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-width: 44px;
+  min-height: 32px;
+  padding: 0.375rem 0.625rem;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: var(--font-ui);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.btn-interactive-sm:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Close button - for modals (larger target, prominent) */
+.btn-interactive-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-interactive-close:hover {
+  transform: scale(1.1);
+}
+
+.btn-interactive-close:active {
+  transform: scale(0.95);
+}
+
+.btn-interactive-close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Light mode adjustments for interactive buttons */
+[data-theme="light"] .btn-interactive-icon:hover,
+[data-theme="light"] .btn-interactive-sm:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .btn-interactive-close:hover {
+  background-color: rgba(220, 38, 38, 0.1);
+}

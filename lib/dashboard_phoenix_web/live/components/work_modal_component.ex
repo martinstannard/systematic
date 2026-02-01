@@ -73,10 +73,12 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
           <button 
             phx-click="close_work_modal" 
             phx-target={@myself} 
-            class="text-base-content/60 hover:text-accent text-xl transition-colors"
+            class="btn-interactive-close text-base-content/60 hover:text-error hover:bg-error/10 transition-all"
             aria-label="Close modal"
+            title="Close"
           >
-            ✕
+            <span class="text-lg" aria-hidden="true">✕</span>
+            <span class="sr-only">Close</span>
           </button>
         </div>
         

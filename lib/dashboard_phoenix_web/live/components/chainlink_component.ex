@@ -104,11 +104,13 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         <button
           phx-click="refresh_chainlink"
           phx-target={@myself}
-          class="text-xs text-base-content/40 hover:text-accent"
+          class="btn-interactive-icon text-base-content/60 hover:text-accent hover:bg-accent/10"
           onclick="event.stopPropagation()"
           aria-label="Refresh Chainlink issues"
+          title="Refresh issues"
         >
-          ↻
+          <span class="text-sm" aria-hidden="true">↻</span>
+          <span class="text-ui-caption">Refresh</span>
         </button>
       </div>
 
@@ -148,11 +150,12 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       phx-click="work_on_chainlink"
                       phx-value-id={issue.id}
                       phx-target={@myself}
-                      class="text-xs px-1.5 py-0.5bg-accent/20 text-accent hover:bg-accent/40"
+                      class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 hover:scale-105 active:scale-95"
                       title="Start work on this issue"
                       aria-label={"Start work on issue #" <> to_string(issue.id)}
                     >
-                      ▶
+                      <span aria-hidden="true">▶</span>
+                      <span>Work</span>
                     </button>
                   <% end %>
                   <span class="text-base-content/40" aria-label={status_text(issue.status)}><%= status_icon(issue.status) %></span>
