@@ -3,10 +3,13 @@ defmodule DashboardPhoenix.StatsMonitor do
   Fetches usage stats from OpenCode and Claude Code.
   """
   use GenServer
+  require Logger
 
-  alias DashboardPhoenix.{CLITools, Paths}
+  alias DashboardPhoenix.{CLITools, Paths, StatePersistence}
 
-  @poll_interval 5_000  # 5 seconds
+  # 5 seconds
+  @poll_interval 5_000
+  @persistence_file "stats_state.json"
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -29,7 +32,42 @@ defmodule DashboardPhoenix.StatsMonitor do
   @impl true
   def init(_) do
     schedule_poll()
-    stats = fetch_all_stats()
+
+    # Load persisted state
+    default_stats = %{
+      opencode: %{
+        sessions: 0,
+        messages: 0,
+        days: 0,
+        total_cost: "$0",
+        input_tokens: "0",
+        output_tokens: "0",
+        cache_read: "0"
+      },
+      claude: %{
+        sessions: 0,
+        messages: 0,
+        input_tokens: "0",
+        output_tokens: "0",
+        cache_read: "0",
+        models: []
+      },
+      updated_at: 0
+    }
+
+    persisted_state = StatePersistence.load(@persistence_file, %{stats: default_stats})
+
+    # Try to fetch fresh stats, but fallback to persisted if fails
+    stats =
+      case fetch_all_stats() do
+        %{opencode: %{error: _}, claude: %{error: _}} ->
+          # Both failed, use persisted
+          persisted_state.stats
+
+        fresh_stats ->
+          fresh_stats
+      end
+
     {:ok, %{stats: stats}}
   end
 
@@ -41,18 +79,44 @@ defmodule DashboardPhoenix.StatsMonitor do
   @impl true
   def handle_cast(:refresh, state) do
     stats = fetch_all_stats()
-    broadcast_stats(stats)
-    {:noreply, %{state | stats: stats}}
+
+    # Fallback to current state if all fetchers returned error
+    final_stats =
+      if is_all_error?(stats) do
+        Logger.warning("Stats fetch failed during refresh, using cached state")
+        state.stats
+      else
+        StatePersistence.save(@persistence_file, %{stats: stats})
+        stats
+      end
+
+    broadcast_stats(final_stats)
+    {:noreply, %{state | stats: final_stats}}
   end
 
   @impl true
   def handle_info(:poll, state) do
     stats = fetch_all_stats()
-    if stats != state.stats do
-      broadcast_stats(stats)
-    end
+
+    final_stats =
+      if is_all_error?(stats) do
+        # Don't log on every poll to avoid spam
+        state.stats
+      else
+        if stats != state.stats do
+          StatePersistence.save(@persistence_file, %{stats: stats})
+          broadcast_stats(stats)
+        end
+
+        stats
+      end
+
     schedule_poll()
-    {:noreply, %{state | stats: stats}}
+    {:noreply, %{state | stats: final_stats}}
+  end
+
+  defp is_all_error?(stats) do
+    match?(%{opencode: %{error: _}, claude: %{error: _}}, stats)
   end
 
   defp schedule_poll do
@@ -69,8 +133,11 @@ defmodule DashboardPhoenix.StatsMonitor do
 
   defp fetch_opencode_stats do
     # Use CLITools with a short timeout for stats (should be quick)
-    case CLITools.run_if_available("opencode", ["stats"], 
-           timeout: 10_000, stderr_to_stdout: true, friendly_name: "OpenCode") do
+    case CLITools.run_if_available("opencode", ["stats"],
+           timeout: 10_000,
+           stderr_to_stdout: true,
+           friendly_name: "OpenCode"
+         ) do
       {:ok, output} -> parse_opencode_stats(output)
       {:error, {:tool_not_available, message}} -> %{error: message}
       {:error, :timeout} -> %{error: "Timeout fetching stats"}
@@ -94,23 +161,28 @@ defmodule DashboardPhoenix.StatsMonitor do
 
   defp fetch_claude_stats do
     stats_file = Paths.claude_stats_file()
+
     case File.read(stats_file) do
       {:ok, content} ->
         case Jason.decode(content) do
           {:ok, data} -> parse_claude_stats(data)
           _ -> %{error: "Invalid JSON"}
         end
-      _ -> %{error: "No stats file"}
+
+      _ ->
+        %{error: "No stats file"}
     end
   end
 
   defp parse_claude_stats(data) do
     models = data["modelUsage"] || %{}
-    
+
     total_input = models |> Map.values() |> Enum.map(&(&1["inputTokens"] || 0)) |> Enum.sum()
     total_output = models |> Map.values() |> Enum.map(&(&1["outputTokens"] || 0)) |> Enum.sum()
-    total_cache_read = models |> Map.values() |> Enum.map(&(&1["cacheReadInputTokens"] || 0)) |> Enum.sum()
-    
+
+    total_cache_read =
+      models |> Map.values() |> Enum.map(&(&1["cacheReadInputTokens"] || 0)) |> Enum.sum()
+
     %{
       sessions: data["totalSessions"] || 0,
       messages: data["totalMessages"] || 0,

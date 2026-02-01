@@ -7,11 +7,12 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   require Logger
 
-  alias DashboardPhoenix.{CLITools, Paths, ProcessParser}
+  alias DashboardPhoenix.{CLITools, Paths, ProcessParser, StatePersistence}
 
   @poll_interval 5_000  # 5 seconds - less aggressive updates
   @max_recent_actions 10
   @cli_timeout_ms 10_000
+  @persistence_file "agent_activity_state.json"
 
   defp openclaw_sessions_dir, do: Paths.openclaw_sessions_dir()
 
@@ -36,11 +37,51 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   @impl true
   def init(_) do
     schedule_poll()
-    {:ok, %{
-      agents: %{},
-      session_offsets: %{},  # Track file offsets for incremental reading
+    
+    default_agent = %{
+      id: "",
+      session_id: "",
+      type: :openclaw,
+      model: "",
+      cwd: "",
+      status: "",
+      last_action: %{action: "", target: "", timestamp: nil},
+      recent_actions: [%{action: "", target: "", timestamp: nil}],
+      files_worked: [],
+      last_activity: nil,
+      tool_call_count: 0
+    }
+
+    default_state = %{
+      agents: %{__template__: default_agent},
+      session_offsets: %{},
       last_poll: nil
-    }}
+    }
+    
+    persisted_state = StatePersistence.load(@persistence_file, default_state)
+    state = fix_loaded_state(persisted_state)
+    
+    {:ok, state}
+  end
+
+  defp fix_loaded_state(state) do
+    # Remove template from agents map if it leaked through (it shouldn't if load is correct)
+    agents = Map.delete(state.agents, :__template__)
+
+    # Convert string timestamps back to DateTime in the agents map
+    fixed_agents = for {id, agent} <- agents, into: %{} do
+      fixed_agent = agent
+      |> Map.update(:last_activity, DateTime.utc_now(), &parse_timestamp/1)
+      |> Map.update(:recent_actions, [], fn actions ->
+        Enum.map(actions, fn action ->
+          Map.update(action, :timestamp, DateTime.utc_now(), &parse_timestamp/1)
+        end)
+      end)
+      
+      {id, fixed_agent}
+    end
+    
+    %{state | agents: fixed_agents}
   end
 
   @impl true
@@ -73,6 +114,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
     
     # Broadcast if there are changes
     if merged != state.agents do
+      StatePersistence.save(@persistence_file, %{state | agents: merged})
       broadcast_activity(merged)
     end
     
