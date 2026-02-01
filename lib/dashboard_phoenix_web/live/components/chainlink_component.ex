@@ -58,11 +58,16 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
   @impl true
   def handle_event("confirm_work", _, socket) do
+    require Logger
+    Logger.info("[ChainlinkComponent] confirm_work clicked, confirm_issue: #{inspect(socket.assigns.confirm_issue)}")
+    
     if socket.assigns.confirm_issue do
       issue_id = socket.assigns.confirm_issue.id
+      Logger.info("[ChainlinkComponent] Sending work_on_issue for ##{issue_id}")
       send(self(), {:chainlink_component, :work_on_issue, issue_id})
       {:noreply, assign(socket, confirm_issue: nil)}
     else
+      Logger.warning("[ChainlinkComponent] confirm_work called but no confirm_issue set!")
       {:noreply, socket}
     end
   end
@@ -255,6 +260,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
           aria-labelledby="chainlink-confirm-title"
           phx-window-keydown="cancel_confirm"
           phx-key="Escape"
+          phx-target={@myself}
         >
           <div
             class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
