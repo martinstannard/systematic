@@ -162,7 +162,7 @@ body {
 
 .panel-header-interactive {
   @apply cursor-pointer transition-colors duration-150;
-  @apply py-3 px-4; /* Consistent header padding */
+  @apply py-4 px-5; /* Increased header padding for better breathing room */
 }
 
 .panel-header-interactive:hover {
@@ -307,14 +307,14 @@ body {
 
 .header-inner {
   @apply flex items-center justify-between;
-  @apply px-4 sm:px-6 lg:px-8;
-  @apply h-14 sm:h-16;
+  @apply px-5 sm:px-8 lg:px-10; /* Increased horizontal padding */
+  @apply h-16 sm:h-18; /* Increased header height for better proportion */
   @apply mx-auto max-w-[2000px];
 }
 
 /* Header Left Section - Logo & Breadcrumb */
 .header-left {
-  @apply flex items-center gap-3 sm:gap-4;
+  @apply flex items-center gap-4 sm:gap-6; /* Increased spacing */
 }
 
 .header-brand {
@@ -381,13 +381,13 @@ body {
 
 /* Header Right Section - Stats & Controls */
 .header-right {
-  @apply flex items-center gap-3 sm:gap-4;
+  @apply flex items-center gap-4 sm:gap-6; /* Increased spacing */
 }
 
 /* Stats Bar */
 .header-stats {
-  @apply hidden sm:flex items-center gap-4;
-  @apply px-3 py-1.5;
+  @apply hidden sm:flex items-center gap-5; /* Increased gap between stats */
+  @apply px-4 py-2; /* Increased padding */
   @apply bg-base-200/60 dark:bg-base-200/40;
   @apply border border-base-300/50;
   @apply rounded-lg;
@@ -563,8 +563,8 @@ body {
    ===================================================== */
 
 .btn-interactive-icon {
-  @apply inline-flex items-center justify-center gap-1.5;
-  @apply min-w-[44px] min-h-[44px] px-3 py-2;
+  @apply inline-flex items-center justify-center gap-2; /* Increased gap */
+  @apply min-w-[48px] min-h-[48px] px-4 py-3; /* Increased padding for better touch targets */
   @apply text-sm font-medium;
   @apply transition-colors duration-150;
   @apply hover:bg-gray-100 dark:hover:bg-gray-700;
@@ -595,11 +595,11 @@ body {
 .agent-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 0.75rem;
+  gap: 1.25rem; /* Increased gap for better separation between cards */
 }
 
 .agent-card {
-  @apply flex flex-col min-h-[100px] p-4;
+  @apply flex flex-col min-h-[120px] p-5; /* Increased padding and min height */
   @apply bg-base-200 border border-base-300;
   @apply transition-colors duration-200;
 }
@@ -609,11 +609,11 @@ body {
 }
 
 .agent-card-header {
-  @apply flex items-center justify-between gap-2 mb-2;
+  @apply flex items-center justify-between gap-3 mb-3; /* Increased gaps and margin-bottom */
 }
 
 .agent-card-identity {
-  @apply flex items-center gap-2 min-w-0 flex-1;
+  @apply flex items-center gap-3 min-w-0 flex-1; /* Increased gap between icon and name */
 }
 
 .agent-card-icon {
@@ -626,11 +626,11 @@ body {
 }
 
 .agent-card-badges {
-  @apply flex items-center gap-1.5 flex-shrink-0 flex-wrap;
+  @apply flex items-center gap-2 flex-shrink-0 flex-wrap; /* Increased gap between badges */
 }
 
 .agent-card-task {
-  @apply text-sm text-gray-600 dark:text-gray-400 mt-auto;
+  @apply text-sm text-gray-600 dark:text-gray-400 mt-auto pt-2; /* Added top padding for more breathing room */
   @apply line-clamp-2;
 }
 
@@ -685,6 +685,7 @@ body {
 .section-system-config {
   @apply bg-base-200/50 border border-base-300;
   @apply rounded-lg;
+  @apply mb-8; /* Added bottom margin for better section separation */
 }
 
 /* No colored left borders - sections are uniform */
@@ -1128,7 +1129,8 @@ textarea:focus-visible,
   }
   
   .agent-card {
-    min-height: 80px;
+    min-height: 100px; /* Increased minimum height for better mobile touch targets */
+    @apply p-4; /* Maintain good padding on mobile */
   }
   
   /* Typography adjustments */
@@ -1152,8 +1154,8 @@ textarea:focus-visible,
   
   /* Panel headers need more tap area on mobile */
   .panel-header-interactive {
-    padding: 0.75rem;
-    min-height: 48px;
+    padding: 1rem; /* Increased mobile padding */
+    min-height: 52px; /* Slightly taller for better touch targets */
   }
   
   /* Reduce text sizes for compact mobile display */
@@ -1169,11 +1171,11 @@ textarea:focus-visible,
     @apply text-xs;
   }
   
-  /* Section headers - more compact on mobile */
+  /* Section headers - more generous spacing even on mobile */
   .section-core-work,
   .section-agent-status,
   .section-system-config {
-    @apply p-3;
+    @apply p-4; /* Increased mobile section padding */
   }
   
   /* Stats in header - stack or hide on very small screens */
@@ -1216,11 +1218,11 @@ textarea:focus-visible,
     @apply flex-col gap-0;
   }
   
-  /* Smaller panel padding */
+  /* Generous panel padding even on mobile */
   .panel-priority-high,
   .panel-priority-medium,
   .panel-priority-compact {
-    @apply p-2;
+    @apply p-3; /* Increased mobile panel padding */
   }
   
   /* Compact agent cards */
@@ -1237,11 +1239,17 @@ textarea:focus-visible,
     @apply text-xs;
   }
   
-  /* Reduce gap between elements */
+  /* Maintain good spacing between elements on mobile */
   .space-y-4 {
     --tw-space-y-reverse: 0;
-    margin-top: calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));
-    margin-bottom: calc(0.5rem * var(--tw-space-y-reverse));
+    margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse))); /* Increased mobile spacing */
+    margin-bottom: calc(0.75rem * var(--tw-space-y-reverse));
+  }
+  
+  .space-y-6 {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse))); /* Maintain spacing for improved layouts */
+    margin-bottom: calc(1rem * var(--tw-space-y-reverse));
   }
 }
 
