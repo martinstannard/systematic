@@ -7,6 +7,9 @@ defmodule DashboardPhoenix.Application do
 
   @impl true
   def start(_type, _args) do
+    # Initialize CLI tools cache
+    DashboardPhoenix.CLITools.ensure_cache_table()
+    
     # Conditional services based on environment
     session_bridge_child = if Application.get_env(:dashboard_phoenix, :disable_session_bridge, false) do
       []

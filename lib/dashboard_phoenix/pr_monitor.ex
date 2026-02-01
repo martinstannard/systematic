@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.PRMonitor do
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.CommandRunner
+  alias DashboardPhoenix.{CommandRunner, CLITools}
 
   @poll_interval_ms 60_000  # 60 seconds
   @topic "pr_updates"
@@ -40,9 +40,25 @@ defmodule DashboardPhoenix.PRMonitor do
 
   @impl true
   def init(_opts) do
+    # Check tool availability on startup
+    initial_error = case CLITools.check_tool("gh", "GitHub CLI") do
+      {:ok, _path} ->
+        Logger.info("PRMonitor initialized - GitHub CLI available")
+        nil
+      
+      {:error, {reason, _name}} ->
+        message = case reason do
+          :not_found -> "GitHub CLI (gh) command not found in PATH. Install from https://cli.github.com/"
+          :not_executable -> "GitHub CLI (gh) found but not executable"
+          _ -> "GitHub CLI (gh) unavailable: #{reason}"
+        end
+        Logger.warning("PRMonitor starting with missing tools: #{message}")
+        message
+    end
+    
     # Start polling after a short delay
     Process.send_after(self(), :poll, 1_000)
-    {:ok, %{prs: [], last_updated: nil, error: nil}}
+    {:ok, %{prs: [], last_updated: nil, error: initial_error}}
   end
 
   @impl true
@@ -121,12 +137,16 @@ defmodule DashboardPhoenix.PRMonitor do
       "--state", "open"
     ]
     
-    case CommandRunner.run_json("gh", args, timeout: @cli_timeout_ms) do
+    case CLITools.run_json_if_available("gh", args, timeout: @cli_timeout_ms, friendly_name: "GitHub CLI") do
       {:ok, prs} when is_list(prs) ->
         {:ok, Enum.map(prs, &parse_pr(&1, repo))}
         
       {:ok, _} ->
         {:error, :unexpected_format}
+      
+      {:error, {:tool_not_available, message}} ->
+        Logger.info("GitHub CLI not available for repo #{repo}: #{message}")
+        {:error, message}
         
       {:error, :timeout} ->
         Logger.warning("GitHub CLI timeout for repo #{repo}")

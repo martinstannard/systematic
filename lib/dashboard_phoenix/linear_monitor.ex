@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.LinearMonitor do
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.{CommandRunner, Paths}
+  alias DashboardPhoenix.{Paths, CLITools}
 
   @poll_interval_ms 30_000  # 30 seconds
   @topic "linear_updates"
@@ -40,9 +40,14 @@ defmodule DashboardPhoenix.LinearMonitor do
 
   @doc "Get full details for a specific ticket"
   def get_ticket_details(ticket_id) do
-    case CommandRunner.run(linear_cli(), ["issue", "show", ticket_id], timeout: @cli_timeout_ms) do
+    case CLITools.run_if_available(linear_cli(), ["issue", "show", ticket_id], 
+         timeout: @cli_timeout_ms, friendly_name: "Linear CLI") do
       {:ok, output} ->
         {:ok, output}
+      
+      {:error, {:tool_not_available, message}} ->
+        Logger.info("Linear CLI not available for ticket #{ticket_id}: #{message}")
+        {:error, message}
       
       {:error, {:exit, _code, error}} ->
         Logger.warning("Linear CLI error fetching #{ticket_id}: #{error}")
@@ -62,9 +67,25 @@ defmodule DashboardPhoenix.LinearMonitor do
 
   @impl true
   def init(_opts) do
+    # Check tool availability on startup
+    tools_status = CLITools.check_tools([
+      {linear_cli(), "Linear CLI"},
+      {"gh", "GitHub CLI"}
+    ])
+    
+    initial_error = if tools_status.all_available? do
+      nil
+    else
+      CLITools.format_status_message(tools_status)
+    end
+    
+    if initial_error do
+      Logger.warning("LinearMonitor starting with missing tools: #{initial_error}")
+    end
+    
     # Start polling after a short delay
     Process.send_after(self(), :poll, 1_000)
-    {:ok, %{tickets: [], last_updated: nil, error: nil}}
+    {:ok, %{tickets: [], last_updated: nil, error: initial_error}}
   end
 
   @impl true
@@ -137,9 +158,14 @@ defmodule DashboardPhoenix.LinearMonitor do
   end
 
   defp fetch_tickets_for_state(status) do
-    case CommandRunner.run(linear_cli(), ["issues", "--state", status], timeout: @cli_timeout_ms) do
+    case CLITools.run_if_available(linear_cli(), ["issues", "--state", status], 
+         timeout: @cli_timeout_ms, friendly_name: "Linear CLI") do
       {:ok, output} ->
         {:ok, parse_issues_output(output, status)}
+      
+      {:error, {:tool_not_available, message}} ->
+        Logger.info("Linear CLI not available for state #{status}: #{message}")
+        {:error, message}
       
       {:error, {:exit, _code, error}} ->
         Logger.warning("Linear CLI error for state #{status}: #{error}")
@@ -247,16 +273,17 @@ defmodule DashboardPhoenix.LinearMonitor do
   defp add_pr_info(ticket), do: Map.put(ticket, :pr_url, nil)
 
   defp lookup_pr(ticket_id) do
-    case CommandRunner.run_json("gh", [
+    case CLITools.run_json_if_available("gh", [
       "pr", "list",
       "--repo", "Fresh-Clinics/core-platform",
       "--search", ticket_id,
       "--state", "open",
       "--json", "number,url",
       "--limit", "1"
-    ], timeout: @cli_timeout_ms) do
+    ], timeout: @cli_timeout_ms, friendly_name: "GitHub CLI") do
       {:ok, [%{"url" => url} | _]} -> {:ok, url}
       {:ok, []} -> {:error, :no_pr_found}
+      {:error, {:tool_not_available, _message}} -> {:error, :gh_not_available}
       {:error, _} -> {:error, :command_failed}
     end
   end

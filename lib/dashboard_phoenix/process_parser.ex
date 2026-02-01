@@ -6,7 +6,7 @@ defmodule DashboardPhoenix.ProcessParser do
 
   require Logger
 
-  alias DashboardPhoenix.CommandRunner
+  alias DashboardPhoenix.{CommandRunner, CLITools}
 
   @cli_timeout_ms 10_000
 
@@ -33,7 +33,8 @@ defmodule DashboardPhoenix.ProcessParser do
     limit = Keyword.get(opts, :limit, nil)
     timeout = Keyword.get(opts, :timeout, @cli_timeout_ms)
 
-    case CommandRunner.run("ps", ["aux", "--sort=#{sort_option}"], timeout: timeout) do
+    case CLITools.run_if_available("ps", ["aux", "--sort=#{sort_option}"], 
+         timeout: timeout, friendly_name: "ps command") do
       {:ok, output} ->
         output
         |> String.split("\n")
@@ -42,6 +43,10 @@ defmodule DashboardPhoenix.ProcessParser do
         |> maybe_limit(limit)
         |> Enum.map(&parse_process_line/1)
         |> Enum.reject(&is_nil/1)
+
+      {:error, {:tool_not_available, message}} ->
+        Logger.info("Cannot list processes - ps command not available: #{message}")
+        []
 
       {:error, reason} ->
         Logger.warning("Failed to list processes: #{inspect(reason)}")

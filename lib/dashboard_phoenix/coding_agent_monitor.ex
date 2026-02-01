@@ -5,13 +5,13 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
 
   require Logger
 
-  alias DashboardPhoenix.CommandRunner
+  alias DashboardPhoenix.CLITools
 
   @agent_patterns ~w(opencode claude-code codex aider)
   @cli_timeout_ms 10_000
 
   def list_agents do
-    case CommandRunner.run("ps", ["aux"], timeout: @cli_timeout_ms) do
+    case CLITools.run_if_available("ps", ["aux"], timeout: @cli_timeout_ms, friendly_name: "ps command") do
       {:ok, output} ->
         output
         |> String.split("\n", trim: true)
@@ -19,6 +19,10 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
         |> Enum.map(&parse_process_line/1)
         |> Enum.filter(&is_coding_agent?/1)
         |> Enum.map(&enrich_agent/1)
+
+      {:error, {:tool_not_available, message}} ->
+        Logger.info("Cannot list coding agents - ps command not available: #{message}")
+        []
 
       {:error, reason} ->
         Logger.warning("Failed to list coding agents: #{inspect(reason)}")
@@ -34,8 +38,10 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
   end
 
   def kill_agent(pid) when is_integer(pid) do
-    case CommandRunner.run("kill", ["-15", to_string(pid)], timeout: 5_000) do
+    case CLITools.run_if_available("kill", ["-15", to_string(pid)], 
+         timeout: 5_000, friendly_name: "kill command") do
       {:ok, _} -> :ok
+      {:error, {:tool_not_available, message}} -> {:error, message}
       {:error, {:exit, _code, error}} -> {:error, error}
       {:error, reason} -> {:error, inspect(reason)}
     end
