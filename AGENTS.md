@@ -179,8 +179,26 @@ end
 
 ### OpenClaw / OpenCode
 - AI agent communication
-- OpenCode ACP on port 9100
-- OpenClaw Control UI on port 18789
+- **OpenCode ACP:** port 9100 (AI Coding Protocol)
+- **OpenCode API:** port 9101 (REST API for session data)
+- **OpenClaw Control UI:** port 18789
+
+#### OpenCode API (Port 9101)
+
+The OpenCode API provides REST endpoints for querying session data:
+
+```bash
+# List all sessions
+curl http://localhost:9101/sessions
+
+# Get specific session details
+curl http://localhost:9101/sessions/<session-id>
+
+# Get session messages/conversation
+curl http://localhost:9101/sessions/<session-id>/messages
+```
+
+Response includes session metadata (model, start time, token usage, etc.) useful for dashboard monitoring.
 
 ## Current Refactoring (Milestone: Dashboard Refactor)
 
