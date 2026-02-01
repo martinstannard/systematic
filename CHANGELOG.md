@@ -11,6 +11,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- UI: Add ARIA labels and states for accessibility (#44)
+- Investigate potential memory growth in monitors (#40)
+- Add rate limiting to external API calls (#33)
+- Standardize error handling across client modules (#30)
+- Use Task.Supervisor.start_child consistently (#29)
+- Add input validation to handle_event handlers (#27)
+- Add missing tests for monitor modules (#26)
+- Extract duplicated process parsing logic (#25)
+- Memoize build_agent_activity and build_graph_data (#6)
+- Use phx-update=stream for Live Feed (#5)
+- Pre-calculate derived data instead of computing in templates (#3)
+- Refactor HomeLive god module (3000+ lines) (#21)
+- Reduce SessionBridge polling frequency (#24)
 - Remove hardcoded paths throughout codebase (#19)
 - Fix race conditions in file operations (#22)
 - Add timeouts to all external CLI calls (#23)

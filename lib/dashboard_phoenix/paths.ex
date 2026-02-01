@@ -105,6 +105,17 @@ defmodule DashboardPhoenix.Paths do
   end
 
   @doc """
+  Get the Chainlink CLI binary path.
+  Default: chainlink (searches PATH)
+  """
+  def chainlink_bin do
+    System.get_env("CHAINLINK_BIN") ||
+      Application.get_env(:dashboard_phoenix, :chainlink_bin) ||
+      find_in_path("chainlink") ||
+      Path.join([System.user_home!(), "bin", "chainlink"])
+  end
+
+  @doc """
   Get the default working directory for coding tasks.
   Default: $HOME/work/core-platform
   """

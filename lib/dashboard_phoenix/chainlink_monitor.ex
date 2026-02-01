@@ -40,7 +40,7 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
 
   @doc "Get full details for a specific issue"
   def get_issue_details(issue_id) do
-    case CommandRunner.run("chainlink", ["show", to_string(issue_id)],
+    case CommandRunner.run(Paths.chainlink_bin(), ["show", to_string(issue_id)],
            cd: repo_path(),
            timeout: @cli_timeout_ms) do
       {:ok, output} ->
@@ -125,7 +125,7 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   def normalize_priority_for_test(priority), do: normalize_priority(priority)
 
   defp fetch_issues(state) do
-    case CommandRunner.run("chainlink", ["list"],
+    case CommandRunner.run(Paths.chainlink_bin(), ["list"],
            cd: repo_path(),
            timeout: @cli_timeout_ms) do
       {:ok, output} ->
