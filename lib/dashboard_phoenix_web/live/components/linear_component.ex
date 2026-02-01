@@ -67,11 +67,6 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   # Helper functions
 
-  defp linear_status_badge("Triaging"), do: "px-1.5 py-0.5bg-red-500/20 text-red-400 text-xs"
-  defp linear_status_badge("Todo"), do: "px-1.5 py-0.5bg-yellow-500/20 text-yellow-400 text-xs"
-  defp linear_status_badge("Backlog"), do: "px-1.5 py-0.5bg-blue-500/20 text-blue-400 text-xs"
-  defp linear_status_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs"
-
   defp linear_filter_button_active("Triaging"), do: "bg-red-500/30 text-red-400 border border-red-500/50"
   defp linear_filter_button_active("Backlog"), do: "bg-blue-500/30 text-blue-400 border border-blue-500/50"
   defp linear_filter_button_active("Todo"), do: "bg-yellow-500/30 text-yellow-400 border border-yellow-500/50"

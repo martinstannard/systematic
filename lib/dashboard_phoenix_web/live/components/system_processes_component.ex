@@ -19,8 +19,6 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
-  alias DashboardPhoenix.InputValidator
-
   def update(assigns, socket) do
     # Pre-calculate limited recent processes to avoid template computation
     limited_recent_processes = Enum.take(assigns.recent_processes, 4)

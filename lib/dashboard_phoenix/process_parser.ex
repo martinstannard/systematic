@@ -6,7 +6,7 @@ defmodule DashboardPhoenix.ProcessParser do
 
   require Logger
 
-  alias DashboardPhoenix.{CommandRunner, CLITools}
+  alias DashboardPhoenix.CLITools
 
   @cli_timeout_ms 10_000
 

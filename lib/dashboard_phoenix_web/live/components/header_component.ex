@@ -109,9 +109,6 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   defp health_symbol(_), do: "◌"
 
   # Server status helpers
-  defp server_status_text(true), do: "ONLINE"
-  defp server_status_text(false), do: "OFFLINE"
-
   defp server_status_symbol(true), do: "●"
   defp server_status_symbol(false), do: "○"
 

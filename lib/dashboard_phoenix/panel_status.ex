@@ -261,6 +261,8 @@ defmodule DashboardPhoenix.PanelStatus do
       end
     end)
   end
+
+  defp has_recent_branches?(_), do: false
   
   # Parse date that can be either a DateTime struct or an ISO 8601 string
   defp parse_date(%DateTime{} = date), do: {:ok, date}
@@ -271,8 +273,6 @@ defmodule DashboardPhoenix.PanelStatus do
     end
   end
   defp parse_date(_), do: :error
-
-  defp has_recent_branches?(_), do: false
 
   defp has_error_sessions?(sessions) when is_list(sessions) do
     Enum.any?(sessions, fn session ->
