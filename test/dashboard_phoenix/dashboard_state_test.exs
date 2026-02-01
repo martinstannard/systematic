@@ -29,7 +29,8 @@ defmodule DashboardPhoenix.DashboardStateTest do
       claude_model: "anthropic/claude-opus-4-5",
       opencode_model: "gemini-3-pro"
     },
-    updated_at: nil
+    updated_at: nil,
+    persist_timer: nil
   }
 
   describe "GenServer behavior - init" do
@@ -66,6 +67,13 @@ defmodule DashboardPhoenix.DashboardStateTest do
       assert is_map(state.models)
       assert Map.has_key?(state.models, :claude_model)
       assert Map.has_key?(state.models, :opencode_model)
+    end
+
+    test "init includes persist_timer for async persistence" do
+      {:ok, state} = DashboardState.init([])
+
+      assert Map.has_key?(state, :persist_timer)
+      assert state.persist_timer == nil
     end
   end
 
@@ -261,6 +269,55 @@ defmodule DashboardPhoenix.DashboardStateTest do
 
       assert new_state.models.claude_model == "new-model"
       assert new_state.models.opencode_model == "new-oc-model"
+    end
+  end
+
+  describe "async persistence" do
+    test "state changes schedule a persist timer" do
+      state = @default_state
+
+      {:reply, :ok, new_state} = DashboardState.handle_call({:set_panel, :linear, true}, self(), state)
+
+      # Timer should be set
+      assert new_state.persist_timer != nil
+      assert is_reference(new_state.persist_timer)
+
+      # Cleanup timer
+      Process.cancel_timer(new_state.persist_timer)
+    end
+
+    test "rapid state changes debounce to single timer" do
+      state = @default_state
+
+      # First change - sets timer
+      {:reply, :ok, state1} = DashboardState.handle_call({:set_panel, :linear, true}, self(), state)
+      timer1 = state1.persist_timer
+      assert timer1 != nil
+
+      # Second change - should cancel old timer and set new one
+      {:reply, :ok, state2} = DashboardState.handle_call({:set_panel, :config, true}, self(), state1)
+      timer2 = state2.persist_timer
+      assert timer2 != nil
+      assert timer2 != timer1
+
+      # Cleanup
+      Process.cancel_timer(timer2)
+    end
+
+    test "handle_info :persist clears the timer" do
+      state = %{@default_state | persist_timer: make_ref()}
+
+      {:noreply, new_state} = DashboardState.handle_info(:persist, state)
+
+      assert new_state.persist_timer == nil
+    end
+
+    test "handle_info ignores unknown messages" do
+      state = @default_state
+
+      {:noreply, new_state} = DashboardState.handle_info(:unknown_message, state)
+
+      assert new_state == state
     end
   end
 end

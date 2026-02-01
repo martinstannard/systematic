@@ -8,6 +8,13 @@ defmodule DashboardPhoenix.DashboardState do
   - Model selections (claude_model, opencode_model preferences)
   
   Uses atomic writes to prevent corruption.
+  
+  ## Async Persistence
+  
+  Persistence is done asynchronously to avoid blocking the GenServer.
+  State changes are debounced (100ms) to coalesce rapid updates into
+  a single write. This improves responsiveness for UI operations like
+  panel toggling.
   """
   use GenServer
   require Logger
@@ -18,6 +25,9 @@ defmodule DashboardPhoenix.DashboardState do
 
   @pubsub DashboardPhoenix.PubSub
   @topic "dashboard_state"
+
+  # Debounce interval for persistence (ms)
+  @persist_debounce_ms 100
 
   # Default state
   @default_state %{
@@ -182,7 +192,8 @@ defmodule DashboardPhoenix.DashboardState do
   @impl true
   def init(_opts) do
     state = load_state()
-    {:ok, state}
+    # Add persist_timer to track debounced save operations
+    {:ok, Map.put(state, :persist_timer, nil)}
   end
 
   @impl true
@@ -194,7 +205,7 @@ defmodule DashboardPhoenix.DashboardState do
   def handle_call({:set_panel, panel_name, collapsed}, _from, state) do
     new_panels = Map.put(state.panels, panel_name, collapsed)
     new_state = %{state | panels: new_panels, updated_at: now()}
-    save_state(new_state)
+    new_state = schedule_persist(new_state)
     broadcast_change(new_state)
     {:reply, :ok, new_state}
   end
@@ -205,7 +216,7 @@ defmodule DashboardPhoenix.DashboardState do
     normalized_panels = normalize_panel_keys(panels)
     new_panels = Map.merge(state.panels, normalized_panels)
     new_state = %{state | panels: new_panels, updated_at: now()}
-    save_state(new_state)
+    new_state = schedule_persist(new_state)
     broadcast_change(new_state)
     {:reply, :ok, new_state}
   end
@@ -217,7 +228,7 @@ defmodule DashboardPhoenix.DashboardState do
     else
       new_dismissed = [session_id | state.dismissed_sessions]
       new_state = %{state | dismissed_sessions: new_dismissed, updated_at: now()}
-      save_state(new_state)
+      new_state = schedule_persist(new_state)
       broadcast_change(new_state)
       {:reply, :ok, new_state}
     end
@@ -231,7 +242,7 @@ defmodule DashboardPhoenix.DashboardState do
     else
       new_dismissed = new_ids ++ state.dismissed_sessions
       new_state = %{state | dismissed_sessions: new_dismissed, updated_at: now()}
-      save_state(new_state)
+      new_state = schedule_persist(new_state)
       broadcast_change(new_state)
       {:reply, :ok, new_state}
     end
@@ -240,7 +251,7 @@ defmodule DashboardPhoenix.DashboardState do
   @impl true
   def handle_call(:clear_dismissed_sessions, _from, state) do
     new_state = %{state | dismissed_sessions: [], updated_at: now()}
-    save_state(new_state)
+    new_state = schedule_persist(new_state)
     broadcast_change(new_state)
     {:reply, :ok, new_state}
   end
@@ -249,7 +260,7 @@ defmodule DashboardPhoenix.DashboardState do
   def handle_call({:set_model, model_key, value}, _from, state) do
     new_models = Map.put(state.models, model_key, value)
     new_state = %{state | models: new_models, updated_at: now()}
-    save_state(new_state)
+    new_state = schedule_persist(new_state)
     broadcast_change(new_state)
     {:reply, :ok, new_state}
   end
@@ -263,12 +274,42 @@ defmodule DashboardPhoenix.DashboardState do
     end
     new_models = Map.merge(state.models, normalized_models)
     new_state = %{state | models: new_models, updated_at: now()}
-    save_state(new_state)
+    new_state = schedule_persist(new_state)
     broadcast_change(new_state)
     {:reply, :ok, new_state}
   end
 
+  @impl true
+  def handle_info(:persist, state) do
+    save_state(state)
+    {:noreply, %{state | persist_timer: nil}}
+  end
+
+  @impl true
+  def handle_info(_msg, state) do
+    {:noreply, state}
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    # Cancel any pending timer and save immediately on shutdown
+    if state.persist_timer, do: Process.cancel_timer(state.persist_timer)
+    save_state(state)
+    :ok
+  end
+
   # Private functions
+
+  defp schedule_persist(state) do
+    # Cancel existing timer if any (debounce)
+    if state.persist_timer do
+      Process.cancel_timer(state.persist_timer)
+    end
+    
+    # Schedule new persist after debounce interval
+    timer = Process.send_after(self(), :persist, @persist_debounce_ms)
+    %{state | persist_timer: timer}
+  end
 
   defp state_file, do: Paths.dashboard_state_file()
 
