@@ -86,6 +86,12 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
         class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
         phx-click="toggle_panel"
         phx-target={@myself}
+        role="button"
+        tabindex="0"
+        aria-expanded={if(@linear_collapsed, do: "false", else: "true")}
+        aria-controls="linear-panel-content"
+        aria-label="Toggle Linear tickets panel"
+        onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
           <span class={"text-xs transition-transform duration-200 " <> if(@linear_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
@@ -101,12 +107,13 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
           phx-target={@myself}
           class="text-[10px] text-base-content/40 hover:text-accent" 
           onclick="event.stopPropagation()"
+          aria-label="Refresh Linear tickets"
         >
           ↻
         </button>
       </div>
       
-      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@linear_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+      <div id="linear-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@linear_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
         <div class="px-3 pb-3">
           <!-- Status Filter -->
           <div class="flex items-center space-x-1 mb-2 flex-wrap gap-1">
@@ -121,6 +128,9 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                     do: linear_filter_button_active(status),
                     else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
                   )}
+                role="button"
+                aria-pressed={if(@linear_status_filter == status, do: "true", else: "false")}
+                aria-label={"Filter tickets by #{status} status, #{count} tickets"}
               >
                 <%= status %> (<%= count %>)
               </button>
@@ -128,7 +138,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
           </div>
           
           <!-- Ticket List -->
-          <div class="space-y-1 max-h-[300px] overflow-y-auto">
+          <div class="space-y-1 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="Linear ticket list">
             <%= if @linear_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
@@ -149,6 +159,8 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                       phx-value-id={ticket.id}
                       phx-target={@myself}
                       class="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
+                      aria-label={"Start work on ticket " <> ticket.id}
+                      title={"Start work on ticket " <> ticket.id}
                     >
                       ▶
                     </button>

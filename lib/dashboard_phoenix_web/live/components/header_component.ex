@@ -27,6 +27,8 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
           phx-hook="ThemeToggle"
           class="p-1.5 rounded-lg bg-base-content/10 hover:bg-base-content/20 transition-colors"
           title="Toggle light/dark mode"
+          aria-label="Toggle between light and dark theme"
+          aria-pressed="false"
         >
           <svg class="sun-icon w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -38,7 +40,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
       </div>
       
       <!-- Compact Stats -->
-      <div class="flex items-center space-x-6 text-xs font-mono">
+      <div class="flex items-center space-x-6 text-xs font-mono" aria-live="polite" aria-label="Dashboard statistics">
         <div class="flex items-center space-x-2">
           <span class="text-base-content/50">Agents:</span>
           <span class="text-success font-bold"><%= @agent_sessions_count %></span>

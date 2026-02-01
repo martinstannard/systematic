@@ -135,6 +135,12 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
         class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
         phx-click="toggle_panel"
         {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
+        role="button"
+        tabindex="0"
+        aria-expanded={if(@subagents_collapsed, do: "false", else: "true")}
+        aria-controls="subagents-panel-content"
+        aria-label="Toggle Sub-Agents panel"
+        onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
           <span class={"text-xs transition-transform duration-200 " <> if(@subagents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
@@ -152,14 +158,15 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
             {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
             class="text-[10px] px-2 py-0.5 rounded bg-base-content/10 text-base-content/50 hover:bg-accent/20 hover:text-accent transition-colors uppercase tracking-wider" 
             onclick="event.stopPropagation()"
+            aria-label={"Clear " <> to_string(@completed_count) <> " completed sub-agent sessions"}
           >
             Clear Completed (<%= @completed_count %>)
           </button>
         <% end %>
       </div>
       
-      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}>
-        <div class="px-3 pb-3 space-y-2 max-h-[450px] overflow-y-auto">
+      <div id="subagents-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}>
+        <div class="px-3 pb-3 space-y-2 max-h-[450px] overflow-y-auto" role="region" aria-live="polite" aria-label="Sub-agent sessions list">
           <%= if @visible_sessions == [] do %>
             <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sub-agents</div>
           <% end %>

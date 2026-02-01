@@ -69,6 +69,12 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
         phx-click="toggle_panel"
         phx-target={@myself}
+        role="button"
+        tabindex="0"
+        aria-expanded={if(@chainlink_collapsed, do: "false", else: "true")}
+        aria-controls="chainlink-panel-content"
+        aria-label="Toggle Chainlink issues panel"
+        onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
           <span class={"text-xs transition-transform duration-200 " <> if(@chainlink_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
@@ -84,12 +90,13 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
           phx-target={@myself}
           class="text-[10px] text-base-content/40 hover:text-accent"
           onclick="event.stopPropagation()"
+          aria-label="Refresh Chainlink issues"
         >
           ↻
         </button>
       </div>
 
-      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@chainlink_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+      <div id="chainlink-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@chainlink_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
         <div class="px-3 pb-3">
           <!-- Priority Legend -->
           <div class="flex items-center space-x-2 mb-2 text-[10px] font-mono text-base-content/50">
@@ -99,7 +106,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
           </div>
 
           <!-- Issue List -->
-          <div class="space-y-1 max-h-[300px] overflow-y-auto">
+          <div class="space-y-1 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="Chainlink issue list">
             <%= if @chainlink_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
@@ -127,6 +134,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       phx-target={@myself}
                       class="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/40"
                       title="Start work on this issue"
+                      aria-label={"Start work on issue #" <> to_string(issue.id)}
                     >
                       ▶
                     </button>

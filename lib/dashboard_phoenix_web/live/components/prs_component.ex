@@ -111,6 +111,12 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
         class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
         phx-click="toggle_panel"
         phx-target={@myself}
+        role="button"
+        tabindex="0"
+        aria-expanded={if(@prs_collapsed, do: "false", else: "true")}
+        aria-controls="prs-panel-content"
+        aria-label="Toggle Pull Requests panel"
+        onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
           <span class={"text-xs transition-transform duration-200 " <> if(@prs_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
@@ -126,15 +132,16 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
           phx-target={@myself}
           class="text-[10px] text-base-content/40 hover:text-accent"
           onclick="event.stopPropagation()"
+          aria-label="Refresh Pull Requests"
         >
           ↻
         </button>
       </div>
 
-      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@prs_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+      <div id="prs-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@prs_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
         <div class="px-3 pb-3">
           <!-- PR List -->
-          <div class="space-y-2 max-h-[350px] overflow-y-auto">
+          <div class="space-y-2 max-h-[350px] overflow-y-auto" role="region" aria-live="polite" aria-label="Pull requests list">
             <%= if @github_prs_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
