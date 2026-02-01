@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Add @moduledoc to undocumented modules (#31)
+- Add loading states to all dashboard panels (#34)
 - Refactor: Smart Components (#112)
 - Refactor: Smart Components (#112)
 - Add typespecs throughout codebase (#32)

@@ -146,6 +146,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
         # Only need collapsed state for panel wrapper and work_in_progress for coordination
         chainlink_collapsed: persisted_state.panels.chainlink,
         chainlink_work_in_progress: load_persisted_chainlink_work(),
+        chainlink_error: nil,
+        chainlink_loading: false,
+        chainlink_issues: [],
+        chainlink_issues_count: 0,
         # GitHub PRs - loaded async
         github_prs: [],
         github_prs_count: 0,
