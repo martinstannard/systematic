@@ -54,6 +54,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.PRMonitor,
       # Unmerged branches monitor
       DashboardPhoenix.BranchMonitor,
+      # Git commit/merge event monitor
+      DashboardPhoenix.GitMonitor,
       # OpenCode ACP server manager
       DashboardPhoenix.OpenCodeServer,
       # Gemini CLI server manager

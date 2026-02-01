@@ -119,6 +119,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_icon(:test_passed), do: "✅"
   defp event_icon(:test_failed), do: "❌"
   defp event_icon(:task_started), do: "▶️"
+  defp event_icon(:git_commit), do: "📝"
+  defp event_icon(:git_merge), do: "🔀"
   defp event_icon(_), do: "•"
 
   # Event type text colors - matching the ticket spec
@@ -133,6 +135,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_type_class(:test_passed), do: "text-emerald-400"
   defp event_type_class(:test_failed), do: "text-red-400"
   defp event_type_class(:task_started), do: "text-yellow-400"
+  defp event_type_class(:git_commit), do: "text-orange-400"
+  defp event_type_class(:git_merge), do: "text-purple-400"
   defp event_type_class(_), do: "text-base-content/60"
 
   # Icon colors
@@ -146,6 +150,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_icon_class(:test_passed), do: "text-emerald-400"
   defp event_icon_class(:test_failed), do: "text-red-400"
   defp event_icon_class(:task_started), do: "text-yellow-400"
+  defp event_icon_class(:git_commit), do: "text-orange-400"
+  defp event_icon_class(:git_merge), do: "text-purple-400"
   defp event_icon_class(_), do: "text-base-content/40"
 
   # Background colors on hover/for visual distinction
@@ -159,6 +165,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_bg_class(:test_passed), do: "hover:bg-emerald-500/10"
   defp event_bg_class(:test_failed), do: "hover:bg-red-500/10"
   defp event_bg_class(:task_started), do: "hover:bg-yellow-500/10"
+  defp event_bg_class(:git_commit), do: "hover:bg-orange-500/10"
+  defp event_bg_class(:git_merge), do: "hover:bg-purple-500/10"
   defp event_bg_class(_), do: "hover:bg-base-content/5"
 
   # Human-readable event type labels
@@ -172,6 +180,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_type_label(:test_passed), do: "Tests Passed"
   defp event_type_label(:test_failed), do: "Tests Failed"
   defp event_type_label(:task_started), do: "Task Started"
+  defp event_type_label(:git_commit), do: "Git Commit"
+  defp event_type_label(:git_merge), do: "Git Merge"
   defp event_type_label(type), do: type |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
 
   # Format timestamp in Sydney time (UTC+11)
