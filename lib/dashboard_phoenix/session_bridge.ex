@@ -770,13 +770,13 @@ defmodule DashboardPhoenix.SessionBridge do
         cached = Map.get(transcript_cache, session_id)
         
         # Check if cache is still valid (same mtime and size)
-        # For running sessions, always re-parse to get latest progress
-        if cached && cached.mtime == mtime && cached.size == size && status == "completed" do
+        # Optimized: Trust cache even for running sessions if file hasn't changed (Ticket #77)
+        if cached && cached.mtime == mtime && cached.size == size do
           # Cache hit! Return cached details
           {cached.details, cached}
         else
-          # Cache miss or running session - parse the file
-          details = do_extract_transcript_details(transcript_path, status)
+          # Cache miss or file changed - parse the file
+          details = do_extract_transcript_details(transcript_path, size, status)
           cache_entry = %{mtime: mtime, size: size, details: details}
           {details, cache_entry}
         end
@@ -788,114 +788,153 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   # The actual transcript parsing logic (extracted from original extract_transcript_details)
-  defp do_extract_transcript_details(transcript_path, status) do
-    case File.read(transcript_path) do
-      {:ok, content} ->
-        lines = String.split(content, "\n", trim: true)
-        
-        # Parse all lines
-        parsed = Enum.map(lines, fn line ->
-          case Jason.decode(line) do
-            {:ok, data} -> data
-            _ -> nil
-          end
-        end) |> Enum.reject(&is_nil/1)
-        
-        # Find first user message (task)
-        task_summary = parsed
-        |> Enum.find(fn entry ->
-          entry["type"] == "message" && 
-          get_in(entry, ["message", "role"]) == "user"
-        end)
-        |> case do
-          nil -> nil
-          entry -> 
-            get_in(entry, ["message", "content"])
-            |> extract_text_content()
-            |> truncate_text(150)
+  defp do_extract_transcript_details(transcript_path, size, status) do
+    # Limit parsing depth for large transcripts (Ticket #77)
+    # If file is > 2MB, only read head and tail to save CPU/Memory
+    content = if size > 2_000_000 do
+      read_transcript_smart(transcript_path, size)
+    else
+      case File.read(transcript_path) do
+        {:ok, c} -> c
+        _ -> ""
+      end
+    end
+
+    lines = :binary.split(content, "\n", [:global, :trim])
+    
+    # Parse all lines
+    parsed = Enum.map(lines, fn line ->
+      case Jason.decode(line) do
+        {:ok, data} -> data
+        _ -> nil
+      end
+    end) |> Enum.reject(&is_nil/1)
+    
+    # Find first user message (task)
+    task_summary = parsed
+    |> Enum.find(fn entry ->
+      entry["type"] == "message" && 
+      get_in(entry, ["message", "role"]) == "user"
+    end)
+    |> case do
+      nil -> nil
+      entry -> 
+        get_in(entry, ["message", "content"])
+        |> extract_text_content()
+        |> truncate_text(150)
+    end
+    
+    # Find last assistant text message (result) - only for completed sessions
+    result_snippet = if status == "completed" do
+      parsed
+      |> Enum.filter(fn entry ->
+        entry["type"] == "message" && 
+        get_in(entry, ["message", "role"]) == "assistant"
+      end)
+      |> List.last()
+      |> case do
+        nil -> nil
+        entry ->
+          get_in(entry, ["message", "content"])
+          |> extract_text_content()
+          |> truncate_text(100)
+      end
+    else
+      nil
+    end
+    
+    # Calculate runtime from first and last timestamps
+    timestamps = parsed
+    |> Enum.map(fn entry -> entry["timestamp"] end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&parse_timestamp/1)
+    |> Enum.reject(&is_nil/1)
+    
+    {start_time, end_time} = case timestamps do
+      [] -> {nil, nil}
+      [single] -> {single, single}
+      list -> {List.first(list), List.last(list)}
+    end
+    
+    # For running sessions, calculate elapsed time from start to now
+    # For completed sessions, calculate total runtime
+    runtime = cond do
+      status in ["running", "idle"] && start_time ->
+        diff_ms = DateTime.diff(DateTime.utc_now(), start_time, :millisecond)
+        format_runtime(diff_ms)
+      start_time && end_time ->
+        diff_ms = DateTime.diff(end_time, start_time, :millisecond)
+        format_runtime(diff_ms)
+      true ->
+        nil
+    end
+    
+    # Time info: for completed = completion time, for running = start time
+    time_info = cond do
+      status == "completed" && end_time ->
+        Calendar.strftime(end_time, "%H:%M:%S")
+      status in ["running", "idle"] && start_time ->
+        Calendar.strftime(start_time, "%H:%M:%S")
+      true ->
+        nil
+    end
+    
+    # Sum up token usage from all assistant messages
+    {tokens_in, tokens_out, total_cost} = parsed
+    |> Enum.filter(fn entry ->
+      entry["type"] == "message" && 
+      get_in(entry, ["message", "role"]) == "assistant" &&
+      get_in(entry, ["message", "usage"]) != nil
+    end)
+    |> Enum.reduce({0, 0, 0.0}, fn entry, {in_acc, out_acc, cost_acc} ->
+      usage = get_in(entry, ["message", "usage"]) || %{}
+      input = (usage["input"] || 0) + (usage["cacheRead"] || 0)
+      output = usage["output"] || 0
+      cost = get_in(usage, ["cost", "total"]) || 0
+      {in_acc + input, out_acc + output, cost_acc + cost}
+    end)
+    
+    # For running sessions, extract current action and recent tool calls
+    {current_action, recent_actions} = if status in ["running", "idle"] do
+      extract_running_session_status(parsed)
+    else
+      {nil, []}
+    end
+    
+    {task_summary, result_snippet, runtime, tokens_in, tokens_out, total_cost, time_info, current_action, recent_actions}
+  end
+
+  # Read head and tail of large files
+  defp read_transcript_smart(path, size) do
+    # Read first 10KB
+    head = read_part(path, 0, 10_000)
+    
+    # Read last 100KB
+    tail_len = 100_000
+    tail_offset = max(0, size - tail_len)
+    
+    if tail_offset > 10_000 do
+      tail = read_part(path, tail_offset, tail_len)
+      head <> "\n" <> tail
+    else
+      # Overlap or small enough, just return head (which is actually full read in this logic if we logic it right, 
+      # but here we know size > 2MB so tail_offset is definitely > 10_000)
+      # Fallback just in case logic changes
+      head
+    end
+  end
+
+  defp read_part(path, offset, length) do
+    case File.open(path, [:read, :binary]) do
+      {:ok, file} ->
+        :file.position(file, offset)
+        data = case IO.read(file, length) do
+          d when is_binary(d) -> d
+          _ -> ""
         end
-        
-        # Find last assistant text message (result) - only for completed sessions
-        result_snippet = if status == "completed" do
-          parsed
-          |> Enum.filter(fn entry ->
-            entry["type"] == "message" && 
-            get_in(entry, ["message", "role"]) == "assistant"
-          end)
-          |> List.last()
-          |> case do
-            nil -> nil
-            entry ->
-              get_in(entry, ["message", "content"])
-              |> extract_text_content()
-              |> truncate_text(100)
-          end
-        else
-          nil
-        end
-        
-        # Calculate runtime from first and last timestamps
-        timestamps = parsed
-        |> Enum.map(fn entry -> entry["timestamp"] end)
-        |> Enum.reject(&is_nil/1)
-        |> Enum.map(&parse_timestamp/1)
-        |> Enum.reject(&is_nil/1)
-        
-        {start_time, end_time} = case timestamps do
-          [] -> {nil, nil}
-          [single] -> {single, single}
-          list -> {List.first(list), List.last(list)}
-        end
-        
-        # For running sessions, calculate elapsed time from start to now
-        # For completed sessions, calculate total runtime
-        runtime = cond do
-          status in ["running", "idle"] && start_time ->
-            diff_ms = DateTime.diff(DateTime.utc_now(), start_time, :millisecond)
-            format_runtime(diff_ms)
-          start_time && end_time ->
-            diff_ms = DateTime.diff(end_time, start_time, :millisecond)
-            format_runtime(diff_ms)
-          true ->
-            nil
-        end
-        
-        # Time info: for completed = completion time, for running = start time
-        time_info = cond do
-          status == "completed" && end_time ->
-            Calendar.strftime(end_time, "%H:%M:%S")
-          status in ["running", "idle"] && start_time ->
-            Calendar.strftime(start_time, "%H:%M:%S")
-          true ->
-            nil
-        end
-        
-        # Sum up token usage from all assistant messages
-        {tokens_in, tokens_out, total_cost} = parsed
-        |> Enum.filter(fn entry ->
-          entry["type"] == "message" && 
-          get_in(entry, ["message", "role"]) == "assistant" &&
-          get_in(entry, ["message", "usage"]) != nil
-        end)
-        |> Enum.reduce({0, 0, 0.0}, fn entry, {in_acc, out_acc, cost_acc} ->
-          usage = get_in(entry, ["message", "usage"]) || %{}
-          input = (usage["input"] || 0) + (usage["cacheRead"] || 0)
-          output = usage["output"] || 0
-          cost = get_in(usage, ["cost", "total"]) || 0
-          {in_acc + input, out_acc + output, cost_acc + cost}
-        end)
-        
-        # For running sessions, extract current action and recent tool calls
-        {current_action, recent_actions} = if status in ["running", "idle"] do
-          extract_running_session_status(parsed)
-        else
-          {nil, []}
-        end
-        
-        {task_summary, result_snippet, runtime, tokens_in, tokens_out, total_cost, time_info, current_action, recent_actions}
-        
-      {:error, _} ->
-        {nil, nil, nil, 0, 0, 0, nil, nil, []}
+        File.close(file)
+        data
+      _ -> ""
     end
   end
   
