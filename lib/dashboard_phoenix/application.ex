@@ -28,6 +28,8 @@ defmodule DashboardPhoenix.Application do
       {Phoenix.PubSub, name: DashboardPhoenix.PubSub},
       # Agent preferences for coding agent toggle
       DashboardPhoenix.AgentPreferences,
+      # Dashboard UI state persistence (panels, dismissed sessions, models)
+      DashboardPhoenix.DashboardState,
       # Activity log for workflow event tracking
       DashboardPhoenix.ActivityLog,
       # Deploy manager for post-merge deployment pipeline
