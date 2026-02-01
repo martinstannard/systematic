@@ -117,8 +117,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       # Should show WIP styling for issue 1
       assert html =~ "bg-accent/10"
       assert html =~ "border-success/50"
-      # Should show pulsing indicator
-      assert html =~ "animate-pulse"
+      # Should show static indicator
+      assert html =~ "bg-success"
       # Should show agent label
       assert html =~ "agent-123"
     end
@@ -143,8 +143,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
 
       # Work button should NOT be present for the in-progress issue
       refute html =~ ~r/phx-value-id="1".*▶/s
-      # Pulsing indicator should be present instead
-      assert html =~ "animate-pulse"
+      # Static indicator should be present instead
+      assert html =~ "bg-success"
     end
 
     test "shows work button for issues not being worked on" do

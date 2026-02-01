@@ -302,22 +302,8 @@ body {
   height: 6px;
   border-radius: 0;
   background: currentColor;
-  animation: quantum-pulse 1.5s ease-in-out infinite;
-}
-
-.quantum-dot:nth-child(2) { animation-delay: 0.2s; }
-.quantum-dot:nth-child(3) { animation-delay: 0.4s; }
-.quantum-dot:nth-child(4) { animation-delay: 0.6s; }
-
-@keyframes quantum-pulse {
-  0%, 100% {
-    opacity: 0.3;
-    transform: scale(0.8);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.2);
-  }
+  opacity: 1;
+  /* animation removed for static UI */
 }
 
 /* Terminal cursor effect */
@@ -328,12 +314,8 @@ body {
 .terminal-cursor::after {
   content: "▋";
   color: rgba(139, 92, 246, 0.8);
-  animation: cursor-blink 1s step-end infinite;
+  /* animation removed for static UI */
   margin-left: 2px;
-}
-
-@keyframes cursor-blink {
-  50% { opacity: 0; }
 }
 
 /* Enhanced glass morphism for modern panels - no glow */
@@ -428,18 +410,8 @@ button:focus-visible, .btn:focus-visible {
   height: 6px;
   border-radius: 0;
   background: currentColor;
-  animation: status-pulse 2s ease-in-out infinite;
-}
-
-@keyframes status-pulse {
-  0%, 100% { 
-    opacity: 1; 
-    transform: scale(1);
-  }
-  50% { 
-    opacity: 0.6; 
-    transform: scale(1.2);
-  }
+  opacity: 1;
+  /* animation removed for static UI */
 }
 
 /* Floating label animations for forms */
@@ -618,7 +590,8 @@ button:focus-visible, .btn:focus-visible {
     transparent 100%
   );
   border-radius: 0;
-  animation: critical-pulse 2.5s ease-in-out infinite;
+  opacity: 0.9;
+  /* animation removed for static UI */
   z-index: 2;
 }
 
@@ -638,17 +611,6 @@ button:focus-visible, .btn:focus-visible {
   );
   border-radius: 0;
   z-index: 1;
-}
-
-@keyframes critical-pulse {
-  0%, 100% { 
-    opacity: 0.8;
-    filter: brightness(100%);
-  }
-  50% { 
-    opacity: 1;
-    filter: brightness(120%);
-  }
 }
 
 /* =====================================================
@@ -728,18 +690,8 @@ button:focus-visible, .btn:focus-visible {
     rgba(34, 197, 94, 0.8) 100%
   );
   border-radius: 0;
-  animation: working-pulse 2s ease-in-out infinite;
-}
-
-@keyframes working-progress {
-  0% { left: -100%; }
-  50% { left: -50%; }
-  100% { left: 100%; }
-}
-
-@keyframes working-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  opacity: 0.8;
+  /* animation removed for static UI */
 }
 
 /* Warning state panels - Attention needed - no glow */
@@ -1818,20 +1770,10 @@ button:focus-visible, .btn:focus-visible {
   background: rgb(100, 116, 139);
 }
 
-/* Subtle pulse animation for PR work indicator */
+/* PR work indicator - animation removed for static UI */
 .animate-pulse-subtle {
-  animation: pulse-subtle 2s ease-in-out infinite;
-}
-
-@keyframes pulse-subtle {
-  0%, 100% {
-    opacity: 1;
-    border-color: rgba(232, 121, 249, 0.5); /* accent color */
-  }
-  50% {
-    opacity: 0.9;
-    border-color: rgba(232, 121, 249, 0.3);
-  }
+  opacity: 1;
+  border-color: rgba(232, 121, 249, 0.5); /* accent color */
 }
 
 /* =====================================================

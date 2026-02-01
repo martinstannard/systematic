@@ -250,8 +250,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponentTest do
         tickets_in_progress: %{"COR-103" => %{label: "working-on-103"}}
       })
 
-      # Should show in-progress indicator (pulsing dot instead of play button)
-      assert html =~ "animate-pulse"
+      # Should show in-progress indicator (static dot instead of play button)
       assert html =~ "bg-success"
     end
   end

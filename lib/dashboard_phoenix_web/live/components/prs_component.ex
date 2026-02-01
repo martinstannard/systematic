@@ -55,7 +55,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
   # PR CI status badges
   defp pr_ci_badge(:success), do: "px-1.5 py-0.5bg-green-500/20 text-green-400 text-xs"
   defp pr_ci_badge(:failure), do: "px-1.5 py-0.5bg-red-500/20 text-red-400 text-xs"
-  defp pr_ci_badge(:pending), do: "px-1.5 py-0.5bg-yellow-500/20 text-yellow-400 text-xs animate-pulse"
+  defp pr_ci_badge(:pending), do: "px-1.5 py-0.5bg-yellow-500/20 text-yellow-400 text-xs"
   defp pr_ci_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs"
 
   defp pr_ci_icon(:success), do: "✓"
@@ -161,14 +161,14 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                 <% verification = Map.get(@pr_verifications, pr.url) %>
                 <div class={"px-2 py-2text-xs font-mono " <>
                   if(pr_work_info,
-                    do: "bg-accent/10 border-2 border-accent/50 animate-pulse-subtle",
+                    do: "bg-accent/10 border-2 border-accent/50",
                     else: "panel-status hover:bg-accent/10 border border-accent/20 hover:border-accent/40 transition-all #{status_bg}")}>
                   <!-- PR Title and Number -->
                   <div class="flex items-start justify-between mb-1">
                     <div class="flex-1 min-w-0">
                       <a href={pr.url} target="_blank" class="text-white hover:text-accent flex items-center space-x-1">
                         <%= if pr_work_info do %>
-                          <span class="w-2 h-2 bg-success animate-pulse flex-shrink-0" title={"Agent working: #{pr_work_info[:label] || pr_work_info[:slug]}"}></span>
+                          <span class="w-2 h-2 bg-success flex-shrink-0" title={"Agent working: #{pr_work_info[:label] || pr_work_info[:slug]}"}></span>
                         <% end %>
                         <span class="text-accent font-bold">#<%= pr.number %></span>
                         <span class="truncate"><%= pr.title %></span>
@@ -231,7 +231,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                           "min-h-[32px] min-w-[44px] px-2 py-1text-xs font-medium",
                           "transition-all duration-150 select-none touch-manipulation",
                           if(is_fix_pending,
-                            do: "bg-warning/30 text-warning animate-pulse cursor-wait",
+                            do: "bg-warning/30 text-warning cursor-wait",
                             else: if(is_work_in_progress,
                               do: "bg-base-content/10 text-base-content/40 cursor-not-allowed",
                               else: "bg-red-500/20 text-red-400 hover:bg-red-500/40 active:bg-red-500/60 active:scale-95"
@@ -307,7 +307,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
 
                     <!-- Agent Working Indicator -->
                     <%= if pr_work_info do %>
-                      <span class="px-1.5 py-0.5bg-success/20 text-success text-xs animate-pulse"
+                      <span class="px-1.5 py-0.5bg-success/20 text-success text-xs"
                             title={"#{if pr_work_info.type == :opencode, do: "OpenCode", else: "Sub-agent"} working on this PR"}>
                         🤖 <%= pr_work_info[:label] || pr_work_info[:slug] || "Working..." %>
                       </span>
