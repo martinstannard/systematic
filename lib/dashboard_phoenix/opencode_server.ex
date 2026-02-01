@@ -18,6 +18,8 @@ defmodule DashboardPhoenix.OpenCodeServer do
 
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.CommandRunner
+  alias DashboardPhoenix.OpenCodeClient
+  alias DashboardPhoenix.ActivityLog
 
   @default_port 9100
   @pubsub DashboardPhoenix.PubSub
@@ -47,6 +49,10 @@ defmodule DashboardPhoenix.OpenCodeServer do
 
   # Graceful shutdown configuration
   @graceful_shutdown_timeout_ms 5_000  # Wait 5s for graceful shutdown
+
+  # Session cleanup configuration
+  @session_cleanup_interval_ms 900_000  # Run every 15 minutes
+  @session_stale_threshold_ms 3_600_000  # 1 hour idle = stale
 
   defp opencode_bin, do: Paths.opencode_bin()
   defp default_cwd, do: Paths.default_work_dir()
@@ -143,10 +149,16 @@ defmodule DashboardPhoenix.OpenCodeServer do
       
       # Circuit breaker
       circuit_state: :closed,  # :closed (normal), :open (failing too much), :half_open (testing)
-      circuit_opened_at: nil
+      circuit_opened_at: nil,
+      
+      # Session cleanup
+      cleanup_timer: nil
     }
     
-    {:ok, state}
+    # Schedule periodic session cleanup
+    cleanup_timer = schedule_session_cleanup()
+    
+    {:ok, %{state | cleanup_timer: cleanup_timer}}
   end
 
   @impl true
@@ -265,6 +277,14 @@ defmodule DashboardPhoenix.OpenCodeServer do
     end
   end
 
+  # Handle session cleanup timer
+  @impl true
+  def handle_info(:cleanup_stale_sessions, state) do
+    new_state = perform_session_cleanup(state)
+    timer = schedule_session_cleanup()
+    {:noreply, %{new_state | cleanup_timer: timer}}
+  end
+
   @impl true
   def handle_info(msg, state) do
     Logger.debug("[OpenCodeServer] Unhandled message: #{inspect(msg)}")
@@ -278,6 +298,7 @@ defmodule DashboardPhoenix.OpenCodeServer do
     # Cancel timers
     if state.health_check_timer, do: Process.cancel_timer(state.health_check_timer)
     if state.restart_timer, do: Process.cancel_timer(state.restart_timer)
+    if state.cleanup_timer, do: Process.cancel_timer(state.cleanup_timer)
     
     # Graceful shutdown
     if state.running do
@@ -614,5 +635,78 @@ defmodule DashboardPhoenix.OpenCodeServer do
       circuit_state: state.circuit_state
     }
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:opencode_status, status})
+  end
+
+  defp schedule_session_cleanup do
+    Process.send_after(self(), :cleanup_stale_sessions, @session_cleanup_interval_ms)
+  end
+
+  defp perform_session_cleanup(state) do
+    # Only cleanup if server is running
+    unless state.running do
+      Logger.debug("[OpenCodeServer] Skipping session cleanup - server not running")
+      state
+    else
+      case OpenCodeClient.list_sessions() do
+        {:ok, sessions} ->
+          now_ms = System.system_time(:millisecond)
+          stale_sessions = find_stale_sessions(sessions, now_ms)
+          deleted_count = delete_stale_sessions(stale_sessions)
+          
+          if deleted_count > 0 do
+            Logger.info("[OpenCodeServer] Cleaned up #{deleted_count} stale session(s)")
+            
+            ActivityLog.log_event(
+              :session_cleanup,
+              "Cleaned up #{deleted_count} stale OpenCode session(s)",
+              %{count: deleted_count, session_ids: Enum.map(stale_sessions, & &1["id"])}
+            )
+          else
+            Logger.debug("[OpenCodeServer] No stale sessions to cleanup")
+          end
+          
+          state
+          
+        {:error, reason} ->
+          Logger.warning("[OpenCodeServer] Failed to list sessions for cleanup: #{inspect(reason)}")
+          state
+      end
+    end
+  end
+
+  defp find_stale_sessions(sessions, now_ms) do
+    Enum.filter(sessions, fn session ->
+      case get_in(session, ["time", "updated"]) do
+        updated_ms when is_integer(updated_ms) ->
+          age_ms = now_ms - updated_ms
+          age_ms > @session_stale_threshold_ms
+          
+        _ ->
+          # No updated timestamp, consider stale if created long ago
+          case get_in(session, ["time", "created"]) do
+            created_ms when is_integer(created_ms) ->
+              age_ms = now_ms - created_ms
+              age_ms > @session_stale_threshold_ms
+            _ ->
+              false
+          end
+      end
+    end)
+  end
+
+  defp delete_stale_sessions(stale_sessions) do
+    Enum.reduce(stale_sessions, 0, fn session, count ->
+      session_id = session["id"]
+      
+      case OpenCodeClient.delete_session(session_id) do
+        :ok ->
+          Logger.debug("[OpenCodeServer] Deleted stale session: #{session_id}")
+          count + 1
+          
+        {:error, reason} ->
+          Logger.warning("[OpenCodeServer] Failed to delete session #{session_id}: #{inspect(reason)}")
+          count
+      end
+    end)
   end
 end
