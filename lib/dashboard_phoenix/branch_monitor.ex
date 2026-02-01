@@ -70,7 +70,8 @@ defmodule DashboardPhoenix.BranchMonitor do
     Process.send_after(self(), :poll, 1_000)
 
     {:ok,
-     %{branches: [], worktrees: %{}, last_updated: nil, error: initial_error, main_head: nil}}
+     %{branches: [], worktrees: %{}, last_updated: nil, error: initial_error, main_head: nil,
+       poll_in_flight: false}}
   end
 
   @impl true
@@ -111,36 +112,60 @@ defmodule DashboardPhoenix.BranchMonitor do
   end
 
   @impl true
-  def handle_info(:poll, state) do
-    # Fetch async to avoid blocking GenServer calls
-    parent = self()
-
-    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-      new_state = fetch_branches(state)
-      send(parent, {:poll_complete, new_state})
-    end)
-
+  def handle_info(:poll, %{poll_in_flight: true} = state) do
+    # A poll is already running, skip this one to prevent race conditions
+    # The running poll will schedule the next one when it completes
     {:noreply, state}
   end
 
-  def handle_info({:poll_complete, new_state}, _state) do
+  def handle_info(:poll, state) do
+    # Fetch async to avoid blocking GenServer calls
+    # Capture the current main_head to use for comparison when poll completes
+    parent = self()
+    current_main_head = state.main_head
+
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      new_state = fetch_branches(state)
+      send(parent, {:poll_complete, new_state, current_main_head})
+    end)
+
+    {:noreply, %{state | poll_in_flight: true}}
+  end
+
+  def handle_info({:poll_complete, new_state, captured_main_head}, state) do
+    # Only apply results if the main_head we captured matches current state
+    # This prevents stale poll results from overwriting newer data
+    final_state = if captured_main_head == state.main_head do
+      new_state
+    else
+      # State changed while poll was running (another poll completed first)
+      # Keep new branch data but don't re-detect commits (already detected)
+      Logger.debug("BranchMonitor: Discarding stale poll result, main_head changed")
+      %{new_state | main_head: state.main_head}
+    end
+
     # Broadcast update to subscribers
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
       @topic,
       {:branch_update,
        %{
-         branches: new_state.branches,
-         worktrees: new_state.worktrees,
-         last_updated: new_state.last_updated,
-         error: new_state.error
+         branches: final_state.branches,
+         worktrees: final_state.worktrees,
+         last_updated: final_state.last_updated,
+         error: final_state.error
        }}
     )
 
-    # Schedule next poll
+    # Schedule next poll and clear in-flight flag
     Process.send_after(self(), :poll, @poll_interval_ms)
 
-    {:noreply, new_state}
+    {:noreply, %{final_state | poll_in_flight: false}}
+  end
+
+  # Handle legacy poll_complete messages without captured_main_head (backwards compatibility)
+  def handle_info({:poll_complete, new_state}, state) do
+    handle_info({:poll_complete, new_state, state.main_head}, state)
   end
 
   # Private functions
