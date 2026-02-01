@@ -5,6 +5,25 @@ defmodule DashboardPhoenix.BranchMonitorTest do
 
   @moduletag :branch_monitor
 
+  # Global setup to ensure clean state between tests
+  setup do
+    # Stop any existing BranchMonitor that may have been started by a previous test
+    case GenServer.whereis(BranchMonitor) do
+      nil -> :ok
+      pid -> GenServer.stop(pid, :normal, 1000)
+    end
+    
+    on_exit(fn ->
+      # Clean up after test
+      case GenServer.whereis(BranchMonitor) do
+        nil -> :ok
+        pid -> GenServer.stop(pid, :normal, 1000)
+      end
+    end)
+    
+    :ok
+  end
+
   # Helper to create a temporary git repo for testing
   defp setup_test_repo(context) do
     test_dir = Path.join(System.tmp_dir!(), "branch_monitor_test_#{:rand.uniform(100_000)}")

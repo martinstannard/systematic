@@ -82,11 +82,44 @@ defmodule DashboardPhoenix.TestRunnerTest do
   end
 
   setup do
+    # Ensure ActivityLog is started
+    case GenServer.whereis(ActivityLog) do
+      nil ->
+        {:ok, _pid} = ActivityLog.start_link([])
+      _pid ->
+        :ok
+    end
+    
     # Clear activity log before each test
     ActivityLog.clear()
 
+    # Store original config
+    original_runner = Application.get_env(:dashboard_phoenix, :test_command_runner)
+    original_mock_mode = Application.get_env(:test_runner, :mock_mode)
+    
     # Mock the CommandRunner for tests
     Application.put_env(:dashboard_phoenix, :test_command_runner, MockCommandRunner)
+
+    on_exit(fn ->
+      # Clear activity log
+      case GenServer.whereis(ActivityLog) do
+        nil -> :ok
+        _pid -> ActivityLog.clear()
+      end
+      
+      # Restore original config
+      if original_runner do
+        Application.put_env(:dashboard_phoenix, :test_command_runner, original_runner)
+      else
+        Application.delete_env(:dashboard_phoenix, :test_command_runner)
+      end
+      
+      if original_mock_mode do
+        Application.put_env(:test_runner, :mock_mode, original_mock_mode)
+      else
+        Application.delete_env(:test_runner, :mock_mode)
+      end
+    end)
 
     :ok
   end

@@ -11,18 +11,43 @@ defmodule DashboardPhoenix.ChainlinkWorkTrackerTest do
     path = Path.join(data_dir, "chainlink_work_progress.json")
     File.rm(path)
     
-    # Start the tracker if not already running
+    # Stop any existing tracker for clean state, wait for it to fully stop
     case GenServer.whereis(ChainlinkWorkTracker) do
-      nil ->
-        {:ok, _pid} = ChainlinkWorkTracker.start_link([])
-      _pid ->
-        # Clear existing state by completing all work
-        for {id, _} <- ChainlinkWorkTracker.get_all_work() do
-          ChainlinkWorkTracker.complete_work(id)
+      nil -> :ok
+      pid -> 
+        GenServer.stop(pid, :normal, 1000)
+        # Wait for process to fully terminate
+        ref = Process.monitor(pid)
+        receive do
+          {:DOWN, ^ref, :process, ^pid, _reason} -> :ok
+        after
+          2000 -> :ok
         end
     end
     
-    :ok
+    # Start fresh tracker
+    {result, pid} = case ChainlinkWorkTracker.start_link([]) do
+      {:ok, pid} -> {:ok, pid}
+      {:error, {:already_started, pid}} -> {:ok, pid}
+    end
+    
+    on_exit(fn ->
+      # Clean up persistence file
+      File.rm(path)
+      
+      # Stop the tracker
+      case GenServer.whereis(ChainlinkWorkTracker) do
+        nil -> :ok
+        pid -> 
+          try do
+            GenServer.stop(pid, :normal, 1000)
+          catch
+            :exit, _ -> :ok
+          end
+      end
+    end)
+    
+    {result, %{tracker_pid: pid, data_path: path}}
   end
 
   describe "start_work/2" do

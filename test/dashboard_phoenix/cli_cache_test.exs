@@ -4,8 +4,26 @@ defmodule DashboardPhoenix.CLICacheTest do
   alias DashboardPhoenix.CLICache
 
   setup do
-    # Clear cache before each test
-    CLICache.clear()
+    # Ensure CLICache is started
+    case GenServer.whereis(CLICache) do
+      nil ->
+        {:ok, _pid} = CLICache.start_link([])
+      _pid ->
+        :ok
+    end
+    
+    # Clear cache before each test (handle missing ETS table)
+    try do
+      CLICache.clear()
+    catch
+      :error, %ArgumentError{} -> :ok
+    end
+    
+    on_exit(fn ->
+      # Nothing to clean up - the GenServer owns its ETS table
+      :ok
+    end)
+    
     :ok
   end
 

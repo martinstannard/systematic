@@ -8,6 +8,24 @@ defmodule DashboardPhoenix.LinearMonitorRaceTest do
   
   alias DashboardPhoenix.LinearMonitor
   
+  setup do
+    # Ensure clean state - stop any existing LinearMonitor
+    case GenServer.whereis(LinearMonitor) do
+      nil -> :ok
+      pid -> GenServer.stop(pid, :normal, 1000)
+    end
+    
+    on_exit(fn ->
+      # Clean up after test
+      case GenServer.whereis(LinearMonitor) do
+        nil -> :ok
+        pid -> GenServer.stop(pid, :normal, 1000)
+      end
+    end)
+    
+    :ok
+  end
+  
   describe "concurrent polling protection" do
     test "prevents multiple concurrent polls" do
       # Start the monitor
