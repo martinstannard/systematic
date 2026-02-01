@@ -70,8 +70,8 @@ defmodule DashboardPhoenix.ProcessMonitorTest do
 
   describe "process parsing" do
     test "parses process line correctly" do
-      # Mock ps aux output line
-      sample_line = "martins  12345  5.2  2.1 1234567 98765 ?     S    09:15   0:01 /usr/bin/opencode --some-flag"
+      # Mock ps aux output line - keeping as documentation of expected format
+      _sample_line = "martins  12345  5.2  2.1 1234567 98765 ?     S    09:15   0:01 /usr/bin/opencode --some-flag"
       
       # We need to test the private function indirectly by calling list_processes
       # Since the function filters for interesting processes, we can't directly test parse_process_line

@@ -152,7 +152,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
     test "handles port data message and buffers output" do
       port_ref = make_ref()  # Fake port ref for testing
       state = build_running_state()
-      state = %{state | port_ref: port_ref, output_buffer: "existing "}
+      _state = %{state | port_ref: port_ref, output_buffer: "existing "}
 
       # Note: We can't fully test this without a real port
       assert function_exported?(OpenCodeServer, :handle_info, 2)

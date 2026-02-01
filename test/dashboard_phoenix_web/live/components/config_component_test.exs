@@ -3,7 +3,6 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponentTest do
   Tests for the ConfigComponent LiveComponent.
   """
   use DashboardPhoenixWeb.ConnCase, async: true
-  import Phoenix.LiveViewTest
   
   alias DashboardPhoenixWeb.Live.Components.ConfigComponent
 
