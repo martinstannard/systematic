@@ -142,6 +142,13 @@ defmodule DashboardPhoenix.ActivityLogTest do
       assert :subagent_completed in types
       assert :subagent_failed in types
     end
+
+    test "includes git commit/merge event types" do
+      types = ActivityLog.valid_event_types()
+
+      assert :git_commit in types
+      assert :git_merge in types
+    end
   end
 
   describe "subagent lifecycle events" do

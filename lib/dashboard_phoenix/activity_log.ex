@@ -17,6 +17,8 @@ defmodule DashboardPhoenix.ActivityLog do
   - `:subagent_started` - sub-agent spawned
   - `:subagent_completed` - sub-agent finished successfully
   - `:subagent_failed` - sub-agent finished with failure
+  - `:git_commit` - new commit detected on monitored branch
+  - `:git_merge` - merge commit detected on monitored branch
 
   ## Usage
 
@@ -37,7 +39,7 @@ defmodule DashboardPhoenix.ActivityLog do
   @max_events 50
   @pubsub_topic "activity_log:events"
   @events_file "priv/activity_events.json"
-  @valid_event_types ~w(code_complete merge_started merge_complete restart_triggered restart_complete deploy_complete restart_failed test_passed test_failed task_started code_merged session_cleanup subagent_started subagent_completed subagent_failed)a
+  @valid_event_types ~w(code_complete merge_started merge_complete restart_triggered restart_complete deploy_complete restart_failed test_passed test_failed task_started code_merged session_cleanup subagent_started subagent_completed subagent_failed git_commit git_merge)a
 
   # Client API
 
