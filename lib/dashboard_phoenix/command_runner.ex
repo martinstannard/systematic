@@ -1,9 +1,10 @@
 defmodule DashboardPhoenix.CommandRunner do
   @moduledoc """
-  Safe wrapper around System.cmd with configurable timeouts.
+  Safe wrapper around System.cmd with configurable timeouts, rate limiting, and exponential backoff.
   
   Prevents external CLI calls from blocking indefinitely by wrapping
-  them in a Task with a timeout. Falls back gracefully on timeout.
+  them in a Task with a timeout. Includes rate limiting to prevent
+  API exhaustion and exponential backoff for retryable failures.
   
   ## Usage
   
@@ -14,7 +15,8 @@ defmodule DashboardPhoenix.CommandRunner do
       CommandRunner.run("gh", ["pr", "list"], 
         timeout: 60_000,
         cd: "/path/to/repo",
-        stderr_to_stdout: true
+        stderr_to_stdout: true,
+        retry: true
       )
       
   ## Returns
@@ -22,15 +24,18 @@ defmodule DashboardPhoenix.CommandRunner do
       {:ok, output} - Command succeeded (exit code 0)
       {:error, {:exit, code, output}} - Command failed with exit code
       {:error, :timeout} - Command timed out
-      {:error, {:exception, reason}} - Exception during execution
+      {:error, :exception, reason}} - Exception during execution
+      {:error, :rate_limited} - Rate limit exceeded
   """
 
   require Logger
 
+  alias DashboardPhoenix.{RateLimiter, ExponentialBackoff}
+
   @default_timeout_ms 30_000
 
   @doc """
-  Run an external command with a timeout.
+  Run an external command with a timeout, rate limiting, and optional retry.
   
   ## Options
   
@@ -38,6 +43,9 @@ defmodule DashboardPhoenix.CommandRunner do
     * `:cd` - Working directory
     * `:stderr_to_stdout` - Merge stderr into stdout (default: true)
     * `:env` - Environment variables as keyword list
+    * `:retry` - Enable exponential backoff retry on retryable errors (default: false)
+    * `:rate_limit` - Enable rate limiting (default: true)
+    * `:max_attempts` - Maximum retry attempts when retry enabled (default: 3)
     
   ## Examples
   
@@ -51,8 +59,38 @@ defmodule DashboardPhoenix.CommandRunner do
     {:ok, String.t()} | 
     {:error, {:exit, integer(), String.t()}} | 
     {:error, :timeout} |
-    {:error, {:exception, term()}}
+    {:error, {:exception, term()}} |
+    {:error, :rate_limited}
   def run(command, args, opts \\ []) do
+    retry_enabled = Keyword.get(opts, :retry, false)
+    rate_limit_enabled = Keyword.get(opts, :rate_limit, true)
+    
+    operation = fn ->
+      if rate_limit_enabled do
+        case RateLimiter.acquire(command) do
+          :ok -> 
+            run_command_internal(command, args, opts)
+          {:error, :rate_limited} = error ->
+            Logger.warning("Rate limit exceeded for command: #{command}")
+            error
+        end
+      else
+        run_command_internal(command, args, opts)
+      end
+    end
+    
+    if retry_enabled do
+      retry_opts = [
+        max_attempts: Keyword.get(opts, :max_attempts, 3)
+      ]
+      ExponentialBackoff.retry_if_retryable(operation, retry_opts)
+    else
+      operation.()
+    end
+  end
+
+  # Internal function that actually runs the command
+  defp run_command_internal(command, args, opts) do
     timeout = Keyword.get(opts, :timeout, @default_timeout_ms)
     
     # Build System.cmd options
@@ -102,13 +140,15 @@ defmodule DashboardPhoenix.CommandRunner do
   
   ## Options
   
-  Same as `run/3`, plus:
-    * `:default` - Value to return on error (default: nil)
+  Same as `run/3`. JSON commands typically benefit from retry enabled.
   """
   @spec run_json(String.t(), [String.t()], keyword()) ::
     {:ok, term()} | {:error, term()}
   def run_json(command, args, opts \\ []) do
-    case run(command, args, opts) do
+    # Enable retry by default for JSON commands (API calls)
+    opts_with_retry = Keyword.put_new(opts, :retry, true)
+    
+    case run(command, args, opts_with_retry) do
       {:ok, output} ->
         case Jason.decode(output) do
           {:ok, data} -> {:ok, data}
