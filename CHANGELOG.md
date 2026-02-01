@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- UI: Remove all throbbers, blinkers, pulse animations (#98)
 - UI: Add text alternatives to color-only status indicators (#53)
 - UI: Add text alternatives to color-only status indicators (#53)
 - UI: Make borders plain - no rounded corners, no glow/animations (#97)
