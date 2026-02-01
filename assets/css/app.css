@@ -826,7 +826,7 @@ button:focus-visible, .btn:focus-visible {
 }
 
 /* =====================================================
-   PANEL ACCENT COLORS: Critical panel highlighting
+   PANEL ACCENT COLORS & STATUS INDICATORS: Critical panel highlighting
    ===================================================== */
 
 /* Critical work panels - Enhanced visual weight */
@@ -877,6 +877,329 @@ button:focus-visible, .btn:focus-visible {
     opacity: 1;
     filter: brightness(120%);
   }
+}
+
+/* =====================================================
+   STATUS-BASED VISUAL INDICATORS: Dynamic panel states
+   ===================================================== */
+
+/* Error state panels - Immediate attention required */
+.panel-status-error {
+  border-color: rgba(239, 68, 68, 0.8) !important;
+  box-shadow: 
+    0 0 0 2px rgba(239, 68, 68, 0.3),
+    0 8px 32px -4px rgba(239, 68, 68, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  animation: error-alert 2s ease-in-out infinite;
+}
+
+.panel-status-error::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(239, 68, 68, 0.9) 15%,
+    rgba(254, 87, 87, 1) 50%,
+    rgba(239, 68, 68, 0.9) 85%,
+    transparent 100%
+  );
+  border-radius: 12px 12px 0 0;
+  z-index: 1;
+}
+
+.panel-status-error::after {
+  content: "⚠";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 16px;
+  color: rgba(254, 87, 87, 0.9);
+  text-shadow: 0 0 8px rgba(254, 87, 87, 0.6);
+  animation: error-icon-pulse 1.5s ease-in-out infinite;
+  z-index: 2;
+}
+
+@keyframes error-alert {
+  0%, 100% {
+    box-shadow: 
+      0 0 0 2px rgba(239, 68, 68, 0.3),
+      0 8px 32px -4px rgba(239, 68, 68, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 0 3px rgba(239, 68, 68, 0.5),
+      0 12px 40px -4px rgba(239, 68, 68, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+}
+
+@keyframes error-icon-pulse {
+  0%, 100% { 
+    opacity: 0.8; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1.1);
+  }
+}
+
+/* Working state panels - Active processing indication */
+.panel-status-working {
+  border-color: rgba(34, 197, 94, 0.7);
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-status-working::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(34, 197, 94, 0.8) 30%,
+    rgba(34, 197, 94, 1) 50%,
+    rgba(34, 197, 94, 0.8) 70%,
+    transparent 100%
+  );
+  animation: working-progress 3s ease-in-out infinite;
+  z-index: 1;
+}
+
+.panel-status-working::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg,
+    rgba(34, 197, 94, 0.8) 0%,
+    rgba(34, 197, 94, 0.9) 50%,
+    rgba(34, 197, 94, 0.8) 100%
+  );
+  border-radius: 0 0 0 12px;
+  animation: working-pulse 2s ease-in-out infinite;
+}
+
+@keyframes working-progress {
+  0% { left: -100%; }
+  50% { left: -50%; }
+  100% { left: 100%; }
+}
+
+@keyframes working-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Warning state panels - Attention needed */
+.panel-status-warning {
+  border-color: rgba(245, 158, 11, 0.7);
+  box-shadow: 
+    0 0 0 1px rgba(245, 158, 11, 0.2),
+    0 4px 16px -4px rgba(245, 158, 11, 0.3);
+}
+
+.panel-status-warning::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(245, 158, 11, 0.7) 25%,
+    rgba(251, 191, 36, 0.9) 50%,
+    rgba(245, 158, 11, 0.7) 75%,
+    transparent 100%
+  );
+  border-radius: 12px 12px 0 0;
+  animation: warning-glow 4s ease-in-out infinite;
+}
+
+@keyframes warning-glow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Urgent state panels - High priority, needs immediate attention */
+.panel-status-urgent {
+  border-color: rgba(249, 115, 22, 0.8);
+  position: relative;
+  animation: urgent-throb 2s ease-in-out infinite;
+}
+
+.panel-status-urgent::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(249, 115, 22, 0.8) 20%,
+    rgba(251, 146, 60, 1) 50%,
+    rgba(249, 115, 22, 0.8) 80%,
+    transparent 100%
+  );
+  border-radius: 12px 12px 0 0;
+  z-index: 1;
+}
+
+.panel-status-urgent::after {
+  content: "🔥";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 12px;
+  animation: urgent-icon-bounce 1.8s ease-in-out infinite;
+  z-index: 2;
+}
+
+@keyframes urgent-throb {
+  0%, 100% {
+    box-shadow: 
+      0 0 0 2px rgba(249, 115, 22, 0.3),
+      0 4px 16px -4px rgba(249, 115, 22, 0.4);
+  }
+  50% {
+    box-shadow: 
+      0 0 0 4px rgba(249, 115, 22, 0.4),
+      0 8px 24px -4px rgba(249, 115, 22, 0.5);
+  }
+}
+
+@keyframes urgent-icon-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.1); }
+}
+
+/* Success state panels - Completed/good state */
+.panel-status-success {
+  border-color: rgba(34, 197, 94, 0.5);
+  position: relative;
+}
+
+.panel-status-success::after {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 12px;
+  color: rgba(34, 197, 94, 0.8);
+  font-weight: bold;
+  text-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+}
+
+/* Idle state panels - No activity */
+.panel-status-idle {
+  opacity: 0.85;
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
+.panel-status-idle:hover {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Loading state panels - Data being fetched */
+.panel-status-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-status-loading::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.1) 50%,
+    transparent 100%
+  );
+  animation: loading-sweep 2s ease-in-out infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+
+@keyframes loading-sweep {
+  0% { left: -100%; }
+  100% { left: 150%; }
+}
+
+/* Panel attention indicators - Small corner badges */
+.panel-attention-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.panel-attention-error {
+  background: rgba(239, 68, 68, 0.9);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  animation: attention-pulse 2s ease-in-out infinite;
+}
+
+.panel-attention-warning {
+  background: rgba(245, 158, 11, 0.9);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+  animation: attention-pulse 3s ease-in-out infinite;
+}
+
+.panel-attention-info {
+  background: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
+  animation: attention-pulse 4s ease-in-out infinite;
+}
+
+@keyframes attention-pulse {
+  0%, 100% { 
+    opacity: 0.8; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1.2);
+  }
+}
+
+/* Light mode adjustments for status indicators */
+[data-theme="light"] .panel-status-error {
+  border-color: rgba(220, 38, 38, 0.8);
+  box-shadow: 
+    0 0 0 2px rgba(220, 38, 38, 0.2),
+    0 4px 16px -4px rgba(220, 38, 38, 0.3);
+}
+
+[data-theme="light"] .panel-status-working {
+  border-color: rgba(22, 163, 74, 0.8);
+}
+
+[data-theme="light"] .panel-status-warning {
+  border-color: rgba(217, 119, 6, 0.8);
+}
+
+[data-theme="light"] .panel-status-urgent {
+  border-color: rgba(234, 88, 12, 0.8);
 }
 
 /* Active work panels - Stronger accent */

@@ -15,7 +15,13 @@
   <div class="flex-1 flex flex-col gap-6 overflow-y-auto">
     
     <!-- Usage Stats - Compact utility bar at top -->
-    <div class="glass-morphism panel-priority-compact panel-accent-reference rounded-xl neural-pulse" style="border-radius: 12px;">
+    <div class={[
+      "glass-morphism panel-priority-compact panel-accent-reference rounded-xl neural-pulse relative",
+      DashboardPhoenix.PanelStatus.status_classes(:usage_stats, %{
+        opencode: @usage_stats[:opencode] || %{},
+        claude: @usage_stats[:claude] || %{}
+      })
+    ]} style="border-radius: 12px;">
       <.live_component
         module={UsageStatsComponent}
         id="usage-stats"
@@ -36,7 +42,17 @@
       </div>
       <div class="space-y-3">
         <!-- Linear Tickets Panel (LiveComponent) - High Priority -->
-        <div class="panel-priority-high panel-accent-critical rounded-xl">
+        <div class={[
+          "panel-priority-high panel-accent-critical rounded-xl relative",
+          DashboardPhoenix.PanelStatus.status_classes(:linear, %{
+            error: @linear_error, 
+            loading: @linear_loading, 
+            tickets: @linear_tickets
+          })
+        ]}>
+          <%= if DashboardPhoenix.PanelStatus.attention_badge(:linear, %{tickets: @linear_tickets}) do %>
+            <div class={["panel-attention-badge", DashboardPhoenix.PanelStatus.attention_badge(:linear, %{tickets: @linear_tickets})]}></div>
+          <% end %>
           <.live_component
             module={LinearComponent}
             id="linear-tickets"
@@ -51,7 +67,18 @@
         </div>
 
         <!-- Chainlink Issues Panel (LiveComponent) - High Priority -->
-        <div class="panel-priority-high panel-accent-critical rounded-xl">
+        <div class={[
+          "panel-priority-high panel-accent-critical rounded-xl relative",
+          DashboardPhoenix.PanelStatus.status_classes(:chainlink, %{
+            error: @chainlink_error,
+            loading: @chainlink_loading,
+            issues: @chainlink_issues,
+            work_in_progress: @chainlink_work_in_progress
+          })
+        ]}>
+          <%= if DashboardPhoenix.PanelStatus.attention_badge(:chainlink, %{issues: @chainlink_issues}) do %>
+            <div class={["panel-attention-badge", DashboardPhoenix.PanelStatus.attention_badge(:chainlink, %{issues: @chainlink_issues})]}></div>
+          <% end %>
           <.live_component
             module={ChainlinkComponent}
             id="chainlink-issues"
@@ -64,7 +91,18 @@
         </div>
 
         <!-- GitHub Pull Requests Panel - High Priority -->
-        <div class="panel-priority-high panel-accent-critical rounded-xl">
+        <div class={[
+          "panel-priority-high panel-accent-critical rounded-xl relative",
+          DashboardPhoenix.PanelStatus.status_classes(:github_prs, %{
+            error: @github_prs_error,
+            loading: @github_prs_loading,
+            prs: @github_prs,
+            verifications: @pr_verifications
+          })
+        ]}>
+          <%= if DashboardPhoenix.PanelStatus.attention_badge(:github_prs, %{prs: @github_prs}) do %>
+            <div class={["panel-attention-badge", DashboardPhoenix.PanelStatus.attention_badge(:github_prs, %{prs: @github_prs})]}></div>
+          <% end %>
           <.live_component
             module={PRsComponent}
             id="prs-panel"
@@ -80,7 +118,14 @@
         </div>
 
         <!-- Unmerged Branches Panel - Medium Priority -->
-        <div class="panel-priority-medium panel-accent-active rounded-xl">
+        <div class={[
+          "panel-priority-medium panel-accent-active rounded-xl relative",
+          DashboardPhoenix.PanelStatus.status_classes(:branches, %{
+            error: @branches_error,
+            loading: @branches_loading,
+            branches: @unmerged_branches
+          })
+        ]}>
           <.live_component
             module={BranchesComponent}
             id="branches-panel"
@@ -120,7 +165,13 @@
         </div>
 
         <!-- OpenCode Sessions Panel (LiveComponent) - Quick Reference -->
-        <div class="panel-priority-compact panel-accent-reference rounded-xl">
+        <div class={[
+          "panel-priority-compact panel-accent-reference rounded-xl relative",
+          DashboardPhoenix.PanelStatus.status_classes(:opencode, %{
+            server_status: @opencode_server_status,
+            sessions: @opencode_sessions
+          })
+        ]}>
           <.live_component
             module={OpenCodeComponent}
             id="opencode-panel"
@@ -131,7 +182,13 @@
         </div>
 
         <!-- Gemini CLI Panel (LiveComponent) - Medium Priority -->
-        <div class="panel-priority-medium rounded-xl">
+        <div class={[
+          "panel-priority-medium rounded-xl relative",
+          DashboardPhoenix.PanelStatus.status_classes(:gemini, %{
+            server_status: @gemini_server_status,
+            output: @gemini_output
+          })
+        ]}>
           <.live_component
             module={GeminiComponent}
             id="gemini-panel"
@@ -152,7 +209,12 @@
         </div>
 
         <!-- Sub-Agents Panel - Medium Priority -->
-        <div class="panel-priority-medium rounded-xl">
+        <div class={[
+          "panel-priority-medium rounded-xl relative",
+          DashboardPhoenix.PanelStatus.status_classes(:subagents, %{
+            sessions: @agent_sessions
+          })
+        ]}>
           <.live_component
             module={SubagentsComponent}
             id="subagents-panel"

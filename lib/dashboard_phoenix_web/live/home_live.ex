@@ -38,6 +38,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.ClientFactory
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
+  alias DashboardPhoenix.PanelStatus
 
   def mount(_params, _session, socket) do
     # Initialize all assigns with empty/loading states first
