@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - UI: Establish distinctive typography system to avoid generic aesthetics (#63)
+- UI: Replace generic glass panels with distinctive visual identity (#64)
+- UI: Establish distinctive typography system to avoid generic aesthetics (#63)
 - UI: Implement visible focus states for keyboard navigation (#49)
 - UI: Add ARIA labels and states for accessibility (#44)
 - Investigate potential memory growth in monitors (#40)
