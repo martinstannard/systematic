@@ -1,46 +1,153 @@
 defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   @moduledoc """
-  LiveComponent for displaying and interacting with Chainlink issues.
+  Smart LiveComponent for displaying and interacting with Chainlink issues.
 
-  Shows issues with priority color-coding and a Work button to spawn sub-agents.
-  
-  Key features:
-  - Real-time updates of issue status.
-  - Collapsible panel UI.
-  - Integration with `InputValidator` for safe issue handling.
-  - Persistent work-in-progress tracking.
+  ## Smart Component Pattern
+
+  This component is "smart" - it manages its own state internally rather than
+  relying on parent assigns for everything. The parent only needs to:
+
+  1. Call `ChainlinkComponent.subscribe()` in its mount
+  2. Forward PubSub messages using `ChainlinkComponent.handle_pubsub/2`
+  3. Pass minimal required assigns (collapsed state, work_in_progress)
+
+  The component handles:
+  - Loading state
+  - Issue list management
+  - Error handling
+  - All UI events (except work_on_issue which needs cross-component coordination)
   """
   use DashboardPhoenixWeb, :live_component
 
   alias DashboardPhoenix.InputValidator
+  alias DashboardPhoenix.ChainlinkMonitor
+
+  # ============================================================================
+  # Public API for Parent Integration
+  # ============================================================================
+
+  @doc """
+  Subscribe to Chainlink issue updates. Call this in the parent's mount/3.
+  """
+  def subscribe do
+    ChainlinkMonitor.subscribe()
+  end
+
+  @doc """
+  Handle a PubSub message. Call this from the parent's handle_info/2.
+  Returns :ok if handled, :skip if not a Chainlink message.
+
+  ## Example
+
+      def handle_info(msg, socket) do
+        case ChainlinkComponent.handle_pubsub(msg, socket) do
+          :ok -> {:noreply, socket}
+          :skip -> # handle other messages
+        end
+      end
+  """
+  def handle_pubsub({:chainlink_update, data}, socket) do
+    send_update(socket.assigns.live_action || __MODULE__, __MODULE__,
+      id: :chainlink,
+      chainlink_data: data
+    )
+    :ok
+  end
+
+  def handle_pubsub(_msg, _socket), do: :skip
+
+  @doc """
+  Trigger a refresh of Chainlink issues. Can be called from anywhere.
+  """
+  def refresh do
+    ChainlinkMonitor.refresh()
+  end
+
+  @doc """
+  Get current issues from the monitor (for initial load).
+  """
+  def get_issues do
+    ChainlinkMonitor.get_issues()
+  end
+
+  # ============================================================================
+  # LiveComponent Callbacks
+  # ============================================================================
 
   @impl true
-  def update(assigns, socket) do
-    # Pre-calculate empty state to avoid template computation
-    issues_empty = Enum.empty?(assigns.chainlink_issues)
-    
-    assigns_with_computed = Map.put(assigns, :chainlink_issues_empty, issues_empty)
-    
-    # Initialize confirm_issue to nil if not already set
-    socket = if Map.has_key?(socket.assigns, :confirm_issue) do
-      socket
-    else
-      assign(socket, confirm_issue: nil)
-    end
-    
-    {:ok, assign(socket, assigns_with_computed)}
+  def mount(socket) do
+    # Initialize component state
+    {:ok,
+     assign(socket,
+       issues: [],
+       issues_count: 0,
+       last_updated: nil,
+       error: nil,
+       loading: true,
+       confirm_issue: nil
+     )}
   end
 
   @impl true
+  def update(assigns, socket) do
+    # First, always apply parent assigns (collapsed, work_in_progress, id)
+    socket =
+      socket
+      |> assign(:collapsed, Map.get(assigns, :collapsed, socket.assigns[:collapsed] || false))
+      |> assign(:work_in_progress, Map.get(assigns, :work_in_progress, socket.assigns[:work_in_progress] || %{}))
+      |> assign(:id, assigns.id)
+
+    # Then handle chainlink_data if present (PubSub update)
+    socket =
+      case Map.get(assigns, :chainlink_data) do
+        %{issues: issues} = data ->
+          assign(socket,
+            issues: issues,
+            issues_count: length(issues),
+            last_updated: data.last_updated,
+            error: data[:error],
+            loading: false
+          )
+
+        nil ->
+          # No chainlink_data - check if we need initial data fetch
+          if socket.assigns.loading and socket.assigns.issues == [] do
+            case ChainlinkMonitor.get_issues() do
+              %{issues: issues} = data ->
+                assign(socket,
+                  issues: issues,
+                  issues_count: length(issues),
+                  last_updated: data.last_updated,
+                  error: data[:error],
+                  loading: false
+                )
+
+              _ ->
+                socket
+            end
+          else
+            socket
+          end
+      end
+
+    {:ok, socket}
+  end
+
+  # ============================================================================
+  # Event Handlers
+  # ============================================================================
+
+  @impl true
   def handle_event("toggle_panel", _, socket) do
+    # Notify parent to update collapsed state (persisted in DashboardState)
     send(self(), {:chainlink_component, :toggle_panel})
     {:noreply, socket}
   end
 
   @impl true
   def handle_event("refresh_chainlink", _, socket) do
-    send(self(), {:chainlink_component, :refresh})
-    {:noreply, socket}
+    ChainlinkMonitor.refresh()
+    {:noreply, assign(socket, loading: true)}
   end
 
   @impl true
@@ -48,9 +155,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
     case InputValidator.validate_chainlink_issue_id(issue_id) do
       {:ok, validated_issue_id} ->
         # Find the issue to show in the modal
-        issue = Enum.find(socket.assigns.chainlink_issues, &(&1.id == validated_issue_id))
+        issue = Enum.find(socket.assigns.issues, &(&1.id == validated_issue_id))
         {:noreply, assign(socket, confirm_issue: issue)}
-      
+
       {:error, _reason} ->
         {:noreply, socket}
     end
@@ -58,16 +165,13 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
   @impl true
   def handle_event("confirm_work", _, socket) do
-    require Logger
-    Logger.info("[ChainlinkComponent] confirm_work clicked, confirm_issue: #{inspect(socket.assigns.confirm_issue)}")
-    
     if socket.assigns.confirm_issue do
       issue_id = socket.assigns.confirm_issue.id
-      Logger.info("[ChainlinkComponent] Sending work_on_issue for ##{issue_id}")
+      # Work on issue needs cross-component coordination (spawns agents, etc.)
+      # So we still forward this to parent
       send(self(), {:chainlink_component, :work_on_issue, issue_id})
       {:noreply, assign(socket, confirm_issue: nil)}
     else
-      Logger.warning("[ChainlinkComponent] confirm_work called but no confirm_issue set!")
       {:noreply, socket}
     end
   end
@@ -83,7 +187,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
     {:noreply, socket}
   end
 
-  # Helper functions
+  # ============================================================================
+  # Private Helpers
+  # ============================================================================
 
   defp priority_badge(:high), do: "px-1.5 py-0.5 bg-red-500/20 text-red-400 dark:text-red-400 text-ui-caption rounded"
   defp priority_badge(:medium), do: "px-1.5 py-0.5 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-ui-caption rounded"
@@ -120,25 +226,25 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   defp status_text("closed"), do: "Status: Closed"
   defp status_text(_), do: "Status: Unknown"
 
-  # Format agent label for display - extracts meaningful name from label like "ticket-109-description"
-  # CSS handles truncation via overflow-hidden/text-ellipsis - no Elixir truncation needed
+  # Format agent label for display - extracts meaningful name from label
   defp format_agent_label(nil), do: "Working"
   defp format_agent_label(label) when is_binary(label) do
-    # Try to extract a meaningful suffix after "ticket-NNN-"
     case Regex.run(~r/ticket-\d+-(.+)$/, label) do
-      [_, suffix] -> 
-        # Clean up and format the suffix (e.g., "chainlink-ux" -> "chainlink ux")
+      [_, suffix] ->
         suffix
         |> String.replace("-", " ")
         |> String.split()
         |> Enum.take(3)
         |> Enum.join(" ")
       _ ->
-        # Return the full label - CSS will handle truncation
         label
     end
   end
   defp format_agent_label(_), do: "Working"
+
+  # ============================================================================
+  # Render
+  # ============================================================================
 
   @impl true
   def render(assigns) do
@@ -150,20 +256,20 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         phx-target={@myself}
         role="button"
         tabindex="0"
-        aria-expanded={if(@chainlink_collapsed, do: "false", else: "true")}
+        aria-expanded={if(@collapsed, do: "false", else: "true")}
         aria-controls="chainlink-panel-content"
         aria-label="Toggle Chainlink issues panel"
         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
-          <span class={"panel-chevron " <> if(@chainlink_collapsed, do: "collapsed", else: "")}>▼</span>
+          <span class={"panel-chevron " <> if(@collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">🔗</span>
           <span class="text-panel-label text-accent">Chainlink</span>
-          <%= if @chainlink_loading do %>
+          <%= if @loading do %>
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading issues</span>
           <% else %>
-            <span class="text-ui-caption text-tabular text-base-content/60"><%= @chainlink_issues_count %></span>
+            <span class="text-ui-caption text-tabular text-base-content/60"><%= @issues_count %></span>
           <% end %>
         </div>
         <button
@@ -178,7 +284,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         </button>
       </div>
 
-      <div id="chainlink-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@chainlink_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+      <div id="chainlink-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[400px]")}>
         <div class="px-4 pb-4">
           <!-- Legend: Priority & Status - hidden on mobile for space -->
           <div class="hidden sm:flex items-center justify-between mb-3 text-ui-caption text-base-content/60">
@@ -195,20 +301,20 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
           <!-- Issue List -->
           <div class="space-y-2 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="Chainlink issue list">
-            <%= if @chainlink_loading do %>
+            <%= if @loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
                 <span class="text-ui-caption text-base-content/60">Loading issues...</span>
               </div>
             <% else %>
-              <%= if @chainlink_error do %>
-                <div class="text-ui-caption text-error py-2 px-2"><%= @chainlink_error %></div>
+              <%= if @error do %>
+                <div class="text-ui-caption text-error py-2 px-2"><%= @error %></div>
               <% end %>
-              <%= if @chainlink_issues_empty and is_nil(@chainlink_error) do %>
+              <%= if @issues == [] and is_nil(@error) do %>
                 <div class="text-ui-caption text-base-content/60 py-4 text-center">No open issues</div>
               <% end %>
-              <%= for issue <- @chainlink_issues do %>
-                <% work_info = Map.get(@chainlink_work_in_progress, issue.id) %>
+              <%= for issue <- @issues do %>
+                <% work_info = Map.get(@work_in_progress, issue.id) %>
                 <div class={"flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-3 px-3 py-3 sm:py-2 rounded border border-base-300 " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
                   <div class="flex items-center gap-2 sm:gap-3">
                     <%= if work_info do %>

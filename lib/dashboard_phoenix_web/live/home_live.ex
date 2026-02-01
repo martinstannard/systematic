@@ -142,12 +142,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
         tickets_in_progress: %{},
         pr_created_tickets: MapSet.new(),
         prs_in_progress: %{},
-        # Chainlink issues - loaded async
-        chainlink_issues: [],
-        chainlink_issues_count: 0,
-        chainlink_last_updated: nil,
-        chainlink_error: nil,
-        chainlink_loading: true,
+        # Chainlink issues - managed by ChainlinkComponent (smart component)
+        # Only need collapsed state for panel wrapper and work_in_progress for coordination
         chainlink_collapsed: persisted_state.panels.chainlink,
         chainlink_work_in_progress: load_persisted_chainlink_work(),
         # GitHub PRs - loaded async
@@ -259,8 +255,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       send(self(), :load_gemini_status)
       send(self(), :load_pr_verifications)
       send(self(), :load_pr_state)
-      # Linear tickets handled by smart component - just subscribe for forwarding
-      send(self(), :load_chainlink_issues)
+      # Linear and Chainlink handled by smart components - just subscribe for forwarding
       send(self(), :load_github_prs)
       send(self(), :load_branches)
       send(self(), :load_health_status)
@@ -537,14 +532,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, push_panel_state(socket)}
   end
 
-  def handle_info({:chainlink_component, :refresh}, socket) do
-    ChainlinkMonitor.refresh()
-    {:noreply, socket}
-  end
+  # Note: refresh now handled directly by ChainlinkComponent (smart component)
 
   def handle_info({:chainlink_component, :work_on_issue, issue_id}, socket) do
-    # Find the issue details
-    issue = Enum.find(socket.assigns.chainlink_issues, &(&1.id == issue_id))
+    # Find the issue details from the monitor (component manages the list now)
+    %{issues: issues} = ChainlinkMonitor.get_issues()
+    issue = Enum.find(issues, &(&1.id == issue_id))
 
     if issue do
       # Build work prompt
@@ -698,16 +691,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
-  # Handle Chainlink issue updates (from PubSub)
-  def handle_info({:chainlink_update, data}, socket) do
-    {:noreply,
-     assign(socket,
-       chainlink_issues: data.issues,
-       chainlink_issues_count: length(data.issues),
-       chainlink_last_updated: data.last_updated,
-       chainlink_error: data.error,
-       chainlink_loading: false
-     )}
+  # Handle Chainlink issue updates (from PubSub) - forward to smart component
+  def handle_info({:chainlink_update, _data} = msg, socket) do
+    ChainlinkComponent.handle_pubsub(msg, socket)
+    {:noreply, socket}
   end
 
   # PRsComponent handlers
@@ -1313,52 +1300,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, pr_created_tickets: pr_created)}
   end
 
-  # Linear ticket loading now handled by LinearComponent (smart component)
-
-  # Handle async Chainlink issue loading (initial mount)
-  def handle_info(:load_chainlink_issues, socket) do
-    parent = self()
-
-    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-      try do
-        chainlink_data = ChainlinkMonitor.get_issues()
-        send(parent, {:chainlink_loaded, chainlink_data})
-      rescue
-        e ->
-          require Logger
-          Logger.error("Failed to load Chainlink issues: #{inspect(e)}")
-
-          send(
-            parent,
-            {:chainlink_loaded,
-             %{issues: [], last_updated: nil, error: "Load failed: #{inspect(e)}"}}
-          )
-      catch
-        :exit, reason ->
-          require Logger
-          Logger.error("Chainlink issues load exited: #{inspect(reason)}")
-
-          send(
-            parent,
-            {:chainlink_loaded, %{issues: [], last_updated: nil, error: "Load timeout"}}
-          )
-      end
-    end)
-
-    {:noreply, socket}
-  end
-
-  # Handle Chainlink issues loaded result
-  def handle_info({:chainlink_loaded, data}, socket) do
-    {:noreply,
-     assign(socket,
-       chainlink_issues: data.issues,
-       chainlink_issues_count: length(data.issues),
-       chainlink_last_updated: data.last_updated,
-       chainlink_error: data.error,
-       chainlink_loading: false
-     )}
-  end
+  # Linear and Chainlink loading now handled by smart components
 
   # Handle GitHub PR updates (from PubSub)
   def handle_info({:pr_update, data}, socket) do

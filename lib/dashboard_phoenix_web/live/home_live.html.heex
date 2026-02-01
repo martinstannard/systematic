@@ -53,26 +53,16 @@
           />
         </div>
 
-        <!-- Chainlink Issues Panel -->
+        <!-- Chainlink Issues Panel (Smart Component - manages own state) -->
         <div class={[
           "panel-priority-high panel-accent-critical p-3 sm:p-4",
-          @chainlink_collapsed && "panel-collapsed",
-          DashboardPhoenix.PanelStatus.status_classes(:chainlink, %{
-            error: @chainlink_error,
-            loading: @chainlink_loading,
-            issues: @chainlink_issues,
-            work_in_progress: @chainlink_work_in_progress
-          })
+          @chainlink_collapsed && "panel-collapsed"
         ]}>
           <.live_component
             module={ChainlinkComponent}
-            id="chainlink-issues"
-            chainlink_issues={@chainlink_issues}
-            chainlink_issues_count={@chainlink_issues_count}
-            chainlink_loading={@chainlink_loading}
-            chainlink_error={@chainlink_error}
-            chainlink_collapsed={@chainlink_collapsed}
-            chainlink_work_in_progress={@chainlink_work_in_progress}
+            id={:chainlink}
+            collapsed={@chainlink_collapsed}
+            work_in_progress={@chainlink_work_in_progress}
           />
         </div>
 
