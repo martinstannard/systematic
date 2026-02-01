@@ -8,7 +8,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
       {:ok, state} = OpenCodeServer.init([])
 
       # Basic state
-      assert state.port == 9100  # Default port
+      assert state.port == 9101  # Default port
       assert state.running == false
       assert state.os_pid == nil
       assert state.port_ref == nil
@@ -48,7 +48,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
     test "status returns current state info including health and restart data" do
       state = %{
         running: true,
-        port: 9100,
+        port: 9101,
         cwd: "/some/path",
         os_pid: 12345,
         started_at: DateTime.utc_now(),
@@ -70,7 +70,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
       {:reply, status, _new_state} = OpenCodeServer.handle_call(:status, self(), state)
 
       assert status.running == true
-      assert status.port == 9100
+      assert status.port == 9101
       assert status.cwd == "/some/path"
       assert status.pid == 12345
       assert %DateTime{} = status.started_at
@@ -98,7 +98,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
       {:reply, {:ok, port}, new_state} = 
         OpenCodeServer.handle_call({:start_server, "/new/path"}, self(), state)
 
-      assert port == 9100
+      assert port == 9101
       assert new_state.running == true
       assert new_state.cwd == "/existing"  # Not changed
     end
@@ -267,7 +267,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
 
   defp build_initial_state do
     %{
-      port: 9100,
+      port: 9101,
       auto_restart: true,
       running: false,
       os_pid: nil,
@@ -290,7 +290,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
 
   defp build_running_state do
     %{
-      port: 9100,
+      port: 9101,
       auto_restart: true,
       running: true,
       os_pid: 999,

@@ -132,7 +132,7 @@ defmodule DashboardPhoenix.RateLimiter do
       {:reply, :ok, new_state}
     else
       # No tokens available
-      Logger.debug("Rate limit exceeded for #{command}")
+      Logger.debug("Rate limit exceeded for command: #{command}")
       {:reply, {:error, :rate_limited}, state}
     end
   end
