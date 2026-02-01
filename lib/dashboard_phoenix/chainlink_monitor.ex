@@ -113,7 +113,16 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
     {:noreply, new_state}
   end
 
-  # Private functions
+  # Private functions (some exposed for testing)
+
+  @doc false
+  def parse_chainlink_output_for_test(output), do: parse_chainlink_output(output)
+
+  @doc false  
+  def parse_issue_line_for_test(line), do: parse_issue_line(line)
+
+  @doc false
+  def normalize_priority_for_test(priority), do: normalize_priority(priority)
 
   defp fetch_issues(state) do
     case CommandRunner.run("chainlink", ["list"],
@@ -160,10 +169,8 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
 
     # Parse format: "#17   [open]   Add Chainlink issues panel with Work ... high     2026-01-31"
     # Format: #ID   [status]   Title   Priority   Due
-    case Regex.run(
-           ~r/^#(\d+)\s+\[(\w+)\]\s+(.+?)\s{2,}(\w+)\s+(\d{4}-\d{2}-\d{2})?/,
-           clean_line
-         ) do
+    # Try with due date first (more specific pattern)
+    case Regex.run(~r/^#(\d+)\s+\[(\w+)\]\s+(.+?)\s+(\w+)\s+(\d{4}-\d{2}-\d{2})$/, clean_line) do
       [_, id, status, title, priority, due] ->
         %{
           id: String.to_integer(id),
@@ -174,8 +181,8 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
         }
 
       _ ->
-        # Try simpler format without due date
-        case Regex.run(~r/^#(\d+)\s+\[(\w+)\]\s+(.+?)\s{2,}(\w+)/, clean_line) do
+        # Try without due date
+        case Regex.run(~r/^#(\d+)\s+\[(\w+)\]\s+(.+?)\s+(\w+)$/, clean_line) do
           [_, id, status, title, priority] ->
             %{
               id: String.to_integer(id),
