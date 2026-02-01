@@ -39,3 +39,5 @@ priv/activity_events.json
 priv/linear_state.json
 priv/stats_state.json
 priv/agent_activity_state.json
+priv/agent_sessions.json
+priv/data/dashboard_state.json
