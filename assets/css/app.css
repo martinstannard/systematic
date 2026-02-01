@@ -3980,3 +3980,584 @@ textarea:focus-visible {
 [data-theme="light"] .panel-status-loading::after {
   opacity: 0.6;
 }
+
+/* =====================================================
+   MICRO-INTERACTIONS & MEANINGFUL ANIMATIONS (#65)
+   Motion design that creates delight and guides attention
+   Style: Precise, controlled, quick & snappy
+   ===================================================== */
+
+/* =====================================================
+   DASHBOARD LOAD: Sequential Panel Reveals
+   Panels fade in left-to-right with staggered delays
+   ===================================================== */
+
+/* Base reveal animation - start invisible */
+.panel-reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: panel-reveal-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes panel-reveal-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered delays for sequential reveal (100ms increments) */
+.panel-reveal-1 { animation-delay: 0ms; }
+.panel-reveal-2 { animation-delay: 100ms; }
+.panel-reveal-3 { animation-delay: 200ms; }
+.panel-reveal-4 { animation-delay: 300ms; }
+.panel-reveal-5 { animation-delay: 400ms; }
+.panel-reveal-6 { animation-delay: 500ms; }
+.panel-reveal-7 { animation-delay: 600ms; }
+.panel-reveal-8 { animation-delay: 700ms; }
+.panel-reveal-9 { animation-delay: 800ms; }
+.panel-reveal-10 { animation-delay: 900ms; }
+.panel-reveal-11 { animation-delay: 1000ms; }
+.panel-reveal-12 { animation-delay: 1100ms; }
+
+/* Section-level reveals (for section headers) */
+.section-reveal {
+  opacity: 0;
+  transform: translateX(-12px);
+  animation: section-reveal-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes section-reveal-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.section-reveal-1 { animation-delay: 0ms; }
+.section-reveal-2 { animation-delay: 150ms; }
+.section-reveal-3 { animation-delay: 300ms; }
+
+/* =====================================================
+   STATS COUNTERS: Number Counting Animation
+   Visual feedback when numeric values change
+   ===================================================== */
+
+/* Counter value wrapper - provides context for animation */
+.counter-animate {
+  display: inline-block;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Pop effect on value change */
+.counter-animate.counter-changed {
+  animation: counter-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes counter-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Highlight flash for increasing values */
+.counter-animate.counter-increased {
+  animation: counter-increase-flash 0.4s ease-out;
+}
+
+@keyframes counter-increase-flash {
+  0% {
+    background-color: rgba(34, 197, 94, 0.3);
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.12);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+/* Flash for decreasing values */
+.counter-animate.counter-decreased {
+  animation: counter-decrease-flash 0.4s ease-out;
+}
+
+@keyframes counter-decrease-flash {
+  0% {
+    background-color: rgba(239, 68, 68, 0.2);
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(0.92);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+/* Digit roll animation container */
+.counter-digit-roll {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  height: 1.2em;
+}
+
+.counter-digit-roll span {
+  display: block;
+  animation: digit-roll-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes digit-roll-up {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* =====================================================
+   PANEL TOGGLES: Smooth Accordion Animations
+   Enhanced easing for expand/collapse with content fade
+   ===================================================== */
+
+/* Accordion container */
+.accordion-content {
+  overflow: hidden;
+  transition: 
+    max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease-out,
+    padding 0.3s ease-out;
+}
+
+/* Collapsed state */
+.accordion-content.accordion-collapsed {
+  max-height: 0 !important;
+  opacity: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Expanded state - height set dynamically or via max-height */
+.accordion-content.accordion-expanded {
+  opacity: 1;
+}
+
+/* Chevron rotation animation */
+.accordion-chevron {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+.accordion-chevron.accordion-closed {
+  transform: rotate(-90deg);
+}
+
+.accordion-chevron.accordion-open {
+  transform: rotate(0deg);
+}
+
+/* Content fade-in for accordion items */
+.accordion-content > * {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: 
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out;
+  transition-delay: 0.1s;
+}
+
+.accordion-content.accordion-expanded > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Panel header click feedback */
+.panel-header-interactive {
+  transition: background-color 0.15s ease-out;
+}
+
+.panel-header-interactive:active {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .panel-header-interactive:active {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* =====================================================
+   STATUS CHANGES: Pulse & Glow Effects
+   Visual feedback for state transitions
+   ===================================================== */
+
+/* Base status transition */
+.status-transition {
+  transition: 
+    color 0.2s ease-out,
+    background-color 0.2s ease-out,
+    border-color 0.2s ease-out,
+    box-shadow 0.3s ease-out;
+}
+
+/* Status change pulse - applied momentarily on state change */
+.status-pulse {
+  animation: status-pulse-anim 0.5s ease-out;
+}
+
+@keyframes status-pulse-anim {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* Success state glow */
+.status-glow-success {
+  animation: glow-success 0.6s ease-out;
+}
+
+@keyframes glow-success {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(34, 197, 94, 0.4);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* Error state glow */
+.status-glow-error {
+  animation: glow-error 0.6s ease-out;
+}
+
+@keyframes glow-error {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.4);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* Warning state glow */
+.status-glow-warning {
+  animation: glow-warning 0.6s ease-out;
+}
+
+@keyframes glow-warning {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(245, 158, 11, 0.4);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* Running/Active state continuous subtle pulse */
+.status-active-pulse {
+  animation: active-pulse 2s ease-in-out infinite;
+}
+
+@keyframes active-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 8px 1px rgba(34, 197, 94, 0.3);
+  }
+}
+
+/* Status dot animations */
+.status-dot-pulse {
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+}
+
+/* State transition fade */
+.state-fade-in {
+  animation: state-fade-in-anim 0.25s ease-out forwards;
+}
+
+@keyframes state-fade-in-anim {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.state-fade-out {
+  animation: state-fade-out-anim 0.2s ease-out forwards;
+}
+
+@keyframes state-fade-out-anim {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* Badge/pill animations for count changes */
+.badge-bounce {
+  animation: badge-bounce-anim 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes badge-bounce-anim {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* New item highlight */
+.item-new-highlight {
+  animation: new-item-highlight 0.6s ease-out;
+}
+
+@keyframes new-item-highlight {
+  0% {
+    background-color: rgba(139, 92, 246, 0.3);
+    transform: translateX(-4px);
+  }
+  100% {
+    background-color: transparent;
+    transform: translateX(0);
+  }
+}
+
+/* Row removal animation */
+.item-remove {
+  animation: item-remove-anim 0.25s ease-out forwards;
+}
+
+@keyframes item-remove-anim {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 60px;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(20px);
+    max-height: 0;
+    padding: 0;
+    margin: 0;
+  }
+}
+
+/* =====================================================
+   BUTTON MICRO-INTERACTIONS
+   Quick, responsive feedback on interaction
+   ===================================================== */
+
+/* Button press effect */
+.btn-press {
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-press:active {
+  transform: scale(0.96);
+}
+
+/* Button success flash */
+.btn-success-flash {
+  animation: btn-success-flash-anim 0.4s ease-out;
+}
+
+@keyframes btn-success-flash-anim {
+  0% {
+    background-color: rgba(34, 197, 94, 0.4);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Icon spin on action */
+.icon-spin-once {
+  animation: icon-spin-once-anim 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes icon-spin-once-anim {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* =====================================================
+   LOADING STATES: Skeleton & Shimmer
+   Improved loading feedback
+   ===================================================== */
+
+/* Fast shimmer for loading states */
+.shimmer-fast {
+  background: linear-gradient(
+    90deg,
+    rgba(139, 92, 246, 0.05) 0%,
+    rgba(139, 92, 246, 0.15) 50%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-fast-anim 1s ease-in-out infinite;
+}
+
+@keyframes shimmer-fast-anim {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Content appear after loading */
+.content-loaded {
+  animation: content-loaded-anim 0.3s ease-out;
+}
+
+@keyframes content-loaded-anim {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =====================================================
+   TOOLTIP & HOVER ANIMATIONS
+   Smooth reveals for contextual info
+   ===================================================== */
+
+.tooltip-reveal {
+  opacity: 0;
+  transform: translateY(4px) scale(0.95);
+  transition: 
+    opacity 0.15s ease-out,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.tooltip-trigger:hover .tooltip-reveal,
+.tooltip-trigger:focus .tooltip-reveal {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* =====================================================
+   PREFERS-REDUCED-MOTION: Accessibility
+   Disable animations for users who prefer reduced motion
+   ===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-reveal,
+  .section-reveal,
+  .counter-animate,
+  .counter-animate.counter-changed,
+  .counter-animate.counter-increased,
+  .counter-animate.counter-decreased,
+  .counter-digit-roll span,
+  .status-pulse,
+  .status-glow-success,
+  .status-glow-error,
+  .status-glow-warning,
+  .status-active-pulse,
+  .status-dot-pulse,
+  .state-fade-in,
+  .state-fade-out,
+  .badge-bounce,
+  .item-new-highlight,
+  .item-remove,
+  .btn-press,
+  .btn-success-flash,
+  .icon-spin-once,
+  .shimmer-fast,
+  .content-loaded {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  /* Ensure visibility without animation */
+  .panel-reveal,
+  .section-reveal {
+    opacity: 1;
+    transform: none;
+  }
+  
+  /* Accordion still works but instantly */
+  .accordion-content {
+    transition: none !important;
+  }
+  
+  .accordion-content > * {
+    opacity: 1;
+    transform: none;
+    transition: none !important;
+  }
+  
+  .accordion-chevron {
+    transition: none !important;
+  }
+}

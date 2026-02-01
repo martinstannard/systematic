@@ -41,6 +41,147 @@ const Hooks = {
     }
   },
   RelationshipGraph: RelationshipGraph,
+  
+  // Counter animation hook - animates number changes with visual feedback
+  CounterAnimate: {
+    mounted() {
+      this.previousValue = this.parseValue()
+      this.el.classList.add("counter-animate")
+    },
+    updated() {
+      const newValue = this.parseValue()
+      if (newValue !== this.previousValue) {
+        // Remove any existing animation classes
+        this.el.classList.remove("counter-changed", "counter-increased", "counter-decreased")
+        
+        // Force reflow to restart animation
+        void this.el.offsetWidth
+        
+        // Add appropriate animation class
+        if (newValue > this.previousValue) {
+          this.el.classList.add("counter-increased")
+        } else if (newValue < this.previousValue) {
+          this.el.classList.add("counter-decreased")
+        } else {
+          this.el.classList.add("counter-changed")
+        }
+        
+        // Remove animation class after completion
+        setTimeout(() => {
+          this.el.classList.remove("counter-changed", "counter-increased", "counter-decreased")
+        }, 400)
+        
+        this.previousValue = newValue
+      }
+    },
+    parseValue() {
+      // Parse the numeric value from the element's text content
+      const text = this.el.textContent || ""
+      const num = parseFloat(text.replace(/[^0-9.-]/g, ""))
+      return isNaN(num) ? 0 : num
+    }
+  },
+  
+  // Panel reveal animation hook - triggers sequential reveal on mount
+  PanelReveal: {
+    mounted() {
+      // Check if user prefers reduced motion
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        this.el.style.opacity = "1"
+        return
+      }
+      
+      const delay = parseInt(this.el.dataset.revealDelay) || 0
+      this.el.style.opacity = "0"
+      this.el.style.transform = "translateY(8px)"
+      
+      // Use requestAnimationFrame for smoother animation start
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          this.el.classList.add("panel-reveal")
+          this.el.style.opacity = ""
+          this.el.style.transform = ""
+        }, delay)
+      })
+    }
+  },
+  
+  // Status change animation hook - pulses on status updates
+  StatusAnimate: {
+    mounted() {
+      this.previousStatus = this.el.dataset.status
+      this.el.classList.add("status-transition")
+    },
+    updated() {
+      const newStatus = this.el.dataset.status
+      if (newStatus !== this.previousStatus) {
+        // Check if user prefers reduced motion
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          this.previousStatus = newStatus
+          return
+        }
+        
+        // Remove any existing glow classes
+        this.el.classList.remove("status-glow-success", "status-glow-error", "status-glow-warning", "status-pulse")
+        
+        // Force reflow
+        void this.el.offsetWidth
+        
+        // Add appropriate glow based on new status
+        switch (newStatus) {
+          case "success":
+          case "completed":
+          case "running":
+            this.el.classList.add("status-glow-success")
+            break
+          case "error":
+          case "failed":
+            this.el.classList.add("status-glow-error")
+            break
+          case "warning":
+          case "pending":
+            this.el.classList.add("status-glow-warning")
+            break
+          default:
+            this.el.classList.add("status-pulse")
+        }
+        
+        // Remove glow class after animation
+        setTimeout(() => {
+          this.el.classList.remove("status-glow-success", "status-glow-error", "status-glow-warning", "status-pulse")
+        }, 600)
+        
+        this.previousStatus = newStatus
+      }
+    }
+  },
+  
+  // Badge bounce animation hook - bounces when count changes
+  BadgeBounce: {
+    mounted() {
+      this.previousValue = this.el.textContent
+    },
+    updated() {
+      const newValue = this.el.textContent
+      if (newValue !== this.previousValue) {
+        // Check if user prefers reduced motion
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          this.previousValue = newValue
+          return
+        }
+        
+        this.el.classList.remove("badge-bounce")
+        void this.el.offsetWidth
+        this.el.classList.add("badge-bounce")
+        
+        setTimeout(() => {
+          this.el.classList.remove("badge-bounce")
+        }, 400)
+        
+        this.previousValue = newValue
+      }
+    }
+  },
   PanelState: {
     mounted() {
       // Load saved panel states from localStorage and send to LiveView
