@@ -4,11 +4,30 @@ defmodule DashboardPhoenix.WorkSpawner do
   
   All agent spawning should go through this module to ensure
   proper tracking and metadata storage.
+  
+  ## Error Handling
+  
+  When spawns fail, detailed error information is stored in WorkRegistry including:
+  - Error type (connection_error, timeout, spawn_failed, etc.)
+  - Human-readable message
+  - Technical details for debugging
+  - Timestamp of failure
+  
+  Use `WorkRegistry.recent_failures/1` to retrieve recent failures for dashboard display.
   """
 
   alias DashboardPhoenix.WorkRegistry
   alias DashboardPhoenix.ClientFactory
   require Logger
+
+  @typedoc "Detailed error info for spawn failures"
+  @type spawn_error :: %{
+    type: atom(),
+    message: String.t(),
+    details: String.t() | nil,
+    agent_type: atom(),
+    recoverable: boolean()
+  }
 
   @doc """
   Spawn work with the specified agent type.
@@ -48,14 +67,94 @@ defmodule DashboardPhoenix.WorkSpawner do
             {:ok, work_id}
           
           {:error, reason} ->
-            WorkRegistry.fail(work_id, inspect(reason))
+            error_info = format_spawn_error(agent_type, reason)
+            WorkRegistry.fail(work_id, error_info)
+            Logger.warning("[WorkSpawner] Spawn failed for #{agent_type}: #{error_info}")
             {:error, reason}
         end
       
-      error ->
+      {:error, reason} = error ->
+        Logger.error("[WorkSpawner] Failed to register work: #{inspect(reason)}")
         error
     end
   end
+
+  @doc """
+  Format a spawn error into a detailed, human-readable string.
+  
+  Returns a string with error type, message, and details for storage in WorkRegistry.
+  """
+  @spec format_spawn_error(atom(), term()) :: String.t()
+  def format_spawn_error(agent_type, reason) do
+    {error_type, message, details} = classify_error(agent_type, reason)
+    
+    base = "[#{error_type}] #{message}"
+    if details, do: "#{base} | #{details}", else: base
+  end
+
+  # Classify errors by type for better user feedback
+  defp classify_error(agent_type, reason) do
+    case reason do
+      # Connection errors
+      {:error, :econnrefused} ->
+        {:connection_error, "#{agent_name(agent_type)} server not reachable", "Connection refused - is the server running?"}
+      
+      {:error, :timeout} ->
+        {:timeout, "Request to #{agent_name(agent_type)} timed out", "Server may be overloaded or unresponsive"}
+      
+      {:error, :nxdomain} ->
+        {:connection_error, "DNS lookup failed for #{agent_name(agent_type)}", "Check network configuration"}
+      
+      # HTTP errors
+      {:error, %{status: status}} when status >= 500 ->
+        {:server_error, "#{agent_name(agent_type)} server error (#{status})", "Server returned an error"}
+      
+      {:error, %{status: 401}} ->
+        {:auth_error, "Authentication failed for #{agent_name(agent_type)}", "Check API credentials"}
+      
+      {:error, %{status: 403}} ->
+        {:auth_error, "Access denied to #{agent_name(agent_type)}", "Insufficient permissions"}
+      
+      {:error, %{status: 429}} ->
+        {:rate_limit, "Rate limited by #{agent_name(agent_type)}", "Too many requests - try again later"}
+      
+      {:error, %{status: status, body: body}} ->
+        {:api_error, "#{agent_name(agent_type)} API error (#{status})", truncate(body, 100)}
+      
+      # Process/system errors
+      {:error, {:exit, exit_reason}} ->
+        {:process_error, "#{agent_name(agent_type)} process crashed", inspect(exit_reason)}
+      
+      # Gemini CLI errors
+      "Gemini failed (code " <> _ = msg ->
+        {:spawn_failed, "Gemini CLI execution failed", msg}
+      
+      # Unknown agent type
+      "Unknown agent type: " <> type ->
+        {:invalid_config, "Unknown agent type", type}
+      
+      # Generic errors
+      {:error, msg} when is_binary(msg) ->
+        {:spawn_failed, "Failed to spawn #{agent_name(agent_type)}", truncate(msg, 100)}
+      
+      other ->
+        {:unknown_error, "Unexpected error spawning #{agent_name(agent_type)}", truncate(inspect(other), 150)}
+    end
+  end
+
+  defp agent_name(:claude), do: "Claude"
+  defp agent_name(:opencode), do: "OpenCode"
+  defp agent_name(:gemini), do: "Gemini"
+  defp agent_name(other), do: to_string(other)
+
+  defp truncate(str, max_len) when is_binary(str) do
+    if String.length(str) > max_len do
+      String.slice(str, 0, max_len) <> "..."
+    else
+      str
+    end
+  end
+  defp truncate(other, max_len), do: truncate(inspect(other), max_len)
 
   @doc """
   Spawn work using the least busy agent (round-robin).

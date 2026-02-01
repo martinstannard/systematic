@@ -77,6 +77,16 @@ defmodule DashboardPhoenix.WorkRegistry do
     GenServer.call(__MODULE__, :running)
   end
 
+  @doc "Get all failed work entries (within last 24h)"
+  def failed do
+    GenServer.call(__MODULE__, :failed)
+  end
+
+  @doc "Get recent failures (last N, default 5)"
+  def recent_failures(limit \\ 5) do
+    GenServer.call(__MODULE__, {:recent_failures, limit})
+  end
+
   @doc "Get work by ID"
   def get(work_id) when is_binary(work_id) do
     GenServer.call(__MODULE__, {:get, work_id})
@@ -215,6 +225,25 @@ defmodule DashboardPhoenix.WorkRegistry do
     |> Map.values()
     |> Enum.filter(fn w -> w.status == :running end)
     {:reply, running, state}
+  end
+
+  @impl true
+  def handle_call(:failed, _from, state) do
+    failed = state.work
+    |> Map.values()
+    |> Enum.filter(fn w -> w.status == :failed end)
+    |> Enum.sort_by(fn w -> w.failed_at || w.updated_at || "" end, :desc)
+    {:reply, failed, state}
+  end
+
+  @impl true
+  def handle_call({:recent_failures, limit}, _from, state) do
+    failures = state.work
+    |> Map.values()
+    |> Enum.filter(fn w -> w.status == :failed end)
+    |> Enum.sort_by(fn w -> w.failed_at || w.updated_at || "" end, :desc)
+    |> Enum.take(limit)
+    {:reply, failures, state}
   end
 
   @impl true

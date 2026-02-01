@@ -36,12 +36,44 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     |> Enum.map(fn {type, list} -> {type, length(list)} end)
     |> Enum.into(%{})
     
+    # Get recent spawn failures from WorkRegistry
+    failed_spawns = build_failed_spawns(assigns)
+    
     updated_assigns = assigns
     |> Map.put(:agents, agents)
     |> Map.put(:active_count, active_count)
     |> Map.put(:type_counts, type_counts)
+    |> Map.put(:failed_spawns, failed_spawns)
 
     {:ok, assign(socket, updated_assigns)}
+  end
+  
+  # Build list of recent failed spawn attempts from WorkRegistry
+  defp build_failed_spawns(_assigns) do
+    # Get failed entries directly from registry
+    failed_entries = 
+      try do
+        DashboardPhoenix.WorkRegistry.recent_failures(5)
+      rescue
+        _ -> []
+      catch
+        :exit, _ -> []
+      end
+    
+    # Map failed entries to display format
+    failed_entries
+    |> Enum.map(fn entry ->
+      %{
+        id: entry.id,
+        agent_type: entry.agent_type,
+        description: entry.description,
+        failure_reason: entry.failure_reason,
+        failed_at: entry.failed_at,
+        ticket_id: entry.ticket_id,
+        source: entry.source,
+        model: entry.model
+      }
+    end)
   end
 
   defp build_agent_list(assigns) do
@@ -202,6 +234,66 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   end
 
   @impl true
+  def handle_event("dismiss_failure", %{"id" => work_id}, socket) do
+    # Remove the failed entry from WorkRegistry
+    DashboardPhoenix.WorkRegistry.remove(work_id)
+    
+    # Update local state by filtering out the dismissed failure
+    updated_failures = Enum.reject(socket.assigns.failed_spawns, fn f -> f.id == work_id end)
+    {:noreply, assign(socket, failed_spawns: updated_failures)}
+  end
+
+  # Helper functions for template rendering
+  
+  defp agent_icon(:claude), do: "🟣"
+  defp agent_icon(:opencode), do: "🔷"
+  defp agent_icon(:gemini), do: "✨"
+  defp agent_icon(_), do: "⚪"
+  
+  defp truncate_text(nil, _), do: ""
+  defp truncate_text(text, max_len) when is_binary(text) do
+    if String.length(text) > max_len do
+      String.slice(text, 0, max_len) <> "..."
+    else
+      text
+    end
+  end
+  defp truncate_text(text, max_len), do: truncate_text(inspect(text), max_len)
+  
+  # Parse error message to extract the human-readable part
+  defp parse_error_message(nil), do: "Unknown error"
+  defp parse_error_message(reason) when is_binary(reason) do
+    # Error format: "[error_type] message | details"
+    # Extract just the message part for display
+    case Regex.run(~r/\[([^\]]+)\]\s*(.+?)(?:\s*\|.*)?$/, reason) do
+      [_, type, message] -> "#{type}: #{String.trim(message)}"
+      _ -> reason
+    end
+  end
+  defp parse_error_message(reason), do: inspect(reason)
+  
+  # Format timestamp as relative time (e.g., "2m ago", "1h ago")
+  defp format_relative_time(nil), do: "just now"
+  defp format_relative_time(timestamp) when is_binary(timestamp) do
+    case DateTime.from_iso8601(timestamp) do
+      {:ok, dt, _} -> format_relative_time(dt)
+      _ -> timestamp
+    end
+  end
+  defp format_relative_time(%DateTime{} = dt) do
+    now = DateTime.utc_now()
+    diff_seconds = DateTime.diff(now, dt, :second)
+    
+    cond do
+      diff_seconds < 60 -> "just now"
+      diff_seconds < 3600 -> "#{div(diff_seconds, 60)}m ago"
+      diff_seconds < 86400 -> "#{div(diff_seconds, 3600)}h ago"
+      true -> "#{div(diff_seconds, 86400)}d ago"
+    end
+  end
+  defp format_relative_time(_), do: "unknown"
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="panel-work overflow-hidden" id="work-panel">
@@ -249,26 +341,79 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
 
       <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[1000px]")}>
         <div class="px-4 pb-4">
-          <%= if @agents == [] do %>
+          <!-- Failed Spawns Section -->
+          <%= if length(@failed_spawns) > 0 do %>
+            <div class="mb-4">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-red-400 text-sm">⚠️</span>
+                <span class="text-xs font-medium text-red-400">Recent Failures (<%= length(@failed_spawns) %>)</span>
+              </div>
+              <div class="space-y-2">
+                <%= for failure <- @failed_spawns do %>
+                  <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                          <span class="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-mono">
+                            <%= agent_icon(failure.agent_type) %> <%= failure.agent_type %>
+                          </span>
+                          <%= if failure.ticket_id do %>
+                            <span class="text-xs text-base-content/50">#<%= failure.ticket_id %></span>
+                          <% end %>
+                          <%= if failure.model do %>
+                            <span class="text-xs text-base-content/40"><%= failure.model %></span>
+                          <% end %>
+                        </div>
+                        <div class="text-xs text-base-content/70 truncate" title={failure.description}>
+                          <%= truncate_text(failure.description, 60) %>
+                        </div>
+                        <div class="text-xs text-red-300 mt-1 font-mono break-words">
+                          <%= parse_error_message(failure.failure_reason) %>
+                        </div>
+                      </div>
+                      <div class="text-xs text-base-content/40 whitespace-nowrap">
+                        <%= format_relative_time(failure.failed_at) %>
+                      </div>
+                    </div>
+                    <!-- Retry button -->
+                    <div class="mt-2 flex justify-end">
+                      <button 
+                        class="text-xs px-2 py-1 bg-base-300/50 hover:bg-base-300 rounded text-base-content/70 hover:text-base-content transition-colors"
+                        phx-click="dismiss_failure"
+                        phx-value-id={failure.id}
+                        phx-target={@myself}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+
+          <%= if @agents == [] and length(@failed_spawns) == 0 do %>
             <div class="text-xs text-base-content/40 py-8 text-center font-mono">
               No active agents
             </div>
           <% else %>
-            <!-- Hint about expandable cards -->
-            <div class="text-xs text-base-content/40 mb-3 text-center">
-              Click cards to expand details
-            </div>
-            
-            <div class="agent-cards-grid">
-              <%= for agent <- @agents do %>
-                <.live_component 
-                  module={AgentCardComponent}
-                  id={"agent-card-#{agent.id}"}
-                  agent={agent}
-                  type={Map.get(agent, :type)}
-                />
-              <% end %>
-            </div>
+            <%= if @agents != [] do %>
+              <!-- Hint about expandable cards -->
+              <div class="text-xs text-base-content/40 mb-3 text-center">
+                Click cards to expand details
+              </div>
+              
+              <div class="agent-cards-grid">
+                <%= for agent <- @agents do %>
+                  <.live_component 
+                    module={AgentCardComponent}
+                    id={"agent-card-#{agent.id}"}
+                    agent={agent}
+                    type={Map.get(agent, :type)}
+                  />
+                <% end %>
+              </div>
+            <% end %>
           <% end %>
         </div>
       </div>
