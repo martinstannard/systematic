@@ -59,14 +59,14 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class={"fixed inset-0 bg-space flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} phx-click="close_work_modal" phx-target={@myself}>
-      <!-- Modal panel using agent panel style for distinctive presence -->
-      <div class="panel-agent agent-active p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" phx-click-away="close_work_modal" phx-target={@myself}>
-        <!-- Header with enhanced styling -->
+    <div class={"fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} phx-click="close_work_modal" phx-target={@myself}>
+      <!-- Modal panel -->
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" phx-click-away="close_work_modal" phx-target={@myself}>
+        <!-- Header -->
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center space-x-3">
-            <div class="status-hex text-accent"></div>
-            <h2 class="text-system-title text-accent font-display"><%= @work_ticket_id %></h2>
+            <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100"><%= @work_ticket_id %></h2>
           </div>
           <button 
             phx-click="close_work_modal" 
@@ -89,9 +89,9 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
               <span class="text-ui-body">Fetching ticket details...</span>
             </div>
           <% else %>
-            <!-- Data panel for code display instead of transparent background -->
-            <div class="panel-data p-4 max-h-64 overflow-y-auto">
-              <pre class="text-ui-value text-base-content/90 whitespace-pre-wrap overflow-x-auto font-mono"><%= @work_ticket_details %></pre>
+            <!-- Code display panel -->
+            <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-64 overflow-y-auto">
+              <pre class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap overflow-x-auto font-mono"><%= @work_ticket_details %></pre>
             </div>
           <% end %>
         </div>

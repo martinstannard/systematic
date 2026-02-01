@@ -16,15 +16,15 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-command px-4 py-2.5 flex items-center justify-between mb-3">
+    <div class="glass-header px-4 py-3 flex items-center justify-between mb-3">
       <div class="flex items-center space-x-4">
         <div class="flex items-center space-x-2">
-          <h1 class="text-system-title text-system-glow text-base-content">SYSTEMATIC</h1>
+          <h1 class="text-system-title">SYSTEMATIC</h1>
           <span class={health_badge_class(@health_status)} title={health_tooltip(@health_status, @health_last_check)} aria-label={health_text(@health_status)}>
             <%= health_symbol(@health_status) %>
           </span>
         </div>
-        <span class="text-system-subtitle text-base-content/70">AGENT CONTROL</span>
+        <span class="text-ui-caption text-gray-500 dark:text-gray-400">Dashboard</span>
         
         <!-- Theme Toggle -->
         <button
