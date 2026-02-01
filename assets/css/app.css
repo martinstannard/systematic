@@ -845,12 +845,6 @@ button:focus-visible, .btn:focus-visible {
     transparent 100%
   );
   border-radius: 12px 12px 0 0;
-  animation: warning-glow 4s ease-in-out infinite;
-}
-
-@keyframes warning-glow {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
 }
 
 /* Urgent state panels - High priority, needs immediate attention */
@@ -1187,14 +1181,7 @@ button:focus-visible, .btn:focus-visible {
   box-shadow: 
     /* Main shadow system */
     0 8px 32px -4px rgba(0, 0, 0, 0.6),
-    0 4px 16px -2px rgba(139, 92, 246, 0.15),
-    /* Inner glow */
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(139, 92, 246, 0.1),
-    /* Outer glow */
-    0 0 60px -15px rgba(139, 92, 246, 0.4),
-    /* Surface reflection */
-    inset 0 2px 4px rgba(255, 255, 255, 0.02);
+    0 4px 16px -2px rgba(139, 92, 246, 0.15);
   position: relative;
   overflow: hidden;
   /* Subtle premium material feel */
@@ -1291,9 +1278,7 @@ button:focus-visible, .btn:focus-visible {
     0 4px 16px -2px rgba(0, 0, 0, 0.08),
     /* Inner highlight */
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1px 0 rgba(139, 92, 246, 0.08),
-    /* Outer glow */
-    0 0 40px -15px rgba(139, 92, 246, 0.2);
+    inset 0 -1px 0 rgba(139, 92, 246, 0.08);
 }
 
 [data-theme="light"] .panel-command::before {
@@ -1673,13 +1658,12 @@ button:focus-visible, .btn:focus-visible {
   opacity: 0.25;
 }
 
-/* Marker: Simple state dot with glow */
+/* Marker: Simple state dot */
 .status-marker {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 8px currentColor;
 }
 
 .status-marker-idle {
@@ -1976,7 +1960,7 @@ button:focus-visible, .btn:focus-visible {
 /* .text-glow disabled for crisp legibility */
 
 .status-dot {
-  box-shadow: 0 0 8px currentColor;
+  /* Clean solid dot - no glow */
 }
 
 /* Throbber spinner for running agents */
@@ -2017,24 +2001,19 @@ button:focus-visible, .btn:focus-visible {
   flex-shrink: 0;
 }
 
-/* Healthy - Green dot with subtle glow */
+/* Healthy - Green dot */
 .health-badge-healthy {
   background: rgb(34, 197, 94);
-  box-shadow: 
-    0 0 6px rgba(34, 197, 94, 0.6),
-    0 0 12px rgba(34, 197, 94, 0.3);
 }
 
 /* Unhealthy - Red dot */
 .health-badge-unhealthy {
   background: rgb(239, 68, 68);
-  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
 }
 
 /* Checking/Restarting - Yellow dot with pulse animation */
 .health-badge-checking {
   background: rgb(251, 191, 36);
-  box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
   animation: health-pulse 1.5s ease-in-out infinite;
 }
 
@@ -2058,19 +2037,14 @@ button:focus-visible, .btn:focus-visible {
 /* Light mode adjustments */
 [data-theme="light"] .health-badge-healthy {
   background: rgb(22, 163, 74);
-  box-shadow: 
-    0 0 4px rgba(22, 163, 74, 0.5),
-    0 0 8px rgba(22, 163, 74, 0.2);
 }
 
 [data-theme="light"] .health-badge-unhealthy {
   background: rgb(220, 38, 38);
-  box-shadow: 0 0 4px rgba(220, 38, 38, 0.4);
 }
 
 [data-theme="light"] .health-badge-checking {
   background: rgb(202, 138, 4);
-  box-shadow: 0 0 4px rgba(202, 138, 4, 0.4);
 }
 
 [data-theme="light"] .health-badge-unknown {
@@ -2101,36 +2075,15 @@ button:focus-visible, .btn:focus-visible {
 
 /* Global focus-visible styles for buttons */
 button:focus-visible {
-  outline: 2px solid oklch(75% 0.2 200); /* Cyan glow color */
+  outline: 2px solid oklch(75% 0.2 200);
   outline-offset: 2px;
-  box-shadow: 
-    0 0 0 4px rgba(34, 211, 238, 0.3), 
-    0 0 16px rgba(34, 211, 238, 0.4),
-    0 0 32px rgba(34, 211, 238, 0.2);
   border-radius: 6px;
-  animation: focus-beacon 2s ease-in-out infinite;
-}
-
-@keyframes focus-beacon {
-  0%, 100% { 
-    box-shadow: 
-      0 0 0 4px rgba(34, 211, 238, 0.3), 
-      0 0 16px rgba(34, 211, 238, 0.4),
-      0 0 32px rgba(34, 211, 238, 0.2);
-  }
-  50% { 
-    box-shadow: 
-      0 0 0 4px rgba(34, 211, 238, 0.4), 
-      0 0 20px rgba(34, 211, 238, 0.5),
-      0 0 40px rgba(34, 211, 238, 0.25);
-  }
 }
 
 /* Links focus state */
 a:focus-visible {
   outline: 2px solid oklch(75% 0.2 200);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.3), 0 0 12px rgba(34, 211, 238, 0.4);
   border-radius: 2px;
 }
 
@@ -2138,7 +2091,6 @@ a:focus-visible {
 [role="button"]:focus-visible {
   outline: 2px solid oklch(75% 0.2 200);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.3), 0 0 12px rgba(34, 211, 238, 0.4);
 }
 
 /* Form inputs focus state (if any exist) */
@@ -2147,7 +2099,6 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid oklch(75% 0.2 200);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.3), 0 0 12px rgba(34, 211, 238, 0.4);
 }
 
 /* Light mode focus states - adjust for visibility on light backgrounds */
@@ -2158,7 +2109,6 @@ textarea:focus-visible {
 [data-theme="light"] select:focus-visible,
 [data-theme="light"] textarea:focus-visible {
   outline-color: oklch(50% 0.25 280); /* Purple for light mode */
-  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.25), 0 0 12px rgba(139, 92, 246, 0.3);
 }
 
 /* Ensure focus states work well with existing button styles */
@@ -2191,7 +2141,6 @@ textarea:focus-visible {
   z-index: 9999;
   font-size: 14px;
   font-weight: bold;
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
 }
 
 /* =====================================================
