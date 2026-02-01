@@ -7,13 +7,14 @@ defmodule DashboardPhoenix.LinearMonitor do
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.{Paths, CLITools}
+  alias DashboardPhoenix.{Paths, CLITools, StatePersistence}
 
   @poll_interval_ms 30_000  # 30 seconds
   @topic "linear_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for URLs
   @states ["Triaging", "Backlog", "Todo", "In Review"]
   @cli_timeout_ms 30_000
+  @persistence_file "linear_state.json"
 
   defp linear_cli, do: Paths.linear_cli()
 
@@ -83,9 +84,39 @@ defmodule DashboardPhoenix.LinearMonitor do
       Logger.warning("LinearMonitor starting with missing tools: #{initial_error}")
     end
     
+    # Load persisted state
+    default_ticket = %{id: "", title: "", status: "", project: nil, assignee: nil, priority: nil, url: "", pr_url: nil}
+    default_state = %{tickets: [default_ticket], last_updated: nil, error: initial_error}
+    persisted_state = StatePersistence.load(@persistence_file, default_state)
+    
+    # If we only have our default ticket and it was not in the file, clear it
+    # This happens if the file was missing or empty tickets list was saved
+    persisted_state = if persisted_state.tickets == [default_ticket], 
+                        do: %{persisted_state | tickets: []}, 
+                        else: persisted_state
+
+    # Ensure last_updated is a DateTime if it was loaded as a string
+    state = fix_loaded_state(persisted_state, initial_error)
+    
     # Start polling after a short delay
     Process.send_after(self(), :poll, 1_000)
-    {:ok, %{tickets: [], last_updated: nil, error: initial_error}}
+    {:ok, state}
+  end
+
+  defp fix_loaded_state(state, current_error) do
+    state = case state.last_updated do
+      nil -> state
+      %DateTime{} -> state
+      iso_str when is_binary(iso_str) ->
+        case DateTime.from_iso8601(iso_str) do
+          {:ok, dt, _} -> %{state | last_updated: dt}
+          _ -> %{state | last_updated: nil}
+        end
+      _ -> %{state | last_updated: nil}
+    end
+    
+    # Always use the current tools error
+    %{state | error: current_error}
   end
 
   @impl true
@@ -115,6 +146,11 @@ defmodule DashboardPhoenix.LinearMonitor do
   end
 
   def handle_info({:poll_complete, new_state}, _state) do
+    # Persist successful poll (if no error)
+    if is_nil(new_state.error) do
+      StatePersistence.save(@persistence_file, new_state)
+    end
+
     # Broadcast update to subscribers
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
