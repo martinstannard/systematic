@@ -21,7 +21,8 @@
     "prs": false,
     "subagents": false,
     "system_processes": false,
+    "test_runner": false,
     "work_panel": false
   },
-  "updated_at": "2026-02-01T10:33:31.600044Z"
+  "updated_at": "2026-02-01T10:35:51.219839Z"
 }
