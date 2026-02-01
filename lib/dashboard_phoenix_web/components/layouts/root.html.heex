@@ -32,8 +32,11 @@
   </head>
   <body class="bg-space text-base-content antialiased">
     <a href="#main-content" class="skip-link">Skip to main content</a>
-    <div id="main-content" tabindex="-1">
+    <!-- Screen reader status announcements -->
+    <div id="status-announcer" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+    <div id="alert-announcer" role="alert" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
+    <main id="main-content" tabindex="-1" role="main">
       {@inner_content}
-    </div>
+    </main>
   </body>
 </html>

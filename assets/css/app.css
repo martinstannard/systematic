@@ -821,28 +821,148 @@ textarea:focus-visible,
 }
 
 /* =====================================================
-   TEXT CONTRAST FIXES
+   LIVE REGION ANNOUNCEMENTS - For screen readers
    ===================================================== */
 
-/* Boost low opacity text for accessibility */
-.text-base-content\/30,
-.text-base-content\/40 {
-  @apply text-gray-600 dark:text-gray-400;
+/* Visually hidden but announced by screen readers */
+.live-region-polite {
+  @apply sr-only;
 }
 
-.text-base-content\/50,
-.text-base-content\/60 {
+.live-region-assertive {
+  @apply sr-only;
+}
+
+/* Status announcement container */
+#status-announcer {
+  @apply sr-only;
+}
+
+/* =====================================================
+   MINIMUM TEXT SIZE - Accessibility requirement
+   Ensures no text is smaller than 12px (0.75rem)
+   ===================================================== */
+
+/* Override any text that might be too small */
+.text-ui-micro {
+  @apply text-xs text-gray-600 dark:text-gray-400;
+  /* text-xs is 12px by default in Tailwind - this is our minimum */
+}
+
+/* Ensure captions are readable */
+.text-ui-caption {
+  @apply text-sm text-gray-600 dark:text-gray-400;
+}
+
+/* =====================================================
+   KEYBOARD NAVIGATION HELPERS
+   ===================================================== */
+
+/* Ensure all interactive elements have visible focus */
+.keyboard-focusable:focus-visible {
+  @apply outline-2 outline-offset-2;
+  outline-color: oklch(65% 0.25 280);
+  outline-style: solid;
+}
+
+/* Focus ring for dark backgrounds */
+.focus-ring-light:focus-visible {
+  @apply ring-2 ring-white ring-offset-2 ring-offset-gray-900;
+}
+
+/* Indicates clickable elements for keyboard users */
+[role="button"],
+[tabindex="0"] {
+  cursor: pointer;
+}
+
+/* =====================================================
+   TEXT CONTRAST FIXES - WCAG 2.1 AA Compliant
+   ===================================================== */
+
+/* Boost low opacity text for accessibility - minimum 4.5:1 contrast ratio */
+.text-base-content\/30 {
   @apply text-gray-500 dark:text-gray-400;
+}
+
+.text-base-content\/40 {
+  @apply text-gray-500 dark:text-gray-400;
+}
+
+.text-base-content\/50 {
+  @apply text-gray-600 dark:text-gray-300;
+}
+
+.text-base-content\/60 {
+  @apply text-gray-600 dark:text-gray-300;
 }
 
 .text-white\/60,
 .text-white\/70 {
-  @apply text-gray-700 dark:text-gray-300;
+  @apply text-gray-700 dark:text-gray-200;
 }
 
 /* Light mode text overrides */
 [data-theme="light"] .text-white {
   @apply text-gray-900;
+}
+
+/* =====================================================
+   ACCESSIBLE STATUS INDICATORS - Color + Pattern/Icon
+   For colorblind users, use patterns/icons alongside colors
+   ===================================================== */
+
+/* Status success - checkmark pattern */
+.status-success::before {
+  content: "✓ ";
+}
+
+/* Status error - X pattern */
+.status-error::before {
+  content: "✗ ";
+}
+
+/* Status warning - exclamation pattern */
+.status-warning::before {
+  content: "! ";
+}
+
+/* Status info - info pattern */
+.status-info::before {
+  content: "ℹ ";
+}
+
+/* Accessible status badges with icons */
+.a11y-status-success {
+  @apply bg-green-500/20 text-green-600 dark:text-green-400;
+}
+
+.a11y-status-success::before {
+  content: "✓ ";
+}
+
+.a11y-status-error {
+  @apply bg-red-500/20 text-red-600 dark:text-red-400;
+}
+
+.a11y-status-error::before {
+  content: "✗ ";
+}
+
+.a11y-status-warning {
+  @apply bg-yellow-500/20 text-yellow-600 dark:text-yellow-400;
+}
+
+.a11y-status-warning::before {
+  content: "⚠ ";
+}
+
+.a11y-status-pending {
+  @apply bg-blue-500/20 text-blue-600 dark:text-blue-400;
+}
+
+.a11y-status-pending::before {
+  content: "○ ";
 }
 
 /* =====================================================

@@ -240,7 +240,8 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                             title="Delete branch"
                             aria-label={"Delete branch " <> branch.name}
                           >
-                            🗑
+                            <span aria-hidden="true">🗑</span>
+                            <span class="sr-only">Delete</span>
                           </button>
                         <% end %>
                       <% end %>
