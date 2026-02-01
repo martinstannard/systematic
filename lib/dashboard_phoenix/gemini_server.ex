@@ -179,7 +179,7 @@ defmodule DashboardPhoenix.GeminiServer do
     
     # Spawn a task to run the command and send output back
     parent = self()
-    Task.start(fn ->
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       result = run_gemini_prompt(state.gemini_path, prompt, state.cwd)
       send(parent, {:prompt_complete, result})
     end)
