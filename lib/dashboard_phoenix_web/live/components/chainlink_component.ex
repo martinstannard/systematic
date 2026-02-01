@@ -285,9 +285,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
       </div>
 
       <div id="chainlink-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-4 pb-4">
+        <div class="px-5 pb-5 pt-2">
           <!-- Legend: Priority & Status - hidden on mobile for space -->
-          <div class="hidden sm:flex items-center justify-between mb-3 text-ui-caption text-base-content/60">
+          <div class="hidden sm:flex items-center justify-between mb-4 text-ui-caption text-base-content/60">
             <div class="flex items-center space-x-3">
               <span class="flex items-center gap-1 text-red-600 dark:text-red-400"><%= priority_symbol(:high) %> HIGH</span>
               <span class="flex items-center gap-1 text-yellow-600 dark:text-yellow-400"><%= priority_symbol(:medium) %> MED</span>
@@ -300,7 +300,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
           </div>
 
           <!-- Issue List -->
-          <div class="space-y-2 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="Chainlink issue list">
+          <div class="space-y-3 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="Chainlink issue list">
             <%= if @loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
