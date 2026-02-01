@@ -61,7 +61,6 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <!-- Modal overlay with solid dark background instead of blur -->
     <div class={"fixed inset-0 bg-space flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} phx-click="close_work_modal" phx-target={@myself}>
       <!-- Modal panel using agent panel style for distinctive presence -->
       <div class="panel-agent agent-active rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" phx-click-away="close_work_modal" phx-target={@myself}>
