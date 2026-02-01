@@ -179,13 +179,26 @@ end
 
 ### OpenClaw / OpenCode
 - AI agent communication
-- **OpenCode ACP:** port 9100 (AI Coding Protocol)
-- **OpenCode API:** port 9101 (REST API for session data)
+- **OpenCode ACP:** port 9101 (Agent Client Protocol - default for dashboard integration)
 - **OpenClaw Control UI:** port 18789
 
-#### OpenCode API (Port 9101)
+#### OpenCode ACP Server
 
-The OpenCode API provides REST endpoints for querying session data:
+The ACP (Agent Client Protocol) server provides REST endpoints for querying session data. Start it with:
+
+```bash
+# Start ACP server on specific port (default port is random if not specified)
+opencode acp --port 9101 --hostname 0.0.0.0 --cwd /path/to/project
+
+# Options:
+#   --port      Port to listen on (default: 0 = random)
+#   --hostname  Hostname to bind (default: 127.0.0.1, use 0.0.0.0 for network access)
+#   --mdns      Enable mDNS service discovery
+#   --cwd       Working directory for the session
+#   --print-logs Print logs to stderr for debugging
+```
+
+#### ACP REST Endpoints
 
 ```bash
 # List all sessions
@@ -199,6 +212,13 @@ curl http://localhost:9101/sessions/<session-id>/messages
 ```
 
 Response includes session metadata (model, start time, token usage, etc.) useful for dashboard monitoring.
+
+#### Configuration
+
+OpenCode config is stored in `~/.config/opencode/opencode.json`. Key settings:
+- `model`: Default model to use (e.g., "google/gemini-3-flash-preview")
+- `mcp`: Model Context Protocol server configurations
+- `permission.lsp`: LSP integration permissions
 
 ## Current Refactoring (Milestone: Dashboard Refactor)
 
