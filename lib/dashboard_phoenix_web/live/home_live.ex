@@ -6,42 +6,36 @@ defmodule DashboardPhoenixWeb.HomeLive do
   system processes, agent management, and various operational panels.
   Handles real-time updates, user interactions, and coordination between
   multiple components for project management and system oversight.
+
+  ## Architecture
+
+  This LiveView follows a component-based architecture where most UI sections
+  are handled by dedicated LiveComponents. HomeLive acts as the orchestrator:
+
+  - Subscribes to PubSub topics and forwards updates to components
+  - Manages cross-component state (work-in-progress tracking)
+  - Handles modal dialogs and flash messages
+
+  ## Extracted Modules
+
+  Logic has been split into focused modules:
+
+  - `SessionEnricher` - Extracts ticket/PR IDs from session data
+  - `WorkProgressBuilder` - Builds work-in-progress tracking maps
+  - `WorkExecutor` - Spawns work on different coding agents
   """
   use DashboardPhoenixWeb, :live_view
 
-  # Type definitions for HomeLive
-  @typedoc "Work session info for tickets in progress"
-  @type ticket_work_info :: %{
-          required(:type) => :opencode | :subagent,
-          required(:session_id) => String.t(),
-          required(:status) => String.t(),
-          optional(:slug) => String.t(),
-          optional(:label) => String.t(),
-          optional(:title) => String.t(),
-          optional(:task_summary) => String.t()
-        }
+  # Extracted modules for cleaner separation
+  alias DashboardPhoenixWeb.HomeLive.SessionEnricher
+  alias DashboardPhoenixWeb.HomeLive.WorkProgressBuilder
+  alias DashboardPhoenixWeb.HomeLive.WorkExecutor
 
-  @typedoc "Work session info for PRs in progress"
-  @type pr_work_info :: %{
-          required(:type) => :opencode | :subagent,
-          required(:session_id) => String.t(),
-          required(:status) => String.t(),
-          optional(:slug) => String.t(),
-          optional(:label) => String.t(),
-          optional(:title) => String.t(),
-          optional(:task_summary) => String.t()
-        }
-
+  # Type definitions (detailed types in extracted modules)
   @typedoc "OpenCode server status"
   @type opencode_status :: %{running: boolean(), port: pos_integer() | nil, pid: String.t() | nil}
 
-  @typedoc "Enriched session with extracted ticket/PR info"
-  @type enriched_session :: map()
-
-  # Precompiled regex patterns - compiled once at compile time, not on every function call
-  @ticket_regex ~r/([A-Z]{2,5}-\d+)/i
-  @pr_regex ~r/(?:#(\d+)|(?:PR[-#]?)(\d+)|(?:fix|review|update|work-on)[-_]?pr[-_]?(\d+))/i
-
+  # Component aliases
   alias DashboardPhoenixWeb.Live.Components.HeaderComponent
   alias DashboardPhoenixWeb.Live.Components.LinearComponent
   alias DashboardPhoenixWeb.Live.Components.ChainlinkComponent
@@ -79,7 +73,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.GeminiServer
   alias DashboardPhoenix.ClientFactory
   alias DashboardPhoenix.Status
-  alias DashboardPhoenix.Models
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
   alias DashboardPhoenix.HealthCheck
@@ -146,7 +139,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
         # Chainlink issues - managed by ChainlinkComponent (smart component)
         # Only need collapsed state for panel wrapper and work_in_progress for coordination
         chainlink_collapsed: persisted_state.panels.chainlink,
-        chainlink_work_in_progress: load_persisted_chainlink_work(),
+        chainlink_work_in_progress: WorkProgressBuilder.load_persisted_chainlink_work(),
         chainlink_error: nil,
         chainlink_loading: false,
         chainlink_issues: [],
@@ -429,7 +422,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     alias DashboardPhoenix.WorkRegistry
 
     # Enrich sessions with extracted ticket/PR data once (O(n) instead of O(n*m))
-    sessions = Enum.map(raw_sessions, &enrich_agent_session/1)
+    sessions = SessionEnricher.enrich_agent_sessions(raw_sessions)
 
     activity =
       DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(
@@ -437,11 +430,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
         socket.assigns.agent_progress
       )
 
-    tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
-    prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
+    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
+    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
 
     chainlink_work_in_progress =
-      build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
+      WorkProgressBuilder.build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
 
     agent_sessions_count = length(sessions)
 
@@ -1024,16 +1017,16 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle sessions/progress loaded result
   def handle_info({:sessions_loaded, raw_sessions, progress}, socket) do
     # Enrich sessions with extracted ticket/PR data once (O(n) instead of O(n*m))
-    sessions = Enum.map(raw_sessions, &enrich_agent_session/1)
+    sessions = SessionEnricher.enrich_agent_sessions(raw_sessions)
     activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, progress)
     main_activity_count = Enum.count(progress, &(&1.agent == "main"))
 
     # Rebuild work-in-progress maps now that we have sessions
-    tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
-    prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
+    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
+    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
 
     chainlink_work_in_progress =
-      build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
+      WorkProgressBuilder.build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
 
     # Rebuild graph data if coding agents are loaded
     graph_data =
@@ -1238,8 +1231,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle OpenCode status loaded result
   def handle_info({:opencode_status_loaded, status, sessions}, socket) do
     # Rebuild work-in-progress maps with OpenCode sessions
-    tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-    prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
 
     {:noreply,
      assign(socket,
@@ -1515,8 +1508,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_info({:opencode_component, :refresh}, socket) do
     sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-    tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-    prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
 
     {:noreply,
      assign(socket,
@@ -1557,8 +1550,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     case ClientFactory.opencode_client().delete_session(session_id) do
       :ok ->
         sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-        tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-        prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+        tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+        prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
 
         socket =
           socket
@@ -1822,14 +1815,27 @@ defmodule DashboardPhoenixWeb.HomeLive do
           {coding_pref, socket}
       end
 
-    execute_work_for_ticket(
-      socket,
-      ticket_id,
-      ticket_details,
-      effective_pref,
-      claude_model,
-      opencode_model
+    # Use WorkExecutor to spawn the work
+    WorkExecutor.execute_linear_work(ticket_id, ticket_details,
+      coding_pref: effective_pref,
+      claude_model: claude_model,
+      opencode_model: opencode_model,
+      callback_pid: self()
     )
+
+    agent_label =
+      case effective_pref do
+        :opencode -> "OpenCode (#{opencode_model})"
+        :gemini -> "Gemini"
+        _ -> "Claude (#{claude_model})"
+      end
+
+    socket =
+      socket
+      |> assign(work_in_progress: true, work_error: nil, show_work_modal: false)
+      |> put_flash(:info, "Starting work with #{agent_label}...")
+
+    {:noreply, socket}
   end
 
   def handle_info({:live_progress_component, :clear_progress}, socket) do
@@ -1871,8 +1877,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle OpenCode server status updates
   def handle_info({:opencode_status, status}, socket) do
     sessions = fetch_opencode_sessions(status)
-    tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-    prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
 
     {:noreply,
      assign(socket,
@@ -1908,8 +1914,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     result =
       if socket.assigns.opencode_server_status.running do
         sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-        tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-        prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+        tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+        prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
         opencode_sessions_count = length(sessions)
 
         assign(socket,
@@ -2331,160 +2337,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
-  # Execute work for the ticket (duplicate check already done by component)
-  @spec execute_work_for_ticket(Phoenix.LiveView.Socket.t(), String.t(), String.t() | nil, atom(), String.t(), String.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
-  defp execute_work_for_ticket(
-         socket,
-         ticket_id,
-         ticket_details,
-         coding_pref,
-         claude_model,
-         opencode_model
-       ) do
-    alias DashboardPhoenix.WorkSpawner
-    alias DashboardPhoenix.WorkRegistry
-
-    # Determine agent type and model
-    {agent_type, model} =
-      case coding_pref do
-        :opencode -> {:opencode, opencode_model}
-        :gemini -> {:gemini, Models.gemini_2_flash()}
-        _ -> {:claude, claude_model}
-      end
-
-    ActivityLog.log_event(:task_started, "Work started on #{ticket_id}", %{
-      ticket_id: ticket_id,
-      agent: to_string(agent_type),
-      model: model
-    })
-
-    # Build the prompt from ticket details
-    prompt = """
-    Work on ticket #{ticket_id}.
-
-    Ticket details:
-    #{ticket_details || "No details available - use the ticket ID to look it up."}
-
-    Please analyze this ticket and implement the required changes.
-    """
-
-    # Gemini still needs special handling via GeminiServer
-    if coding_pref == :gemini do
-      execute_gemini_work(socket, ticket_id, prompt)
-    else
-      # Claude and OpenCode go through WorkSpawner
-      parent = self()
-
-      Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-        result =
-          WorkSpawner.spawn_linear(
-            ticket_id,
-            "Linear: #{ticket_id}",
-            ticket_details || "No details available",
-            agent_type: agent_type,
-            model: model
-          )
-
-        send(parent, {:work_result, result})
-      end)
-
-      agent_label = if agent_type == :opencode, do: "OpenCode", else: "Claude"
-
-      socket =
-        socket
-        |> assign(work_in_progress: true, work_error: nil, show_work_modal: false)
-        |> put_flash(:info, "Starting work with #{agent_label} (#{model})...")
-
-      {:noreply, socket}
-    end
-  end
-
-  # Special handling for Gemini which uses GeminiServer
-  @spec execute_gemini_work(Phoenix.LiveView.Socket.t(), String.t(), String.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
-  defp execute_gemini_work(socket, ticket_id, prompt) do
-    alias DashboardPhoenix.WorkRegistry
-
-    # Register with WorkRegistry first
-    {:ok, work_id} =
-      WorkRegistry.register(%{
-        agent_type: :gemini,
-        ticket_id: ticket_id,
-        source: :linear,
-        description: "Linear: #{ticket_id}",
-        model: Models.gemini_2_flash()
-      })
-
-    if GeminiServer.running?() do
-      case GeminiServer.send_prompt(prompt) do
-        :ok ->
-          socket =
-            socket
-            |> assign(work_in_progress: false, work_error: nil, show_work_modal: false)
-            |> put_flash(:info, "Prompt sent to Gemini CLI for #{ticket_id}")
-
-          {:noreply, socket}
-
-        {:error, reason} ->
-          WorkRegistry.fail(work_id, inspect(reason))
-
-          socket =
-            socket
-            |> assign(
-              work_in_progress: false,
-              work_error: "Failed to send to Gemini: #{inspect(reason)}"
-            )
-
-          {:noreply, socket}
-      end
-    else
-      # Start Gemini server first, then send prompt
-      case GeminiServer.start_server() do
-        {:ok, _pid} ->
-          Process.sleep(2000)
-
-          case GeminiServer.send_prompt(prompt) do
-            :ok ->
-              socket =
-                socket
-                |> assign(
-                  work_in_progress: false,
-                  work_error: nil,
-                  show_work_modal: false,
-                  gemini_server_status: GeminiServer.status()
-                )
-                |> put_flash(:info, "Started Gemini and sent prompt for #{ticket_id}")
-
-              {:noreply, socket}
-
-            {:error, reason} ->
-              WorkRegistry.fail(work_id, inspect(reason))
-
-              socket =
-                socket
-                |> assign(
-                  work_in_progress: false,
-                  work_error: "Gemini started but failed to send: #{inspect(reason)}",
-                  gemini_server_status: GeminiServer.status()
-                )
-
-              {:noreply, socket}
-          end
-
-        {:error, reason} ->
-          WorkRegistry.fail(work_id, inspect(reason))
-
-          socket =
-            socket
-            |> assign(
-              work_in_progress: false,
-              work_error: "Failed to start Gemini: #{inspect(reason)}"
-            )
-
-          {:noreply, socket}
-      end
-    end
-  end
-
   # Push current panel state to JS for localStorage persistence AND persist to server
   @spec push_panel_state(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp push_panel_state(socket) do
@@ -2530,241 +2382,20 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # build_agent_activity function moved to DashboardPhoenixWeb.HomeLiveCache for memoization
-
-  # Build map of ticket_id -> work session info from OpenCode and sub-agent sessions
-  # Parses ticket IDs (like COR-123, FRE-456) from session titles and labels
-  # Optimized: Uses pre-extracted ticket IDs from enriched sessions (O(n) simple iteration)
-  # Previously: O(n*m) - ran regex on every session on every call
-  @spec build_tickets_in_progress(list(enriched_session()), list(enriched_session())) :: %{optional(String.t()) => ticket_work_info()}
-  defp build_tickets_in_progress(opencode_sessions, agent_sessions) do
-    # Build from OpenCode sessions using pre-extracted ticket IDs
-    opencode_work =
-      opencode_sessions
-      |> Enum.filter(fn session -> session.status in [Status.active(), Status.idle()] end)
-      |> Enum.flat_map(fn session ->
-        ticket_ids = Map.get(session, :extracted_tickets, [])
-
-        Enum.map(ticket_ids, fn ticket_id ->
-          {ticket_id,
-           %{
-             type: :opencode,
-             slug: session.slug,
-             session_id: session.id,
-             status: session.status,
-             title: session.title
-           }}
-        end)
-      end)
-
-    # Build from sub-agent sessions using pre-extracted ticket IDs
-    subagent_work =
-      agent_sessions
-      |> Enum.filter(fn session -> session.status in [Status.running(), Status.idle()] end)
-      |> Enum.flat_map(fn session ->
-        ticket_ids = Map.get(session, :extracted_tickets, [])
-
-        Enum.map(ticket_ids, fn ticket_id ->
-          {ticket_id,
-           %{
-             type: :subagent,
-             label: Map.get(session, :label),
-             session_id: session.id,
-             status: session.status,
-             task_summary: Map.get(session, :task_summary)
-           }}
-        end)
-      end)
-
-    # Combine - OpenCode takes precedence if both are working on same ticket
-    Map.new(subagent_work ++ opencode_work)
-  end
-
-  # Optimized: Uses pre-extracted PR numbers from enriched sessions (O(n) simple iteration)
-  # Previously: O(n*m) - ran complex regex on every session on every call
-  # Matches PR numbers like #123, PR-123, pr-244, fix-pr-244
-  @spec build_prs_in_progress(list(enriched_session()), list(enriched_session())) :: %{optional(pos_integer()) => pr_work_info()}
-  defp build_prs_in_progress(opencode_sessions, agent_sessions) do
-    # Build from OpenCode sessions using pre-extracted PR numbers
-    opencode_work =
-      opencode_sessions
-      |> Enum.filter(fn session -> session.status in [Status.active(), Status.idle()] end)
-      |> Enum.flat_map(fn session ->
-        pr_numbers = Map.get(session, :extracted_prs, [])
-
-        Enum.map(pr_numbers, fn pr_number ->
-          {pr_number,
-           %{
-             type: :opencode,
-             slug: session.slug,
-             session_id: session.id,
-             status: session.status,
-             title: session.title
-           }}
-        end)
-      end)
-
-    # Build from sub-agent sessions using pre-extracted PR numbers
-    subagent_work =
-      agent_sessions
-      |> Enum.filter(fn session -> session.status in [Status.running(), Status.idle()] end)
-      |> Enum.flat_map(fn session ->
-        pr_numbers = Map.get(session, :extracted_prs, [])
-
-        Enum.map(pr_numbers, fn pr_number ->
-          {pr_number,
-           %{
-             type: :subagent,
-             label: Map.get(session, :label),
-             session_id: session.id,
-             status: session.status,
-             task_summary: Map.get(session, :task_summary)
-           }}
-        end)
-      end)
-
-    # Combine - OpenCode takes precedence if both are working on same PR
-    Map.new(subagent_work ++ opencode_work)
-  end
-
-  # Load persisted work from the ChainlinkWorkTracker on mount
-  @spec load_persisted_chainlink_work() :: %{optional(integer()) => map()}
-  defp load_persisted_chainlink_work do
-    try do
-      ChainlinkWorkTracker.get_all_work()
-    rescue
-      _ -> %{}
-    catch
-      :exit, _ -> %{}
-    end
-  end
-
-  # Build map of chainlink issue_id -> work session info from sub-agent sessions
-  # Looks for sessions with labels containing "ticket-" to detect active chainlink work
-  # Merges with persisted work from ChainlinkWorkTracker and existing manually started work
-  @spec build_chainlink_work_in_progress(list(map()), %{optional(integer()) => map()}) :: %{optional(integer()) => map()}
-  defp build_chainlink_work_in_progress(agent_sessions, current_work) do
-    # Get active session IDs for cleanup
-    active_session_ids =
-      agent_sessions
-      |> Enum.filter(fn session -> session.status in [Status.running(), Status.idle()] end)
-      |> Enum.map(& &1.id)
-
-    # Async sync with tracker to clean up stale persisted entries
-    spawn(fn ->
-      try do
-        ChainlinkWorkTracker.sync_with_sessions(active_session_ids)
-      rescue
-        _ -> :ok
-      end
-    end)
-
-    # Detect work from running sessions
-    detected_work =
-      agent_sessions
-      |> Enum.filter(fn session -> session.status in [Status.running(), Status.idle()] end)
-      |> Enum.filter(fn session ->
-        label = Map.get(session, :label, "")
-        String.contains?(label, "ticket-")
-      end)
-      |> Enum.map(fn session ->
-        label = Map.get(session, :label, "")
-        # Extract issue ID from label like "ticket-123", "fix-work-indicator-ticket-456", etc.
-        case Regex.run(~r/ticket-(\d+)/, label) do
-          [_, issue_id_str] ->
-            case Integer.parse(issue_id_str) do
-              {issue_id, ""} ->
-                {issue_id,
-                 %{
-                   type: :subagent,
-                   label: label,
-                   session_id: session.id,
-                   status: session.status,
-                   task_summary: Map.get(session, :task_summary)
-                 }}
-
-              _ ->
-                nil
-            end
-
-          _ ->
-            nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
-      |> Map.new()
-
-    # Load persisted work from tracker
-    persisted_work = load_persisted_chainlink_work()
-
-    # Merge: persisted -> current -> detected (later takes precedence)
-    persisted_work
-    |> Map.merge(current_work)
-    |> Map.merge(detected_work)
-  end
-
+  # build_tickets_in_progress, build_prs_in_progress, build_chainlink_work_in_progress
+  # moved to DashboardPhoenixWeb.HomeLive.WorkProgressBuilder
   # build_graph_data function moved to DashboardPhoenixWeb.HomeLiveCache for memoization
 
   # Fetch OpenCode sessions if server is running
-  @spec fetch_opencode_sessions(opencode_status()) :: list(enriched_session())
+  @spec fetch_opencode_sessions(opencode_status()) :: list(map())
   defp fetch_opencode_sessions(%{running: true}) do
     case ClientFactory.opencode_client().list_sessions_formatted() do
-      {:ok, sessions} -> Enum.map(sessions, &enrich_opencode_session/1)
+      {:ok, sessions} -> SessionEnricher.enrich_opencode_sessions(sessions)
       {:error, _} -> []
     end
   end
 
   defp fetch_opencode_sessions(_), do: []
-
-  # Extract ticket/PR info once per session (O(1) regex per session instead of O(n*m) total)
-  @spec enrich_opencode_session(map()) :: enriched_session()
-  defp enrich_opencode_session(session) do
-    title = session.title || ""
-
-    ticket_ids =
-      case Regex.scan(@ticket_regex, title) do
-        [] -> []
-        matches -> Enum.map(matches, fn [_, id] -> String.upcase(id) end)
-      end
-
-    pr_numbers = extract_pr_numbers_from_text(title)
-
-    Map.merge(session, %{extracted_tickets: ticket_ids, extracted_prs: pr_numbers})
-  end
-
-  @spec enrich_agent_session(map()) :: enriched_session()
-  defp enrich_agent_session(session) do
-    label = Map.get(session, :label) || ""
-    task = Map.get(session, :task_summary) || ""
-    text = "#{label} #{task}"
-
-    ticket_ids =
-      case Regex.scan(@ticket_regex, text) do
-        [] -> []
-        matches -> Enum.map(matches, fn [_, id] -> String.upcase(id) end)
-      end
-
-    pr_numbers = extract_pr_numbers_from_text(text)
-
-    Map.merge(session, %{extracted_tickets: ticket_ids, extracted_prs: pr_numbers})
-  end
-
-  @spec extract_pr_numbers_from_text(String.t()) :: list(pos_integer())
-  defp extract_pr_numbers_from_text(text) do
-    case Regex.scan(@pr_regex, text) do
-      [] ->
-        []
-
-      matches ->
-        Enum.flat_map(matches, fn match_groups ->
-          pr_num =
-            match_groups
-            |> Enum.drop(1)
-            |> Enum.find(fn g -> g != nil and g != "" end)
-
-          if pr_num, do: [String.to_integer(pr_num)], else: []
-        end)
-    end
-  end
 
   # PR state persistence - stores which tickets have PRs created
   @spec pr_state_file() :: String.t()
