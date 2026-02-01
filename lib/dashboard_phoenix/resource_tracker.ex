@@ -21,12 +21,13 @@ defmodule DashboardPhoenix.ResourceTracker do
   @cli_timeout_ms 10_000
   @max_tracked_processes 100  # Limit total number of tracked processes
   @process_inactive_threshold 120_000  # Remove processes inactive for 2 minutes
+  @gc_interval 300_000  # Trigger GC every 5 minutes (Ticket #79)
   
   # ETS table name for fast reads
   @ets_table :resource_tracker_data
 
   def start_link(_opts) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__, hibernate_after: 15_000)
   end
 
   @doc """
@@ -103,6 +104,7 @@ defmodule DashboardPhoenix.ResourceTracker do
     }})
     
     schedule_sample()
+    schedule_gc()
     {:ok, %{history: %{}, last_sample: nil}}
   end
 
@@ -113,8 +115,20 @@ defmodule DashboardPhoenix.ResourceTracker do
     {:noreply, new_state}
   end
 
+  @impl true
+  def handle_info(:gc_trigger, state) do
+    alias DashboardPhoenix.MemoryUtils
+    MemoryUtils.trigger_gc(__MODULE__)
+    schedule_gc()
+    {:noreply, state}
+  end
+
   defp schedule_sample do
     Process.send_after(self(), :sample, @sample_interval)
+  end
+
+  defp schedule_gc do
+    Process.send_after(self(), :gc_trigger, @gc_interval)
   end
 
   defp sample_processes(state) do

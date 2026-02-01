@@ -47,7 +47,7 @@ defmodule DashboardPhoenix.RateLimiter do
   defstruct [:buckets, :last_refill]
 
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__, hibernate_after: 15_000)
   end
 
   @doc """

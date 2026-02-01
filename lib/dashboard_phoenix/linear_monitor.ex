@@ -29,7 +29,7 @@ defmodule DashboardPhoenix.LinearMonitor do
   # Client API
 
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__, hibernate_after: 15_000)
   end
 
   @doc "Get all cached tickets"
