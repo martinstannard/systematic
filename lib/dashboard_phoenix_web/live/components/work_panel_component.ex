@@ -209,6 +209,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
             </span>
           <% end %>
         </div>
+        
         <!-- Type summary badges -->
         <div class="flex items-center gap-1.5">
           <%= for {type, count} <- @type_counts do %>
