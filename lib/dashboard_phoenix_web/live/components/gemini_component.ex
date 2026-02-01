@@ -84,7 +84,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
       </div>
       
       <div id="gemini-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@gemini_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-3 pb-3">
+        <div class="px-4 pb-4 pt-2">
           <%= if not @gemini_server_status.running do %>
             <div class="text-center py-4">
               <div class="text-xs text-base-content/40 mb-2">Gemini CLI not running</div>

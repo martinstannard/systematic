@@ -87,8 +87,8 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
           </div>
           
           <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@coding_agents_collapsed, do: "max-h-0", else: "max-h-[200px]")}>
-            <div class="px-4 pb-4">
-              <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="px-5 pb-5 pt-2">
+              <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <%= for agent <- @coding_agents do %>
                   <div class={"px-3 py-2 text-xs font-mono rounded " <> if(agent.status == Status.running(), do: "bg-warning/10", else: "bg-white/5")}>
                     <div class="flex items-center justify-between">
@@ -124,7 +124,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
           </div>
           
           <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@system_processes_collapsed, do: "max-h-0", else: "max-h-[150px]")}>
-            <div class="px-4 pb-4 grid grid-cols-2 gap-2">
+            <div class="px-5 pb-5 pt-2 grid grid-cols-2 gap-3">
               <%= for process <- @limited_recent_processes do %>
                 <div class="px-3 py-2 bg-white/5 text-xs font-mono rounded">
                   <div class="text-white truncate"><%= process.name %></div>

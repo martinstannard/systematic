@@ -122,8 +122,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
       </div>
       
       <div id="config-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@config_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-4 py-3 border-t border-white/5">
-          <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="px-5 py-4 border-t border-white/5">
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-5">
             <!-- Agent Distribution Mode -->
             <fieldset>
               <legend class="text-xs font-mono text-base-content/50 mb-2">Distribution</legend>

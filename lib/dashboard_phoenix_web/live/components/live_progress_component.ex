@@ -82,7 +82,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
       </div>
       
       <div id="live-progress-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0", else: "max-h-[400px] flex-1")}>
-        <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream" role="log" aria-live="polite" aria-label="Agent activity log">
+        <div class="px-4 pb-4 pt-2 h-full max-h-[350px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream" role="log" aria-live="polite" aria-label="Agent activity log">
           <div :for={{dom_id, event} <- @progress_events} id={dom_id} class="py-0.5 flex items-start space-x-1" role="listitem">
             <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
             <span class={"flex-shrink-0 px-1 rounded-[2px] text-[9px] uppercase font-bold " <> type_color(Map.get(event, :agent_type))}>

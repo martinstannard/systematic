@@ -21,8 +21,8 @@ defmodule DashboardPhoenixWeb.Live.Components.UsageStatsComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-content-compact p-4" role="region" aria-label="Usage statistics">
-      <div class="flex items-center justify-between panel-header-compact mb-3">
+    <div class="panel-content-compact p-5" role="region" aria-label="Usage statistics">
+      <div class="flex items-center justify-between panel-header-compact mb-4">
         <span class="text-panel-label text-secondary" aria-hidden="true">📊</span>
         <span class="text-panel-label text-secondary">Usage</span>
         <button 
@@ -35,7 +35,7 @@ defmodule DashboardPhoenixWeb.Live.Components.UsageStatsComponent do
           <span aria-hidden="true">↻</span>
         </button>
       </div>
-      <div class="grid grid-cols-2 gap-4" aria-live="polite">
+      <div class="grid grid-cols-2 gap-5" aria-live="polite">
         <div>
           <div class="text-ui-label text-base-content/60 mb-2" id="opencode-stats-label">OpenCode</div>
           <div class="flex items-center space-x-2" aria-labelledby="opencode-stats-label">

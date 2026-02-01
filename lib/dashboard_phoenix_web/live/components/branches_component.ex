@@ -146,9 +146,9 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
       </div>
 
       <div id="branches-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@branches_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-4 pb-4">
+        <div class="px-5 pb-5 pt-2">
           <!-- Branch List -->
-          <div class="space-y-2 max-h-[350px] overflow-y-auto" role="region" aria-live="polite" aria-label="Unmerged branches list">
+          <div class="space-y-3 max-h-[350px] overflow-y-auto" role="region" aria-live="polite" aria-label="Unmerged branches list">
             <%= if @branches_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
