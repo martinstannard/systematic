@@ -21,14 +21,14 @@ defmodule DashboardPhoenixWeb.Live.Components.UsageStatsComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-content-compact">
-      <div class="flex items-center justify-between panel-header-compact">
+    <div class="panel-content-compact p-4">
+      <div class="flex items-center justify-between panel-header-compact mb-3">
         <span class="text-panel-label text-secondary">📊 Usage</span>
         <button phx-click="refresh_stats" phx-target={@myself} class="text-xs text-base-content/40 hover:text-secondary">↻</button>
       </div>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-2 gap-4">
         <div>
-          <div class="text-ui-label text-base-content/50 mb-1">OpenCode</div>
+          <div class="text-ui-label text-base-content/50 mb-2">OpenCode</div>
           <div class="flex items-center space-x-2">
             <span class="text-ui-value text-white"><%= @usage_stats.opencode[:sessions] || 0 %></span>
             <span class="text-ui-micro text-base-content/40">sess</span>
@@ -36,7 +36,7 @@ defmodule DashboardPhoenixWeb.Live.Components.UsageStatsComponent do
           </div>
         </div>
         <div>
-          <div class="text-ui-label text-base-content/50 mb-1">Claude</div>
+          <div class="text-ui-label text-base-content/50 mb-2">Claude</div>
           <div class="flex items-center space-x-2">
             <span class="text-ui-value text-white"><%= @usage_stats.claude[:sessions] || 0 %></span>
             <span class="text-ui-micro text-base-content/40">sess</span>

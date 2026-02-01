@@ -170,7 +170,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
       </div>
       
       <div id="subagents-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}>
-        <div class="px-3 pb-3 space-y-2 max-h-[450px] overflow-y-auto" role="region" aria-live="polite" aria-label="Sub-agent sessions list">
+        <div class="px-4 pb-4 space-y-3 max-h-[450px] overflow-y-auto" role="region" aria-live="polite" aria-label="Sub-agent sessions list">
           <%= if @visible_sessions == [] do %>
             <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sub-agents</div>
           <% end %>
@@ -189,7 +189,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                 else: if(status == "completed", do: "panel-status bg-success/10 border-success/30", else: "panel-status"))}>
               
               <!-- Header Row: Status, Label, Agent Type, Duration -->
-              <div class="flex flex-wrap items-start justify-between gap-2 px-3 py-2 border-b border-accent/20">
+              <div class="flex flex-wrap items-start justify-between gap-3 px-4 py-3 border-b border-accent/20">
                 <div class="flex items-start space-x-2 min-w-0 flex-1">
                   <%= if status == "running" do %>
                     <span class="throbber-small flex-shrink-0 mt-0.5"></span>
@@ -234,7 +234,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
               
               <!-- Task Description -->
               <%= if task do %>
-                <div class="px-3 py-2 border-b border-accent/10">
+                <div class="px-4 py-3 border-b border-accent/10">
                   <div class="text-ui-caption text-base-content/60 mb-0.5">Task</div>
                   <div class="text-ui-body text-base-content/90 leading-relaxed" title={task}>
                     <%= task %>
@@ -244,7 +244,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
               
               <!-- Live Work Status (for running agents) -->
               <%= if status == "running" do %>
-                <div class="px-3 py-2">
+                <div class="px-4 py-3">
                   <%= if current_action do %>
                     <div class="flex items-center space-x-2 mb-1">
                       <span class="text-xs text-warning/70">▶ Now:</span>
@@ -270,7 +270,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
               
               <!-- Result snippet for completed agents -->
               <%= if status == "completed" && Map.get(session, :result_snippet) do %>
-                <div class="px-3 py-2">
+                <div class="px-4 py-3">
                   <div class="text-xs text-success/70 mb-0.5">Result</div>
                   <div class="text-base-content/70 text-xs truncate" title={session.result_snippet}>
                     <%= session.result_snippet %>
@@ -280,7 +280,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
               
               <!-- Footer: Tokens & Cost (if available) -->
               <%= if (Map.get(session, :tokens_in, 0) > 0 || Map.get(session, :tokens_out, 0) > 0) do %>
-                <div class="px-3 py-1.5 panel-data border-t border-accent/10 flex items-center justify-between">
+                <div class="px-4 py-2 panel-data border-t border-accent/10 flex items-center justify-between">
                   <div class="flex items-center space-x-3 text-ui-micro text-base-content/60">
                     <div class="flex items-center space-x-1">
                       <span class="status-marker text-info opacity-60" aria-hidden="true"></span>

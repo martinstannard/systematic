@@ -221,14 +221,14 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       </div>
 
       <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[1000px]")}>
-        <div class="px-3 pb-3">
+        <div class="px-4 pb-4">
           <%= if @agents == [] do %>
             <div class="text-xs text-base-content/40 py-8 text-center font-mono">
               No active agents
             </div>
           <% else %>
             <!-- Hint about expandable cards -->
-            <div class="text-xs text-base-content/40 mb-2 text-center">
+            <div class="text-xs text-base-content/40 mb-3 text-center">
               Click cards to expand details
             </div>
             

@@ -148,9 +148,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
       </div>
 
       <div id="chainlink-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@chainlink_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-3 pb-3">
+        <div class="px-4 pb-4">
           <!-- Legend: Priority & Status -->
-          <div class="flex items-center justify-between mb-2 text-ui-caption text-base-content/60">
+          <div class="flex items-center justify-between mb-3 text-ui-caption text-base-content/60">
             <div class="flex items-center space-x-2">
               <span class="flex items-center text-red-400"><%= priority_symbol(:high) %> HIGH</span>
               <span class="flex items-center text-yellow-400"><%= priority_symbol(:medium) %> MED</span>
@@ -163,7 +163,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
           </div>
 
           <!-- Issue List -->
-          <div class="space-y-1 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="Chainlink issue list">
+          <div class="space-y-2 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="Chainlink issue list">
             <%= if @chainlink_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
@@ -178,7 +178,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
               <% end %>
               <%= for issue <- @chainlink_issues do %>
                 <% work_info = Map.get(@chainlink_work_in_progress, issue.id) %>
-                <div class={"flex items-center space-x-2 px-2 py-1.5 " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
+                <div class={"flex items-center space-x-3 px-3 py-2 rounded " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
                   <%= if work_info do %>
                     <!-- Work in progress indicator - replaces Work button -->
                     <div class="flex items-center space-x-1.5 min-w-[70px]" role="status" aria-label={"Work in progress by " <> (work_info[:label] || "agent")}>

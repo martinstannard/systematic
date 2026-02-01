@@ -67,10 +67,10 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
 
   # Helper functions
 
-  defp opencode_status_badge("active"), do: "px-1.5 py-0.5bg-green-500/20 text-green-400 text-xs"
-  defp opencode_status_badge("subagent"), do: "px-1.5 py-0.5bg-purple-500/20 text-purple-400 text-xs"
-  defp opencode_status_badge("idle"), do: "px-1.5 py-0.5bg-blue-500/20 text-blue-400 text-xs"
-  defp opencode_status_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs"
+  defp opencode_status_badge("active"), do: "px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded"
+  defp opencode_status_badge("subagent"), do: "px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded"
+  defp opencode_status_badge("idle"), do: "px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded"
+  defp opencode_status_badge(_), do: "px-2 py-1 bg-base-content/10 text-base-content/60 text-xs rounded"
 
   defp opencode_status_symbol("active"), do: "●"
   defp opencode_status_symbol("subagent"), do: "◆"
@@ -120,7 +120,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
       </div>
 
       <div id="opencode-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@opencode_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-3 pb-3">
+        <div class="px-4 pb-4">
           <%= if not @opencode_server_status.running do %>
             <!-- Server Not Running -->
             <div class="text-center py-4">
@@ -128,7 +128,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
               <button
                 phx-click="start_opencode_server"
                 phx-target={@myself}
-                class="text-xs px-3 py-1.5bg-success/20 text-success hover:bg-success/40"
+                class="text-xs px-3 py-2 bg-success/20 text-success hover:bg-success/40 rounded"
                 aria-label="Start OpenCode ACP server"
               >
                 ▶ Start Server
@@ -144,7 +144,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
               <button
                 phx-click="stop_opencode_server"
                 phx-target={@myself}
-                class="text-xs px-2 py-0.5bg-error/20 text-error hover:bg-error/40"
+                class="text-xs px-3 py-1 bg-error/20 text-error hover:bg-error/40 rounded"
                 aria-label="Stop OpenCode ACP server"
               >
                 Stop
@@ -152,12 +152,12 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
             </div>
 
             <!-- Sessions List -->
-            <div class="space-y-2 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="OpenCode sessions list">
+            <div class="space-y-3 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="OpenCode sessions list">
               <%= if @opencode_sessions == [] do %>
                 <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sessions</div>
               <% end %>
               <%= for session <- @opencode_sessions do %>
-                <div class="px-2 py-2panel-status hover:bg-accent/10 text-xs font-mono border border-accent/20 hover:border-accent/40 transition-all">
+                <div class="px-3 py-3 panel-status hover:bg-accent/10 text-xs font-mono border border-accent/20 hover:border-accent/40 transition-all rounded">
                   <!-- Session Header -->
                   <div class="flex items-start justify-between mb-1">
                     <div class="flex items-center space-x-2 min-w-0">
@@ -174,7 +174,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
                           phx-click="request_opencode_pr"
                           phx-target={@myself}
                           phx-value-id={session.id}
-                          class="px-1.5 py-0.5bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 text-xs"
+                          class="px-2 py-1 bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 text-xs rounded"
                           title="Request PR creation"
                           aria-label={"Request PR for session " <> session.slug}
                         >
@@ -185,7 +185,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
                         phx-click="close_opencode_session"
                         phx-target={@myself}
                         phx-value-id={session.id}
-                        class="px-1.5 py-0.5bg-error/20 text-error hover:bg-error/40 text-xs"
+                        class="px-2 py-1 bg-error/20 text-error hover:bg-error/40 text-xs rounded"
                         title="Close session"
                         aria-label={"Close session " <> session.slug}
                       >

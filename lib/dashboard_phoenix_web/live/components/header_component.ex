@@ -16,7 +16,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="glass-header px-4 py-3 flex items-center justify-between mb-3">
+    <div class="glass-header px-6 py-4 flex items-center justify-between mb-4">
       <div class="flex items-center space-x-4">
         <div class="flex items-center space-x-2">
           <h1 class="text-system-title">SYSTEMATIC</h1>

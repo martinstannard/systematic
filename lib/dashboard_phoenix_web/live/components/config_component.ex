@@ -115,8 +115,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
       </div>
       
       <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@config_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-4 py-3 border-t border-white/5">
-          <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="px-5 py-4 border-t border-white/5">
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-5">
             <!-- Agent Distribution Mode -->
             <div>
               <div class="text-xs font-mono text-base-content/50 mb-2">Distribution</div>
@@ -235,7 +235,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
           </div>
           
           <!-- Server Controls based on selected agent -->
-          <div class="mt-3 pt-3 border-t border-white/5">
+          <div class="mt-4 pt-4 border-t border-white/5">
             <%= cond do %>
               <% @coding_agent_pref == :opencode -> %>
                 <!-- OpenCode Server Controls -->
@@ -249,9 +249,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                     <% end %>
                   </div>
                   <%= if @opencode_server_status.running do %>
-                    <button phx-click="stop_opencode_server" phx-target={@myself} class="text-xs px-2 py-1bg-error/20 text-error hover:bg-error/40">Stop</button>
+                    <button phx-click="stop_opencode_server" phx-target={@myself} class="text-xs px-3 py-1.5 bg-error/20 text-error hover:bg-error/40 rounded">Stop</button>
                   <% else %>
-                    <button phx-click="start_opencode_server" phx-target={@myself} class="text-xs px-2 py-1bg-success/20 text-success hover:bg-success/40">Start</button>
+                    <button phx-click="start_opencode_server" phx-target={@myself} class="text-xs px-3 py-1.5 bg-success/20 text-success hover:bg-success/40 rounded">Start</button>
                   <% end %>
                 </div>
               <% @coding_agent_pref == :gemini -> %>
@@ -270,9 +270,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                     <% end %>
                   </div>
                   <%= if @gemini_server_status.running do %>
-                    <button phx-click="stop_gemini_server" phx-target={@myself} class="text-xs px-2 py-1bg-error/20 text-error hover:bg-error/40">Stop</button>
+                    <button phx-click="stop_gemini_server" phx-target={@myself} class="text-xs px-3 py-1.5 bg-error/20 text-error hover:bg-error/40 rounded">Stop</button>
                   <% else %>
-                    <button phx-click="start_gemini_server" phx-target={@myself} class="text-xs px-2 py-1bg-success/20 text-success hover:bg-success/40">Start</button>
+                    <button phx-click="start_gemini_server" phx-target={@myself} class="text-xs px-3 py-1.5 bg-success/20 text-success hover:bg-success/40 rounded">Start</button>
                   <% end %>
                 </div>
               <% true -> %>
