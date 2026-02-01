@@ -72,7 +72,10 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
         <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream">
           <div :for={{dom_id, event} <- @progress_events} id={dom_id} class="py-0.5 flex items-start space-x-1">
             <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
-            <span class={agent_color(event.agent) <> " w-[200px] flex-shrink-0 truncate"}><%= event.agent %></span>
+            <span class={"flex-shrink-0 px-1 rounded-[2px] text-[9px] uppercase font-bold " <> type_color(Map.get(event, :agent_type))}>
+              <%= Map.get(event, :agent_type) || "???" %>
+            </span>
+            <span class={agent_color(event.agent) <> " w-[180px] flex-shrink-0 truncate"}><%= event.agent %></span>
             <span class={action_color(event.action) <> " font-bold w-10 flex-shrink-0"}><%= event.action %></span>
             <span class="text-base-content/70 truncate flex-1"><%= event.target %></span>
           </div>
@@ -89,9 +92,15 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
     |> DateTime.from_unix!(:millisecond)
     |> Calendar.strftime("%H:%M:%S")
   end
-  defp format_time(_), do: ""
+    defp format_time(_), do: ""
 
-  defp agent_color("main"), do: "text-yellow-500 font-semibold"  # Yellow to indicate "should offload"
+  defp type_color("Claude"), do: "bg-orange-500/10 text-orange-400 border border-orange-500/20"
+  defp type_color("OpenCode"), do: "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+  defp type_color("sub-agent"), do: "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+  defp type_color(_), do: "bg-base-content/5 text-base-content/40 border border-base-content/10"
+
+  defp agent_color("main"), do: "text-yellow-500 font-semibold"
+  # Yellow to indicate "should offload"
   defp agent_color("cron"), do: "text-gray-400"
   defp agent_color(name) when is_binary(name) do
     cond do
