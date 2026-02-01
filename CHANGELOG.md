@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Add typespecs throughout codebase (#32)
+- Add accessibility improvements to dashboard (#42)
+- Replace magic strings with module constants or enums (#28)
+- Perf: Add GenServer hibernation and memory limits (#79)
 - Replace :timer.send_interval with recursive Process.send_after (#10)
 - Make hardcoded paths configurable (#8)
 - Remove Core Work section wrapper (#110)
