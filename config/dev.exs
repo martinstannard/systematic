@@ -18,7 +18,7 @@ config :dashboard_phoenix, DashboardPhoenix.Repo,
 # to bundle .js and .css sources.
 config :dashboard_phoenix, DashboardPhoenixWeb.Endpoint,
   # Binding to all interfaces to allow access from Tailscale network
-  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4000")],
+  http: [ip: {0, 0, 0, 0}, port: String.to_integer(System.get_env("PORT") || "4000")],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
