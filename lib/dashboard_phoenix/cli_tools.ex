@@ -139,12 +139,13 @@ defmodule DashboardPhoenix.CLITools do
         {:error, :not_found}
       
       path ->
-        # Additional check: make sure it's actually executable
+        # System.find_executable already verifies the file is executable
+        # Just verify the file still exists and is accessible
         case File.stat(path) do
-          {:ok, %File.Stat{access: access}} when access in [:read_write, :write] ->
+          {:ok, %File.Stat{type: type}} when type in [:regular, :symlink] ->
             {:ok, path}
-          {:ok, _} ->
-            {:error, :not_executable}
+          {:ok, %File.Stat{type: type}} ->
+            {:error, {:invalid_type, type}}
           {:error, reason} ->
             {:error, {:stat_failed, reason}}
         end
