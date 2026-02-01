@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Audit and remove unused functions (#36)
+- Work Panel cards - layout and individual expansion (#109)
 - Add PR state persistence file to .gitignore (#38)
 - Activity Log: Integrate sub-agent lifecycle events (#84)
 - Activity Log: Add merge and restart event tracking (#85)
