@@ -49,10 +49,11 @@ defmodule DashboardPhoenix.LinearMonitor do
 
   @doc "Get full details for a specific ticket"
   def get_ticket_details(ticket_id) do
-    case CLITools.run_if_available(linear_cli(), ["issue", "show", ticket_id], 
+    # Ticket #115: Use JSON output for more reliable parsing
+    case CLITools.run_json_if_available(linear_cli(), ["issue", "show", ticket_id, "--json"], 
          timeout: @cli_timeout_ms, friendly_name: "Linear CLI") do
-      {:ok, output} ->
-        {:ok, output}
+      {:ok, data} when is_map(data) ->
+        {:ok, format_ticket_details(data)}
       
       {:error, {:tool_not_available, message}} ->
         Logger.info("Linear CLI not available for ticket #{ticket_id}: #{message}")
@@ -71,6 +72,69 @@ defmodule DashboardPhoenix.LinearMonitor do
         {:error, format_error(reason)}
     end
   end
+  
+  # Format ticket details into a readable string from JSON data
+  defp format_ticket_details(data) do
+    lines = [
+      "# #{data["id"]}: #{data["title"]}",
+      "",
+      "State: #{data["status"]}",
+      "Priority: #{data["priority"] || "None"}",
+      "Project: #{data["project"] || "None"}",
+      "Assignee: #{data["assignee"] || "Unassigned"}",
+      "Labels: #{format_labels(data["labels"])}"
+    ]
+    
+    lines = if data["parent"] do
+      lines ++ ["", "## Parent", "#{data["parent"]["id"]}: #{data["parent"]["title"]}"]
+    else
+      lines
+    end
+    
+    lines = if data["children"] && length(data["children"]) > 0 do
+      children_lines = Enum.map(data["children"], fn c ->
+        "  - [#{c["status"]}] #{c["id"]}: #{c["title"]}"
+      end)
+      lines ++ ["", "## Sub-issues"] ++ children_lines
+    else
+      lines
+    end
+    
+    lines = if data["blockedBy"] && length(data["blockedBy"]) > 0 do
+      blocked_lines = Enum.map(data["blockedBy"], fn b ->
+        "  - #{b["id"]}: #{b["title"]}"
+      end)
+      lines ++ ["", "## Blocked by"] ++ blocked_lines
+    else
+      lines
+    end
+    
+    lines = if data["blocks"] && length(data["blocks"]) > 0 do
+      blocks_lines = Enum.map(data["blocks"], fn b ->
+        "  - #{b["id"]}: #{b["title"]}"
+      end)
+      lines ++ ["", "## Blocks"] ++ blocks_lines
+    else
+      lines
+    end
+    
+    lines = lines ++ ["", "## Description", "", data["description"] || "No description"]
+    
+    lines = if data["comments"] && length(data["comments"]) > 0 do
+      comment_lines = Enum.flat_map(data["comments"], fn c ->
+        ["", "---", "**#{c["author"]}** (#{c["createdAt"]})", "", c["body"]]
+      end)
+      lines ++ ["", "## Comments"] ++ comment_lines
+    else
+      lines
+    end
+    
+    Enum.join(lines, "\n")
+  end
+  
+  defp format_labels(nil), do: "None"
+  defp format_labels([]), do: "None"
+  defp format_labels(labels), do: Enum.join(labels, ", ")
 
   # Server callbacks
 
@@ -270,15 +334,16 @@ defmodule DashboardPhoenix.LinearMonitor do
     cache_key = "linear:issues:#{status}"
     
     # Use CLI cache to avoid redundant calls (Ticket #73)
+    # Ticket #115: Use JSON output for more reliable parsing
     case CLICache.get_or_fetch(cache_key, @cache_ttl_ms, fn ->
-      case CLITools.run_if_available(linear_cli(), ["issues", "--state", status], 
+      case CLITools.run_json_if_available(linear_cli(), ["issues", "--state", status, "--json"], 
            timeout: @cli_timeout_ms, friendly_name: "Linear CLI") do
-        {:ok, output} -> {:ok, output}
+        {:ok, data} -> {:ok, data}
         error -> error
       end
     end) do
-      {:ok, output} ->
-        {:ok, parse_issues_output(output, status)}
+      {:ok, issues} when is_list(issues) ->
+        {:ok, parse_json_issues(issues)}
       
       {:error, {:tool_not_available, message}} ->
         Logger.info("Linear CLI not available for state #{status}: #{message}")
@@ -298,84 +363,26 @@ defmodule DashboardPhoenix.LinearMonitor do
     end
   end
 
-  defp parse_issues_output(output, status) do
-    output
-    |> String.split("\n")
-    |> Enum.drop(2)  # Skip header lines (title + empty line)
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.map(&parse_issue_line(&1, status))
+  # Ticket #115: Parse JSON output from Linear CLI for reliable parsing
+  defp parse_json_issues(issues) when is_list(issues) do
+    issues
+    |> Enum.map(&parse_json_issue/1)
     |> Enum.reject(&is_nil/1)
   end
 
-  defp parse_issue_line(line, status) do
-    # Remove ANSI codes
-    clean_line = String.replace(line, ~r/\e\[[0-9;]*m/, "")
-    
-    # Parse format: "COR-XXX  Title...  State  Project  Assignee"
-    # The fields are separated by 2+ spaces
-    case Regex.run(~r/^(COR-\d+)\s{2,}(.+?)\s{2,}(\w+)\s{2,}(.+?)\s{2,}(.*)$/, clean_line) do
-      [_, id, title, _state, project, assignee] ->
-        ticket = %{
-          id: String.trim(id),
-          title: String.trim(title),
-          status: status,
-          project: normalize_project(project),
-          assignee: normalize_assignee(assignee),
-          priority: nil,  # Not in the list output
-          url: build_issue_url(id)
-        }
-        add_pr_info(ticket)
-      
-      _ ->
-        # Try simpler format (fewer columns)
-        case Regex.run(~r/^(COR-\d+)\s{2,}(.+?)\s{2,}(\w+)/, clean_line) do
-          [_, id, title, _state | rest] ->
-            ticket = %{
-              id: String.trim(id),
-              title: String.trim(title),
-              status: status,
-              project: nil,
-              assignee: parse_assignee_from_rest(rest),
-              priority: nil,
-              url: build_issue_url(id)
-            }
-            add_pr_info(ticket)
-          
-          _ ->
-            # Last resort: just grab the ID and rest as title
-            case Regex.run(~r/^(COR-\d+)\s+(.+)/, clean_line) do
-              [_, id, rest] ->
-                ticket = %{
-                  id: String.trim(id),
-                  title: String.trim(rest),
-                  status: status,
-                  project: nil,
-                  assignee: nil,
-                  priority: nil,
-                  url: build_issue_url(id)
-                }
-                add_pr_info(ticket)
-              
-              _ ->
-                nil
-            end
-        end
-    end
+  defp parse_json_issue(%{"id" => id, "title" => title, "status" => status} = issue) do
+    ticket = %{
+      id: id,
+      title: title,
+      status: status,
+      project: issue["project"],
+      assignee: issue["assignee"],
+      priority: issue["priority"],
+      url: build_issue_url(id)
+    }
+    add_pr_info(ticket)
   end
-
-  defp normalize_project("-"), do: nil
-  defp normalize_project(project), do: String.trim(project)
-
-  defp normalize_assignee("-"), do: nil
-  defp normalize_assignee("you"), do: "you"
-  defp normalize_assignee(assignee), do: String.trim(assignee)
-
-  defp parse_assignee_from_rest([]), do: nil
-  defp parse_assignee_from_rest([rest | _]) do
-    trimmed = String.trim(rest)
-    if trimmed == "-" or trimmed == "", do: nil, else: trimmed
-  end
+  defp parse_json_issue(_), do: nil
 
   defp build_issue_url(issue_id) do
     "https://linear.app/#{@linear_workspace}/issue/#{issue_id}"
