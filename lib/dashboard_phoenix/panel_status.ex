@@ -206,7 +206,12 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp has_conflicts_or_ci_failures?(prs) when is_list(prs) do
     Enum.any?(prs, fn pr ->
-      pr.mergeable == false or pr.ci_status in ["failure", "error"]
+      # Use Map.get for defensive access - handle PRs without all fields
+      mergeable = Map.get(pr, :mergeable)
+      ci_status = Map.get(pr, :ci_status)
+      has_conflicts = Map.get(pr, :has_conflicts, false)
+      # Check for conflicts via either mergeable=false or has_conflicts=true
+      has_conflicts or mergeable == false or ci_status in ["failure", "error", :failure, :error]
     end)
   end
 
@@ -214,7 +219,12 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp has_ready_to_merge_prs?(prs) when is_list(prs) do
     Enum.any?(prs, fn pr ->
-      pr.mergeable == true and pr.ci_status == "success" and pr.approved == true
+      # Use Map.get for defensive access - handle PRs without all fields
+      mergeable = Map.get(pr, :mergeable, true) # default true if not present
+      ci_status = Map.get(pr, :ci_status)
+      approved = Map.get(pr, :approved, false)
+      review_status = Map.get(pr, :review_status)
+      mergeable == true and ci_status in ["success", :success] and (approved == true or review_status == :approved)
     end)
   end
 
@@ -232,8 +242,8 @@ defmodule DashboardPhoenix.PanelStatus do
     thirty_days_ago = DateTime.utc_now() |> DateTime.add(-30 * 24 * 60 * 60, :second)
     
     Enum.any?(branches, fn branch ->
-      case DateTime.from_iso8601(branch.last_commit_date || "") do
-        {:ok, date, _} -> DateTime.compare(date, thirty_days_ago) == :lt
+      case parse_date(branch.last_commit_date) do
+        {:ok, date} -> DateTime.compare(date, thirty_days_ago) == :lt
         _ -> false
       end
     end)
@@ -245,12 +255,22 @@ defmodule DashboardPhoenix.PanelStatus do
     seven_days_ago = DateTime.utc_now() |> DateTime.add(-7 * 24 * 60 * 60, :second)
     
     Enum.any?(branches, fn branch ->
-      case DateTime.from_iso8601(branch.last_commit_date || "") do
-        {:ok, date, _} -> DateTime.compare(date, seven_days_ago) == :gt
+      case parse_date(branch.last_commit_date) do
+        {:ok, date} -> DateTime.compare(date, seven_days_ago) == :gt
         _ -> false
       end
     end)
   end
+  
+  # Parse date that can be either a DateTime struct or an ISO 8601 string
+  defp parse_date(%DateTime{} = date), do: {:ok, date}
+  defp parse_date(date_string) when is_binary(date_string) do
+    case DateTime.from_iso8601(date_string) do
+      {:ok, date, _offset} -> {:ok, date}
+      error -> error
+    end
+  end
+  defp parse_date(_), do: :error
 
   defp has_recent_branches?(_), do: false
 

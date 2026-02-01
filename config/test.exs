@@ -39,6 +39,8 @@ config :phoenix_live_view,
 
 # Mock configuration for test environment
 config :dashboard_phoenix,
+  # Disable authentication in tests for isolation
+  auth_token: nil,
   # Disable live services in test
   disable_session_bridge: true,
   # Use mock implementations in tests
