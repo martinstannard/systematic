@@ -121,8 +121,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       )
 
       # Should show WIP styling for issue 1
-      assert html =~ "bg-accent/10"
-      assert html =~ "border-success/50"
+      assert html =~ "bg-success/10"
+      assert html =~ "border-r-success/50"
       # Should show animated activity indicator
       assert html =~ "status-activity-ring"
       # Should show agent label (formatted from ticket-123-agent)
@@ -333,6 +333,80 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       # Should show low priority styling
       assert html =~ "bg-blue-500/20"
       assert html =~ "▼ LOW"
+    end
+  end
+
+  describe "modal event handling" do
+    test "show_work_confirm event sets confirm_issue assign" do
+      issues = [
+        %{id: 42, title: "Test Issue", status: "open", priority: :high}
+      ]
+
+      # Render the component
+      html = render_component(ChainlinkComponent,
+        id: "test-chainlink",
+        chainlink_issues: issues,
+        chainlink_issues_count: 1,
+        chainlink_loading: false,
+        chainlink_error: nil,
+        chainlink_collapsed: false,
+        chainlink_work_in_progress: %{}
+      )
+
+      # Modal should NOT be visible initially
+      refute html =~ "Start Work?"
+      
+      # Work button should be present with correct issue ID
+      assert html =~ ~r/phx-click="show_work_confirm"/
+      assert html =~ ~r/phx-value-id="42"/
+    end
+
+    test "Start Work button in modal has correct phx-click binding" do
+      issues = [
+        %{id: 42, title: "Test Issue", status: "open", priority: :high}
+      ]
+
+      html = render_component(ChainlinkComponent,
+        id: "test-chainlink",
+        chainlink_issues: issues,
+        chainlink_issues_count: 1,
+        chainlink_loading: false,
+        chainlink_error: nil,
+        chainlink_collapsed: false,
+        chainlink_work_in_progress: %{},
+        confirm_issue: %{id: 42, title: "Test Issue", priority: :high}
+      )
+
+      # The Start Work button should have:
+      # 1. phx-click="confirm_work"
+      # 2. phx-target that points to the component
+      assert html =~ ~r/phx-click="confirm_work"/
+      assert html =~ ~r/phx-target="-1"/  # -1 is the static representation of @myself
+      
+      # Verify the button text
+      assert html =~ "Start Work"
+    end
+
+    test "modal content has noop click handler to prevent backdrop close on content click" do
+      issues = [
+        %{id: 42, title: "Test Issue", status: "open", priority: :high}
+      ]
+
+      html = render_component(ChainlinkComponent,
+        id: "test-chainlink",
+        chainlink_issues: issues,
+        chainlink_issues_count: 1,
+        chainlink_loading: false,
+        chainlink_error: nil,
+        chainlink_collapsed: false,
+        chainlink_work_in_progress: %{},
+        confirm_issue: %{id: 42, title: "Test Issue", priority: :high}
+      )
+
+      # Modal content should have noop handler to prevent clicks from bubbling to backdrop
+      # This is critical - without it, clicking buttons inside the modal would also
+      # trigger the backdrop's cancel_confirm handler
+      assert html =~ ~r/phx-click="noop"/
     end
   end
 

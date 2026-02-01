@@ -72,6 +72,12 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
     {:noreply, assign(socket, confirm_issue: nil)}
   end
 
+  @impl true
+  def handle_event("noop", _, socket) do
+    # No-op handler to prevent event bubbling to parent elements
+    {:noreply, socket}
+  end
+
   # Helper functions
 
   defp priority_badge(:high), do: "px-1.5 py-0.5 bg-red-500/20 text-red-400 dark:text-red-400 text-ui-caption rounded"
@@ -252,7 +258,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         >
           <div
             class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
-            onclick="event.stopPropagation()"
+            phx-click="noop"
+            phx-target={@myself}
           >
             <!-- Header -->
             <div class="flex items-center justify-between mb-4">
