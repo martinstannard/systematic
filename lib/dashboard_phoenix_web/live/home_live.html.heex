@@ -15,141 +15,177 @@
     <!-- LEFT: Removed chat panel - use OpenClaw Control UI at https://balgownie.tail1b57dd.ts.net:8443/ -->
 
     <!-- Main Panels (full width, chat removed) -->
-    <div class="w-full flex flex-col gap-3 overflow-y-auto">
+    <div class="w-full flex flex-col gap-6 overflow-y-auto">
       
-      <!-- Usage Stats Panel (LiveComponent) -->
-      <.live_component
-        module={UsageStatsComponent}
-        id="usage-stats"
-        usage_stats={@usage_stats}
-      />
+      <!-- MONITORING SECTION -->
+      <section class="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-200">Monitoring & Stats</h2>
+        </div>
+        <div class="space-y-3">
+          <!-- Usage Stats Panel (LiveComponent) -->
+          <.live_component
+            module={UsageStatsComponent}
+            id="usage-stats"
+            usage_stats={@usage_stats}
+          />
 
-      <!-- Linear Tickets Panel (LiveComponent) -->
-      <.live_component
-        module={LinearComponent}
-        id="linear-tickets"
-        linear_tickets={@linear_tickets}
-        linear_counts={@linear_counts}
-        linear_loading={@linear_loading}
-        linear_error={@linear_error}
-        linear_collapsed={@linear_collapsed}
-        linear_status_filter={@linear_status_filter}
-        tickets_in_progress={@tickets_in_progress}
-      />
+          <!-- Live Progress Panel (LiveComponent) -->
+          <.live_component
+            module={LiveProgressComponent}
+            id="live-progress-panel"
+            live_progress_collapsed={@live_progress_collapsed}
+            agent_progress_count={@agent_progress_count}
+            progress_events={@streams.progress_events}
+          />
+        </div>
+      </section>
 
-      <!-- Chainlink Issues Panel (LiveComponent) -->
-      <.live_component
-        module={ChainlinkComponent}
-        id="chainlink-issues"
-        chainlink_issues={@chainlink_issues}
-        chainlink_loading={@chainlink_loading}
-        chainlink_error={@chainlink_error}
-        chainlink_collapsed={@chainlink_collapsed}
-        chainlink_work_in_progress={@chainlink_work_in_progress}
-      />
+      <!-- TASK MANAGEMENT SECTION -->
+      <section class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-700/50">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+          <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-200">Task Management</h2>
+        </div>
+        <div class="space-y-3">
+          <!-- Linear Tickets Panel (LiveComponent) -->
+          <.live_component
+            module={LinearComponent}
+            id="linear-tickets"
+            linear_tickets={@linear_tickets}
+            linear_counts={@linear_counts}
+            linear_loading={@linear_loading}
+            linear_error={@linear_error}
+            linear_collapsed={@linear_collapsed}
+            linear_status_filter={@linear_status_filter}
+            tickets_in_progress={@tickets_in_progress}
+          />
 
-      <!-- GitHub Pull Requests Panel -->
-      <.live_component
-        module={PRsComponent}
-        id="prs-panel"
-        github_prs={@github_prs}
-        github_prs_loading={@github_prs_loading}
-        github_prs_error={@github_prs_error}
-        github_prs_last_updated={@github_prs_last_updated}
-        prs_collapsed={@prs_collapsed}
-        prs_in_progress={@prs_in_progress}
-        pr_verifications={@pr_verifications}
-        pr_fix_pending={@pr_fix_pending}
-      />
+          <!-- Chainlink Issues Panel (LiveComponent) -->
+          <.live_component
+            module={ChainlinkComponent}
+            id="chainlink-issues"
+            chainlink_issues={@chainlink_issues}
+            chainlink_loading={@chainlink_loading}
+            chainlink_error={@chainlink_error}
+            chainlink_collapsed={@chainlink_collapsed}
+            chainlink_work_in_progress={@chainlink_work_in_progress}
+          />
 
-      <!-- Unmerged Branches Panel -->
-      <.live_component
-        module={BranchesComponent}
-        id="branches-panel"
-        unmerged_branches={@unmerged_branches}
-        branches_loading={@branches_loading}
-        branches_error={@branches_error}
-        branches_last_updated={@branches_last_updated}
-        branches_collapsed={@branches_collapsed}
-        branch_merge_pending={@branch_merge_pending}
-        branch_delete_pending={@branch_delete_pending}
-      />
+          <!-- GitHub Pull Requests Panel -->
+          <.live_component
+            module={PRsComponent}
+            id="prs-panel"
+            github_prs={@github_prs}
+            github_prs_loading={@github_prs_loading}
+            github_prs_error={@github_prs_error}
+            github_prs_last_updated={@github_prs_last_updated}
+            prs_collapsed={@prs_collapsed}
+            prs_in_progress={@prs_in_progress}
+            pr_verifications={@pr_verifications}
+            pr_fix_pending={@pr_fix_pending}
+          />
 
-      <!-- OpenCode Sessions Panel (LiveComponent) -->
-      <.live_component
-        module={OpenCodeComponent}
-        id="opencode-panel"
-        opencode_server_status={@opencode_server_status}
-        opencode_sessions={@opencode_sessions}
-        opencode_collapsed={@opencode_collapsed}
-      />
+          <!-- Unmerged Branches Panel -->
+          <.live_component
+            module={BranchesComponent}
+            id="branches-panel"
+            unmerged_branches={@unmerged_branches}
+            branches_loading={@branches_loading}
+            branches_error={@branches_error}
+            branches_last_updated={@branches_last_updated}
+            branches_collapsed={@branches_collapsed}
+            branch_merge_pending={@branch_merge_pending}
+            branch_delete_pending={@branch_delete_pending}
+          />
+        </div>
+      </section>
 
-      <!-- Gemini CLI Panel (LiveComponent) -->
-      <.live_component
-        module={GeminiComponent}
-        id="gemini-panel"
-        gemini_server_status={@gemini_server_status}
-        gemini_output={@gemini_output}
-        gemini_collapsed={@gemini_collapsed}
-      />
+      <!-- CODING AGENTS SECTION -->
+      <section class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-700/50">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
+          <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-200">Coding Agents</h2>
+        </div>
+        <div class="space-y-3">
+          <!-- OpenCode Sessions Panel (LiveComponent) -->
+          <.live_component
+            module={OpenCodeComponent}
+            id="opencode-panel"
+            opencode_server_status={@opencode_server_status}
+            opencode_sessions={@opencode_sessions}
+            opencode_collapsed={@opencode_collapsed}
+          />
 
-      <!-- Dave Panel (Main Agent) -->
-      <.live_component
-        module={DaveComponent}
-        id="dave-panel"
-        agent_sessions={@agent_sessions}
-        dave_collapsed={@dave_collapsed}
-      />
+          <!-- Gemini CLI Panel (LiveComponent) -->
+          <.live_component
+            module={GeminiComponent}
+            id="gemini-panel"
+            gemini_server_status={@gemini_server_status}
+            gemini_output={@gemini_output}
+            gemini_collapsed={@gemini_collapsed}
+          />
 
-      <!-- Sub-Agents Panel -->
-      <.live_component
-        module={SubagentsComponent}
-        id="subagents-panel"
-        agent_sessions={@agent_sessions}
-        subagents_collapsed={@subagents_collapsed}
-        dismissed_sessions={@dismissed_sessions}
-        show_completed={@show_completed}
-      />
+          <!-- Dave Panel (Main Agent) -->
+          <.live_component
+            module={DaveComponent}
+            id="dave-panel"
+            agent_sessions={@agent_sessions}
+            dave_collapsed={@dave_collapsed}
+          />
 
-      <!-- Live Progress Panel (LiveComponent) -->
-      <.live_component
-        module={LiveProgressComponent}
-        id="live-progress-panel"
-        live_progress_collapsed={@live_progress_collapsed}
-        agent_progress_count={@agent_progress_count}
-        progress_events={@streams.progress_events}
-      />
+          <!-- Sub-Agents Panel -->
+          <.live_component
+            module={SubagentsComponent}
+            id="subagents-panel"
+            agent_sessions={@agent_sessions}
+            subagents_collapsed={@subagents_collapsed}
+            dismissed_sessions={@dismissed_sessions}
+            show_completed={@show_completed}
+          />
+        </div>
+      </section>
     </div>
   </div>
 
   <!-- Bottom Panels Row (Less Important - Collapsed by Default) -->
-  <div class="mt-3 space-y-2">
+  <div class="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
     
-    <!-- Config Panel (LiveComponent) -->
-    <.live_component
-      module={ConfigComponent}
-      id="config-panel"
-      config_collapsed={@config_collapsed}
-      coding_agent_pref={@coding_agent_pref}
-      claude_model={@claude_model}
-      opencode_model={@opencode_model}
-      opencode_server_status={@opencode_server_status}
-      gemini_server_status={@gemini_server_status}
-    />
+    <!-- SYSTEM CONFIGURATION SECTION -->
+    <section class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-700/50">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
+        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-200">System & Configuration</h2>
+      </div>
+      <div class="space-y-3">
+        <!-- Config Panel (LiveComponent) -->
+        <.live_component
+          module={ConfigComponent}
+          id="config-panel"
+          config_collapsed={@config_collapsed}
+          coding_agent_pref={@coding_agent_pref}
+          claude_model={@claude_model}
+          opencode_model={@opencode_model}
+          opencode_server_status={@opencode_server_status}
+          gemini_server_status={@gemini_server_status}
+        />
 
-    <!-- System Processes Panel (LiveComponent) -->
-    <.live_component
-      module={SystemProcessesComponent}
-      id="system-processes-panel"
-      coding_agents={@coding_agents}
-      coding_agents_count={@coding_agents_count}
-      coding_agents_collapsed={@coding_agents_collapsed}
-      recent_processes={@recent_processes}
-      recent_processes_count={@recent_processes_count}
-      system_processes_collapsed={@system_processes_collapsed}
-      process_relationships_collapsed={@process_relationships_collapsed}
-      graph_data={@graph_data}
-    />
+        <!-- System Processes Panel (LiveComponent) -->
+        <.live_component
+          module={SystemProcessesComponent}
+          id="system-processes-panel"
+          coding_agents={@coding_agents}
+          coding_agents_count={@coding_agents_count}
+          coding_agents_collapsed={@coding_agents_collapsed}
+          recent_processes={@recent_processes}
+          recent_processes_count={@recent_processes_count}
+          system_processes_collapsed={@system_processes_collapsed}
+          process_relationships_collapsed={@process_relationships_collapsed}
+          graph_data={@graph_data}
+        />
+      </div>
+    </section>
   </div>
 
   <!-- Work on Ticket Modal (LiveComponent) -->
