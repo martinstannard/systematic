@@ -9,6 +9,35 @@ defmodule DashboardPhoenixWeb.HomeLive do
   """
   use DashboardPhoenixWeb, :live_view
 
+  # Type definitions for HomeLive
+  @typedoc "Work session info for tickets in progress"
+  @type ticket_work_info :: %{
+          required(:type) => :opencode | :subagent,
+          required(:session_id) => String.t(),
+          required(:status) => String.t(),
+          optional(:slug) => String.t(),
+          optional(:label) => String.t(),
+          optional(:title) => String.t(),
+          optional(:task_summary) => String.t()
+        }
+
+  @typedoc "Work session info for PRs in progress"
+  @type pr_work_info :: %{
+          required(:type) => :opencode | :subagent,
+          required(:session_id) => String.t(),
+          required(:status) => String.t(),
+          optional(:slug) => String.t(),
+          optional(:label) => String.t(),
+          optional(:title) => String.t(),
+          optional(:task_summary) => String.t()
+        }
+
+  @typedoc "OpenCode server status"
+  @type opencode_status :: %{running: boolean(), port: pos_integer() | nil, pid: String.t() | nil}
+
+  @typedoc "Enriched session with extracted ticket/PR info"
+  @type enriched_session :: map()
+
   # Precompiled regex patterns - compiled once at compile time, not on every function call
   @ticket_regex ~r/([A-Z]{2,5}-\d+)/i
   @pr_regex ~r/(?:#(\d+)|(?:PR[-#]?)(\d+)|(?:fix|review|update|work-on)[-_]?pr[-_]?(\d+))/i
@@ -56,6 +85,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.DashboardState
   alias DashboardPhoenix.TestRunner
 
+  @doc "Mount callback - initializes socket assigns and subscribes to PubSub topics."
+  @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
     # Load persisted UI state (panels, dismissed sessions, models)
     persisted_state = DashboardState.get_state()
@@ -2365,6 +2396,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  @spec handle_super_review_request(String.t(), Phoenix.LiveView.Socket.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
   defp handle_super_review_request(ticket_id, socket) do
     review_prompt = """
     🔍 **Super Review Request for #{ticket_id}**
@@ -2409,6 +2441,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # Execute work for the ticket (duplicate check already done by component)
+  @spec execute_work_for_ticket(Phoenix.LiveView.Socket.t(), String.t(), String.t() | nil, atom(), String.t(), String.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
   defp execute_work_for_ticket(
          socket,
          ticket_id,
@@ -2476,6 +2509,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # Special handling for Gemini which uses GeminiServer
+  @spec execute_gemini_work(Phoenix.LiveView.Socket.t(), String.t(), String.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
   defp execute_gemini_work(socket, ticket_id, prompt) do
     alias DashboardPhoenix.WorkRegistry
 
@@ -2561,6 +2595,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # Push current panel state to JS for localStorage persistence AND persist to server
+  @spec push_panel_state(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp push_panel_state(socket) do
     panels = %{
       "config" => socket.assigns.config_collapsed,
@@ -2590,6 +2625,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # Push current model selections to JS for localStorage persistence AND persist to server
+  @spec push_model_selections(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp push_model_selections(socket) do
     models = %{
       "claude_model" => socket.assigns.claude_model,
@@ -2608,6 +2644,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Parses ticket IDs (like COR-123, FRE-456) from session titles and labels
   # Optimized: Uses pre-extracted ticket IDs from enriched sessions (O(n) simple iteration)
   # Previously: O(n*m) - ran regex on every session on every call
+  @spec build_tickets_in_progress(list(enriched_session()), list(enriched_session())) :: %{optional(String.t()) => ticket_work_info()}
   defp build_tickets_in_progress(opencode_sessions, agent_sessions) do
     # Build from OpenCode sessions using pre-extracted ticket IDs
     opencode_work =
@@ -2654,6 +2691,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Optimized: Uses pre-extracted PR numbers from enriched sessions (O(n) simple iteration)
   # Previously: O(n*m) - ran complex regex on every session on every call
   # Matches PR numbers like #123, PR-123, pr-244, fix-pr-244
+  @spec build_prs_in_progress(list(enriched_session()), list(enriched_session())) :: %{optional(pos_integer()) => pr_work_info()}
   defp build_prs_in_progress(opencode_sessions, agent_sessions) do
     # Build from OpenCode sessions using pre-extracted PR numbers
     opencode_work =
@@ -2698,6 +2736,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # Load persisted work from the ChainlinkWorkTracker on mount
+  @spec load_persisted_chainlink_work() :: %{optional(integer()) => map()}
   defp load_persisted_chainlink_work do
     try do
       ChainlinkWorkTracker.get_all_work()
@@ -2711,6 +2750,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Build map of chainlink issue_id -> work session info from sub-agent sessions
   # Looks for sessions with labels containing "ticket-" to detect active chainlink work
   # Merges with persisted work from ChainlinkWorkTracker and existing manually started work
+  @spec build_chainlink_work_in_progress(list(map()), %{optional(integer()) => map()}) :: %{optional(integer()) => map()}
   defp build_chainlink_work_in_progress(agent_sessions, current_work) do
     # Get active session IDs for cleanup
     active_session_ids =
@@ -2774,6 +2814,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # build_graph_data function moved to DashboardPhoenixWeb.HomeLiveCache for memoization
 
   # Fetch OpenCode sessions if server is running
+  @spec fetch_opencode_sessions(opencode_status()) :: list(enriched_session())
   defp fetch_opencode_sessions(%{running: true}) do
     case ClientFactory.opencode_client().list_sessions_formatted() do
       {:ok, sessions} -> Enum.map(sessions, &enrich_opencode_session/1)
@@ -2784,6 +2825,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp fetch_opencode_sessions(_), do: []
 
   # Extract ticket/PR info once per session (O(1) regex per session instead of O(n*m) total)
+  @spec enrich_opencode_session(map()) :: enriched_session()
   defp enrich_opencode_session(session) do
     title = session.title || ""
 
@@ -2798,6 +2840,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Map.merge(session, %{extracted_tickets: ticket_ids, extracted_prs: pr_numbers})
   end
 
+  @spec enrich_agent_session(map()) :: enriched_session()
   defp enrich_agent_session(session) do
     label = Map.get(session, :label) || ""
     task = Map.get(session, :task_summary) || ""
@@ -2814,6 +2857,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Map.merge(session, %{extracted_tickets: ticket_ids, extracted_prs: pr_numbers})
   end
 
+  @spec extract_pr_numbers_from_text(String.t()) :: list(pos_integer())
   defp extract_pr_numbers_from_text(text) do
     case Regex.scan(@pr_regex, text) do
       [] ->
@@ -2832,8 +2876,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # PR state persistence - stores which tickets have PRs created
+  @spec pr_state_file() :: String.t()
   defp pr_state_file, do: Paths.pr_state_file()
 
+  @spec load_pr_state() :: MapSet.t()
   defp load_pr_state do
     file = pr_state_file()
 
@@ -2852,6 +2898,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  @spec save_pr_state(MapSet.t()) :: :ok
   defp save_pr_state(pr_created) do
     file = pr_state_file()
     content = Jason.encode!(%{"pr_created" => MapSet.to_list(pr_created)})
@@ -2867,11 +2914,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # ============================================================================
 
   # Schedule next process update tick
+  @spec schedule_update_processes() :: reference()
   defp schedule_update_processes do
     Process.send_after(self(), :update_processes, 10_000)
   end
 
   # Schedule next OpenCode sessions refresh tick  
+  @spec schedule_refresh_opencode_sessions() :: reference()
   defp schedule_refresh_opencode_sessions do
     Process.send_after(self(), :refresh_opencode_sessions, 15_000)
   end

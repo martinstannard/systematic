@@ -17,6 +17,26 @@ defmodule DashboardPhoenix.OpenCodeClient do
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.Status
 
+  # Type definitions for better documentation
+  @typedoc "Options for send_task: :cwd, :model, :timeout"
+  @type send_task_opts :: [cwd: String.t(), model: String.t() | nil, timeout: pos_integer()]
+
+  @typedoc "Session info returned from send_task"
+  @type session_result :: %{session_id: String.t(), slug: String.t(), port: pos_integer()}
+
+  @typedoc "Formatted session for dashboard display"
+  @type formatted_session :: %{
+          id: String.t(),
+          slug: String.t(),
+          title: String.t(),
+          status: String.t(),
+          directory: String.t() | nil,
+          created_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil,
+          file_changes: %{additions: non_neg_integer(), deletions: non_neg_integer(), files: non_neg_integer()},
+          parent_id: String.t() | nil
+        }
+
   @default_timeout 120_000
 
   @doc """
@@ -33,6 +53,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   - :model - model to request from OpenCode (currently not used, OpenCode uses its own model config)
   - :timeout - request timeout in ms
   """
+  @spec send_task(String.t(), send_task_opts()) :: {:ok, session_result()} | {:error, String.t()}
   def send_task(prompt, opts \\ []) do
     cwd = Keyword.get(opts, :cwd) || Paths.default_work_dir()
     model = Keyword.get(opts, :model, nil)
@@ -60,6 +81,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   @doc """
   Check if the OpenCode server is healthy.
   """
+  @spec health_check() :: :ok | {:error, String.t() | :not_running}
   def health_check do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
@@ -78,6 +100,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   @doc """
   List all sessions from the OpenCode server.
   """
+  @spec list_sessions() :: {:ok, list(map())} | {:error, String.t() | :not_running}
   def list_sessions do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
@@ -104,6 +127,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   List sessions formatted for dashboard display.
   Returns a list of maps with: id, slug, title, status, created_at, file_changes
   """
+  @spec list_sessions_formatted() :: {:ok, list(formatted_session())} | {:error, String.t() | :not_running}
   def list_sessions_formatted do
     case list_sessions() do
       {:ok, sessions} when is_list(sessions) ->
@@ -126,6 +150,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   This is fire-and-forget - the task runs async in OpenCode.
   Returns {:ok, :sent} immediately or {:error, reason}.
   """
+  @spec send_message(String.t(), String.t()) :: {:ok, :sent} | {:error, :not_running}
   def send_message(session_id, prompt) do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
@@ -139,6 +164,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   @doc """
   Delete/close a session by ID.
   """
+  @spec delete_session(String.t()) :: :ok | {:error, String.t()}
   def delete_session(session_id) do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
@@ -154,6 +180,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
     end
   end
 
+  @spec format_session(map()) :: formatted_session()
   defp format_session(session) do
     time = session["time"] || %{}
     summary = session["summary"] || %{}
@@ -194,6 +221,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
 
   # Private functions
 
+  @spec ensure_server_running(String.t()) :: {:ok, pos_integer()} | {:error, term()}
   defp ensure_server_running(cwd) do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
@@ -203,6 +231,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
     end
   end
 
+  @spec create_session(String.t(), pos_integer()) :: {:ok, map()} | {:error, String.t() | term()}
   defp create_session(base_url, timeout) do
     Logger.info("[OpenCodeClient] Creating new session...")
     
@@ -230,6 +259,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
     end
   end
 
+  @spec send_message(String.t(), String.t(), String.t(), pos_integer()) :: {:ok, :sent}
   defp send_message(base_url, session_id, prompt, _timeout) do
     Logger.info("[OpenCodeClient] Sending message to session #{session_id}...")
     
@@ -268,6 +298,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   end
 
   # Send message to an existing session (public API version)
+  @spec send_message_to_session(String.t(), String.t(), String.t()) :: {:ok, :sent}
   defp send_message_to_session(base_url, session_id, prompt) do
     Logger.info("[OpenCodeClient] Sending message to existing session #{session_id}...")
     
@@ -301,6 +332,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
   end
 
   # Format error reasons into human-readable strings
+  @spec format_error(term()) :: String.t()
   defp format_error(%{reason: reason}) when is_atom(reason), do: to_string(reason)
   defp format_error(%{original: original}) when is_atom(original), do: to_string(original)
   defp format_error(reason) when is_atom(reason), do: to_string(reason)
