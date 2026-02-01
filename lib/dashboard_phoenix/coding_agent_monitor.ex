@@ -1,6 +1,17 @@
 defmodule DashboardPhoenix.CodingAgentMonitor do
   @moduledoc """
-  Monitors coding agent processes (OpenCode, Claude Code, Codex, etc.)
+  Monitors and manages active coding agent processes.
+
+  Detects running instances of AI coding assistants such as:
+  - OpenCode
+  - Claude Code
+  - Codex
+  - Aider
+
+  Provides capabilities to:
+  - List active agents with details (PID, resource usage, working directory).
+  - Terminate specific agent processes safely.
+  - Enrich process data with project context (e.g., extracting project name from CWD).
   """
 
   require Logger

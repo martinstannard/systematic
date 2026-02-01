@@ -3,6 +3,11 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   LiveComponent for displaying and interacting with Chainlink issues.
 
   Shows issues with priority color-coding and a Work button to spawn sub-agents.
+  
+  Key features:
+  - Real-time updates of issue status.
+  - Collapsible panel UI.
+  - Integration with `InputValidator` for safe issue handling.
   """
   use DashboardPhoenixWeb, :live_component
 

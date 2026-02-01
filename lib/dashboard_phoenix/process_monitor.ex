@@ -1,6 +1,14 @@
 defmodule DashboardPhoenix.ProcessMonitor do
   @moduledoc """
-  Fetches real process data from the system.
+  Monitors system processes relevant to the dashboard.
+
+  This module interacts with the system's process table to track specific 
+  applications like OpenCode, OpenClaw, and others.
+
+  It provides functionality to:
+  - List and filter interesting processes based on predefined patterns.
+  - Transform raw process data into a dashboard-friendly format (structs).
+  - Calculate aggregate statistics (running, busy, idle counts).
   """
 
   require Logger
