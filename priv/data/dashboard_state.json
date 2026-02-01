@@ -1,8 +1,11 @@
 {
-  "dismissed_sessions": [],
+  "dismissed_sessions": [
+    "completed-session-1",
+    "completed-session-2"
+  ],
   "models": {
-    "claude_model": "new-claude",
-    "opencode_model": "new-opencode"
+    "claude_model": "anthropic/claude-opus-4-5",
+    "opencode_model": "gemini-3-pro"
   },
   "panels": {
     "activity": false,
@@ -14,14 +17,15 @@
     "config": false,
     "dave": false,
     "gemini": false,
-    "linear": false,
+    "linear": true,
     "live_progress": false,
     "opencode": false,
     "process_relationships": false,
     "prs": false,
     "subagents": false,
     "system_processes": false,
+    "test_runner": false,
     "work_panel": false
   },
-  "updated_at": "2026-02-01T10:48:08.578743Z"
+  "updated_at": "2026-02-01T10:59:41.026053Z"
 }
