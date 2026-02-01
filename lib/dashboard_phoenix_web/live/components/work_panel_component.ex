@@ -54,9 +54,14 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   end
 
   defp build_claude_agents(assigns) do
+    show_completed = Map.get(assigns, :show_completed, true)
+    dismissed_sessions = Map.get(assigns, :dismissed_sessions, MapSet.new())
+    
     assigns.agent_sessions
     |> Enum.reject(fn s -> Map.get(s, :session_key) == "agent:main:main" end)
     |> Enum.filter(fn s -> s.status in ["running", "idle", "completed"] end)
+    |> Enum.reject(fn s -> MapSet.member?(dismissed_sessions, Map.get(s, :id)) end)
+    |> Enum.filter(fn s -> show_completed or s.status != "completed" end)
     |> Enum.take(5)
     |> Enum.map(fn s ->
       %{
@@ -152,21 +157,23 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
         </div>
       </div>
 
-      <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[600px]")}>
-        <div class="px-3 pb-3 space-y-2">
+      <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[800px]")}>
+        <div class="px-3 pb-3">
           <%= if @agents == [] do %>
-            <div class="text-xs text-base-content/40 py-4 text-center font-mono">
+            <div class="text-xs text-base-content/40 py-8 text-center font-mono">
               No active agents
             </div>
           <% else %>
-            <%= for agent <- @agents do %>
-              <.live_component 
-                module={AgentCardComponent}
-                id={"agent-card-#{agent.id}"}
-                agent={agent}
-                type={Map.get(agent, :type)}
-              />
-            <% end %>
+            <div class="agent-cards-grid">
+              <%= for agent <- @agents do %>
+                <.live_component 
+                  module={AgentCardComponent}
+                  id={"agent-card-#{agent.id}"}
+                  agent={agent}
+                  type={Map.get(agent, :type)}
+                />
+              <% end %>
+            </div>
           <% end %>
         </div>
       </div>

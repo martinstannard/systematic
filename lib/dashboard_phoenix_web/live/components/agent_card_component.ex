@@ -104,7 +104,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
 
   # Compute start time for live duration updates
   defp compute_start_time(%{created_at: created_at}) when is_integer(created_at), do: created_at
-  defp compute_start_time(%{updated_at: updated_at, runtime: runtime}) when is_binary(runtime) do
+  defp compute_start_time(%{updated_at: updated_at, runtime: runtime}) when is_integer(updated_at) and is_binary(runtime) do
     seconds = parse_runtime_to_seconds(runtime)
     updated_at - (seconds * 1000)
   end
@@ -171,37 +171,36 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   def render(assigns) do
     ~H"""
     <div 
-      class={"agent-card panel-status border p-2 transition-all " <> card_border_class(@state)}
+      class={"agent-card panel-status border transition-all " <> card_border_class(@state)}
       id={"agent-card-#{@agent_id}"}
       data-agent-type={@type_atom}
       data-state={@state}
     >
-      <div class="flex items-center justify-between gap-2">
-        <!-- Left: Icon, State Indicator, Name -->
-        <div class="flex items-center space-x-2 min-w-0 flex-1">
+      <!-- Card Header: Icon, Name, State Indicator -->
+      <div class="agent-card-header">
+        <div class="agent-card-identity">
           <!-- State Indicator Dot -->
           <span 
-            class={"w-2 h-2 rounded-full flex-shrink-0 " <> state_indicator_class(@state) <> if(@state == :running, do: " animate-pulse", else: "")}
+            class={"w-2.5 h-2.5 flex-shrink-0 " <> state_indicator_class(@state) <> if(@state == :running, do: " animate-pulse", else: "")}
             aria-hidden="true"
             title={state_text(@state)}
           ></span>
           
           <!-- Agent Icon -->
-          <span class="text-sm flex-shrink-0" aria-hidden="true"><%= @icon %></span>
+          <span class="agent-card-icon" aria-hidden="true"><%= @icon %></span>
           
           <!-- Agent Name -->
-          <span class="text-xs font-medium text-white truncate" title={@name}>
+          <span class="agent-card-name" title={@name}>
             <%= @name %>
           </span>
         </div>
         
-        <!-- Right: Duration, State Badge -->
-        <div class="flex items-center space-x-2 flex-shrink-0">
-          <!-- Duration -->
+        <!-- Badges: Duration & State -->
+        <div class="agent-card-badges">
           <%= if @state == :running do %>
             <span 
-              class={"px-1.5 py-0.5 text-xs tabular-nums " <> duration_badge_class(@state)}
-              id={"duration-#{@agent_id}"}
+              class={"px-2 py-1 text-xs font-mono tabular-nums " <> duration_badge_class(@state)}
+              id={"card-duration-#{@agent_id}"}
               phx-hook="LiveDuration"
               data-start-time={@start_time}
             >
@@ -209,23 +208,26 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
             </span>
           <% else %>
             <%= if @runtime do %>
-              <span class={"px-1.5 py-0.5 text-xs tabular-nums " <> duration_badge_class(@state)}>
+              <span class={"px-2 py-1 text-xs font-mono tabular-nums " <> duration_badge_class(@state)}>
                 <%= @runtime %>
               </span>
             <% end %>
           <% end %>
           
-          <!-- State Badge -->
-          <span class={"px-1.5 py-0.5 text-xs " <> state_badge_class(@state)}>
+          <span class={"px-2 py-1 text-xs font-semibold uppercase tracking-wide " <> state_badge_class(@state)}>
             <%= state_text(@state) %>
           </span>
         </div>
       </div>
       
-      <!-- Task Description (if present) -->
+      <!-- Task Description -->
       <%= if @task do %>
-        <div class="mt-1.5 text-xs text-base-content/60 truncate" title={@task}>
+        <div class="agent-card-task" title={@task}>
           <%= @task %>
+        </div>
+      <% else %>
+        <div class="agent-card-task text-base-content/40 italic">
+          No active task
         </div>
       <% end %>
     </div>
