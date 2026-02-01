@@ -22,6 +22,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.Repo,
       # Rate limiter for external API calls
       DashboardPhoenix.RateLimiter,
+      # CLI cache for reducing external command overhead (Ticket #73)
+      DashboardPhoenix.CLICache,
       # Task supervisor for async loading (prevents silent failures)
       {Task.Supervisor, name: DashboardPhoenix.TaskSupervisor},
       {DNSCluster, query: Application.get_env(:dashboard_phoenix, :dns_cluster_query) || :ignore},

@@ -2,13 +2,18 @@ defmodule DashboardPhoenix.ProcessParser do
   @moduledoc """
   Shared module for parsing `ps aux` output into structured process data.
   Consolidates duplicated process parsing logic used across multiple modules.
+  
+  ## Performance Optimizations (Ticket #73)
+  
+  - CLI result caching to avoid redundant `ps` calls
   """
 
   require Logger
 
-  alias DashboardPhoenix.CLITools
+  alias DashboardPhoenix.{CLITools, CLICache}
 
   @cli_timeout_ms 10_000
+  @cache_ttl_ms 5_000  # Cache ps output for 5 seconds
 
   @doc """
   Execute `ps aux` and return parsed process list.
@@ -33,8 +38,13 @@ defmodule DashboardPhoenix.ProcessParser do
     limit = Keyword.get(opts, :limit, nil)
     timeout = Keyword.get(opts, :timeout, @cli_timeout_ms)
 
-    case CLITools.run_if_available("ps", ["aux", "--sort=#{sort_option}"], 
-         timeout: timeout, friendly_name: "ps command") do
+    # Use CLI cache for the raw ps output (Ticket #73)
+    cache_key = "ps:aux:#{sort_option}"
+    
+    case CLICache.get_or_fetch(cache_key, @cache_ttl_ms, fn ->
+      CLITools.run_if_available("ps", ["aux", "--sort=#{sort_option}"], 
+        timeout: timeout, friendly_name: "ps command")
+    end) do
       {:ok, output} ->
         output
         |> String.split("\n")

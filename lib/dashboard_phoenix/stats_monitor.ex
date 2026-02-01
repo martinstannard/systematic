@@ -7,14 +7,20 @@ defmodule DashboardPhoenix.StatsMonitor do
   - Uses ETS for fast data reads (no GenServer.call blocking)
   - GenServer only manages lifecycle and periodic polling
   - All public getters read directly from ETS
+  
+  ## Performance Optimizations (Ticket #73)
+  
+  - Increased poll interval from 5s to 15s
+  - CLI result caching to avoid redundant calls
   """
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.{CLITools, Paths, StatePersistence}
+  alias DashboardPhoenix.{CLITools, CLICache, Paths, StatePersistence}
 
-  # 5 seconds
-  @poll_interval 5_000
+  # 15 seconds (Ticket #73: increased from 5s)
+  @poll_interval 15_000
+  @cache_ttl_ms 10_000  # Cache CLI results for 10 seconds
   @persistence_file "stats_state.json"
   
   # ETS table name for fast reads
@@ -158,12 +164,16 @@ defmodule DashboardPhoenix.StatsMonitor do
   end
 
   defp fetch_opencode_stats do
-    # Use CLITools with a short timeout for stats (should be quick)
-    case CLITools.run_if_available("opencode", ["stats"],
-           timeout: 10_000,
-           stderr_to_stdout: true,
-           friendly_name: "OpenCode"
-         ) do
+    # Use CLI cache to avoid redundant calls (Ticket #73)
+    cache_key = "opencode:stats"
+    
+    case CLICache.get_or_fetch(cache_key, @cache_ttl_ms, fn ->
+      CLITools.run_if_available("opencode", ["stats"],
+        timeout: 10_000,
+        stderr_to_stdout: true,
+        friendly_name: "OpenCode"
+      )
+    end) do
       {:ok, output} -> parse_opencode_stats(output)
       {:error, {:tool_not_available, message}} -> %{error: message}
       {:error, :timeout} -> %{error: "Timeout fetching stats"}

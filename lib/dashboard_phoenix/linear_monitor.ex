@@ -2,18 +2,26 @@ defmodule DashboardPhoenix.LinearMonitor do
   @moduledoc """
   Monitors Linear tickets for the COR team by polling the Linear CLI.
   Fetches tickets in Triage, Backlog, and Todo states.
+  
+  ## Performance Optimizations (Ticket #73)
+  
+  - Increased poll interval from 30s to 60s
+  - Exponential backoff on failures (up to 5 minutes)
+  - CLI result caching to avoid redundant calls
   """
 
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.{Paths, CLITools, StatePersistence}
+  alias DashboardPhoenix.{Paths, CLITools, StatePersistence, CLICache}
 
-  @poll_interval_ms 30_000  # 30 seconds
+  @poll_interval_ms 60_000  # 60 seconds (Ticket #73: increased from 30s)
+  @max_poll_interval_ms 300_000  # 5 minutes max backoff
   @topic "linear_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for URLs
   @states ["Triaging", "Backlog", "Todo", "In Review"]
   @cli_timeout_ms 30_000
+  @cache_ttl_ms 45_000  # Cache CLI results for 45 seconds
   @persistence_file "linear_state.json"
 
   defp linear_cli, do: Paths.linear_cli()
@@ -98,6 +106,12 @@ defmodule DashboardPhoenix.LinearMonitor do
     # Ensure last_updated is a DateTime if it was loaded as a string
     state = fix_loaded_state(persisted_state, initial_error)
     
+    # Add backoff tracking (Ticket #73)
+    state = Map.merge(state, %{
+      consecutive_failures: 0,
+      current_interval: @poll_interval_ms
+    })
+    
     # Start polling after a short delay
     Process.send_after(self(), :poll, 1_000)
     {:ok, state}
@@ -145,7 +159,7 @@ defmodule DashboardPhoenix.LinearMonitor do
     {:noreply, state}
   end
 
-  def handle_info({:poll_complete, new_state}, _state) do
+  def handle_info({:poll_complete, new_state}, state) do
     # Persist successful poll (if no error)
     if is_nil(new_state.error) do
       StatePersistence.save(@persistence_file, new_state)
@@ -162,10 +176,25 @@ defmodule DashboardPhoenix.LinearMonitor do
       }}
     )
     
-    # Schedule next poll
-    Process.send_after(self(), :poll, @poll_interval_ms)
+    # Calculate next poll interval with exponential backoff (Ticket #73)
+    {next_interval, consecutive_failures} = if is_nil(new_state.error) do
+      # Success - reset to base interval
+      {@poll_interval_ms, 0}
+    else
+      # Failure - exponential backoff (double interval, cap at max)
+      failures = Map.get(state, :consecutive_failures, 0) + 1
+      backoff = min(@poll_interval_ms * :math.pow(2, failures), @max_poll_interval_ms) |> trunc()
+      Logger.info("LinearMonitor: Failure ##{failures}, backing off to #{div(backoff, 1000)}s")
+      {backoff, failures}
+    end
     
-    {:noreply, new_state}
+    # Schedule next poll
+    Process.send_after(self(), :poll, next_interval)
+    
+    {:noreply, Map.merge(new_state, %{
+      consecutive_failures: consecutive_failures,
+      current_interval: next_interval
+    })}
   end
 
   # Private functions
@@ -194,8 +223,16 @@ defmodule DashboardPhoenix.LinearMonitor do
   end
 
   defp fetch_tickets_for_state(status) do
-    case CLITools.run_if_available(linear_cli(), ["issues", "--state", status], 
-         timeout: @cli_timeout_ms, friendly_name: "Linear CLI") do
+    cache_key = "linear:issues:#{status}"
+    
+    # Use CLI cache to avoid redundant calls (Ticket #73)
+    case CLICache.get_or_fetch(cache_key, @cache_ttl_ms, fn ->
+      case CLITools.run_if_available(linear_cli(), ["issues", "--state", status], 
+           timeout: @cli_timeout_ms, friendly_name: "Linear CLI") do
+        {:ok, output} -> {:ok, output}
+        error -> error
+      end
+    end) do
       {:ok, output} ->
         {:ok, parse_issues_output(output, status)}
       

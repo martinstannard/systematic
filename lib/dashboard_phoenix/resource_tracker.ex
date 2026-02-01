@@ -15,7 +15,7 @@ defmodule DashboardPhoenix.ResourceTracker do
 
   alias DashboardPhoenix.ProcessParser
 
-  @sample_interval 5_000  # 5 seconds
+  @sample_interval 10_000  # 10 seconds (Ticket #73: reduced from 5s to lower CLI overhead)
   @max_history 60  # 5 minutes of history at 5-second intervals
   @interesting_patterns ~w(opencode openclaw claude codex)
   @cli_timeout_ms 10_000

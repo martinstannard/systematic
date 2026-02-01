@@ -8,18 +8,26 @@ defmodule DashboardPhoenix.PRMonitor do
   - Uses ETS for fast data reads (no GenServer.call blocking)
   - GenServer only manages lifecycle and periodic polling
   - All public getters read directly from ETS
+  
+  ## Performance Optimizations (Ticket #73)
+  
+  - Increased poll interval from 60s to 120s
+  - Exponential backoff on failures (up to 10 minutes)
+  - CLI result caching to avoid redundant calls
   """
 
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.CLITools
+  alias DashboardPhoenix.{CLITools, CLICache}
 
-  @poll_interval_ms 60_000  # 60 seconds
+  @poll_interval_ms 120_000  # 120 seconds (Ticket #73: increased from 60s)
+  @max_poll_interval_ms 600_000  # 10 minutes max backoff
   @topic "pr_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for Linear URLs
   @repos ["Fresh-Clinics/core-platform"]  # Repos to monitor
   @cli_timeout_ms 60_000  # GitHub API can be slow
+  @cache_ttl_ms 90_000  # Cache CLI results for 90 seconds
   
   # ETS table name for fast reads
   @ets_table :pr_monitor_data
@@ -76,7 +84,13 @@ defmodule DashboardPhoenix.PRMonitor do
     
     # Start polling after a short delay
     Process.send_after(self(), :poll, 1_000)
-    {:ok, %{prs: [], last_updated: nil, error: initial_error}}
+    {:ok, %{
+      prs: [], 
+      last_updated: nil, 
+      error: initial_error,
+      consecutive_failures: 0,
+      current_interval: @poll_interval_ms
+    }}
   end
 
   @impl true
@@ -96,7 +110,7 @@ defmodule DashboardPhoenix.PRMonitor do
     {:noreply, state}
   end
 
-  def handle_info({:poll_complete, new_state}, _state) do
+  def handle_info({:poll_complete, new_state}, state) do
     # Update ETS (Ticket #71)
     :ets.insert(@ets_table, {:prs, %{
       prs: new_state.prs,
@@ -115,10 +129,25 @@ defmodule DashboardPhoenix.PRMonitor do
       }}
     )
     
-    # Schedule next poll
-    Process.send_after(self(), :poll, @poll_interval_ms)
+    # Calculate next poll interval with exponential backoff (Ticket #73)
+    {next_interval, consecutive_failures} = if is_nil(new_state.error) do
+      # Success - reset to base interval
+      {@poll_interval_ms, 0}
+    else
+      # Failure - exponential backoff (double interval, cap at max)
+      failures = Map.get(state, :consecutive_failures, 0) + 1
+      backoff = min(@poll_interval_ms * :math.pow(2, failures), @max_poll_interval_ms) |> trunc()
+      Logger.info("PRMonitor: Failure ##{failures}, backing off to #{div(backoff, 1000)}s")
+      {backoff, failures}
+    end
     
-    {:noreply, new_state}
+    # Schedule next poll
+    Process.send_after(self(), :poll, next_interval)
+    
+    {:noreply, Map.merge(new_state, %{
+      consecutive_failures: consecutive_failures,
+      current_interval: next_interval
+    })}
   end
 
   # Private functions
@@ -153,7 +182,12 @@ defmodule DashboardPhoenix.PRMonitor do
       "--state", "open"
     ]
     
-    case CLITools.run_json_if_available("gh", args, timeout: @cli_timeout_ms, friendly_name: "GitHub CLI") do
+    cache_key = "gh:pr:list:#{repo}"
+    
+    # Use CLI cache to avoid redundant calls (Ticket #73)
+    case CLICache.get_or_fetch(cache_key, @cache_ttl_ms, fn ->
+      CLITools.run_json_if_available("gh", args, timeout: @cli_timeout_ms, friendly_name: "GitHub CLI")
+    end) do
       {:ok, prs} when is_list(prs) ->
         {:ok, Enum.map(prs, &parse_pr(&1, repo))}
         
