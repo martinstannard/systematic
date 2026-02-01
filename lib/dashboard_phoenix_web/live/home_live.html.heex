@@ -35,23 +35,19 @@
   />
 
   <!-- Main Dashboard Layout -->
-  <div class="flex-1 flex flex-col gap-6 overflow-y-auto">
+  <div class="flex-1 flex flex-col gap-6 overflow-y-auto p-4">
     
-    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <!-- CORE WORK - Linear / Chainlink / PRs / Branches                             -->
-    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <section class="glass-morphism p-5 section-core-work" style="border-radius: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(34, 197, 94, 0.5);">
+    <!-- CORE WORK Section -->
+    <section class="section-core-work p-5">
       <div id="core-work-header" phx-update="ignore" class="flex items-center gap-3 mb-4">
-        <div class="status-beacon text-green-400"></div>
-        <h2 class="text-section-header text-base-content font-semibold tracking-wide">
-          <span class="terminal-cursor">Core Work</span>
-        </h2>
-        <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">Tickets • PRs • Branches</span>
+        <div class="w-2 h-2 rounded-full bg-green-500"></div>
+        <h2 class="text-section-header">Core Work</h2>
+        <span class="text-ui-caption ml-2">Tickets • PRs • Branches</span>
       </div>
       <div class="space-y-3">
-        <!-- Linear Tickets Panel (LiveComponent) - High Priority -->
+        <!-- Linear Tickets Panel -->
         <div class={[
-          "panel-priority-high panel-accent-critical relative",
+          "panel-priority-high panel-accent-critical p-4",
           @linear_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:linear, %{
             error: @linear_error, 
@@ -74,9 +70,9 @@
           />
         </div>
 
-        <!-- Chainlink Issues Panel (LiveComponent) - High Priority -->
+        <!-- Chainlink Issues Panel -->
         <div class={[
-          "panel-priority-high panel-accent-critical relative",
+          "panel-priority-high panel-accent-critical p-4",
           @chainlink_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:chainlink, %{
             error: @chainlink_error,
@@ -97,9 +93,9 @@
           />
         </div>
 
-        <!-- GitHub Pull Requests Panel - High Priority -->
+        <!-- GitHub Pull Requests Panel -->
         <div class={[
-          "panel-priority-high panel-accent-critical relative",
+          "panel-priority-high panel-accent-critical p-4",
           @prs_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:github_prs, %{
             error: @github_prs_error,
@@ -123,9 +119,9 @@
           />
         </div>
 
-        <!-- Unmerged Branches Panel - Medium Priority -->
+        <!-- Unmerged Branches Panel -->
         <div class={[
-          "panel-priority-medium panel-accent-active relative",
+          "panel-priority-medium panel-accent-active p-4",
           @branches_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:branches, %{
             error: @branches_error,
@@ -149,20 +145,16 @@
       </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <!-- AGENT STATUS - OpenCode / Gemini / Dave / Subagents / Progress              -->
-    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <section class="glass-morphism p-5 section-agent-status" style="border-radius: 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(168, 85, 247, 0.5);">
+    <!-- AGENT STATUS Section -->
+    <section class="section-agent-status p-5">
       <div id="agent-status-header" phx-update="ignore" class="flex items-center gap-3 mb-4">
-        <div class="status-beacon text-purple-400"></div>
-        <h2 class="text-section-header text-base-content font-semibold tracking-wide">
-          <span class="terminal-cursor">Agent Status</span>
-        </h2>
-        <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">OpenCode • Gemini • Dave • Subagents</span>
+        <div class="w-2 h-2 rounded-full bg-purple-500"></div>
+        <h2 class="text-section-header">Agent Status</h2>
+        <span class="text-ui-caption ml-2">OpenCode • Gemini • Dave • Subagents</span>
       </div>
       <div class="space-y-3">
-        <!-- Dave Panel (Main Agent) - First/Top Priority -->
-        <div class={["panel-priority-high panel-accent-active", @dave_collapsed && "panel-collapsed"]}>
+        <!-- Dave Panel -->
+        <div class={["panel-priority-high panel-accent-active p-4", @dave_collapsed && "panel-collapsed"]}>
           <.live_component
             module={DaveComponent}
             id="dave-panel"
@@ -171,8 +163,8 @@
           />
         </div>
 
-        <!-- Live Progress Panel (LiveComponent) - Medium Priority -->
-        <div class={["panel-priority-medium panel-accent-active", @live_progress_collapsed && "panel-collapsed"]}>
+        <!-- Live Progress Panel -->
+        <div class={["panel-priority-medium panel-accent-active p-4", @live_progress_collapsed && "panel-collapsed"]}>
           <.live_component
             module={LiveProgressComponent}
             id="live-progress-panel"
@@ -182,9 +174,9 @@
           />
         </div>
 
-        <!-- Sub-Agents Panel - Medium Priority -->
+        <!-- Sub-Agents Panel -->
         <div class={[
-          "panel-priority-medium relative",
+          "panel-priority-medium p-4",
           @subagents_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:subagents, %{
             sessions: @agent_sessions
@@ -200,9 +192,9 @@
           />
         </div>
 
-        <!-- OpenCode Sessions Panel (LiveComponent) - Quick Reference -->
+        <!-- OpenCode Sessions Panel -->
         <div class={[
-          "panel-priority-compact panel-accent-reference relative",
+          "panel-priority-compact panel-accent-reference p-4",
           @opencode_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:opencode, %{
             server_status: @opencode_server_status,
@@ -218,9 +210,9 @@
           />
         </div>
 
-        <!-- Gemini CLI Panel (LiveComponent) - Medium Priority -->
+        <!-- Gemini CLI Panel -->
         <div class={[
-          "panel-priority-medium relative",
+          "panel-priority-medium p-4",
           @gemini_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:gemini, %{
             server_status: @gemini_server_status,
@@ -238,20 +230,16 @@
       </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <!-- SYSTEM CONFIG - Config / Processes                                          -->
-    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-    <section class="glass-morphism p-5 section-system-config" style="border-radius: 16px; background: linear-gradient(135deg, rgba(249, 115, 22, 0.10) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05); border-left: 3px solid rgba(249, 115, 22, 0.5);">
+    <!-- SYSTEM CONFIG Section -->
+    <section class="section-system-config p-5">
       <div id="system-config-header" phx-update="ignore" class="flex items-center gap-3 mb-4">
-        <div class="status-beacon text-orange-400"></div>
-        <h2 class="text-section-header text-base-content font-semibold tracking-wide">
-          <span class="terminal-cursor">System Config</span>
-        </h2>
-        <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">Configuration • Processes</span>
+        <div class="w-2 h-2 rounded-full bg-orange-500"></div>
+        <h2 class="text-section-header">System Config</h2>
+        <span class="text-ui-caption ml-2">Configuration • Processes</span>
       </div>
       <div class="space-y-3">
-        <!-- Config Panel (LiveComponent) - Compact Reference -->
-        <div class={["panel-priority-compact panel-accent-reference", @config_collapsed && "panel-collapsed"]}>
+        <!-- Config Panel -->
+        <div class={["panel-priority-compact panel-accent-reference p-4", @config_collapsed && "panel-collapsed"]}>
           <.live_component
             module={ConfigComponent}
             id="config-panel"
@@ -266,8 +254,8 @@
           />
         </div>
 
-        <!-- System Processes Panel (LiveComponent) - Medium Priority -->
-        <div class={["panel-priority-medium", @system_processes_collapsed && "panel-collapsed"]}>
+        <!-- System Processes Panel -->
+        <div class={["panel-priority-medium p-4", @system_processes_collapsed && "panel-collapsed"]}>
           <.live_component
             module={SystemProcessesComponent}
             id="system-processes-panel"
@@ -284,9 +272,9 @@
       </div>
     </section>
 
-    <!-- Usage Stats - Compact utility bar at bottom -->
+    <!-- Usage Stats -->
     <div class={[
-      "glass-morphism panel-priority-compact panel-accent-reference relative",
+      "panel-priority-compact panel-accent-reference p-4",
       DashboardPhoenix.PanelStatus.status_classes(:usage_stats, %{
         opencode: @usage_stats[:opencode] || %{},
         claude: @usage_stats[:claude] || %{}
@@ -300,7 +288,7 @@
     </div>
   </div>
 
-  <!-- Work on Ticket Modal (LiveComponent) -->
+  <!-- Work on Ticket Modal -->
   <.live_component
     module={WorkModalComponent}
     id="work-modal"
