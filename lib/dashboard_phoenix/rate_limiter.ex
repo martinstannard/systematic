@@ -29,6 +29,7 @@ defmodule DashboardPhoenix.RateLimiter do
     "gh" => 30,        # GitHub CLI - 30 requests per minute
     "linear" => 40,    # Linear CLI - 40 requests per minute  
     "git" => 100,      # Git commands - higher limit
+    "ps" => 60,        # ps command used by monitors
     :default => 20     # Default for unknown commands
   }
 
@@ -37,6 +38,7 @@ defmodule DashboardPhoenix.RateLimiter do
     "gh" => 30,
     "linear" => 40,
     "git" => 100,
+    "ps" => 60,
     :default => 20
   }
 
