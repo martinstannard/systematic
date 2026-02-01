@@ -72,7 +72,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
         <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream">
           <div :for={{dom_id, event} <- @progress_events} id={dom_id} class="py-0.5 flex items-start space-x-1">
             <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
-            <span class={agent_color(event.agent) <> " w-36 flex-shrink-0 truncate"}><%= event.agent %></span>
+            <span class={agent_color(event.agent) <> " w-[200px] flex-shrink-0 truncate"}><%= event.agent %></span>
             <span class={action_color(event.action) <> " font-bold w-10 flex-shrink-0"}><%= event.action %></span>
             <span class="text-base-content/70 truncate flex-1"><%= event.target %></span>
           </div>
