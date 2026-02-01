@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- UI: Implement Distinctive Typography System (#56)
+- UI: Fix low contrast text for accessibility compliance (#55)
 - UI: Improve click targets and interactive affordances (#54)
 - UI: Remove min-height from panels - collapsed should be compact (#99)
 - Persist ActivityLog events to file/database (#100)
