@@ -302,6 +302,55 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
       assert html =~ "1.2K"
     end
 
+    test "counts both running and idle sessions as active" do
+      # This test verifies fix for ticket #88
+      # "idle" sessions (1-5 mins since last activity) should still be counted as active
+      # because they're still working, just momentarily paused between tool calls
+      sessions = [
+        %{
+          id: "running-session",
+          session_key: "agent:sub:running",
+          status: "running",  # < 1 min since last activity
+          model: "anthropic/claude-opus-4-5",
+          label: "Running Session"
+        },
+        %{
+          id: "idle-session-1",
+          session_key: "agent:sub:idle1",
+          status: "idle",  # 1-5 mins since last activity (still actively working)
+          model: "anthropic/claude-opus-4-5",
+          label: "Idle Session 1"
+        },
+        %{
+          id: "idle-session-2",
+          session_key: "agent:sub:idle2",
+          status: "idle",  # 1-5 mins since last activity (still actively working)
+          model: "anthropic/claude-opus-4-5",
+          label: "Idle Session 2"
+        },
+        %{
+          id: "completed-session",
+          session_key: "agent:sub:completed",
+          status: "completed",  # > 5 mins since last activity
+          model: "anthropic/claude-opus-4-5",
+          label: "Completed Session"
+        }
+      ]
+
+      assigns = %{
+        agent_sessions: sessions,
+        subagents_collapsed: false,
+        dismissed_sessions: MapSet.new(),
+        show_completed: true
+      }
+
+      html = render_component(SubagentsComponent, assigns)
+
+      # Should show "3 active" (1 running + 2 idle), not "1 active" (just running)
+      assert html =~ "3 active"
+      refute html =~ "1 active"
+    end
+
     test "handles edge cases gracefully" do
       sessions = [
         %{
