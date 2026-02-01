@@ -55,9 +55,9 @@
   --color-warning-content: oklch(10% 0 0);
   --color-error: oklch(65% 0.2 30);
   --color-error-content: oklch(98% 0 0);
-  --radius-selector: 0.5rem;
-  --radius-field: 0.5rem;
-  --radius-box: 1rem;
+  --radius-selector: 0;
+  --radius-field: 0;
+  --radius-box: 0;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -90,9 +90,9 @@
   --color-warning-content: oklch(98% 0.022 95.277);
   --color-error: oklch(58% 0.253 17.585);
   --color-error-content: oklch(96% 0.015 12.422);
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
+  --radius-selector: 0;
+  --radius-field: 0;
+  --radius-box: 0;
   --size-selector: 0.21875rem;
   --size-field: 0.21875rem;
   --border: 1.5px;
@@ -257,62 +257,35 @@ body {
 /* This file is for your main application CSS */
 
 /* =====================================================
+   UNIVERSAL BORDER-RADIUS OVERRIDE
+   All corners are sharp - no rounded elements
+   ===================================================== */
+*, *::before, *::after {
+  border-radius: 0 !important;
+}
+
+/* =====================================================
    BRAND IDENTITY ENHANCEMENTS: Distinctive Visual Elements
    Premium micro-interactions and visual metaphors for memorable UX
    ===================================================== */
 
 /* Neural pulse effect - disabled for cleaner UI */
 
-/* Holographic button effect */
+/* Holographic button effect - simplified, no glow */
 .button-holographic {
   position: relative;
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.1) 0%,
-    rgba(168, 85, 247, 0.05) 50%,
-    rgba(59, 130, 246, 0.1) 100%
-  );
+  background: rgba(139, 92, 246, 0.1);
   border: 1px solid rgba(139, 92, 246, 0.3);
-  box-shadow: 
-    0 2px 8px rgba(139, 92, 246, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
-.button-holographic::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    transparent 100%
-  );
-  transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
 .button-holographic:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.15) 0%,
-    rgba(168, 85, 247, 0.1) 50%,
-    rgba(59, 130, 246, 0.15) 100%
-  );
+  background: rgba(139, 92, 246, 0.15);
   border-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 
-    0 4px 16px rgba(139, 92, 246, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 0 20px rgba(139, 92, 246, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(-1px);
-}
-
-.button-holographic:hover::before {
-  left: 100%;
 }
 
 /* Data stream effect - disabled for cleaner UI */
@@ -363,23 +336,19 @@ body {
   50% { opacity: 0; }
 }
 
-/* Enhanced glass morphism for modern panels */
+/* Enhanced glass morphism for modern panels - no glow */
 .glass-morphism {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px) saturate(1.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="light"] .glass-morphism {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(20px) saturate(1.1);
   border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 /* =====================================================
@@ -394,22 +363,18 @@ button, .btn, [role="button"] {
   overflow: hidden;
 }
 
-/* Add holographic effect to primary buttons */
+/* Add subtle effect to primary buttons - no glow */
 button:not(.btn-ghost):not(.btn-link):not([disabled]):hover,
 .btn:not(.btn-ghost):not(.btn-link):not([disabled]):hover {
   transform: translateY(-1px) scale(1.02);
-  box-shadow: 
-    0 4px 16px rgba(139, 92, 246, 0.3),
-    0 0 20px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Enhanced focus states with brand colors */
+/* Enhanced focus states with brand colors - no glow */
 button:focus-visible, .btn:focus-visible {
   outline: 2px solid rgba(139, 92, 246, 0.8);
   outline-offset: 2px;
-  box-shadow: 
-    0 0 0 4px rgba(139, 92, 246, 0.2),
-    0 0 20px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
 }
 
 /* Quantum ripple effect for clicks */
@@ -556,21 +521,16 @@ button:focus-visible, .btn:focus-visible {
    More pronounced differences to guide user attention effectively
    ===================================================== */
 
-/* High-priority panels: Large, commanding presence */
+/* High-priority panels: Large, commanding presence - no glow */
 .panel-priority-high {
   min-height: 220px;
   padding: 24px;
   border-width: 3px;
   font-size: 1.05em;
   box-shadow: 
-    0 12px 40px -4px rgba(0, 0, 0, 0.5),
-    0 6px 20px -2px rgba(139, 92, 246, 0.3),
-    inset 0 2px 0 rgba(255, 255, 255, 0.12),
-    0 0 80px -15px rgba(139, 92, 246, 0.4);
-  background: 
-    radial-gradient(ellipse at top, rgba(139, 92, 246, 0.18) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom left, rgba(168, 85, 247, 0.12) 0%, transparent 50%),
-    rgba(15, 12, 35, 0.95);
+    0 4px 12px -2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: rgba(15, 12, 35, 0.95);
   backdrop-filter: blur(24px) saturate(1.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   transform: scale(1.02);
@@ -579,18 +539,15 @@ button:focus-visible, .btn:focus-visible {
 
 /* No hover popout - keeps UI stable and readable */
 
-/* Medium-priority panels: Standard display with clear differentiation */
+/* Medium-priority panels: Standard display with clear differentiation - no glow */
 .panel-priority-medium {
   min-height: 140px;
   padding: 18px;
   border-width: 1.5px;
   box-shadow: 
-    0 6px 20px -4px rgba(0, 0, 0, 0.35),
-    0 2px 8px -2px rgba(168, 85, 247, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  background: 
-    radial-gradient(ellipse at top right, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
-    rgba(20, 16, 45, 0.85);
+    0 2px 8px -2px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(20, 16, 45, 0.85);
   backdrop-filter: blur(14px);
   transition: all 0.25s ease;
   z-index: 5;
@@ -598,17 +555,14 @@ button:focus-visible, .btn:focus-visible {
 
 /* No hover popout for medium panels */
 
-/* Quick-reference panels: Compact, recessed appearance */
+/* Quick-reference panels: Compact, recessed appearance - no glow */
 .panel-priority-compact {
   min-height: 50px;
   padding: 10px;
   border-width: 1px;
   font-size: 0.9em;
   opacity: 0.92;
-  box-shadow: 
-    0 2px 6px -2px rgba(0, 0, 0, 0.25),
-    inset 0 1px 1px rgba(255, 255, 255, 0.03),
-    inset 0 0 0 1px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   background: rgba(15, 12, 35, 0.5);
   backdrop-filter: blur(8px);
   transition: all 0.2s ease;
@@ -619,14 +573,11 @@ button:focus-visible, .btn:focus-visible {
   opacity: 1;
 }
 
-/* Light mode adjustments */
+/* Light mode adjustments - no glow */
 [data-theme="light"] .panel-priority-high {
-  background: 
-    radial-gradient(ellipse at top, rgba(139, 92, 246, 0.12) 0%, transparent 50%),
-    rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.95);
   box-shadow: 
-    0 8px 32px -4px rgba(139, 92, 246, 0.15),
-    0 4px 16px -2px rgba(0, 0, 0, 0.08),
+    0 2px 8px -2px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
@@ -704,14 +655,11 @@ button:focus-visible, .btn:focus-visible {
    STATUS-BASED VISUAL INDICATORS: Dynamic panel states
    ===================================================== */
 
-/* Error state panels - Immediate attention required */
+/* Error state panels - Immediate attention required - no glow */
 .panel-status-error {
   border-color: rgba(239, 68, 68, 0.8) !important;
-  box-shadow: 
-    0 0 0 2px rgba(239, 68, 68, 0.3),
-    0 8px 32px -4px rgba(239, 68, 68, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-  animation: error-alert 2s ease-in-out infinite;
+  border-width: 2px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
 .panel-status-error::before {
@@ -739,35 +687,7 @@ button:focus-visible, .btn:focus-visible {
   right: 12px;
   font-size: 16px;
   color: rgba(254, 87, 87, 0.9);
-  text-shadow: 0 0 8px rgba(254, 87, 87, 0.6);
-  animation: error-icon-pulse 1.5s ease-in-out infinite;
   z-index: 2;
-}
-
-@keyframes error-alert {
-  0%, 100% {
-    box-shadow: 
-      0 0 0 2px rgba(239, 68, 68, 0.3),
-      0 8px 32px -4px rgba(239, 68, 68, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  }
-  50% {
-    box-shadow: 
-      0 0 0 3px rgba(239, 68, 68, 0.5),
-      0 12px 40px -4px rgba(239, 68, 68, 0.6),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  }
-}
-
-@keyframes error-icon-pulse {
-  0%, 100% { 
-    opacity: 0.8; 
-    transform: scale(1);
-  }
-  50% { 
-    opacity: 1; 
-    transform: scale(1.1);
-  }
 }
 
 /* Working state panels - Active processing indication */
@@ -822,12 +742,10 @@ button:focus-visible, .btn:focus-visible {
   50% { opacity: 1; }
 }
 
-/* Warning state panels - Attention needed */
+/* Warning state panels - Attention needed - no glow */
 .panel-status-warning {
   border-color: rgba(245, 158, 11, 0.7);
-  box-shadow: 
-    0 0 0 1px rgba(245, 158, 11, 0.2),
-    0 4px 16px -4px rgba(245, 158, 11, 0.3);
+  border-width: 2px;
 }
 
 .panel-status-warning::before {
@@ -847,11 +765,11 @@ button:focus-visible, .btn:focus-visible {
   border-radius: 0;
 }
 
-/* Urgent state panels - High priority, needs immediate attention */
+/* Urgent state panels - High priority, needs immediate attention - no glow */
 .panel-status-urgent {
   border-color: rgba(249, 115, 22, 0.8);
+  border-width: 2px;
   position: relative;
-  animation: urgent-throb 2s ease-in-out infinite;
 }
 
 .panel-status-urgent::before {
@@ -860,15 +778,8 @@ button:focus-visible, .btn:focus-visible {
   top: 0;
   left: 0;
   right: 0;
-  height: 5px;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(249, 115, 22, 0.8) 20%,
-    rgba(251, 146, 60, 1) 50%,
-    rgba(249, 115, 22, 0.8) 80%,
-    transparent 100%
-  );
-  border-radius: 0;
+  height: 4px;
+  background: rgba(249, 115, 22, 0.8);
   z-index: 1;
 }
 
@@ -878,29 +789,10 @@ button:focus-visible, .btn:focus-visible {
   top: 8px;
   right: 8px;
   font-size: 12px;
-  animation: urgent-icon-bounce 1.8s ease-in-out infinite;
   z-index: 2;
 }
 
-@keyframes urgent-throb {
-  0%, 100% {
-    box-shadow: 
-      0 0 0 2px rgba(249, 115, 22, 0.3),
-      0 4px 16px -4px rgba(249, 115, 22, 0.4);
-  }
-  50% {
-    box-shadow: 
-      0 0 0 4px rgba(249, 115, 22, 0.4),
-      0 8px 24px -4px rgba(249, 115, 22, 0.5);
-  }
-}
-
-@keyframes urgent-icon-bounce {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-2px) scale(1.1); }
-}
-
-/* Success state panels - Completed/good state */
+/* Success state panels - Completed/good state - no glow */
 .panel-status-success {
   border-color: rgba(34, 197, 94, 0.5);
   position: relative;
@@ -914,7 +806,6 @@ button:focus-visible, .btn:focus-visible {
   font-size: 12px;
   color: rgba(34, 197, 94, 0.8);
   font-weight: bold;
-  text-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
 }
 
 /* Idle state panels - No activity */
@@ -958,12 +849,10 @@ button:focus-visible, .btn:focus-visible {
 
 /* Panel attention badges - disabled for cleaner UI */
 
-/* Light mode adjustments for status indicators */
+/* Light mode adjustments for status indicators - no glow */
 [data-theme="light"] .panel-status-error {
   border-color: rgba(220, 38, 38, 0.8);
-  box-shadow: 
-    0 0 0 2px rgba(220, 38, 38, 0.2),
-    0 4px 16px -4px rgba(220, 38, 38, 0.3);
+  border-width: 2px;
 }
 
 [data-theme="light"] .panel-status-working {
@@ -978,12 +867,10 @@ button:focus-visible, .btn:focus-visible {
   border-color: rgba(234, 88, 12, 0.8);
 }
 
-/* Active work panels - Stronger accent */
+/* Active work panels - Stronger accent - no glow */
 .panel-accent-active {
   border-color: rgba(34, 197, 94, 0.5);
-  box-shadow: 
-    0 0 0 1px rgba(34, 197, 94, 0.2),
-    0 4px 16px -4px rgba(34, 197, 94, 0.3);
+  border-width: 2px;
 }
 
 .panel-accent-active::before {
@@ -1041,9 +928,6 @@ button:focus-visible, .btn:focus-visible {
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.06em;
-  text-shadow: 
-    0 0 16px rgba(139, 92, 246, 0.5),
-    0 2px 4px rgba(0, 0, 0, 0.3);
   margin-bottom: 20px;
   padding-bottom: 4px;
   border-bottom: 1px solid rgba(139, 92, 246, 0.3);
@@ -1170,22 +1054,13 @@ button:focus-visible, .btn:focus-visible {
    Features sophisticated scan lines, neural grid, and premium materials
    ===================================================== */
 .panel-command {
-  background: 
-    /* Multi-layer sophisticated gradient */
-    linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, transparent 30%),
-    linear-gradient(45deg, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
-    linear-gradient(180deg, rgba(15, 10, 35, 0.98) 0%, rgba(20, 15, 40, 0.95) 100%);
+  background: rgba(15, 10, 35, 0.98);
   backdrop-filter: blur(24px) saturate(1.3) brightness(1.1);
   border: 1px solid rgba(139, 92, 246, 0.3);
   border-bottom: 3px solid rgba(139, 92, 246, 0.5);
-  box-shadow: 
-    /* Main shadow system */
-    0 8px 32px -4px rgba(0, 0, 0, 0.6),
-    0 4px 16px -2px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
   position: relative;
   overflow: hidden;
-  /* Subtle premium material feel */
-  border-radius: 0;
 }
 
 /* Enhanced horizontal scan line system with neural grid */
@@ -1265,20 +1140,10 @@ button:focus-visible, .btn:focus-visible {
 }
 
 [data-theme="light"] .panel-command {
-  background: 
-    /* Elegant light gradients */
-    linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, transparent 30%),
-    linear-gradient(45deg, rgba(168, 85, 247, 0.10) 0%, transparent 40%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
+  background: rgba(255, 255, 255, 0.98);
   border-color: rgba(139, 92, 246, 0.35);
   border-bottom-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 
-    /* Refined shadow system for light mode */
-    0 8px 32px -4px rgba(139, 92, 246, 0.15),
-    0 4px 16px -2px rgba(0, 0, 0, 0.08),
-    /* Inner highlight */
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1px 0 rgba(139, 92, 246, 0.08);
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="light"] .panel-command::before {
@@ -1308,14 +1173,10 @@ button:focus-visible, .btn:focus-visible {
    Grid pattern background, technical readout aesthetic
    ===================================================== */
 .panel-data {
-  background: 
-    linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
-    rgba(15, 12, 35, 0.85);
+  background: rgba(15, 12, 35, 0.85);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(59, 130, 246, 0.2);
-  box-shadow: 
-    0 2px 16px -4px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   position: relative;
   overflow: hidden;
 }
@@ -1351,11 +1212,9 @@ button:focus-visible, .btn:focus-visible {
 }
 
 [data-theme="light"] .panel-data {
-  background: 
-    linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-    rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.9);
   border-color: rgba(59, 130, 246, 0.25);
-  box-shadow: 0 2px 12px -4px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="light"] .panel-data::before {
@@ -1373,9 +1232,7 @@ button:focus-visible, .btn:focus-visible {
   background: rgba(20, 16, 45, 0.8);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 
-    0 2px 12px -4px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   position: relative;
   overflow: hidden;
   transition: all 0.2s ease;
@@ -1432,15 +1289,10 @@ button:focus-visible, .btn:focus-visible {
    Stronger visual identity, command presence
    ===================================================== */
 .panel-agent {
-  background: 
-    radial-gradient(ellipse at top left, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
-    rgba(18, 14, 40, 0.9);
+  background: rgba(18, 14, 40, 0.9);
   backdrop-filter: blur(16px) saturate(1.1);
   border: 1px solid rgba(168, 85, 247, 0.25);
-  box-shadow: 
-    0 4px 20px -4px rgba(0, 0, 0, 0.5),
-    0 0 40px -15px rgba(168, 85, 247, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
   position: relative;
   overflow: hidden;
 }
@@ -1474,61 +1326,17 @@ button:focus-visible, .btn:focus-visible {
   );
 }
 
-/* Active agent state */
+/* Active agent state - no glow */
 .panel-agent.agent-active {
   border-color: rgba(168, 85, 247, 0.5);
-  box-shadow: 
-    0 4px 28px -4px rgba(0, 0, 0, 0.6),
-    0 0 60px -10px rgba(168, 85, 247, 0.5),
-    inset 0 0 40px -15px rgba(168, 85, 247, 0.25);
-  animation: agent-heartbeat 2s ease-in-out infinite;
-}
-
-.panel-agent.agent-active::before {
-  animation: agent-scan 4s ease-in-out infinite;
-}
-
-@keyframes agent-scan {
-  0%, 100% { 
-    opacity: 0.4; 
-    right: 80px; 
-    transform: skewX(-45deg) scale(1);
-  }
-  25% { 
-    opacity: 0.8; 
-    right: 60px; 
-    transform: skewX(-45deg) scale(1.2);
-  }
-  75% { 
-    opacity: 0.6; 
-    right: 40px; 
-    transform: skewX(-45deg) scale(0.8);
-  }
-}
-
-@keyframes agent-heartbeat {
-  0%, 100% { 
-    box-shadow: 
-      0 4px 28px -4px rgba(0, 0, 0, 0.6),
-      0 0 60px -10px rgba(168, 85, 247, 0.5),
-      inset 0 0 40px -15px rgba(168, 85, 247, 0.25);
-  }
-  50% { 
-    box-shadow: 
-      0 4px 32px -4px rgba(0, 0, 0, 0.7),
-      0 0 80px -10px rgba(168, 85, 247, 0.6),
-      inset 0 0 50px -15px rgba(168, 85, 247, 0.3);
-  }
+  border-width: 2px;
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="light"] .panel-agent {
-  background: 
-    radial-gradient(ellipse at top left, rgba(168, 85, 247, 0.12) 0%, transparent 50%),
-    rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.92);
   border-color: rgba(168, 85, 247, 0.35);
-  box-shadow: 
-    0 4px 16px -4px rgba(168, 85, 247, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.1);
 }
 
 /* =====================================================
@@ -1565,69 +1373,28 @@ button:focus-visible, .btn:focus-visible {
    Premium status communication with sophisticated animations
    ===================================================== */
 
-/* Enhanced Beacon: Active/running state with multi-layer radar pulse */
+/* Enhanced Beacon: Active/running state - no glow */
 .status-beacon {
   position: relative;
   width: 12px;
   height: 12px;
-  border-radius: 0;
-  background: 
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
-    currentColor;
-  box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 0 8px currentColor;
+  background: currentColor;
 }
 
 .status-beacon::before {
   content: "";
   position: absolute;
   inset: -4px;
-  border-radius: 0;
   border: 2px solid currentColor;
   opacity: 0.5;
-  animation: beacon-pulse-primary 2.5s ease-out infinite;
 }
 
 .status-beacon::after {
   content: "";
   position: absolute;
   inset: -8px;
-  border-radius: 0;
   border: 1px solid currentColor;
   opacity: 0.3;
-  animation: beacon-pulse-secondary 2.5s ease-out infinite 0.4s;
-}
-
-@keyframes beacon-pulse-primary {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.7;
-    border-width: 3px;
-  }
-  50% {
-    opacity: 0.4;
-    border-width: 2px;
-  }
-  100% {
-    transform: scale(1.6);
-    opacity: 0;
-    border-width: 1px;
-  }
-}
-
-@keyframes beacon-pulse-secondary {
-  0% {
-    transform: scale(0.8);
-    opacity: 0.4;
-  }
-  70% {
-    opacity: 0.2;
-  }
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
 }
 
 /* Signal: Connection strength indicator (1-3 bars) */

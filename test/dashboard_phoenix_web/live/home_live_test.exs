@@ -707,7 +707,7 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
       
       # Should include key CSS classes for styling (panel system)
       assert html =~ "panel-command" or html =~ "panel-work" or html =~ "panel-data"
-      assert html =~ "rounded-lg"
+      # Note: rounded-lg removed as part of ticket #97 - plain borders
     end
 
     test "includes interactive elements", %{conn: conn} do
