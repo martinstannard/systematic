@@ -17,6 +17,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   use DashboardPhoenixWeb, :live_component
   
   alias DashboardPhoenix.Status
+  alias DashboardPhoenix.Models
   alias DashboardPhoenixWeb.Live.Components.AgentCardComponent
 
   @impl true
@@ -175,7 +176,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       [%{
         id: "gemini-cli",
         type: "gemini",
-        model: "gemini-2.0-flash",
+        model: Models.gemini_2_flash(),
         name: "Gemini CLI",
         task: last_activity,
         status: if(busy, do: Status.running(), else: Status.idle()),

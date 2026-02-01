@@ -8,6 +8,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
   use DashboardPhoenixWeb, :live_component
 
   alias DashboardPhoenix.InputValidator
+  alias DashboardPhoenix.Models
 
   @impl true
   def update(assigns, socket) do
@@ -231,8 +232,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                 aria-label="Select Claude model"
                 class="w-full text-sm font-mono bg-purple-500/10 border border-purple-500/30 px-3 py-2 text-purple-400"
               >
-                <option value="anthropic/claude-opus-4-5" selected={@claude_model == "anthropic/claude-opus-4-5"}>Opus</option>
-                <option value="anthropic/claude-sonnet-4-20250514" selected={@claude_model == "anthropic/claude-sonnet-4-20250514"}>Sonnet</option>
+                <option value={Models.claude_opus()} selected={@claude_model == Models.claude_opus()}>Opus</option>
+                <option value={Models.claude_sonnet()} selected={@claude_model == Models.claude_sonnet()}>Sonnet</option>
               </select>
             </div>
             
@@ -247,9 +248,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                 aria-label="Select OpenCode model"
                 class="w-full text-sm font-mono bg-blue-500/10 border border-blue-500/30 px-3 py-2 text-blue-400"
               >
-                <option value="gemini-3-pro" selected={@opencode_model == "gemini-3-pro"}>Gemini 3 Pro</option>
-                <option value="gemini-3-flash" selected={@opencode_model == "gemini-3-flash"}>Gemini 3 Flash</option>
-                <option value="gemini-2.5-pro" selected={@opencode_model == "gemini-2.5-pro"}>Gemini 2.5 Pro</option>
+                <option value={Models.gemini_3_pro()} selected={@opencode_model == Models.gemini_3_pro()}>Gemini 3 Pro</option>
+                <option value={Models.gemini_3_flash()} selected={@opencode_model == Models.gemini_3_flash()}>Gemini 3 Flash</option>
+                <option value={Models.gemini_2_5_pro()} selected={@opencode_model == Models.gemini_2_5_pro()}>Gemini 2.5 Pro</option>
               </select>
             </div>
           </div>

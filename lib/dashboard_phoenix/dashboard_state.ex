@@ -14,6 +14,7 @@ defmodule DashboardPhoenix.DashboardState do
 
   alias DashboardPhoenix.FileUtils
   alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.Models
 
   @pubsub DashboardPhoenix.PubSub
   @topic "dashboard_state"
@@ -42,8 +43,8 @@ defmodule DashboardPhoenix.DashboardState do
     },
     dismissed_sessions: [],
     models: %{
-      claude_model: "anthropic/claude-opus-4-5",
-      opencode_model: "gemini-3-pro"
+      claude_model: Models.default_claude_model(),
+      opencode_model: Models.default_opencode_model()
     },
     updated_at: nil
   }

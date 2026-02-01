@@ -13,13 +13,13 @@ defmodule DashboardPhoenix.LinearMonitor do
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.{Paths, CLITools, StatePersistence, CLICache}
+  alias DashboardPhoenix.{Paths, CLITools, StatePersistence, CLICache, Status}
 
   @poll_interval_ms 60_000  # 60 seconds (Ticket #73: increased from 30s)
   @max_poll_interval_ms 300_000  # 5 minutes max backoff
   @topic "linear_updates"
   @linear_workspace "fresh-clinics"  # Workspace slug for URLs
-  @states ["Triage", "Backlog", "Todo", "In Review"]
+  @states Status.linear_states()
   @cli_timeout_ms 30_000
   @cache_ttl_ms 45_000  # Cache CLI results for 45 seconds
   @persistence_file "linear_state.json"
@@ -381,7 +381,7 @@ defmodule DashboardPhoenix.LinearMonitor do
     "https://linear.app/#{@linear_workspace}/issue/#{issue_id}"
   end
 
-  defp add_pr_info(%{status: "In Review", id: ticket_id} = ticket) do
+  defp add_pr_info(%{status: status, id: ticket_id} = ticket) when status == "In Review" do
     case lookup_pr(ticket_id) do
       {:ok, pr_url} -> Map.put(ticket, :pr_url, pr_url)
       {:error, _} -> Map.put(ticket, :pr_url, nil)
