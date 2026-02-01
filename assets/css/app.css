@@ -445,6 +445,244 @@ body {
   100% { clip-path: inset(5% 0 85% 0); transform: translate(-2px, 0); }
 }
 
+/* =============================================================
+   AUTO-GLITCH: Trigger glitch on panel error states
+   Panel headers automatically glitch when parent has error status
+   ============================================================= */
+
+/* Apply glitch effect to panel labels when parent panel has error status */
+.panel-status-error .text-panel-label,
+.panel-status-error .panel-header-critical span:first-of-type,
+.panel-status-error .panel-header-standard span:first-of-type {
+  position: relative;
+  animation: glitch-flicker 0.15s ease-in-out;
+}
+
+/* Intense glitch for error state panel headers */
+.panel-status-error .text-panel-label::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(239, 68, 68, 0.1) 25%,
+    transparent 50%,
+    rgba(239, 68, 68, 0.15) 75%,
+    transparent 100%
+  );
+  animation: error-scan 2s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes glitch-flicker {
+  0%, 100% { opacity: 1; transform: translateX(0); }
+  10% { opacity: 0.8; transform: translateX(-1px); }
+  20% { opacity: 1; transform: translateX(1px); }
+  30% { opacity: 0.9; transform: translateX(0); }
+  40% { opacity: 1; transform: translateX(-0.5px); }
+  50% { opacity: 0.85; transform: translateX(0.5px); }
+}
+
+@keyframes error-scan {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Urgent state gets subtle text distortion */
+.panel-status-urgent .text-panel-label {
+  animation: urgent-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes urgent-pulse {
+  0%, 100% { 
+    text-shadow: none;
+    transform: translateX(0);
+  }
+  25% { 
+    text-shadow: 1px 0 rgba(249, 115, 22, 0.3);
+    transform: translateX(0.5px);
+  }
+  50% { 
+    text-shadow: -1px 0 rgba(249, 115, 22, 0.2);
+    transform: translateX(-0.5px);
+  }
+  75% {
+    text-shadow: 1px 0 rgba(249, 115, 22, 0.25);
+    transform: translateX(0.3px);
+  }
+}
+
+/* Working state gets data stream effect on header */
+.panel-status-working .text-panel-label {
+  position: relative;
+}
+
+.panel-status-working .text-panel-label::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -24px;
+  width: 16px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.8), transparent);
+  animation: data-stream 0.8s ease-in-out infinite;
+  transform: translateY(-50%);
+}
+
+@keyframes data-stream {
+  0%, 100% { opacity: 0; width: 0; }
+  50% { opacity: 1; width: 16px; }
+}
+
+/* =============================================================
+   TERMINAL READOUT TYPOGRAPHY
+   Panel headers styled as authentic terminal/control interface text
+   ============================================================= */
+
+/* Terminal-style panel headers with enhanced character */
+.text-panel-label {
+  position: relative;
+  display: inline-block;
+}
+
+/* Subtle scanline overlay on all panel labels for terminal feel */
+.text-panel-label::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(255, 255, 255, 0.015) 2px,
+    rgba(255, 255, 255, 0.015) 3px
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Show scanlines on hover for interactive feel */
+.panel-header-interactive:hover .text-panel-label::before {
+  opacity: 1;
+}
+
+/* Text reveal animation for panel labels on mount */
+.panel-header-critical .text-panel-label,
+.panel-header-standard .text-panel-label {
+  animation: terminal-boot 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes terminal-boot {
+  0% { 
+    opacity: 0;
+    letter-spacing: 0.2em;
+    filter: blur(2px);
+  }
+  50% {
+    opacity: 0.7;
+    letter-spacing: 0.12em;
+    filter: blur(0.5px);
+  }
+  100% { 
+    opacity: 1;
+    letter-spacing: var(--tracking-panel);
+    filter: blur(0);
+  }
+}
+
+/* CRT flicker effect for headers (very subtle, preference-respecting) */
+@media (prefers-reduced-motion: no-preference) {
+  .text-system-title {
+    animation: crt-subtle 8s ease-in-out infinite;
+  }
+}
+
+@keyframes crt-subtle {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.95; }
+  94% { opacity: 1; }
+  97% { opacity: 0.97; }
+  98% { opacity: 1; }
+}
+
+/* Manual glitch trigger - add this class temporarily for state change animations */
+.text-panel-glitch {
+  position: relative;
+  animation: panel-state-glitch 0.3s ease-out;
+}
+
+@keyframes panel-state-glitch {
+  0% { 
+    transform: translateX(0);
+    text-shadow: none;
+  }
+  10% { 
+    transform: translateX(-2px);
+    text-shadow: 2px 0 rgba(0, 255, 255, 0.5), -2px 0 rgba(255, 0, 0, 0.5);
+  }
+  20% { 
+    transform: translateX(2px);
+    text-shadow: -1px 0 rgba(0, 255, 255, 0.3), 1px 0 rgba(255, 0, 0, 0.3);
+  }
+  30% { 
+    transform: translateX(-1px);
+    text-shadow: 1px 0 rgba(0, 255, 255, 0.2);
+  }
+  40% { 
+    transform: translateX(1px);
+    text-shadow: -1px 0 rgba(255, 0, 0, 0.2);
+  }
+  50%, 100% { 
+    transform: translateX(0);
+    text-shadow: none;
+  }
+}
+
+/* Dramatic type scale enhancement - ensure hierarchy is commanding */
+.text-system-title {
+  /* Extra dramatic - largest element on page */
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 900; /* Maximum boldness */
+}
+
+/* Section headers scale jump - much larger than panel labels */
+.text-section-header {
+  font-size: clamp(1.125rem, 2.5vw, 1.375rem);
+}
+
+/* Panel labels - clear but subordinate to section headers */
+.text-panel-label {
+  font-size: clamp(0.875rem, 1.5vw, 1.1rem);
+}
+
+/* Light mode terminal effects - more subtle */
+[data-theme="light"] .text-panel-label::before {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.01) 2px,
+    rgba(0, 0, 0, 0.01) 3px
+  );
+}
+
+[data-theme="light"] .panel-status-error .text-panel-label::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(220, 38, 38, 0.08) 25%,
+    transparent 50%,
+    rgba(220, 38, 38, 0.1) 75%,
+    transparent 100%
+  );
+}
+
 /* Word-by-word reveal animation */
 .text-word-reveal {
   display: inline-flex;
