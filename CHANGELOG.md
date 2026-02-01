@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Add mobile responsive design (#35)
 - Consistent panel styling - buttons, text, padding, remove colored borders (#111)
 - Work Panel: Unified agent cards with icon, name, duration, state (#104)
 - Reliability: Fix race conditions in concurrent operations (#81)
