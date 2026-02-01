@@ -46,12 +46,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.BranchMonitor
   alias DashboardPhoenix.AgentPreferences
   alias DashboardPhoenix.OpenCodeServer
-  alias DashboardPhoenix.OpenCodeClient
   alias DashboardPhoenix.GeminiServer
   alias DashboardPhoenix.ClientFactory
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
-  alias DashboardPhoenix.PanelStatus
   alias DashboardPhoenix.HealthCheck
   alias DashboardPhoenix.DashboardState
   alias DashboardPhoenix.TestRunner
@@ -2201,7 +2199,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Build map of chainlink issue_id -> work session info from sub-agent sessions
   # Looks for sessions with labels containing "ticket-" to detect active chainlink work
   # Merges with persisted work from ChainlinkWorkTracker and existing manually started work
-  defp build_chainlink_work_in_progress(agent_sessions, current_work \\ %{}) do
+  defp build_chainlink_work_in_progress(agent_sessions, current_work) do
     # Get active session IDs for cleanup
     active_session_ids = agent_sessions
     |> Enum.filter(fn session -> session.status in ["running", "idle"] end)

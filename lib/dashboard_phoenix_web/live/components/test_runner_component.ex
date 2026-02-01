@@ -10,7 +10,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
   """
   use DashboardPhoenixWeb, :live_component
   
-  alias DashboardPhoenix.{TestRunner, ActivityLog}
+  alias DashboardPhoenix.ActivityLog
 
   def update(assigns, socket) do
     # Get recent test events from ActivityLog

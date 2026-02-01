@@ -176,12 +176,6 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     {:noreply, socket}
   end
 
-  # Helper for type indicator badge
-  defp type_badge_class("claude"), do: "bg-purple-500/20 text-purple-400"
-  defp type_badge_class("opencode"), do: "bg-blue-500/20 text-blue-400"
-  defp type_badge_class("gemini"), do: "bg-green-500/20 text-green-400"
-  defp type_badge_class(_), do: "bg-gray-500/20 text-gray-400"
-
   @impl true
   def render(assigns) do
     ~H"""
