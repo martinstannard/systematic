@@ -124,11 +124,11 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
       >
         <div class="flex items-center space-x-2">
           <span class={"text-xs transition-transform duration-200 " <> if(@branches_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">🌿 Unmerged Branches</span>
+          <span class="text-ui-label text-accent uppercase tracking-wider">🌿 Unmerged Branches</span>
           <%= if @branches_loading do %>
             <span class="throbber-small"></span>
           <% else %>
-            <span class="text-[10px] font-mono text-base-content/50"><%= length(@unmerged_branches) %></span>
+            <span class="text-ui-caption text-tabular text-base-content/60"><%= length(@unmerged_branches) %></span>
           <% end %>
         </div>
         <button
@@ -149,17 +149,17 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
             <%= if @branches_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
-                <span class="text-xs text-base-content/50 font-mono">Loading branches...</span>
+                <span class="text-ui-caption text-base-content/60">Loading branches...</span>
               </div>
             <% else %>
               <%= if @branches_error do %>
                 <div class="text-xs text-error/70 py-2 px-2"><%= @branches_error %></div>
               <% end %>
               <%= if @unmerged_branches == [] do %>
-                <div class="text-xs text-base-content/50 py-4 text-center font-mono">No unmerged branches</div>
+                <div class="text-ui-caption text-base-content/60 py-4 text-center">No unmerged branches</div>
               <% end %>
               <%= for branch <- @unmerged_branches do %>
-                <div class="px-2 py-2 rounded hover:bg-white/5 text-xs font-mono border border-white/5">
+                <div class="px-2 py-2 rounded hover:bg-white/5 border border-white/5">
                   <!-- Branch Name and Actions -->
                   <div class="flex items-start justify-between mb-1">
                     <div class="flex items-center space-x-2 min-w-0">
@@ -168,8 +168,8 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                       <% else %>
                         <span class="text-base-content/30">🔀</span>
                       <% end %>
-                      <span class="text-white truncate" title={branch.name}><%= branch.name %></span>
-                      <span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]">
+                      <span class="text-ui-body text-white truncate" title={branch.name}><%= branch.name %></span>
+                      <span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-ui-caption">
                         +<%= branch.commits_ahead %>
                       </span>
                     </div>

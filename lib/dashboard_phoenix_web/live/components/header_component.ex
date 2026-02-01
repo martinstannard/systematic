@@ -18,8 +18,8 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
     ~H"""
     <div class="glass-panel rounded-lg px-4 py-2 flex items-center justify-between mb-3">
       <div class="flex items-center space-x-4">
-        <h1 class="text-sm font-bold tracking-widest text-base-content">SYSTEMATIC</h1>
-        <span class="text-[10px] text-base-content/60 font-mono">AGENT CONTROL</span>
+        <h1 class="text-system-title text-system-glow text-base-content">SYSTEMATIC</h1>
+        <span class="text-system-subtitle text-base-content/70">AGENT CONTROL</span>
         
         <!-- Theme Toggle -->
         <button
@@ -40,18 +40,18 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
       </div>
       
       <!-- Compact Stats -->
-      <div class="flex items-center space-x-6 text-xs font-mono" aria-live="polite" aria-label="Dashboard statistics">
+      <div class="flex items-center space-x-6" aria-live="polite" aria-label="Dashboard statistics">
         <div class="flex items-center space-x-2">
-          <span class="text-base-content/50">Agents:</span>
-          <span class="text-success font-bold"><%= @agent_sessions_count %></span>
+          <span class="text-ui-label text-base-content/60">Agents:</span>
+          <span class="text-ui-value text-tabular text-success"><%= @agent_sessions_count %></span>
         </div>
         <div class="flex items-center space-x-2">
-          <span class="text-base-content/50">Events:</span>
-          <span class="text-primary font-bold"><%= @agent_progress_count %></span>
+          <span class="text-ui-label text-base-content/60">Events:</span>
+          <span class="text-ui-value text-tabular text-primary"><%= @agent_progress_count %></span>
         </div>
         <%= if @coding_agent_pref == :opencode do %>
           <div class="flex items-center space-x-2">
-            <span class="text-base-content/50">ACP:</span>
+            <span class="text-ui-label text-base-content/60">ACP:</span>
             <%= if @opencode_server_status.running do %>
               <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
             <% else %>
@@ -60,7 +60,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
           </div>
         <% end %>
         <div class="flex items-center space-x-1">
-          <span class={"px-2 py-0.5 rounded text-[10px] " <> coding_agent_badge_class(@coding_agent_pref)}>
+          <span class={"px-2 py-0.5 rounded text-ui-caption " <> coding_agent_badge_class(@coding_agent_pref)}>
             <%= coding_agent_badge_text(@coding_agent_pref) %>
           </span>
         </div>

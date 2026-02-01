@@ -1,6 +1,11 @@
 /* See the Tailwind configuration guide for advanced usage
    https://tailwindcss.com/docs/configuration */
 
+/* Typography: Distinctive font imports for agent control interface */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap');
+
 @import "tailwindcss" source(none);
 @source "../css";
 @source "../js";
@@ -101,6 +106,111 @@
 
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
+
+/* =====================================================
+   TYPOGRAPHY SYSTEM: Distinctive Agent Control Interface
+   Avoids generic system fonts and creates commanding presence
+   ===================================================== */
+
+/* Font family definitions */
+:root {
+  --font-display: 'JetBrains Mono', 'Berkeley Mono', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  --font-ui: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+/* Base typography classes */
+body {
+  font-family: var(--font-ui);
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display typography: SYSTEMATIC title and major headings */
+.font-display {
+  font-family: var(--font-display);
+  font-feature-settings: 'kern' 1, 'liga' 0, 'calt' 1, 'zero' 1;
+  letter-spacing: 0.05em;
+}
+
+.font-ui {
+  font-family: var(--font-ui);
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: 'kern' 1, 'liga' 0, 'calt' 1, 'zero' 1;
+}
+
+/* Typographic hierarchy */
+.text-system-title {
+  font-family: var(--font-display);
+  font-size: 1.125rem; /* 18px */
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-feature-settings: 'kern' 1, 'liga' 0, 'calt' 1, 'zero' 1;
+}
+
+.text-system-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem; /* 11px */
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.text-ui-label {
+  font-family: var(--font-ui);
+  font-size: 0.75rem; /* 12px */
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+.text-ui-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; /* 12px */
+  font-weight: 600;
+  font-feature-settings: 'kern' 1, 'liga' 0, 'zero' 1, 'tnum' 1;
+}
+
+.text-ui-body {
+  font-family: var(--font-ui);
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.text-ui-caption {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem; /* 11px */
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+/* Enhanced text glow effect for the main title */
+.text-system-glow {
+  text-shadow: 
+    0 0 10px rgba(139, 92, 246, 0.4),
+    0 0 20px rgba(139, 92, 246, 0.2),
+    0 0 40px rgba(139, 92, 246, 0.1);
+}
+
+/* Light mode adjustments for text glow */
+[data-theme="light"] .text-system-glow {
+  text-shadow: 
+    0 0 8px rgba(109, 40, 217, 0.3),
+    0 0 16px rgba(109, 40, 217, 0.15),
+    0 0 24px rgba(109, 40, 217, 0.08);
+}
+
+/* Tabular numbers for consistent spacing in stats */
+.text-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'kern' 1, 'tnum' 1;
+}
 
 /* This file is for your main application CSS */
 
