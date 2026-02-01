@@ -31,6 +31,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.CodingAgentMonitor
   alias DashboardPhoenix.LinearMonitor
   alias DashboardPhoenix.ChainlinkMonitor
+  alias DashboardPhoenix.ChainlinkWorkTracker
   alias DashboardPhoenix.PRMonitor
   alias DashboardPhoenix.PRVerification
   alias DashboardPhoenix.BranchMonitor
@@ -102,7 +103,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       chainlink_error: nil,
       chainlink_loading: true,
       chainlink_collapsed: false,
-      chainlink_work_in_progress: %{},
+      chainlink_work_in_progress: load_persisted_chainlink_work(),
       # GitHub PRs - loaded async
       github_prs: [],
       github_prs_last_updated: nil,
@@ -449,7 +450,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
           # Track that work is in progress (handle both job_id and name-only responses)
           job_id = Map.get(result, :job_id, "unknown")
           name = Map.get(result, :name, "chainlink-#{issue_id}")
-          work_info = %{label: name, job_id: job_id}
+          work_info = %{label: name, job_id: job_id, type: :subagent}
+          
+          # Persist to tracker for survival across restarts
+          ChainlinkWorkTracker.start_work(issue_id, work_info)
+          
           chainlink_wip = Map.put(socket.assigns.chainlink_work_in_progress, issue_id, work_info)
           
           # Log task started event
@@ -2070,10 +2075,36 @@ defmodule DashboardPhoenixWeb.HomeLive do
     Map.new(subagent_work ++ opencode_work)
   end
 
+  # Load persisted work from the ChainlinkWorkTracker on mount
+  defp load_persisted_chainlink_work do
+    try do
+      ChainlinkWorkTracker.get_all_work()
+    rescue
+      _ -> %{}
+    catch
+      :exit, _ -> %{}
+    end
+  end
+
   # Build map of chainlink issue_id -> work session info from sub-agent sessions
   # Looks for sessions with labels containing "ticket-" to detect active chainlink work
-  # Merges with existing manually started work
+  # Merges with persisted work from ChainlinkWorkTracker and existing manually started work
   defp build_chainlink_work_in_progress(agent_sessions, current_work \\ %{}) do
+    # Get active session IDs for cleanup
+    active_session_ids = agent_sessions
+    |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
+    |> Enum.map(& &1.id)
+    
+    # Async sync with tracker to clean up stale persisted entries
+    spawn(fn -> 
+      try do
+        ChainlinkWorkTracker.sync_with_sessions(active_session_ids)
+      rescue
+        _ -> :ok
+      end
+    end)
+    
+    # Detect work from running sessions
     detected_work = agent_sessions
     |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
     |> Enum.filter(fn session -> 
@@ -2102,8 +2133,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
     |> Enum.reject(&is_nil/1)
     |> Map.new()
     
-    # Merge detected work with current work - detected sessions take precedence
-    Map.merge(current_work, detected_work)
+    # Load persisted work from tracker
+    persisted_work = load_persisted_chainlink_work()
+    
+    # Merge: persisted -> current -> detected (later takes precedence)
+    persisted_work
+    |> Map.merge(current_work)
+    |> Map.merge(detected_work)
   end
 
   # build_graph_data function moved to DashboardPhoenixWeb.HomeLiveCache for memoization

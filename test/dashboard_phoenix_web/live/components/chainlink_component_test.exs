@@ -102,7 +102,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       ]
 
       work_in_progress = %{
-        1 => %{label: "agent-123", session_id: "abc"}
+        1 => %{label: "ticket-123-agent", session_id: "abc"}
       }
 
       html = render_component(ChainlinkComponent,
@@ -117,10 +117,10 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       # Should show WIP styling for issue 1
       assert html =~ "bg-accent/10"
       assert html =~ "border-success/50"
-      # Should show static indicator
-      assert html =~ "bg-success"
-      # Should show agent label
-      assert html =~ "agent-123"
+      # Should show animated activity indicator
+      assert html =~ "status-activity-ring"
+      # Should show agent label (formatted from ticket-123-agent)
+      assert html =~ "agent"
     end
 
     test "hides work button for issues being worked on" do
@@ -129,7 +129,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       ]
 
       work_in_progress = %{
-        1 => %{label: "agent-123", session_id: "abc"}
+        1 => %{label: "ticket-1-worker", session_id: "abc"}
       }
 
       html = render_component(ChainlinkComponent,
@@ -143,8 +143,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
 
       # Work button should NOT be present for the in-progress issue
       refute html =~ ~r/phx-value-id="1".*▶/s
-      # Static indicator should be present instead
-      assert html =~ "bg-success"
+      # Activity indicator should be present instead
+      assert html =~ "status-activity-ring"
     end
 
     test "shows work button for issues not being worked on" do

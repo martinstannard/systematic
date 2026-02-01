@@ -8,6 +8,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   - Real-time updates of issue status.
   - Collapsible panel UI.
   - Integration with `InputValidator` for safe issue handling.
+  - Persistent work-in-progress tracking.
   """
   use DashboardPhoenixWeb, :live_component
 
@@ -76,9 +77,36 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   defp status_icon("closed"), do: "●"
   defp status_icon(_), do: "◌"
 
-  defp status_text("open"), do: "Open"
-  defp status_text("closed"), do: "Closed"
-  defp status_text(_), do: "Unknown status"
+  defp status_icon_class("open"), do: "text-base-content/40 cursor-help"
+  defp status_icon_class("closed"), do: "text-success cursor-help"
+  defp status_icon_class(_), do: "text-base-content/40 cursor-help"
+
+  defp status_text("open"), do: "Status: Open"
+  defp status_text("closed"), do: "Status: Closed"
+  defp status_text(_), do: "Status: Unknown"
+
+  # Format agent label for display - extracts meaningful name from label like "ticket-109-description"
+  defp format_agent_label(nil), do: "Working"
+  defp format_agent_label(label) when is_binary(label) do
+    # Try to extract a meaningful suffix after "ticket-NNN-"
+    case Regex.run(~r/ticket-\d+-(.+)$/, label) do
+      [_, suffix] -> 
+        # Clean up and format the suffix (e.g., "chainlink-ux" -> "chainlink-ux")
+        suffix
+        |> String.replace("-", " ")
+        |> String.split()
+        |> Enum.take(3)
+        |> Enum.join(" ")
+      _ ->
+        # Fallback: just use the label, truncated
+        if String.length(label) > 20 do
+          String.slice(label, 0, 17) <> "..."
+        else
+          label
+        end
+    end
+  end
+  defp format_agent_label(_), do: "Working"
 
   @impl true
   def render(assigns) do
@@ -121,11 +149,17 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
       <div id="chainlink-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@chainlink_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
         <div class="px-3 pb-3">
-          <!-- Priority Legend -->
-          <div class="flex items-center space-x-2 mb-2 text-ui-caption text-base-content/60">
-            <span class="flex items-center text-red-400"><%= priority_symbol(:high) %> HIGH</span>
-            <span class="flex items-center text-yellow-400"><%= priority_symbol(:medium) %> MED</span>
-            <span class="flex items-center text-blue-400"><%= priority_symbol(:low) %> LOW</span>
+          <!-- Legend: Priority & Status -->
+          <div class="flex items-center justify-between mb-2 text-ui-caption text-base-content/60">
+            <div class="flex items-center space-x-2">
+              <span class="flex items-center text-red-400"><%= priority_symbol(:high) %> HIGH</span>
+              <span class="flex items-center text-yellow-400"><%= priority_symbol(:medium) %> MED</span>
+              <span class="flex items-center text-blue-400"><%= priority_symbol(:low) %> LOW</span>
+            </div>
+            <div class="flex items-center space-x-2 border-l border-base-content/20 pl-2">
+              <span class="flex items-center gap-1"><span class="text-base-content/40">○</span> Open</span>
+              <span class="flex items-center gap-1"><span class="text-success">●</span> Closed</span>
+            </div>
           </div>
 
           <!-- Issue List -->
@@ -144,18 +178,21 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
               <% end %>
               <%= for issue <- @chainlink_issues do %>
                 <% work_info = Map.get(@chainlink_work_in_progress, issue.id) %>
-                <div class={"flex items-center space-x-2 px-2 py-1.5" <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
+                <div class={"flex items-center space-x-2 px-2 py-1.5 " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
                   <%= if work_info do %>
-                    <div class="flex items-center space-x-1" title={"Work in progress: #{work_info[:label]}"} role="status">
-                      <span class="w-1.5 h-1.5 bg-success" aria-hidden="true"></span>
-                      <span class="text-ui-caption text-success/70 truncate max-w-[60px]"><%= work_info[:label] || "Working" %></span>
+                    <!-- Work in progress indicator - replaces Work button -->
+                    <div class="flex items-center space-x-1.5 min-w-[70px]" role="status" aria-label={"Work in progress by " <> (work_info[:label] || "agent")}>
+                      <span class="status-activity-ring text-success" aria-hidden="true"></span>
+                      <span class="text-ui-caption text-success font-medium" title={work_info[:label] || "Working"}>
+                        <%= format_agent_label(work_info[:label]) %>
+                      </span>
                     </div>
                   <% else %>
                     <button
                       phx-click="work_on_chainlink"
                       phx-value-id={issue.id}
                       phx-target={@myself}
-                      class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 hover:scale-105 active:scale-95"
+                      class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 hover:scale-105 active:scale-95 min-w-[70px]"
                       title="Start work on this issue"
                       aria-label={"Start work on issue #" <> to_string(issue.id)}
                     >
@@ -163,7 +200,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       <span>Work</span>
                     </button>
                   <% end %>
-                  <span class="text-base-content/40" aria-label={status_text(issue.status)}><%= status_icon(issue.status) %></span>
+                  <span class={status_icon_class(issue.status)} title={status_text(issue.status)} aria-label={status_text(issue.status)}><%= status_icon(issue.status) %></span>
                   <span class="text-ui-value text-accent">#<%= issue.id %></span>
                   <span class="text-ui-body text-white truncate flex-1" title={issue.title}><%= issue.title %></span>
                   <span class={priority_badge(issue.priority)} title={"Priority: " <> priority_text(issue.priority)}>

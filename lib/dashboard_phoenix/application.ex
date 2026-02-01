@@ -48,6 +48,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.LinearMonitor,
       # Chainlink issue monitor for local issues
       DashboardPhoenix.ChainlinkMonitor,
+      # Chainlink work-in-progress persistence
+      DashboardPhoenix.ChainlinkWorkTracker,
       # GitHub PR monitor
       DashboardPhoenix.PRMonitor,
       # Unmerged branches monitor
