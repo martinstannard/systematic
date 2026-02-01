@@ -13,6 +13,14 @@
     />
   </div>
 
+  <!-- Activity Panel - Recent high-priority events -->
+  <.live_component
+    module={ActivityPanelComponent}
+    id="activity-panel"
+    events={@activity_events}
+    collapsed={@activity_collapsed}
+  />
+
   <!-- Main Dashboard Layout -->
   <div class="flex-1 flex flex-col gap-6 overflow-y-auto">
     
