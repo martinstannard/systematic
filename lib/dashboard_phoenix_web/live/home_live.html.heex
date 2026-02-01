@@ -50,6 +50,7 @@
         <!-- Linear Tickets Panel (LiveComponent) - High Priority -->
         <div class={[
           "panel-priority-high panel-accent-critical relative",
+          @linear_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:linear, %{
             error: @linear_error, 
             loading: @linear_loading, 
@@ -72,6 +73,7 @@
         <!-- Chainlink Issues Panel (LiveComponent) - High Priority -->
         <div class={[
           "panel-priority-high panel-accent-critical relative",
+          @chainlink_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:chainlink, %{
             error: @chainlink_error,
             loading: @chainlink_loading,
@@ -93,6 +95,7 @@
         <!-- GitHub Pull Requests Panel - High Priority -->
         <div class={[
           "panel-priority-high panel-accent-critical relative",
+          @prs_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:github_prs, %{
             error: @github_prs_error,
             loading: @github_prs_loading,
@@ -117,6 +120,7 @@
         <!-- Unmerged Branches Panel - Medium Priority -->
         <div class={[
           "panel-priority-medium panel-accent-active relative",
+          @branches_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:branches, %{
             error: @branches_error,
             loading: @branches_loading,
@@ -151,7 +155,7 @@
       </div>
       <div class="space-y-3">
         <!-- Dave Panel (Main Agent) - First/Top Priority -->
-        <div class="panel-priority-high panel-accent-active">
+        <div class={["panel-priority-high panel-accent-active", @dave_collapsed && "panel-collapsed"]}>
           <.live_component
             module={DaveComponent}
             id="dave-panel"
@@ -161,7 +165,7 @@
         </div>
 
         <!-- Live Progress Panel (LiveComponent) - Medium Priority -->
-        <div class="panel-priority-medium panel-accent-active">
+        <div class={["panel-priority-medium panel-accent-active", @live_progress_collapsed && "panel-collapsed"]}>
           <.live_component
             module={LiveProgressComponent}
             id="live-progress-panel"
@@ -174,6 +178,7 @@
         <!-- Sub-Agents Panel - Medium Priority -->
         <div class={[
           "panel-priority-medium relative",
+          @subagents_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:subagents, %{
             sessions: @agent_sessions
           })
@@ -191,6 +196,7 @@
         <!-- OpenCode Sessions Panel (LiveComponent) - Quick Reference -->
         <div class={[
           "panel-priority-compact panel-accent-reference relative",
+          @opencode_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:opencode, %{
             server_status: @opencode_server_status,
             sessions: @opencode_sessions
@@ -208,6 +214,7 @@
         <!-- Gemini CLI Panel (LiveComponent) - Medium Priority -->
         <div class={[
           "panel-priority-medium relative",
+          @gemini_collapsed && "panel-collapsed",
           DashboardPhoenix.PanelStatus.status_classes(:gemini, %{
             server_status: @gemini_server_status,
             output: @gemini_output
@@ -237,7 +244,7 @@
       </div>
       <div class="space-y-3">
         <!-- Config Panel (LiveComponent) - Compact Reference -->
-        <div class="panel-priority-compact panel-accent-reference">
+        <div class={["panel-priority-compact panel-accent-reference", @config_collapsed && "panel-collapsed"]}>
           <.live_component
             module={ConfigComponent}
             id="config-panel"
@@ -253,7 +260,7 @@
         </div>
 
         <!-- System Processes Panel (LiveComponent) - Medium Priority -->
-        <div class="panel-priority-medium">
+        <div class={["panel-priority-medium", @system_processes_collapsed && "panel-collapsed"]}>
           <.live_component
             module={SystemProcessesComponent}
             id="system-processes-panel"
