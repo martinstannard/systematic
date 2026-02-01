@@ -24,7 +24,9 @@ defmodule DashboardPhoenixWeb.Plugs.Auth do
 
   @impl true
   def call(conn, _opts) do
-    case get_auth_token() do
+    token = get_auth_token()
+    # IO.inspect(token, label: "AUTH TOKEN")
+    case token do
       nil ->
         # No token configured - auth disabled
         conn

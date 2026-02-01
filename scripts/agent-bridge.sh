@@ -18,7 +18,7 @@ log_progress() {
     local target="$2"
     local status="${3:-running}"
     local ts=$(date +%s%3N)
-    echo "{\"ts\": $ts, \"agent\": \"$LABEL\", \"action\": \"$action\", \"target\": \"$target\", \"status\": \"$status\"}" >> "$PROGRESS_FILE"
+    echo "{\"ts\": $ts, \"agent\": \"$LABEL\", \"agent_type\": \"$AGENT\", \"action\": \"$action\", \"target\": \"$target\", \"status\": \"$status\"}" >> "$PROGRESS_FILE"
 }
 
 update_session() {

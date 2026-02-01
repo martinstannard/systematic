@@ -283,6 +283,7 @@ defmodule DashboardPhoenix.SessionBridge do
     %{
       ts: e["ts"] || System.system_time(:millisecond),
       agent: e["agent"] || "unknown",
+      agent_type: e["agent_type"] || detect_agent_type(e["agent"]),
       action: e["action"] || "unknown",
       target: e["target"] || "",
       status: e["status"] || "running",
@@ -290,6 +291,17 @@ defmodule DashboardPhoenix.SessionBridge do
       details: e["details"] || ""
     }
   end
+
+  defp detect_agent_type(name) when is_binary(name) do
+    cond do
+      String.contains?(name, "subagent") -> "sub-agent"
+      String.contains?(name, "opencode") -> "OpenCode"
+      String.contains?(name, "claude") -> "Claude"
+      name == "main" -> "Claude"
+      true -> "sub-agent"
+    end
+  end
+  defp detect_agent_type(_), do: "unknown"
 
   # Poll recent transcripts for tool calls (Live Progress)
   defp poll_transcripts(state) do
@@ -395,11 +407,11 @@ defmodule DashboardPhoenix.SessionBridge do
               <<session::binary-size(byte_size(filename) - 6), ".jsonl">> -> session
               _ -> filename  # fallback for non-.jsonl files
             end
-            agent_label = get_session_label_from_cache(session_id, sessions_map)
+            {agent_label, agent_type} = get_session_info_from_cache(session_id, sessions_map)
             
             # Parse all lines, collecting tool calls and results
             lines = String.split(content, "\n", trim: true)
-            {tool_calls, tool_results} = parse_tool_calls_and_results(lines, agent_label)
+            {tool_calls, tool_results} = parse_tool_calls_and_results(lines, agent_label, agent_type)
             
             # Merge results into their corresponding tool calls
             events = merge_tool_results(tool_calls, tool_results)
@@ -414,7 +426,7 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   # Parse both tool calls and tool results in one pass
-  defp parse_tool_calls_and_results(lines, agent_label) do
+  defp parse_tool_calls_and_results(lines, agent_label, agent_type) do
     Enum.reduce(lines, {[], %{}}, fn line, {calls_acc, results_acc} ->
       case Jason.decode(line) do
         {:ok, %{"type" => "message", "message" => %{"role" => "assistant", "content" => content}, "timestamp" => ts}} 
@@ -428,6 +440,7 @@ defmodule DashboardPhoenix.SessionBridge do
               ts: ts,
               tool_call_id: tc["id"],
               agent: agent_label,
+              agent_type: agent_type,
               action: tc["name"] || "unknown",
               target: truncate_target(target),
               status: "running",
@@ -532,13 +545,13 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   # Optimized: Use pre-parsed sessions map instead of re-reading file
-  defp get_session_label_from_cache(session_id, nil), do: String.slice(session_id, 0, 8)
-  defp get_session_label_from_cache(session_id, sessions_map) when is_map(sessions_map) do
+  defp get_session_info_from_cache(session_id, nil), do: {String.slice(session_id, 0, 8), "sub-agent"}
+  defp get_session_info_from_cache(session_id, sessions_map) when is_map(sessions_map) do
     sessions_map
     |> Enum.find(fn {_key, val} -> val["sessionId"] == session_id end)
     |> case do
       {key, val} -> 
-        cond do
+        label = cond do
           # Has explicit label
           val["label"] && val["label"] != "" -> val["label"]
           # Main session
@@ -550,7 +563,16 @@ defmodule DashboardPhoenix.SessionBridge do
           # Fallback
           true -> String.slice(session_id, 0, 8)
         end
-      nil -> String.slice(session_id, 0, 8)
+        
+        type = cond do
+          val["agent_type"] -> val["agent_type"]
+          String.contains?(key, ":main:main") -> "Claude"
+          String.contains?(key, ":subagent:") -> "sub-agent"
+          true -> "sub-agent"
+        end
+        
+        {label, type}
+      nil -> {String.slice(session_id, 0, 8), "sub-agent"}
     end
   end
 
@@ -655,6 +677,7 @@ defmodule DashboardPhoenix.SessionBridge do
       id: session_id,
       session_key: key,
       label: s["label"] || extract_label(key),
+      agent_type: s["agent_type"] || (if String.contains?(key, "subagent"), do: "sub-agent", else: "Claude"),
       status: status,
       channel: s["channel"] || "unknown",
       model: s["model"] || default_model(key),
