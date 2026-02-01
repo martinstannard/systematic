@@ -10,8 +10,8 @@
     health_status={@health_status}
     health_last_check={@health_last_check}
   />
-
-  <!-- Unified Activity Panel - Always visible above tabs -->
+  
+<!-- Unified Activity Panel - Always visible above tabs -->
   <.live_component
     module={UnifiedActivityComponent}
     id="unified-activity"
@@ -21,8 +21,8 @@
     collapsed={@activity_collapsed}
     sessions_loading={@sessions_loading}
   />
-
-  <!-- Work Panel - Unified view of all coding agents (always visible) -->
+  
+<!-- Work Panel - Unified view of all coding agents (always visible) -->
   <.live_component
     module={WorkPanelComponent}
     id="work-panel"
@@ -40,8 +40,8 @@
     opencode_loading={@opencode_loading}
     gemini_loading={@gemini_loading}
   />
-
-  <!-- Work River - Holistic horizontal workflow view (always visible) -->
+  
+<!-- Work River - Holistic horizontal workflow view (always visible) -->
   <.live_component
     module={WorkRiverComponent}
     id="work-river"
@@ -52,21 +52,42 @@
     chainlink_work_in_progress={@chainlink_work_in_progress}
     agent_sessions={@agent_sessions}
     opencode_sessions={@opencode_sessions}
+    show_completed={@show_completed}
+    dismissed_sessions={@dismissed_sessions}
     work_registry_entries={@work_registry_entries}
     github_prs={@github_prs}
     pr_verifications={@pr_verifications}
   />
-
-  <!-- Main Dashboard Layout - Tabbed Interface (Ticket #127) -->
-  <div class="flex-1 flex flex-col overflow-y-auto p-4 sm:p-8" role="region" aria-label="Dashboard panels">
+  
+<!-- Main Dashboard Layout - Tabbed Interface (Ticket #127) -->
+  <div
+    class="flex-1 flex flex-col overflow-y-auto p-4 sm:p-8"
+    role="region"
+    aria-label="Dashboard panels"
+  >
     <.live_component
       module={TabsComponent}
       id="main-tabs"
       active_tab={@active_tab}
       tabs={[
-        %{id: "work", label: "Work Items", badge: length(@linear_tickets) + @chainlink_issues_count, urgent: length(@linear_tickets) > 0 || @chainlink_issues_count > 0},
-        %{id: "prs", label: "PRs & Branches", badge: @github_prs_count + @unmerged_branches_count, attention: @github_prs_count > 0},
-        %{id: "agents", label: "Agents", badge: @agent_sessions_count, status: agent_status(@opencode_server_status, @gemini_server_status)},
+        %{
+          id: "work",
+          label: "Work Items",
+          badge: length(@linear_tickets) + @chainlink_issues_count,
+          urgent: length(@linear_tickets) > 0 || @chainlink_issues_count > 0
+        },
+        %{
+          id: "prs",
+          label: "PRs & Branches",
+          badge: @github_prs_count + @unmerged_branches_count,
+          attention: @github_prs_count > 0
+        },
+        %{
+          id: "agents",
+          label: "Agents",
+          badge: @agent_sessions_count,
+          status: agent_status(@opencode_server_status, @gemini_server_status)
+        },
         %{id: "system", label: "System", badge: @coding_agents_count}
       ]}
     >
@@ -85,8 +106,8 @@
               tickets_in_progress={@tickets_in_progress}
             />
           </div>
-
-          <!-- Chainlink Issues Panel -->
+          
+<!-- Chainlink Issues Panel -->
           <div class={[
             "panel-priority-high panel-accent-critical p-4 sm:p-6",
             @chainlink_collapsed && "panel-collapsed",
@@ -139,8 +160,8 @@
               pr_fix_pending={@pr_fix_pending}
             />
           </div>
-
-          <!-- Unmerged Branches Panel -->
+          
+<!-- Unmerged Branches Panel -->
           <div class={[
             "panel-priority-medium panel-accent-active p-4 sm:p-6",
             @branches_collapsed && "panel-collapsed",
@@ -170,7 +191,10 @@
       <:tab_content tab="agents">
         <div class="space-y-6 p-4 sm:p-6">
           <!-- Dave Panel -->
-          <div class={["panel-priority-high panel-accent-active p-4 sm:p-6", @dave_collapsed && "panel-collapsed"]}>
+          <div class={[
+            "panel-priority-high panel-accent-active p-4 sm:p-6",
+            @dave_collapsed && "panel-collapsed"
+          ]}>
             <.live_component
               module={DaveComponent}
               id="dave-panel"
@@ -179,8 +203,8 @@
               sessions_loading={@sessions_loading}
             />
           </div>
-
-          <!-- Sub-Agents Panel -->
+          
+<!-- Sub-Agents Panel -->
           <div class={[
             "panel-priority-medium p-4 sm:p-6",
             @subagents_collapsed && "panel-collapsed",
@@ -198,8 +222,8 @@
               sessions_loading={@sessions_loading}
             />
           </div>
-
-          <!-- OpenCode Sessions Panel -->
+          
+<!-- OpenCode Sessions Panel -->
           <div class={[
             "panel-priority-compact panel-accent-reference p-4 sm:p-6",
             @opencode_collapsed && "panel-collapsed",
@@ -217,8 +241,8 @@
               opencode_loading={@opencode_loading}
             />
           </div>
-
-          <!-- Gemini CLI Panel -->
+          
+<!-- Gemini CLI Panel -->
           <div class={[
             "panel-priority-medium p-4 sm:p-6",
             @gemini_collapsed && "panel-collapsed",
@@ -243,7 +267,10 @@
       <:tab_content tab="system">
         <div class="space-y-6 p-4 sm:p-6">
           <!-- Config Panel -->
-          <div class={["panel-priority-compact panel-accent-reference p-4 sm:p-6", @config_collapsed && "panel-collapsed"]}>
+          <div class={[
+            "panel-priority-compact panel-accent-reference p-4 sm:p-6",
+            @config_collapsed && "panel-collapsed"
+          ]}>
             <.live_component
               module={ConfigComponent}
               id="config-panel"
@@ -257,9 +284,12 @@
               gemini_server_status={@gemini_server_status}
             />
           </div>
-
-          <!-- Test Runner Panel -->
-          <div class={["panel-priority-medium p-4 sm:p-6", @test_runner_collapsed && "panel-collapsed"]}>
+          
+<!-- Test Runner Panel -->
+          <div class={[
+            "panel-priority-medium p-4 sm:p-6",
+            @test_runner_collapsed && "panel-collapsed"
+          ]}>
             <.live_component
               module={TestRunnerComponent}
               id="test-runner-panel"
@@ -267,9 +297,12 @@
               test_running={@test_running}
             />
           </div>
-
-          <!-- System Processes Panel -->
-          <div class={["panel-priority-medium p-4 sm:p-6", @system_processes_collapsed && "panel-collapsed"]}>
+          
+<!-- System Processes Panel -->
+          <div class={[
+            "panel-priority-medium p-4 sm:p-6",
+            @system_processes_collapsed && "panel-collapsed"
+          ]}>
             <.live_component
               module={SystemProcessesComponent}
               id="system-processes-panel"
@@ -285,8 +318,8 @@
               graph_data={@graph_data}
             />
           </div>
-
-          <!-- Usage Stats -->
+          
+<!-- Usage Stats -->
           <div class={[
             "panel-priority-compact panel-accent-reference p-4 sm:p-6",
             DashboardPhoenix.PanelStatus.status_classes(:usage_stats, %{
@@ -305,8 +338,8 @@
       </:tab_content>
     </.live_component>
   </div>
-
-  <!-- Work on Ticket Modal (legacy) -->
+  
+<!-- Work on Ticket Modal (legacy) -->
   <.live_component
     module={WorkModalComponent}
     id="work-modal"
@@ -324,8 +357,8 @@
     opencode_model={@opencode_model}
     tickets_in_progress={@tickets_in_progress}
   />
-
-  <!-- Work Context Modal - Unified work item details (#125) -->
+  
+<!-- Work Context Modal - Unified work item details (#125) -->
   <.live_component
     module={WorkContextModalComponent}
     id="work-context-modal"

@@ -11,7 +11,14 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
 
   @impl true
   def update(assigns, socket) do
-    {:ok, assign(socket, assigns)}
+    socket =
+      socket
+      |> assign(assigns)
+      |> assign_new(:unmerged_branches_count, fn ->
+        length(Map.get(assigns, :unmerged_branches, []))
+      end)
+
+    {:ok, socket}
   end
 
   @impl true
@@ -32,7 +39,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
       {:ok, validated_branch_name} ->
         send(self(), {:branches_component, :confirm_merge, validated_branch_name})
         {:noreply, socket}
-      
+
       {:error, reason} ->
         socket = put_flash(socket, :error, "Invalid branch name: #{reason}")
         {:noreply, socket}
@@ -51,7 +58,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
       {:ok, validated_branch_name} ->
         send(self(), {:branches_component, :execute_merge, validated_branch_name})
         {:noreply, socket}
-      
+
       {:error, reason} ->
         socket = put_flash(socket, :error, "Invalid branch name: #{reason}")
         {:noreply, socket}
@@ -64,7 +71,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
       {:ok, validated_branch_name} ->
         send(self(), {:branches_component, :confirm_delete, validated_branch_name})
         {:noreply, socket}
-      
+
       {:error, reason} ->
         socket = put_flash(socket, :error, "Invalid branch name: #{reason}")
         {:noreply, socket}
@@ -83,7 +90,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
       {:ok, validated_branch_name} ->
         send(self(), {:branches_component, :execute_delete, validated_branch_name})
         {:noreply, socket}
-      
+
       {:error, reason} ->
         socket = put_flash(socket, :error, "Invalid branch name: #{reason}")
         {:noreply, socket}
@@ -94,17 +101,20 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
 
   # Format branch time for display
   defp format_branch_time(nil), do: ""
+
   defp format_branch_time(%DateTime{} = dt) do
     now = DateTime.utc_now()
     diff = DateTime.diff(now, dt, :second)
+
     cond do
       diff < 60 -> "#{diff}s ago"
       diff < 3600 -> "#{div(diff, 60)}m ago"
       diff < 86400 -> "#{div(diff, 3600)}h ago"
-      diff < 604800 -> "#{div(diff, 86400)}d ago"
+      diff < 604_800 -> "#{div(diff, 86400)}d ago"
       true -> Calendar.strftime(dt, "%b %d")
     end
   end
+
   defp format_branch_time(_), do: ""
 
   @impl true
@@ -123,14 +133,18 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
-          <span class={"panel-chevron " <> if(@branches_collapsed, do: "collapsed", else: "")}>▼</span>
+          <span class={"panel-chevron " <> if(@branches_collapsed, do: "collapsed", else: "")}>
+            ▼
+          </span>
           <span class="panel-icon">🌿</span>
           <span class="text-panel-label text-accent">Unmerged Branches</span>
           <%= if @branches_loading do %>
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading branches</span>
           <% else %>
-            <span class="text-ui-caption text-tabular text-base-content/60"><%= @unmerged_branches_count %></span>
+            <span class="text-ui-caption text-tabular text-base-content/60">
+              {@unmerged_branches_count}
+            </span>
           <% end %>
         </div>
         <button
@@ -145,10 +159,18 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
         </button>
       </div>
 
-      <div id="branches-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@branches_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+      <div
+        id="branches-panel-content"
+        class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@branches_collapsed, do: "max-h-0", else: "max-h-[400px]")}
+      >
         <div class="px-5 pb-5 pt-2">
           <!-- Branch List -->
-          <div class="space-y-3 max-h-[350px] overflow-y-auto" role="region" aria-live="polite" aria-label="Unmerged branches list">
+          <div
+            class="space-y-3 max-h-[350px] overflow-y-auto"
+            role="region"
+            aria-live="polite"
+            aria-label="Unmerged branches list"
+          >
             <%= if @branches_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
@@ -156,10 +178,12 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
               </div>
             <% else %>
               <%= if @branches_error do %>
-                <div class="text-ui-caption text-error py-2 px-2"><%= @branches_error %></div>
+                <div class="text-ui-caption text-error py-2 px-2">{@branches_error}</div>
               <% end %>
               <%= if @unmerged_branches == [] do %>
-                <div class="text-ui-caption text-base-content/60 py-4 text-center">No unmerged branches</div>
+                <div class="text-ui-caption text-base-content/60 py-4 text-center">
+                  No unmerged branches
+                </div>
               <% end %>
               <%= for branch <- @unmerged_branches do %>
                 <div class="px-3 py-3 rounded border border-base-300 hover:bg-base-300/50 dark:hover:bg-white/5 hover:border-accent/30 transition-all">
@@ -167,17 +191,22 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                   <div class="flex items-start justify-between mb-1">
                     <div class="flex items-center space-x-2 min-w-0">
                       <%= if branch.has_worktree do %>
-                        <span class="text-green-600 dark:text-green-400" title={"Worktree: #{branch.worktree_path}"}>🌲</span>
+                        <span
+                          class="text-green-600 dark:text-green-400"
+                          title={"Worktree: #{branch.worktree_path}"}
+                        >
+                          🌲
+                        </span>
                       <% else %>
                         <span class="text-base-content/40">🔀</span>
                       <% end %>
-                      <span class="text-ui-body truncate" title={branch.name}><%= branch.name %></span>
+                      <span class="text-ui-body truncate" title={branch.name}>{branch.name}</span>
                       <span class="px-1.5 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 text-ui-caption rounded">
-                        +<%= branch.commits_ahead %>
+                        +{branch.commits_ahead}
                       </span>
                     </div>
-
-                    <!-- Action Buttons -->
+                    
+    <!-- Action Buttons -->
                     <div class="flex items-center space-x-1 ml-2">
                       <%= if @branch_merge_pending == branch.name do %>
                         <!-- Merge Confirmation -->
@@ -247,37 +276,42 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                       <% end %>
                     </div>
                   </div>
-
-                  <!-- Last Commit Info -->
+                  
+    <!-- Last Commit Info -->
                   <div class="flex items-center space-x-2 text-ui-caption text-base-content/60">
                     <%= if branch.last_commit_message do %>
-                      <span class="truncate flex-1" title={branch.last_commit_message}><%= branch.last_commit_message %></span>
+                      <span class="truncate flex-1" title={branch.last_commit_message}>
+                        {branch.last_commit_message}
+                      </span>
                       <span>•</span>
                     <% end %>
                     <%= if branch.last_commit_author do %>
-                      <span class="text-base-content/60"><%= branch.last_commit_author %></span>
+                      <span class="text-base-content/60">{branch.last_commit_author}</span>
                       <span>•</span>
                     <% end %>
                     <%= if branch.last_commit_date do %>
-                      <span><%= format_branch_time(branch.last_commit_date) %></span>
+                      <span>{format_branch_time(branch.last_commit_date)}</span>
                     <% end %>
                   </div>
-
-                  <!-- Worktree Path if applicable -->
+                  
+    <!-- Worktree Path if applicable -->
                   <%= if branch.has_worktree do %>
-                    <div class="text-ui-caption text-green-600/70 dark:text-green-400/60 mt-1 truncate" title={branch.worktree_path}>
-                      📁 <%= branch.worktree_path %>
+                    <div
+                      class="text-ui-caption text-green-600/70 dark:text-green-400/60 mt-1 truncate"
+                      title={branch.worktree_path}
+                    >
+                      📁 {branch.worktree_path}
                     </div>
                   <% end %>
                 </div>
               <% end %>
             <% end %>
           </div>
-
-          <!-- Last Updated -->
+          
+    <!-- Last Updated -->
           <%= if @branches_last_updated do %>
             <div class="text-ui-caption text-base-content/60 mt-2 text-right">
-              Updated <%= format_branch_time(@branches_last_updated) %>
+              Updated {format_branch_time(@branches_last_updated)}
             </div>
           <% end %>
         </div>

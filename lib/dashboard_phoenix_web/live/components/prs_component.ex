@@ -11,7 +11,12 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
 
   @impl true
   def update(assigns, socket) do
-    {:ok, assign(socket, assigns)}
+    socket =
+      socket
+      |> assign(assigns)
+      |> assign_new(:github_prs_count, fn -> length(Map.get(assigns, :github_prs, [])) end)
+
+    {:ok, socket}
   end
 
   @impl true
@@ -53,10 +58,18 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
   # Helper functions
 
   # PR CI status badges - consistent spacing and dark/light mode support
-  defp pr_ci_badge(:success), do: "px-1.5 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 text-ui-caption rounded"
-  defp pr_ci_badge(:failure), do: "px-1.5 py-0.5 bg-red-500/20 text-red-600 dark:text-red-400 text-ui-caption rounded"
-  defp pr_ci_badge(:pending), do: "px-1.5 py-0.5 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-ui-caption rounded"
-  defp pr_ci_badge(_), do: "px-1.5 py-0.5 bg-base-content/10 text-base-content/60 text-ui-caption rounded"
+  defp pr_ci_badge(:success),
+    do: "px-1.5 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 text-ui-caption rounded"
+
+  defp pr_ci_badge(:failure),
+    do: "px-1.5 py-0.5 bg-red-500/20 text-red-600 dark:text-red-400 text-ui-caption rounded"
+
+  defp pr_ci_badge(:pending),
+    do:
+      "px-1.5 py-0.5 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-ui-caption rounded"
+
+  defp pr_ci_badge(_),
+    do: "px-1.5 py-0.5 bg-base-content/10 text-base-content/60 text-ui-caption rounded"
 
   defp pr_ci_icon(:success), do: "✓"
   defp pr_ci_icon(:failure), do: "✗"
@@ -69,11 +82,20 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
   defp pr_ci_text(_), do: "Unknown"
 
   # PR review status badges - consistent styling
-  defp pr_review_badge(:approved), do: "px-1.5 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 text-ui-caption rounded"
-  defp pr_review_badge(:changes_requested), do: "px-1.5 py-0.5 bg-red-500/20 text-red-600 dark:text-red-400 text-ui-caption rounded"
-  defp pr_review_badge(:commented), do: "px-1.5 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 text-ui-caption rounded"
-  defp pr_review_badge(:pending), do: "px-1.5 py-0.5 bg-base-content/10 text-base-content/60 text-ui-caption rounded"
-  defp pr_review_badge(_), do: "px-1.5 py-0.5 bg-base-content/10 text-base-content/60 text-ui-caption rounded"
+  defp pr_review_badge(:approved),
+    do: "px-1.5 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 text-ui-caption rounded"
+
+  defp pr_review_badge(:changes_requested),
+    do: "px-1.5 py-0.5 bg-red-500/20 text-red-600 dark:text-red-400 text-ui-caption rounded"
+
+  defp pr_review_badge(:commented),
+    do: "px-1.5 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 text-ui-caption rounded"
+
+  defp pr_review_badge(:pending),
+    do: "px-1.5 py-0.5 bg-base-content/10 text-base-content/60 text-ui-caption rounded"
+
+  defp pr_review_badge(_),
+    do: "px-1.5 py-0.5 bg-base-content/10 text-base-content/60 text-ui-caption rounded"
 
   defp pr_review_text(:approved), do: "Approved"
   defp pr_review_text(:changes_requested), do: "Changes"
@@ -84,28 +106,42 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
   # PR row left border color based on overall status - subtle indicator
   defp pr_status_border(pr) do
     cond do
-      pr.ci_status == :failure -> "border-l-2 border-l-red-500/50"
-      pr.review_status == :changes_requested -> "border-l-2 border-l-red-500/50"
-      pr.review_status == :approved and pr.ci_status == :success -> "border-l-2 border-l-green-500/50"
-      pr.has_conflicts -> "border-l-2 border-l-yellow-500/50"
-      pr.ci_status == :pending -> "border-l-2 border-l-yellow-500/50"
-      true -> ""
+      pr.ci_status == :failure ->
+        "border-l-2 border-l-red-500/50"
+
+      pr.review_status == :changes_requested ->
+        "border-l-2 border-l-red-500/50"
+
+      pr.review_status == :approved and pr.ci_status == :success ->
+        "border-l-2 border-l-green-500/50"
+
+      pr.has_conflicts ->
+        "border-l-2 border-l-yellow-500/50"
+
+      pr.ci_status == :pending ->
+        "border-l-2 border-l-yellow-500/50"
+
+      true ->
+        ""
     end
   end
 
   # Format PR creation time
   defp format_pr_time(nil), do: ""
+
   defp format_pr_time(%DateTime{} = dt) do
     now = DateTime.utc_now()
     diff = DateTime.diff(now, dt, :second)
+
     cond do
       diff < 60 -> "#{diff}s ago"
       diff < 3600 -> "#{div(diff, 60)}m ago"
       diff < 86400 -> "#{div(diff, 3600)}h ago"
-      diff < 604800 -> "#{div(diff, 86400)}d ago"
+      diff < 604_800 -> "#{div(diff, 86400)}d ago"
       true -> Calendar.strftime(dt, "%b %d")
     end
   end
+
   defp format_pr_time(_), do: ""
 
   @impl true
@@ -131,7 +167,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading pull requests</span>
           <% else %>
-            <span class="text-ui-caption text-tabular text-base-content/60"><%= @github_prs_count %></span>
+            <span class="text-ui-caption text-tabular text-base-content/60">{@github_prs_count}</span>
           <% end %>
         </div>
         <button
@@ -146,10 +182,18 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
         </button>
       </div>
 
-      <div id="prs-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@prs_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+      <div
+        id="prs-panel-content"
+        class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@prs_collapsed, do: "max-h-0", else: "max-h-[400px]")}
+      >
         <div class="px-5 pb-5 pt-2">
           <!-- PR List -->
-          <div class="space-y-3 max-h-[350px] overflow-y-auto" role="region" aria-live="polite" aria-label="Pull requests list">
+          <div
+            class="space-y-3 max-h-[350px] overflow-y-auto"
+            role="region"
+            aria-live="polite"
+            aria-label="Pull requests list"
+          >
             <%= if @github_prs_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
@@ -157,7 +201,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
               </div>
             <% else %>
               <%= if @github_prs_error do %>
-                <div class="text-ui-caption text-error py-2 px-2"><%= @github_prs_error %></div>
+                <div class="text-ui-caption text-error py-2 px-2">{@github_prs_error}</div>
               <% end %>
               <%= if @github_prs == [] do %>
                 <div class="text-ui-caption text-base-content/60 py-4 text-center">No open PRs</div>
@@ -173,12 +217,22 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                   <!-- PR Title and Number -->
                   <div class="flex items-start justify-between mb-2">
                     <div class="flex-1 min-w-0">
-                      <a href={pr.url} target="_blank" class="text-ui-body hover:text-accent flex items-center space-x-1">
+                      <a
+                        href={pr.url}
+                        target="_blank"
+                        class="text-ui-body hover:text-accent flex items-center space-x-1"
+                      >
                         <%= if pr_work_info do %>
-                          <span class="status-activity-ring text-success flex-shrink-0" title={"Agent working: #{pr_work_info[:label] || pr_work_info[:slug]}"} aria-label={"Agent working on this PR: " <> (pr_work_info[:label] || pr_work_info[:slug] || "in progress")} role="status"></span>
+                          <span
+                            class="status-activity-ring text-success flex-shrink-0"
+                            title={"Agent working: #{pr_work_info[:label] || pr_work_info[:slug]}"}
+                            aria-label={"Agent working on this PR: " <> (pr_work_info[:label] || pr_work_info[:slug] || "in progress")}
+                            role="status"
+                          >
+                          </span>
                         <% end %>
-                        <span class="text-ui-value text-accent font-bold">#<%= pr.number %></span>
-                        <span class="truncate"><%= pr.title %></span>
+                        <span class="text-ui-value text-accent font-bold">#{pr.number}</span>
+                        <span class="truncate">{pr.title}</span>
                       </a>
                     </div>
                     <!-- Super Review Button -->
@@ -195,31 +249,43 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                       🔍 <span class="hidden sm:inline">Review</span>
                     </button>
                   </div>
-
-                  <!-- Author and Branch -->
+                  
+    <!-- Author and Branch -->
                   <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui-caption text-base-content/60 mb-2">
-                    <span>by <span class="text-base-content/80"><%= pr.author %></span></span>
+                    <span>by <span class="text-base-content/80">{pr.author}</span></span>
                     <span class="hidden sm:inline">•</span>
-                    <span class="truncate text-blue-600 dark:text-blue-400 max-w-[120px] sm:max-w-none" title={pr.branch}><%= pr.branch %></span>
+                    <span
+                      class="truncate text-blue-600 dark:text-blue-400 max-w-[120px] sm:max-w-none"
+                      title={pr.branch}
+                    >
+                      {pr.branch}
+                    </span>
                     <span>•</span>
-                    <span><%= format_pr_time(pr.created_at) %></span>
+                    <span>{format_pr_time(pr.created_at)}</span>
                   </div>
-
-                  <!-- Status Row: CI, Review, and Tickets -->
+                  
+    <!-- Status Row: CI, Review, and Tickets -->
                   <div class="flex items-center space-x-2 flex-wrap gap-2">
                     <!-- CI Status -->
-                    <span class={pr_ci_badge(pr.ci_status)} title={"CI Status: " <> pr_ci_text(pr.ci_status)} aria-label={"CI Status: " <> pr_ci_text(pr.ci_status)}>
-                      <%= pr_ci_icon(pr.ci_status) %> CI
+                    <span
+                      class={pr_ci_badge(pr.ci_status)}
+                      title={"CI Status: " <> pr_ci_text(pr.ci_status)}
+                      aria-label={"CI Status: " <> pr_ci_text(pr.ci_status)}
+                    >
+                      {pr_ci_icon(pr.ci_status)} CI
                     </span>
-
-                    <!-- Conflict Badge -->
+                    
+    <!-- Conflict Badge -->
                     <%= if pr.has_conflicts do %>
-                      <span class="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-ui-caption rounded" title="Has merge conflicts">
+                      <span
+                        class="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-ui-caption rounded"
+                        title="Has merge conflicts"
+                      >
                         ⚠️ Conflict
                       </span>
                     <% end %>
-
-                    <!-- Fix Button (for CI failures or conflicts) -->
+                    
+    <!-- Fix Button (for CI failures or conflicts) -->
                     <%= if pr.ci_status == :failure or pr.has_conflicts do %>
                       <% is_fix_pending = @pr_fix_pending == pr.number %>
                       <% is_work_in_progress = pr_work_info != nil %>
@@ -238,14 +304,20 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                           "btn-interactive-sm transition-all duration-150",
                           if(is_fix_pending,
                             do: "bg-warning/30 text-warning cursor-wait",
-                            else: if(is_work_in_progress,
-                              do: "bg-base-content/10 text-base-content/40 cursor-not-allowed",
-                              else: "bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/40 active:scale-95"
-                            )
+                            else:
+                              if(is_work_in_progress,
+                                do: "bg-base-content/10 text-base-content/40 cursor-not-allowed",
+                                else:
+                                  "bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/40 active:scale-95"
+                              )
                           ),
                           "phx-click-loading:bg-warning/30 phx-click-loading:text-warning phx-click-loading:animate-pulse"
                         ]}
-                        title={if is_work_in_progress, do: "Agent already working on this PR", else: "Send to coding agent to fix issues"}
+                        title={
+                          if is_work_in_progress,
+                            do: "Agent already working on this PR",
+                            else: "Send to coding agent to fix issues"
+                        }
                         aria-label={"Fix issues for PR #" <> to_string(pr.number)}
                       >
                         <%= cond do %>
@@ -261,8 +333,8 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                         <% end %>
                       </button>
                     <% end %>
-
-                    <!-- Verification Status Badge -->
+                    
+    <!-- Verification Status Badge -->
                     <%= if verification do %>
                       <span
                         class="px-1.5 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 text-ui-caption rounded inline-flex items-center gap-1"
@@ -276,7 +348,9 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                           class="ml-0.5 text-green-600/60 dark:text-green-400/60 hover:text-red-500"
                           title="Clear verification"
                           aria-label={"Clear verification for PR #" <> to_string(pr.number)}
-                        >✗</button>
+                        >
+                          ✗
+                        </button>
                       </span>
                     <% else %>
                       <button
@@ -292,13 +366,13 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                         ○ Verify
                       </button>
                     <% end %>
-
-                    <!-- Review Status -->
+                    
+    <!-- Review Status -->
                     <span class={pr_review_badge(pr.review_status)} title="Review Status">
-                      <%= pr_review_text(pr.review_status) %>
+                      {pr_review_text(pr.review_status)}
                     </span>
-
-                    <!-- Associated Tickets -->
+                    
+    <!-- Associated Tickets -->
                     <%= for ticket_id <- pr.ticket_ids do %>
                       <a
                         href={PRMonitor.build_ticket_url(ticket_id)}
@@ -307,15 +381,17 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                         title="View in Linear"
                         aria-label={"View ticket " <> ticket_id <> " in Linear (opens in new tab)"}
                       >
-                        <%= ticket_id %>
+                        {ticket_id}
                       </a>
                     <% end %>
-
-                    <!-- Agent Working Indicator -->
+                    
+    <!-- Agent Working Indicator -->
                     <%= if pr_work_info do %>
-                      <span class="px-1.5 py-0.5 bg-success/20 text-success text-ui-caption rounded"
-                            title={"#{if pr_work_info.type == :opencode, do: "OpenCode", else: "Sub-agent"} working on this PR"}>
-                        🤖 <%= pr_work_info[:label] || pr_work_info[:slug] || "Working..." %>
+                      <span
+                        class="px-1.5 py-0.5 bg-success/20 text-success text-ui-caption rounded"
+                        title={"#{if pr_work_info.type == :opencode, do: "OpenCode", else: "Sub-agent"} working on this PR"}
+                      >
+                        🤖 {pr_work_info[:label] || pr_work_info[:slug] || "Working..."}
                       </span>
                     <% end %>
                   </div>
@@ -323,11 +399,11 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
               <% end %>
             <% end %>
           </div>
-
-          <!-- Last Updated -->
+          
+    <!-- Last Updated -->
           <%= if @github_prs_last_updated do %>
             <div class="text-ui-caption text-base-content/60 mt-2 text-right">
-              Updated <%= format_pr_time(@github_prs_last_updated) %>
+              Updated {format_pr_time(@github_prs_last_updated)}
             </div>
           <% end %>
         </div>
