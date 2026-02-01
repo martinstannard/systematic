@@ -11,6 +11,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- Activity Log: Add event tracking GenServer for high-level workflow events (#82)
+- UI: Fix text size accessibility violations (#51)
+- UI: Add Status-Based Visual Indicators (#50)
+- UI: Enhance Panel Visual Hierarchy and Sizing (#47)
+- Improve test isolation with proper mocking (#41)
+- UI: Add Status-Based Visual Indicators (#50)
+- UI: Enhance Panel Visual Hierarchy and Sizing (#47)
+- Improve test isolation with proper mocking (#41)
 - UI: Add Visual Grouping and Section Separation (#45)
 - Improve test isolation with proper mocking (#41)
 - Add graceful error handling for missing CLI tools (#39)
