@@ -79,7 +79,7 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
       #18   [open]   Implement feature flags   medium     2026-02-15
       """
 
-      result = parse_chainlink_output(output)
+      result = ChainlinkMonitor.parse_chainlink_output_for_test(output)
 
       assert length(result) == 2
       
@@ -99,7 +99,7 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
       #5   [open]   Simple task   low
       """
 
-      result = parse_chainlink_output(output)
+      result = ChainlinkMonitor.parse_chainlink_output_for_test(output)
 
       assert length(result) == 1
       [issue] = result
@@ -111,15 +111,15 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
     end
 
     test "handles empty output" do
-      assert parse_chainlink_output("") == []
-      assert parse_chainlink_output("\n\n") == []
+      assert ChainlinkMonitor.parse_chainlink_output_for_test("") == []
+      assert ChainlinkMonitor.parse_chainlink_output_for_test("\n\n") == []
     end
 
     test "strips ANSI escape codes" do
       # Simulated ANSI-colored output
       output = "\e[32m#10\e[0m   [open]   Colored output test   high     2026-03-01"
 
-      result = parse_chainlink_output(output)
+      result = ChainlinkMonitor.parse_chainlink_output_for_test(output)
 
       assert length(result) == 1
       [issue] = result
@@ -135,7 +135,7 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
       Also invalid
       """
 
-      result = parse_chainlink_output(output)
+      result = ChainlinkMonitor.parse_chainlink_output_for_test(output)
 
       assert length(result) == 2
       assert Enum.map(result, & &1.id) == [17, 18]
@@ -146,35 +146,59 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
       #25   [closed]   Completed task   high     2026-01-30
       """
 
-      result = parse_chainlink_output(output)
+      result = ChainlinkMonitor.parse_chainlink_output_for_test(output)
 
       assert length(result) == 1
       [issue] = result
       assert issue.status == "closed"
     end
+
+    test "parses real chainlink output with truncated titles" do
+      output = """
+      #73   [open]   Perf: Reduce external CLI command ove... medium   2026-02-01
+      #70   [open]   Perf: Optimize SessionBridge file I/O... high     2026-02-01
+      """
+
+      result = ChainlinkMonitor.parse_chainlink_output_for_test(output)
+
+      assert length(result) == 2
+      
+      [issue1, issue2] = result
+      assert issue1.id == 73
+      assert issue1.status == "open"
+      assert issue1.title == "Perf: Reduce external CLI command ove..."
+      assert issue1.priority == :medium
+      assert issue1.due == "2026-02-01"
+      
+      assert issue2.id == 70
+      assert issue2.status == "open"
+      assert issue2.title == "Perf: Optimize SessionBridge file I/O..."
+      assert issue2.priority == :high
+      assert issue2.due == "2026-02-01"
+    end
   end
 
   describe "normalize_priority/1 logic" do
     test "normalizes high priority" do
-      assert normalize_priority("high") == :high
-      assert normalize_priority("HIGH") == :high
-      assert normalize_priority("High") == :high
+      assert ChainlinkMonitor.normalize_priority_for_test("high") == :high
+      assert ChainlinkMonitor.normalize_priority_for_test("HIGH") == :high
+      assert ChainlinkMonitor.normalize_priority_for_test("High") == :high
     end
 
     test "normalizes medium priority" do
-      assert normalize_priority("medium") == :medium
-      assert normalize_priority("MEDIUM") == :medium
+      assert ChainlinkMonitor.normalize_priority_for_test("medium") == :medium
+      assert ChainlinkMonitor.normalize_priority_for_test("MEDIUM") == :medium
     end
 
     test "normalizes low priority" do
-      assert normalize_priority("low") == :low
-      assert normalize_priority("LOW") == :low
+      assert ChainlinkMonitor.normalize_priority_for_test("low") == :low
+      assert ChainlinkMonitor.normalize_priority_for_test("LOW") == :low
     end
 
     test "defaults to medium for unknown priority" do
-      assert normalize_priority("urgent") == :medium
-      assert normalize_priority("critical") == :medium
-      assert normalize_priority("unknown") == :medium
+      assert ChainlinkMonitor.normalize_priority_for_test("urgent") == :medium
+      assert ChainlinkMonitor.normalize_priority_for_test("critical") == :medium
+      assert ChainlinkMonitor.normalize_priority_for_test("unknown") == :medium
     end
   end
 
@@ -182,7 +206,7 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
     test "parses complete issue line with due date" do
       line = "#42   [open]   Fix the bug in module   high     2026-04-15"
 
-      result = parse_issue_line(line)
+      result = ChainlinkMonitor.parse_issue_line_for_test(line)
 
       assert result.id == 42
       assert result.status == "open"
@@ -194,7 +218,7 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
     test "parses issue line without due date" do
       line = "#7   [open]   Quick fix   low"
 
-      result = parse_issue_line(line)
+      result = ChainlinkMonitor.parse_issue_line_for_test(line)
 
       assert result.id == 7
       assert result.status == "open"
@@ -204,18 +228,30 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
     end
 
     test "returns nil for invalid line" do
-      assert parse_issue_line("random text") == nil
-      assert parse_issue_line("") == nil
-      assert parse_issue_line("# not a valid id") == nil
+      assert ChainlinkMonitor.parse_issue_line_for_test("random text") == nil
+      assert ChainlinkMonitor.parse_issue_line_for_test("") == nil
+      assert ChainlinkMonitor.parse_issue_line_for_test("# not a valid id") == nil
     end
 
     test "handles titles with special characters" do
       line = "#99   [open]   Fix bug in file_utils.ex (critical)   high     2026-05-01"
 
-      result = parse_issue_line(line)
+      result = ChainlinkMonitor.parse_issue_line_for_test(line)
 
       assert result.id == 99
       assert result.title =~ "Fix bug in file_utils.ex"
+    end
+
+    test "parses real chainlink output with truncated titles correctly" do
+      line = "#70   [open]   Perf: Optimize SessionBridge file I/O... high     2026-02-01"
+
+      result = ChainlinkMonitor.parse_issue_line_for_test(line)
+
+      assert result.id == 70
+      assert result.status == "open"
+      assert result.title == "Perf: Optimize SessionBridge file I/O..."
+      assert result.priority == :high
+      assert result.due == "2026-02-01"
     end
   end
 
@@ -227,59 +263,6 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
       assert function_exported?(ChainlinkMonitor, :refresh, 0)
       assert function_exported?(ChainlinkMonitor, :subscribe, 0)
       assert function_exported?(ChainlinkMonitor, :get_issue_details, 1)
-    end
-  end
-
-  # Implementations mirroring the private function logic
-  defp parse_chainlink_output(output) do
-    output
-    |> String.split("\n")
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.map(&parse_issue_line/1)
-    |> Enum.reject(&is_nil/1)
-  end
-
-  defp parse_issue_line(line) do
-    # Remove ANSI codes
-    clean_line = String.replace(line, ~r/\e\[[0-9;]*m/, "")
-
-    case Regex.run(
-           ~r/^#(\d+)\s+\[(\w+)\]\s+(.+?)\s{2,}(\w+)\s+(\d{4}-\d{2}-\d{2})?/,
-           clean_line
-         ) do
-      [_, id, status, title, priority, due] ->
-        %{
-          id: String.to_integer(id),
-          status: status,
-          title: String.trim(title),
-          priority: normalize_priority(priority),
-          due: due
-        }
-
-      _ ->
-        case Regex.run(~r/^#(\d+)\s+\[(\w+)\]\s+(.+?)\s{2,}(\w+)/, clean_line) do
-          [_, id, status, title, priority] ->
-            %{
-              id: String.to_integer(id),
-              status: status,
-              title: String.trim(title),
-              priority: normalize_priority(priority),
-              due: nil
-            }
-
-          _ ->
-            nil
-        end
-    end
-  end
-
-  defp normalize_priority(priority) do
-    case String.downcase(priority) do
-      "high" -> :high
-      "medium" -> :medium
-      "low" -> :low
-      _ -> :medium
     end
   end
 end
