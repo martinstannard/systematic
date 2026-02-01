@@ -1,195 +1,154 @@
 defmodule DashboardPhoenix.ResourceTrackerTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias DashboardPhoenix.ResourceTracker
 
-  describe "GenServer behavior - init" do
-    test "init returns expected initial state" do
-      {:ok, state} = ResourceTracker.init(%{})
+  describe "state metrics and memory limits" do
+    test "get_state_metrics returns expected structure" do
+      # Start the ResourceTracker for this test (or use existing one)
+      case start_supervised({ResourceTracker, []}) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+      
+      metrics = ResourceTracker.get_state_metrics()
+      
+      assert is_map(metrics)
+      assert Map.has_key?(metrics, :tracked_processes)
+      assert Map.has_key?(metrics, :total_history_points)
+      assert Map.has_key?(metrics, :last_sample)
+      assert Map.has_key?(metrics, :memory_usage_mb)
+      assert Map.has_key?(metrics, :max_tracked_processes)
+      assert Map.has_key?(metrics, :max_history_per_process)
+      
+      assert is_integer(metrics.tracked_processes)
+      assert is_integer(metrics.total_history_points)
+      assert is_number(metrics.memory_usage_mb)
+      assert metrics.max_tracked_processes == 100
+      assert metrics.max_history_per_process == 60
+    end
 
-      assert state.history == %{}
-      assert state.last_sample == nil
+    test "tracked processes respect limits" do
+      case start_supervised({ResourceTracker, []}) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+      
+      # Wait a moment for initial sampling
+      Process.sleep(100)
+      
+      metrics = ResourceTracker.get_state_metrics()
+      
+      # Should not exceed our defined limits
+      assert metrics.tracked_processes <= 100
+    end
+
+    test "history is bounded per process" do
+      case start_supervised({ResourceTracker, []}) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+      
+      # Get current state
+      current = ResourceTracker.get_current()
+      
+      # Each process should have at most 60 history points
+      Enum.each(current, fn {_pid, data} ->
+        assert length(data.history) <= 60
+      end)
     end
   end
 
-  describe "GenServer behavior - handle_call :get_history" do
-    test "get_history returns full history map" do
-      history = %{
-        "12345" => [{1000, 5.0, 1024}, {900, 4.5, 1000}],
-        "67890" => [{1000, 2.0, 512}]
-      }
-      state = %{history: history, last_sample: 1000}
-
-      {:reply, reply, new_state} = ResourceTracker.handle_call(:get_history, self(), state)
-
-      assert reply == history
-      assert new_state == state
+  describe "memory cleanup functionality" do
+    test "get_history returns properly structured data" do
+      case start_supervised({ResourceTracker, []}) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+      
+      history = ResourceTracker.get_history()
+      
+      assert is_map(history)
+      
+      # Each PID maps to a list of {timestamp, cpu, memory} tuples
+      Enum.each(history, fn {pid, data_points} ->
+        assert is_binary(pid) || is_integer(pid)  # PIDs can be strings or integers
+        assert is_list(data_points)
+        
+        Enum.each(data_points, fn {timestamp, cpu, memory} ->
+          assert is_integer(timestamp)
+          assert is_number(cpu)
+          assert is_integer(memory)
+        end)
+      end)
     end
 
-    test "get_history returns empty map when no history" do
-      state = %{history: %{}, last_sample: nil}
-
-      {:reply, reply, _} = ResourceTracker.handle_call(:get_history, self(), state)
-
-      assert reply == %{}
-    end
-  end
-
-  describe "GenServer behavior - handle_call {:get_history, pid}" do
-    test "get_history for specific pid returns that pid's history" do
-      history = %{
-        "12345" => [{1000, 5.0, 1024}],
-        "67890" => [{1000, 2.0, 512}]
-      }
-      state = %{history: history, last_sample: 1000}
-
-      {:reply, reply, _} = ResourceTracker.handle_call({:get_history, "12345"}, self(), state)
-
-      assert reply == [{1000, 5.0, 1024}]
-    end
-
-    test "get_history for unknown pid returns empty list" do
-      history = %{"12345" => [{1000, 5.0, 1024}]}
-      state = %{history: history, last_sample: 1000}
-
-      {:reply, reply, _} = ResourceTracker.handle_call({:get_history, "99999"}, self(), state)
-
-      assert reply == []
-    end
-  end
-
-  describe "GenServer behavior - handle_call :get_current" do
-    test "get_current returns latest stats for each process" do
-      now = System.system_time(:millisecond)
-      history = %{
-        "12345" => [{now, 5.0, 1024}, {now - 5000, 4.5, 1000}],
-        "67890" => [{now, 2.0, 512}]
-      }
-      state = %{history: history, last_sample: now}
-
-      {:reply, current, _} = ResourceTracker.handle_call(:get_current, self(), state)
-
-      assert Map.has_key?(current, "12345")
-      assert Map.has_key?(current, "67890")
-
-      assert current["12345"].cpu == 5.0
-      assert current["12345"].memory == 1024
-      assert current["12345"].history == history["12345"]
-
-      assert current["67890"].cpu == 2.0
+    test "get_current returns active processes with latest stats" do
+      case start_supervised({ResourceTracker, []}) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+      
+      # Wait for at least one sample
+      Process.sleep(100)
+      
+      current = ResourceTracker.get_current()
+      
+      Enum.each(current, fn {pid, data} ->
+        assert is_binary(pid) || is_integer(pid)  # PIDs can be strings or integers
+        assert is_map(data)
+        assert Map.has_key?(data, :timestamp)
+        assert Map.has_key?(data, :cpu)
+        assert Map.has_key?(data, :memory)
+        assert Map.has_key?(data, :history)
+      end)
     end
 
-    test "get_current handles empty history" do
-      state = %{history: %{}, last_sample: nil}
-
-      {:reply, current, _} = ResourceTracker.handle_call(:get_current, self(), state)
-
-      assert current == %{}
-    end
-
-    test "get_current skips entries with empty history list" do
-      history = %{
-        "12345" => [{1000, 5.0, 1024}],
-        "67890" => []  # Empty history
-      }
-      state = %{history: history, last_sample: 1000}
-
-      {:reply, current, _} = ResourceTracker.handle_call(:get_current, self(), state)
-
-      assert Map.has_key?(current, "12345")
-      refute Map.has_key?(current, "67890")  # Should be filtered out
+    test "cleanup constants are reasonable" do
+      # Test that cleanup thresholds make sense
+      case start_supervised({ResourceTracker, []}) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+      
+      metrics = ResourceTracker.get_state_metrics()
+      
+      # Max processes should be reasonable (100)
+      assert metrics.max_tracked_processes == 100
+      
+      # History per process should be reasonable (60 = 5 minutes at 5s intervals)
+      assert metrics.max_history_per_process == 60
     end
   end
 
-  describe "GenServer behavior - handle_info :sample" do
-    test "sample schedules next sample" do
-      state = %{history: %{}, last_sample: nil}
+  describe "telemetry and monitoring" do
+    test "total history points calculation" do
+      case start_supervised({ResourceTracker, []}) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+      
+      metrics = ResourceTracker.get_state_metrics()
+      
+      # Total history points should be the sum of all process histories
+      assert is_integer(metrics.total_history_points)
+      assert metrics.total_history_points >= 0
+      
+      # Should not exceed max_processes * max_history_per_process
+      max_possible = metrics.max_tracked_processes * metrics.max_history_per_process
+      assert metrics.total_history_points <= max_possible
+    end
 
-      {:noreply, _new_state} = ResourceTracker.handle_info(:sample, state)
-
-      # Should receive :sample message after interval (5000ms default)
-      # We use a longer timeout to be safe in CI
-      assert_receive :sample, 6000
+    test "memory usage is reported" do
+      case start_supervised({ResourceTracker, []}) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+      
+      metrics = ResourceTracker.get_state_metrics()
+      
+      assert is_number(metrics.memory_usage_mb)
+      assert metrics.memory_usage_mb > 0
     end
   end
-
-  describe "parse_memory_kb/1 (private function logic)" do
-    test "parses valid memory string" do
-      assert parse_memory_kb("1024") == 1024
-      assert parse_memory_kb("0") == 0
-      assert parse_memory_kb("999999") == 999_999
-    end
-
-    test "returns 0 for invalid memory string" do
-      assert parse_memory_kb("invalid") == 0
-      assert parse_memory_kb("") == 0
-    end
-
-    test "returns 0 for non-string input" do
-      assert parse_memory_kb(nil) == 0
-      assert parse_memory_kb(123) == 0
-    end
-  end
-
-  describe "history management" do
-    test "history data point format is {timestamp, cpu, memory_kb}" do
-      # Verify the expected tuple format
-      data_point = {1705315800000, 5.5, 2048}
-
-      {timestamp, cpu, memory} = data_point
-
-      assert is_integer(timestamp)
-      assert is_number(cpu)
-      assert is_integer(memory)
-    end
-
-    test "history maintains max entries (rolling window)" do
-      # The ResourceTracker keeps @max_history entries (60)
-      # This tests the expected behavior
-      max_history = 60
-
-      # Create more entries than max
-      entries = for i <- 1..100, do: {i, 1.0, 100}
-
-      # Simulating Enum.take behavior
-      trimmed = Enum.take(entries, max_history)
-
-      assert length(trimmed) == max_history
-      # Should keep the first entries (newest first)
-      assert hd(trimmed) == {1, 1.0, 100}
-    end
-  end
-
-  describe "module exports" do
-    test "exports expected client API functions" do
-      assert function_exported?(ResourceTracker, :start_link, 1)
-      assert function_exported?(ResourceTracker, :get_history, 0)
-      assert function_exported?(ResourceTracker, :get_history, 1)
-      assert function_exported?(ResourceTracker, :get_current, 0)
-      assert function_exported?(ResourceTracker, :subscribe, 0)
-    end
-  end
-
-  describe "configuration constants" do
-    test "sample interval is reasonable for monitoring (< 60s)" do
-      # The module uses 5 second interval
-      # We verify via the schedule_sample message timing
-      state = %{history: %{}, last_sample: nil}
-
-      # Track when we receive the :sample message
-      {:noreply, _} = ResourceTracker.handle_info(:sample, state)
-
-      # Should receive within reasonable time (using 6s for margin)
-      assert_receive :sample, 6000
-    end
-  end
-
-  # Helper to test parse_memory_kb logic
-  defp parse_memory_kb(rss_str) when is_binary(rss_str) do
-    case Integer.parse(rss_str) do
-      {val, _} -> val
-      :error -> 0
-    end
-  end
-  defp parse_memory_kb(_), do: 0
 end

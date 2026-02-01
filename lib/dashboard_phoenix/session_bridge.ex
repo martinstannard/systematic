@@ -12,6 +12,8 @@ defmodule DashboardPhoenix.SessionBridge do
   @max_poll_interval 2000    # Back off to 2s when idle
   @backoff_increment 250     # Increase by 250ms each idle poll
   @max_progress_events 100
+  @max_transcript_offsets 50  # Limit transcript_offsets map size
+  @transcript_cleanup_interval 300_000  # Clean up old transcripts every 5 minutes
 
   defp sessions_file do
     Paths.sessions_file()
@@ -33,6 +35,10 @@ defmodule DashboardPhoenix.SessionBridge do
     GenServer.call(__MODULE__, :get_progress)
   end
 
+  def get_state_metrics do
+    GenServer.call(__MODULE__, :get_state_metrics)
+  end
+
   def subscribe do
     Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "agent_updates")
   end
@@ -45,6 +51,7 @@ defmodule DashboardPhoenix.SessionBridge do
     FileUtils.ensure_exists(Paths.progress_file())
     
     schedule_poll(@base_poll_interval)
+    schedule_transcript_cleanup()
     {:ok, %{
       sessions: [],
       progress: [],
@@ -52,7 +59,8 @@ defmodule DashboardPhoenix.SessionBridge do
       last_session_mtime: nil,
       transcript_offsets: %{},  # Track read positions per transcript file
       last_transcript_poll: 0,
-      current_poll_interval: @base_poll_interval  # Adaptive polling interval
+      current_poll_interval: @base_poll_interval,  # Adaptive polling interval
+      last_cleanup: System.system_time(:millisecond)
     }}
   end
 
@@ -64,6 +72,20 @@ defmodule DashboardPhoenix.SessionBridge do
   @impl true
   def handle_call(:get_progress, _from, state) do
     {:reply, state.progress, state}
+  end
+
+  @impl true
+  def handle_call(:get_state_metrics, _from, state) do
+    metrics = %{
+      sessions_count: length(state.sessions),
+      progress_events: length(state.progress),
+      transcript_offsets_count: map_size(state.transcript_offsets),
+      last_cleanup: state.last_cleanup,
+      progress_offset: state.progress_offset,
+      current_poll_interval: state.current_poll_interval,
+      memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
+    }
+    {:reply, metrics, state}
   end
 
   @impl true
@@ -98,8 +120,75 @@ defmodule DashboardPhoenix.SessionBridge do
     {:noreply, new_state}
   end
 
+  @impl true
+  def handle_info(:cleanup_transcripts, state) do
+    new_state = cleanup_old_transcript_offsets(state)
+    schedule_transcript_cleanup()
+    {:noreply, new_state}
+  end
+
   defp schedule_poll(interval) do
     Process.send_after(self(), :poll, interval)
+  end
+
+  defp schedule_transcript_cleanup do
+    Process.send_after(self(), :cleanup_transcripts, @transcript_cleanup_interval)
+  end
+
+  # Clean up old transcript offsets to prevent unbounded memory growth
+  defp cleanup_old_transcript_offsets(state) do
+    dir = transcripts_dir()
+    cutoff = System.system_time(:second) - 3600  # Keep files from last hour
+    
+    case File.ls(dir) do
+      {:ok, files} ->
+        # Get files that still exist and are recent
+        active_files = files
+        |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
+        |> Enum.reject(&(&1 == "sessions.json"))
+        |> Enum.filter(fn file ->
+          path = Path.join(dir, file)
+          case File.stat(path) do
+            {:ok, %{mtime: mtime}} ->
+              epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
+              epoch > cutoff
+            _ -> false
+          end
+        end)
+        |> MapSet.new()
+        
+        # Clean up transcript_offsets - keep only recent files and limit size
+        cleaned_offsets = state.transcript_offsets
+        |> Enum.filter(fn {filename, _offset} -> MapSet.member?(active_files, filename) end)
+        |> Enum.sort_by(fn {filename, _offset} -> 
+          # Sort by mtime descending to keep most recent files
+          path = Path.join(dir, filename)
+          case File.stat(path) do
+            {:ok, %{mtime: mtime}} -> 
+              mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix() 
+            _ -> 0
+          end
+        end, :desc)
+        |> Enum.take(@max_transcript_offsets)
+        |> Map.new()
+        
+        # Log cleanup stats and telemetry
+        old_count = map_size(state.transcript_offsets)
+        new_count = map_size(cleaned_offsets)
+        if old_count > new_count do
+          require Logger
+          Logger.info("SessionBridge: Cleaned up transcript offsets: #{old_count} -> #{new_count}")
+        end
+        
+        # Log periodic telemetry (every cleanup cycle)
+        require Logger
+        Logger.info("SessionBridge telemetry: transcript_offsets=#{new_count}/#{@max_transcript_offsets}, progress_events=#{length(state.progress)}/#{@max_progress_events}, sessions=#{length(state.sessions)}")
+        
+        %{state | transcript_offsets: cleaned_offsets, last_cleanup: System.system_time(:millisecond)}
+        
+      _ ->
+        state
+    end
   end
 
   # Tail the JSONL progress file for new lines

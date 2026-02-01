@@ -13,6 +13,8 @@ defmodule DashboardPhoenix.ResourceTracker do
   @max_history 60  # 5 minutes of history at 5-second intervals
   @interesting_patterns ~w(opencode openclaw claude codex)
   @cli_timeout_ms 10_000
+  @max_tracked_processes 100  # Limit total number of tracked processes
+  @process_inactive_threshold 120_000  # Remove processes inactive for 2 minutes
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -38,6 +40,13 @@ defmodule DashboardPhoenix.ResourceTracker do
   """
   def get_current do
     GenServer.call(__MODULE__, :get_current)
+  end
+
+  @doc """
+  Get state metrics for telemetry monitoring.
+  """
+  def get_state_metrics do
+    GenServer.call(__MODULE__, :get_state_metrics)
   end
 
   def subscribe do
@@ -78,6 +87,24 @@ defmodule DashboardPhoenix.ResourceTracker do
   end
 
   @impl true
+  def handle_call(:get_state_metrics, _from, state) do
+    total_history_points = state.history 
+    |> Map.values() 
+    |> Enum.map(&length/1) 
+    |> Enum.sum()
+    
+    metrics = %{
+      tracked_processes: map_size(state.history),
+      total_history_points: total_history_points,
+      last_sample: state.last_sample,
+      memory_usage_mb: :erlang.memory(:total) / (1024 * 1024),
+      max_tracked_processes: @max_tracked_processes,
+      max_history_per_process: @max_history
+    }
+    {:reply, metrics, state}
+  end
+
+  @impl true
   def handle_info(:sample, state) do
     new_state = sample_processes(state)
     schedule_sample()
@@ -103,19 +130,50 @@ defmodule DashboardPhoenix.ResourceTracker do
       Map.put(acc, pid, updated)
     end)
     
-    # Remove processes that are no longer running (haven't been seen in 2 samples)
+    # Improved cleanup: remove stale processes and enforce size limits
     current_pids = MapSet.new(Enum.map(processes, & &1.pid))
+    
+    # Filter out inactive processes (not seen for @process_inactive_threshold)
     cleaned_history = new_history
     |> Enum.filter(fn {pid, history} ->
-      MapSet.member?(current_pids, pid) or 
-        (length(history) > 0 and elem(hd(history), 0) > timestamp - @sample_interval * 2)
+      is_active = MapSet.member?(current_pids, pid)
+      is_recent = length(history) > 0 and elem(hd(history), 0) > timestamp - @process_inactive_threshold
+      is_active or is_recent
     end)
     |> Map.new()
     
-    # Broadcast update
-    broadcast_update(cleaned_history, processes)
+    # Enforce max_tracked_processes limit: keep most active/recent processes
+    final_history = if map_size(cleaned_history) > @max_tracked_processes do
+      require Logger
+      Logger.info("ResourceTracker: Process limit exceeded (#{map_size(cleaned_history)}), pruning to #{@max_tracked_processes}")
+      
+      cleaned_history
+      |> Enum.map(fn {pid, history} ->
+        # Score by recency and activity level
+        latest_timestamp = if length(history) > 0, do: elem(hd(history), 0), else: 0
+        is_currently_running = MapSet.member?(current_pids, pid)
+        score = latest_timestamp + (if is_currently_running, do: timestamp, else: 0)
+        {pid, history, score}
+      end)
+      |> Enum.sort_by(fn {_pid, _history, score} -> score end, :desc)
+      |> Enum.take(@max_tracked_processes)
+      |> Enum.map(fn {pid, history, _score} -> {pid, history} end)
+      |> Map.new()
+    else
+      cleaned_history
+    end
     
-    %{state | history: cleaned_history, last_sample: timestamp}
+    # Log periodic telemetry
+    if rem(div(timestamp, @sample_interval), 60) == 0 do  # Every 5 minutes
+      total_points = final_history |> Map.values() |> Enum.map(&length/1) |> Enum.sum()
+      require Logger
+      Logger.info("ResourceTracker telemetry: tracked_processes=#{map_size(final_history)}/#{@max_tracked_processes}, total_history_points=#{total_points}")
+    end
+    
+    # Broadcast update
+    broadcast_update(final_history, processes)
+    
+    %{state | history: final_history, last_sample: timestamp}
   end
 
   defp fetch_process_stats do
