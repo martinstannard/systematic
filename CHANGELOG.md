@@ -9,8 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 ### Fixed
-
-### Changed
+- Remove redundant rate limit warnings, keep debug only (#105) (2026-02-01)
 - OpenCode: Auto-cleanup stale sessions older than 1 hour (#103)
 - BranchMonitor crash: key :main_head not found in state (#107)
 - BranchMonitor crash: key :main_head not found in state (#107)
