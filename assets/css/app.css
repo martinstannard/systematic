@@ -193,9 +193,20 @@ body {
 /* Enhanced text glow effect for the main title */
 .text-system-glow {
   text-shadow: 
-    0 0 10px rgba(139, 92, 246, 0.4),
-    0 0 20px rgba(139, 92, 246, 0.2),
-    0 0 40px rgba(139, 92, 246, 0.1);
+    0 0 10px rgba(139, 92, 246, 0.5),
+    0 0 20px rgba(139, 92, 246, 0.3),
+    0 0 40px rgba(139, 92, 246, 0.15),
+    0 0 60px rgba(139, 92, 246, 0.08);
+  animation: glow-pulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse {
+  from {
+    filter: brightness(100%);
+  }
+  to {
+    filter: brightness(110%);
+  }
 }
 
 /* Light mode adjustments for text glow */
@@ -400,10 +411,20 @@ body {
 }
 
 .panel-work:hover {
-  border-color: rgba(232, 121, 249, 0.2);
+  border-color: rgba(232, 121, 249, 0.3);
   box-shadow: 
-    0 4px 16px -4px rgba(0, 0, 0, 0.4),
-    0 0 20px -8px rgba(232, 121, 249, 0.2);
+    0 4px 20px -4px rgba(0, 0, 0, 0.5),
+    0 0 30px -8px rgba(232, 121, 249, 0.25);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+.panel-work:hover::before {
+  border-color: rgba(232, 121, 249, 0.6);
+}
+
+.panel-work:hover::after {
+  border-color: rgba(232, 121, 249, 0.3);
 }
 
 [data-theme="light"] .panel-work {
@@ -473,20 +494,49 @@ body {
 
 /* Active agent state */
 .panel-agent.agent-active {
-  border-color: rgba(168, 85, 247, 0.4);
+  border-color: rgba(168, 85, 247, 0.5);
   box-shadow: 
-    0 4px 24px -4px rgba(0, 0, 0, 0.5),
-    0 0 50px -10px rgba(168, 85, 247, 0.4),
-    inset 0 0 30px -15px rgba(168, 85, 247, 0.2);
+    0 4px 28px -4px rgba(0, 0, 0, 0.6),
+    0 0 60px -10px rgba(168, 85, 247, 0.5),
+    inset 0 0 40px -15px rgba(168, 85, 247, 0.25);
+  animation: agent-heartbeat 2s ease-in-out infinite;
 }
 
 .panel-agent.agent-active::before {
-  animation: agent-scan 3s ease-in-out infinite;
+  animation: agent-scan 4s ease-in-out infinite;
 }
 
 @keyframes agent-scan {
-  0%, 100% { opacity: 0.5; right: 60px; }
-  50% { opacity: 1; right: 40px; }
+  0%, 100% { 
+    opacity: 0.4; 
+    right: 80px; 
+    transform: skewX(-45deg) scale(1);
+  }
+  25% { 
+    opacity: 0.8; 
+    right: 60px; 
+    transform: skewX(-45deg) scale(1.2);
+  }
+  75% { 
+    opacity: 0.6; 
+    right: 40px; 
+    transform: skewX(-45deg) scale(0.8);
+  }
+}
+
+@keyframes agent-heartbeat {
+  0%, 100% { 
+    box-shadow: 
+      0 4px 28px -4px rgba(0, 0, 0, 0.6),
+      0 0 60px -10px rgba(168, 85, 247, 0.5),
+      inset 0 0 40px -15px rgba(168, 85, 247, 0.25);
+  }
+  50% { 
+    box-shadow: 
+      0 4px 32px -4px rgba(0, 0, 0, 0.7),
+      0 0 80px -10px rgba(168, 85, 247, 0.6),
+      inset 0 0 50px -15px rgba(168, 85, 247, 0.3);
+  }
 }
 
 [data-theme="light"] .panel-agent {
@@ -668,8 +718,8 @@ body {
 }
 
 /* =====================================================
-   LEGACY: Maintain glass-panel for transition period
-   Will be gradually replaced with specific panel types
+   BACKGROUND SYSTEM: Space-themed environment
+   Creates atmospheric depth and context
    ===================================================== */
 
 /* Dark mode space background */
@@ -903,8 +953,27 @@ body {
 button:focus-visible {
   outline: 2px solid oklch(75% 0.2 200); /* Cyan glow color */
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.3), 0 0 12px rgba(34, 211, 238, 0.4);
-  border-radius: 4px;
+  box-shadow: 
+    0 0 0 4px rgba(34, 211, 238, 0.3), 
+    0 0 16px rgba(34, 211, 238, 0.4),
+    0 0 32px rgba(34, 211, 238, 0.2);
+  border-radius: 6px;
+  animation: focus-beacon 2s ease-in-out infinite;
+}
+
+@keyframes focus-beacon {
+  0%, 100% { 
+    box-shadow: 
+      0 0 0 4px rgba(34, 211, 238, 0.3), 
+      0 0 16px rgba(34, 211, 238, 0.4),
+      0 0 32px rgba(34, 211, 238, 0.2);
+  }
+  50% { 
+    box-shadow: 
+      0 0 0 4px rgba(34, 211, 238, 0.4), 
+      0 0 20px rgba(34, 211, 238, 0.5),
+      0 0 40px rgba(34, 211, 238, 0.25);
+  }
 }
 
 /* Links focus state */
