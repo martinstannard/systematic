@@ -38,19 +38,24 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
 
   def render(assigns) do
     ~H"""
-    <div class={"glass-panel rounded-lg overflow-hidden" <> if(@main_agent_session, do: " border-2 border-purple-500/30", else: " border border-base-content/10")} id="dave">
+    <div class={"panel-agent rounded-lg overflow-hidden" <> if(@main_agent_session && @main_agent_session.status == "running", do: " agent-active", else: "")} id="dave">
       <%= if @main_agent_session do %>
         <div 
-          class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
+          class="panel-header-interactive flex items-center justify-between px-3 py-2.5 select-none"
           phx-click="toggle_panel"
           phx-target={@myself}
         >
           <div class="flex items-center space-x-2">
-            <span class={"text-xs transition-transform duration-200 " <> if(@dave_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-            <span class="text-xs font-mono text-purple-400 uppercase tracking-wider">🐙 Dave</span>
-            <span class={"px-1.5 py-0.5 rounded text-[10px] " <> status_badge(@main_agent_session.status)}>
-              <%= @main_agent_session.status %>
-            </span>
+            <span class={"panel-chevron " <> if(@dave_collapsed, do: "collapsed", else: "")}>▼</span>
+            <span class="panel-icon">🐙</span>
+            <span class="text-xs font-mono text-purple-400 uppercase tracking-wider">Dave</span>
+            <%= if @main_agent_session.status == "running" do %>
+              <span class="status-beacon text-warning"></span>
+            <% else %>
+              <span class={"px-1.5 py-0.5 rounded text-[10px] " <> status_badge(@main_agent_session.status)}>
+                <%= @main_agent_session.status %>
+              </span>
+            <% end %>
           </div>
           <div class="flex items-center space-x-2">
             <% {_type, model_name, model_icon} = agent_type_from_model(Map.get(@main_agent_session, :model)) %>
@@ -69,21 +74,21 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
               <%= if @main_agent_session.status == "running" do %>
                 <%= if current_action do %>
                   <div class="flex items-center space-x-2 mb-2">
-                    <span class="throbber-small"></span>
+                    <span class="status-activity-ring text-purple-400"></span>
                     <span class="text-[10px] text-purple-400/70">Current:</span>
-                    <span class="text-purple-300 text-xs font-mono truncate animate-pulse" title={current_action}>
+                    <span class="text-purple-300 text-xs font-mono truncate" title={current_action}>
                       <%= current_action %>
                     </span>
                   </div>
                 <% else %>
                   <div class="flex items-center space-x-2 mb-2">
-                    <span class="throbber-small"></span>
+                    <span class="status-activity-ring text-purple-400"></span>
                     <span class="text-xs text-purple-400/60 italic">Working...</span>
                   </div>
                 <% end %>
               <% else %>
                 <div class="flex items-center space-x-2 mb-2">
-                  <span class="text-purple-400">○</span>
+                  <span class="status-marker-idle w-2 h-2 rounded-full bg-purple-400"></span>
                   <span class="text-xs text-purple-400/60">Idle</span>
                 </div>
               <% end %>

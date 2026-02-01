@@ -132,7 +132,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponentTest do
       html = render_component(OpenCodeComponent, assigns)
 
       assert html =~ "max-h-0"
-      assert html =~ "-rotate-90"
+      assert html =~ "panel-chevron collapsed"
     end
 
     test "renders expanded state" do
@@ -146,7 +146,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponentTest do
       html = render_component(OpenCodeComponent, assigns)
 
       assert html =~ "max-h-[400px]"
-      refute html =~ "-rotate-90"
+      refute html =~ "panel-chevron collapsed"
     end
 
     test "renders multiple sessions" do

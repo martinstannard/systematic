@@ -110,9 +110,9 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="glass-panel rounded-lg overflow-hidden">
+    <div class="panel-work rounded-lg overflow-hidden">
       <div
-        class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+        class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
         phx-target={@myself}
         role="button"
@@ -123,10 +123,11 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
-          <span class={"text-xs transition-transform duration-200 " <> if(@branches_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-          <span class="text-ui-label text-accent uppercase tracking-wider">🌿 Unmerged Branches</span>
+          <span class={"panel-chevron " <> if(@branches_collapsed, do: "collapsed", else: "")}>▼</span>
+          <span class="panel-icon">🌿</span>
+          <span class="text-ui-label text-accent uppercase tracking-wider">Unmerged Branches</span>
           <%= if @branches_loading do %>
-            <span class="throbber-small"></span>
+            <span class="status-activity-ring text-accent"></span>
           <% else %>
             <span class="text-ui-caption text-tabular text-base-content/60"><%= length(@unmerged_branches) %></span>
           <% end %>

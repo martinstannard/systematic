@@ -81,9 +81,9 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="glass-panel rounded-lg overflow-hidden">
+    <div class="panel-work rounded-lg overflow-hidden">
       <div 
-        class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+        class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
         phx-target={@myself}
         role="button"
@@ -94,10 +94,11 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
-          <span class={"text-xs transition-transform duration-200 " <> if(@linear_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">🎫 Linear</span>
+          <span class={"panel-chevron " <> if(@linear_collapsed, do: "collapsed", else: "")}>▼</span>
+          <span class="panel-icon">🎫</span>
+          <span class="text-xs font-mono text-accent uppercase tracking-wider">Linear</span>
           <%= if @linear_loading do %>
-            <span class="throbber-small"></span>
+            <span class="status-activity-ring text-accent"></span>
           <% else %>
             <span class="text-[10px] font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
           <% end %>

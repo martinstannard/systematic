@@ -61,8 +61,8 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class={"fixed inset-0 bg-black/60 flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} phx-click="close_work_modal" phx-target={@myself}>
-      <div class="glass-panel rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" phx-click-away="close_work_modal" phx-target={@myself}>
+    <div class={"fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} phx-click="close_work_modal" phx-target={@myself}>
+      <div class="panel-agent rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto border-2 border-purple-500/40" phx-click-away="close_work_modal" phx-target={@myself}>
         <!-- Header -->
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center space-x-3">

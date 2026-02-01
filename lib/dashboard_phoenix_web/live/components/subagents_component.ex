@@ -130,9 +130,9 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
     # Pre-calculated values are already available in assigns from update/2
 
     ~H"""
-    <div class="glass-panel rounded-lg overflow-hidden" id="subagents">
+    <div class="panel-work rounded-lg overflow-hidden" id="subagents">
       <div 
-        class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+        class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
         {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
         role="button"
@@ -143,11 +143,13 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
-          <span class={"text-xs transition-transform duration-200 " <> if(@subagents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">🤖 Sub-Agents</span>
+          <span class={"panel-chevron " <> if(@subagents_collapsed, do: "collapsed", else: "")}>▼</span>
+          <span class="panel-icon">🤖</span>
+          <span class="text-xs font-mono text-accent uppercase tracking-wider">Sub-Agents</span>
           <span class="text-[10px] font-mono text-base-content/50"><%= @sub_agent_sessions_count %></span>
           <%= if @running_count > 0 do %>
-            <span class="px-1.5 py-0.5 rounded bg-warning/20 text-warning text-[10px] animate-pulse">
+            <span class="status-beacon text-warning"></span>
+            <span class="px-1.5 py-0.5 rounded bg-warning/20 text-warning text-[10px]">
               <%= @running_count %> active
             </span>
           <% end %>

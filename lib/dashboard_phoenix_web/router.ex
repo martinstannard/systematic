@@ -22,6 +22,7 @@ defmodule DashboardPhoenixWeb.Router do
   scope "/", DashboardPhoenixWeb do
     pipe_through(:browser)
 
+    get("/page", PageController, :home)
     get("/login", AuthController, :login)
     post("/login", AuthController, :authenticate)
     get("/logout", AuthController, :logout)

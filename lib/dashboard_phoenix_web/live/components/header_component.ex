@@ -16,7 +16,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="glass-panel rounded-lg px-4 py-2 flex items-center justify-between mb-3">
+    <div class="panel-command rounded-lg px-4 py-2.5 flex items-center justify-between mb-3">
       <div class="flex items-center space-x-4">
         <h1 class="text-system-title text-system-glow text-base-content">SYSTEMATIC</h1>
         <span class="text-system-subtitle text-base-content/70">AGENT CONTROL</span>
@@ -53,9 +53,9 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
           <div class="flex items-center space-x-2">
             <span class="text-ui-label text-base-content/60">ACP:</span>
             <%= if @opencode_server_status.running do %>
-              <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+              <span class="status-beacon text-success"></span>
             <% else %>
-              <span class="w-2 h-2 rounded-full bg-base-content/30"></span>
+              <span class="status-marker-idle text-base-content/30"></span>
             <% end %>
           </div>
         <% end %>
