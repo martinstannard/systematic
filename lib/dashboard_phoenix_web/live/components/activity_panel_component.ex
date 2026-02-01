@@ -174,11 +174,12 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_type_label(:task_started), do: "Task Started"
   defp event_type_label(type), do: type |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
 
-  # Format timestamp in Sydney time
+  # Format timestamp in Sydney time (UTC+11)
   defp format_time(nil), do: ""
   defp format_time(%DateTime{} = dt) do
+    # Add 11 hours for AEDT (Sydney summer time)
     dt
-    |> DateTime.shift_zone!("Australia/Sydney")
+    |> DateTime.add(11 * 3600, :second)
     |> Calendar.strftime("%H:%M:%S")
   end
   defp format_time(_), do: ""
