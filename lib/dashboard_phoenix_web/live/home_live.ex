@@ -40,126 +40,62 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.FileUtils
 
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      # Only subscribe to SessionBridge if it's not disabled (test mode)
-      unless Application.get_env(:dashboard_phoenix, :disable_session_bridge, false) do
-        SessionBridge.subscribe()
-      end
-      StatsMonitor.subscribe()
-      ResourceTracker.subscribe()
-      AgentActivityMonitor.subscribe()
-      AgentPreferences.subscribe()
-      LinearMonitor.subscribe()
-      ChainlinkMonitor.subscribe()
-      PRMonitor.subscribe()
-      PRVerification.subscribe()
-      BranchMonitor.subscribe()
-      OpenCodeServer.subscribe()
-      GeminiServer.subscribe()
-      Process.send_after(self(), :update_processes, 100)
-      :timer.send_interval(2_000, :update_processes)
-      :timer.send_interval(5_000, :refresh_opencode_sessions)
-      # Async load Linear tickets to avoid blocking mount
-      send(self(), :load_linear_tickets)
-      # Async load Chainlink issues
-      send(self(), :load_chainlink_issues)
-      # Async load GitHub PRs
-      send(self(), :load_github_prs)
-      # Async load unmerged branches
-      send(self(), :load_branches)
-    end
-
-    processes = ProcessMonitor.list_processes()
-    
-    # Handle SessionBridge being disabled in test mode
-    {sessions, progress} = if Application.get_env(:dashboard_phoenix, :disable_session_bridge, false) do
-      {[], []}
-    else
-      try do
-        raw_sessions = SessionBridge.get_sessions()
-        # Enrich sessions with extracted ticket/PR data once (O(n) instead of O(n*m))
-        enriched = Enum.map(raw_sessions, &enrich_agent_session/1)
-        {enriched, SessionBridge.get_progress()}
-      rescue
-        _ -> {[], []}
-      end
-    end
-    stats = StatsMonitor.get_stats()
-    resource_history = ResourceTracker.get_history()
-    agent_activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, progress)
-    coding_agents = CodingAgentMonitor.list_agents()
-    coding_agent_pref = AgentPreferences.get_coding_agent()
-    opencode_status = OpenCodeServer.status()
-    opencode_sessions = fetch_opencode_sessions(opencode_status)
-    gemini_status = GeminiServer.status()
-    
-    # Initialize progress stream with recent events
-    recent_progress = Enum.take(progress, -50)
-    progress_stream = Enum.reduce(recent_progress, %{}, fn event, acc ->
-      Map.put(acc, "#{event.ts}", event)
-    end)
-    
-    # Build map of ticket_id -> work session info
-    tickets_in_progress = build_tickets_in_progress(opencode_sessions, sessions)
-    
-    # Build map of pr_number -> work session info for PRs being worked on
-    prs_in_progress = build_prs_in_progress(opencode_sessions, sessions)
-    
-    graph_data = DashboardPhoenixWeb.HomeLiveCache.get_graph_data(sessions, coding_agents, processes, opencode_sessions, gemini_status)
-    
-    # Calculate main session activity count for warning
-    main_activity_count = Enum.count(progress, & &1.agent == "main")
-    
-    # Load persisted PR state (tickets that have PRs created)
-    pr_created_tickets = load_pr_state()
-    
-    # Pre-calculate counts to improve template performance
-    agent_sessions_count = length(sessions)
-    agent_progress_count = length(progress)
-    coding_agents_count = length(coding_agents)
-    recent_processes_count = length(processes)
-
+    # Initialize all assigns with empty/loading states first
+    # This ensures the UI renders immediately with loading indicators
     socket = assign(socket,
-      process_stats: ProcessMonitor.get_stats(processes),
-      recent_processes: processes,
-      agent_sessions: sessions,
-      agent_progress: progress,
-      usage_stats: stats,
-      resource_history: resource_history,
-      agent_activity: agent_activity,
-      coding_agents: coding_agents,
-      # Pre-calculated counts
-      agent_sessions_count: agent_sessions_count,
-      agent_progress_count: agent_progress_count,
-      coding_agents_count: coding_agents_count,
-      recent_processes_count: recent_processes_count,
-      graph_data: graph_data,
-      dismissed_sessions: MapSet.new(),  # Track dismissed session IDs
-      show_main_entries: true,            # Toggle for main session visibility (legacy)
-      progress_filter: "all",              # Filter: "all", "main", or specific agent name
-      show_completed: true,               # Toggle for completed sub-agents visibility
-      main_activity_count: main_activity_count,
-      expanded_outputs: MapSet.new(),     # Track which outputs are expanded
-      coding_agent_pref: coding_agent_pref,  # Coding agent preference (opencode/claude)
-      # Linear tickets - loaded async to avoid blocking mount
+      # Process data - loaded async
+      process_stats: %{total: 0, running: 0, completed: 0, failed: 0},
+      recent_processes: [],
+      recent_processes_count: 0,
+      processes_loading: true,
+      # Session/progress data - loaded async
+      agent_sessions: [],
+      agent_progress: [],
+      agent_sessions_count: 0,
+      agent_progress_count: 0,
+      sessions_loading: true,
+      # Usage stats - loaded async (need default structure for component)
+      usage_stats: %{opencode: %{}, claude: %{}},
+      stats_loading: true,
+      # Resource history - loaded async
+      resource_history: [],
+      # Agent activity - computed from sessions+progress
+      agent_activity: [],
+      # Coding agents - loaded async
+      coding_agents: [],
+      coding_agents_count: 0,
+      coding_agents_loading: true,
+      # Coding agent preference - loaded async
+      coding_agent_pref: :opencode,  # Default value
+      # Graph data - computed after data loads
+      graph_data: %{nodes: [], links: []},
+      # UI state
+      dismissed_sessions: MapSet.new(),
+      show_main_entries: true,
+      progress_filter: "all",
+      show_completed: true,
+      main_activity_count: 0,
+      expanded_outputs: MapSet.new(),
+      # Linear tickets - loaded async
       linear_tickets: [],
-      linear_filtered_tickets: [],  # Pre-filtered tickets for current status
+      linear_filtered_tickets: [],
       linear_counts: %{},
       linear_last_updated: nil,
       linear_error: nil,
       linear_loading: true,
       linear_status_filter: "Todo",
-      tickets_in_progress: tickets_in_progress,
-      pr_created_tickets: pr_created_tickets,
-      prs_in_progress: prs_in_progress,
-      # Chainlink issues - loaded async to avoid blocking mount
+      # Work in progress tracking - computed after data loads
+      tickets_in_progress: %{},
+      pr_created_tickets: MapSet.new(),
+      prs_in_progress: %{},
+      # Chainlink issues - loaded async
       chainlink_issues: [],
       chainlink_last_updated: nil,
       chainlink_error: nil,
       chainlink_loading: true,
       chainlink_collapsed: false,
-      chainlink_work_in_progress: %{},  # Map of issue_id -> work session info
-      # GitHub PRs - loaded async to avoid blocking mount
+      chainlink_work_in_progress: %{},
+      # GitHub PRs - loaded async
       github_prs: [],
       github_prs_last_updated: nil,
       github_prs_error: nil,
@@ -173,29 +109,32 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # Branch action states
       branch_merge_pending: nil,
       branch_delete_pending: nil,
-      # PR fix action state (tracks which PR number is being fixed)
+      # PR fix action state
       pr_fix_pending: nil,
-      # PR verifications (loaded from PRVerification)
-      pr_verifications: PRVerification.get_all_verifications(),
+      # PR verifications - loaded async
+      pr_verifications: %{},
+      pr_verifications_loading: true,
       # Work modal state
       show_work_modal: false,
       work_ticket_id: nil,
       work_ticket_details: nil,
       work_ticket_loading: false,
-      # OpenCode server state
-      opencode_server_status: opencode_status,
-      opencode_sessions: opencode_sessions,
-      opencode_sessions_count: length(opencode_sessions),
-      # Gemini server state
-      gemini_server_status: gemini_status,
+      # OpenCode server state - loaded async
+      opencode_server_status: %{running: false, port: nil, pid: nil},
+      opencode_sessions: [],
+      opencode_sessions_count: 0,
+      opencode_loading: true,
+      # Gemini server state - loaded async
+      gemini_server_status: %{running: false, port: nil, pid: nil},
       gemini_output: "",
+      gemini_loading: true,
       # Work in progress
       work_in_progress: false,
       work_sent: false,
       work_error: nil,
       # Model selections
-      claude_model: "anthropic/claude-opus-4-5",  # Default to opus
-      opencode_model: "gemini-3-pro",  # Default to gemini 3 pro
+      claude_model: "anthropic/claude-opus-4-5",
+      opencode_model: "gemini-3-pro",
       # Panel collapse states
       config_collapsed: false,
       linear_collapsed: false,
@@ -213,13 +152,45 @@ defmodule DashboardPhoenixWeb.HomeLive do
       chat_collapsed: true
     )
     
-    # Initialize progress feed stream
-    socket = stream(socket, :progress_events, recent_progress, dom_id: fn event -> "progress-#{event.ts}" end)
+    # Initialize empty progress stream
+    socket = stream(socket, :progress_events, [], dom_id: fn event -> "progress-#{event.ts}" end)
     
-    socket = if connected?(socket) do
-      push_event(socket, "graph_update", graph_data)
-    else
-      socket
+    if connected?(socket) do
+      # Subscribe to all PubSub topics
+      unless Application.get_env(:dashboard_phoenix, :disable_session_bridge, false) do
+        SessionBridge.subscribe()
+      end
+      StatsMonitor.subscribe()
+      ResourceTracker.subscribe()
+      AgentActivityMonitor.subscribe()
+      AgentPreferences.subscribe()
+      LinearMonitor.subscribe()
+      ChainlinkMonitor.subscribe()
+      PRMonitor.subscribe()
+      PRVerification.subscribe()
+      BranchMonitor.subscribe()
+      OpenCodeServer.subscribe()
+      GeminiServer.subscribe()
+      
+      # Schedule periodic updates (after initial data loads)
+      Process.send_after(self(), :update_processes, 500)
+      :timer.send_interval(2_000, :update_processes)
+      :timer.send_interval(5_000, :refresh_opencode_sessions)
+      
+      # Trigger all async loads - UI renders immediately with loading states
+      send(self(), :load_processes)
+      send(self(), :load_sessions)
+      send(self(), :load_stats)
+      send(self(), :load_coding_agents)
+      send(self(), :load_preferences)
+      send(self(), :load_opencode_status)
+      send(self(), :load_gemini_status)
+      send(self(), :load_pr_verifications)
+      send(self(), :load_pr_state)
+      send(self(), :load_linear_tickets)
+      send(self(), :load_chainlink_issues)
+      send(self(), :load_github_prs)
+      send(self(), :load_branches)
     end
 
     {:ok, socket}
@@ -568,6 +539,344 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end)
     
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
+  end
+
+  # ============================================================================
+  # ASYNC LOAD HANDLERS - All heavy data loading happens here, not in mount/3
+  # This ensures the UI renders immediately with loading states
+  # ============================================================================
+
+  # Handle async process loading (initial mount)
+  def handle_info(:load_processes, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        processes = ProcessMonitor.list_processes()
+        send(parent, {:processes_loaded, processes})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load processes: #{inspect(e)}")
+          send(parent, {:processes_loaded, []})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Processes load exited: #{inspect(reason)}")
+          send(parent, {:processes_loaded, []})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle processes loaded result
+  def handle_info({:processes_loaded, processes}, socket) do
+    {:noreply, assign(socket,
+      process_stats: ProcessMonitor.get_stats(processes),
+      recent_processes: processes,
+      recent_processes_count: length(processes),
+      processes_loading: false
+    )}
+  end
+
+  # Handle async sessions/progress loading (initial mount)
+  def handle_info(:load_sessions, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        if Application.get_env(:dashboard_phoenix, :disable_session_bridge, false) do
+          send(parent, {:sessions_loaded, [], []})
+        else
+          raw_sessions = SessionBridge.get_sessions()
+          progress = SessionBridge.get_progress()
+          send(parent, {:sessions_loaded, raw_sessions, progress})
+        end
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load sessions: #{inspect(e)}")
+          send(parent, {:sessions_loaded, [], []})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Sessions load exited: #{inspect(reason)}")
+          send(parent, {:sessions_loaded, [], []})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle sessions/progress loaded result
+  def handle_info({:sessions_loaded, raw_sessions, progress}, socket) do
+    # Enrich sessions with extracted ticket/PR data once (O(n) instead of O(n*m))
+    sessions = Enum.map(raw_sessions, &enrich_agent_session/1)
+    activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, progress)
+    main_activity_count = Enum.count(progress, & &1.agent == "main")
+    
+    # Rebuild work-in-progress maps now that we have sessions
+    tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
+    prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
+    
+    # Rebuild graph data if coding agents are loaded
+    graph_data = if socket.assigns.coding_agents_loading do
+      socket.assigns.graph_data
+    else
+      DashboardPhoenixWeb.HomeLiveCache.get_graph_data(
+        sessions,
+        socket.assigns.coding_agents,
+        socket.assigns.recent_processes,
+        socket.assigns.opencode_sessions,
+        socket.assigns.gemini_server_status
+      )
+    end
+    
+    # Initialize progress stream with recent events
+    recent_progress = Enum.take(progress, -50)
+    socket = stream(socket, :progress_events, recent_progress, reset: true, dom_id: fn event -> "progress-#{event.ts}" end)
+    
+    socket = socket
+    |> assign(
+      agent_sessions: sessions,
+      agent_progress: progress,
+      agent_sessions_count: length(sessions),
+      agent_progress_count: length(progress),
+      agent_activity: activity,
+      main_activity_count: main_activity_count,
+      tickets_in_progress: tickets_in_progress,
+      prs_in_progress: prs_in_progress,
+      graph_data: graph_data,
+      sessions_loading: false
+    )
+    |> push_event("graph_update", graph_data)
+    
+    {:noreply, socket}
+  end
+
+  # Handle async stats loading (initial mount)
+  def handle_info(:load_stats, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        stats = StatsMonitor.get_stats()
+        resource_history = ResourceTracker.get_history()
+        send(parent, {:stats_loaded, stats, resource_history})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load stats: #{inspect(e)}")
+          send(parent, {:stats_loaded, %{}, []})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Stats load exited: #{inspect(reason)}")
+          send(parent, {:stats_loaded, %{}, []})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle stats loaded result
+  def handle_info({:stats_loaded, stats, resource_history}, socket) do
+    {:noreply, assign(socket,
+      usage_stats: stats,
+      resource_history: resource_history,
+      stats_loading: false
+    )}
+  end
+
+  # Handle async coding agents loading (initial mount)
+  def handle_info(:load_coding_agents, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        agents = CodingAgentMonitor.list_agents()
+        send(parent, {:coding_agents_loaded, agents})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load coding agents: #{inspect(e)}")
+          send(parent, {:coding_agents_loaded, []})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Coding agents load exited: #{inspect(reason)}")
+          send(parent, {:coding_agents_loaded, []})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle coding agents loaded result
+  def handle_info({:coding_agents_loaded, agents}, socket) do
+    # Rebuild graph data if sessions are loaded
+    graph_data = if socket.assigns.sessions_loading do
+      socket.assigns.graph_data
+    else
+      DashboardPhoenixWeb.HomeLiveCache.get_graph_data(
+        socket.assigns.agent_sessions,
+        agents,
+        socket.assigns.recent_processes,
+        socket.assigns.opencode_sessions,
+        socket.assigns.gemini_server_status
+      )
+    end
+    
+    socket = socket
+    |> assign(
+      coding_agents: agents,
+      coding_agents_count: length(agents),
+      coding_agents_loading: false,
+      graph_data: graph_data
+    )
+    |> push_event("graph_update", graph_data)
+    
+    {:noreply, socket}
+  end
+
+  # Handle async preferences loading (initial mount)
+  def handle_info(:load_preferences, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        pref = AgentPreferences.get_coding_agent()
+        send(parent, {:preferences_loaded, pref})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load preferences: #{inspect(e)}")
+          send(parent, {:preferences_loaded, :opencode})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Preferences load exited: #{inspect(reason)}")
+          send(parent, {:preferences_loaded, :opencode})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle preferences loaded result
+  def handle_info({:preferences_loaded, pref}, socket) do
+    {:noreply, assign(socket, coding_agent_pref: pref)}
+  end
+
+  # Handle async OpenCode status loading (initial mount)
+  def handle_info(:load_opencode_status, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        status = OpenCodeServer.status()
+        sessions = fetch_opencode_sessions(status)
+        send(parent, {:opencode_status_loaded, status, sessions})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load OpenCode status: #{inspect(e)}")
+          send(parent, {:opencode_status_loaded, %{running: false, port: nil, pid: nil}, []})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("OpenCode status load exited: #{inspect(reason)}")
+          send(parent, {:opencode_status_loaded, %{running: false, port: nil, pid: nil}, []})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle OpenCode status loaded result
+  def handle_info({:opencode_status_loaded, status, sessions}, socket) do
+    # Rebuild work-in-progress maps with OpenCode sessions
+    tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+    prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+    
+    {:noreply, assign(socket,
+      opencode_server_status: status,
+      opencode_sessions: sessions,
+      opencode_sessions_count: length(sessions),
+      opencode_loading: false,
+      tickets_in_progress: tickets_in_progress,
+      prs_in_progress: prs_in_progress
+    )}
+  end
+
+  # Handle async Gemini status loading (initial mount)
+  def handle_info(:load_gemini_status, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        status = GeminiServer.status()
+        send(parent, {:gemini_status_loaded, status})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load Gemini status: #{inspect(e)}")
+          send(parent, {:gemini_status_loaded, %{running: false, port: nil, pid: nil}})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Gemini status load exited: #{inspect(reason)}")
+          send(parent, {:gemini_status_loaded, %{running: false, port: nil, pid: nil}})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle Gemini status loaded result
+  def handle_info({:gemini_status_loaded, status}, socket) do
+    {:noreply, assign(socket, gemini_server_status: status, gemini_loading: false)}
+  end
+
+  # Handle async PR verifications loading (initial mount)
+  def handle_info(:load_pr_verifications, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        verifications = PRVerification.get_all_verifications()
+        send(parent, {:pr_verifications_loaded, verifications})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load PR verifications: #{inspect(e)}")
+          send(parent, {:pr_verifications_loaded, %{}})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("PR verifications load exited: #{inspect(reason)}")
+          send(parent, {:pr_verifications_loaded, %{}})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle PR verifications loaded result
+  def handle_info({:pr_verifications_loaded, verifications}, socket) do
+    {:noreply, assign(socket, pr_verifications: verifications, pr_verifications_loading: false)}
+  end
+
+  # Handle async PR state loading (initial mount)
+  def handle_info(:load_pr_state, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        pr_created = load_pr_state()
+        send(parent, {:pr_state_loaded, pr_created})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load PR state: #{inspect(e)}")
+          send(parent, {:pr_state_loaded, MapSet.new()})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("PR state load exited: #{inspect(reason)}")
+          send(parent, {:pr_state_loaded, MapSet.new()})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle PR state loaded result
+  def handle_info({:pr_state_loaded, pr_created}, socket) do
+    {:noreply, assign(socket, pr_created_tickets: pr_created)}
   end
 
   # Handle async Linear ticket loading (initial mount)
