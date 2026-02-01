@@ -2,13 +2,14 @@
    https://tailwindcss.com/docs/configuration */
 
 /* Typography: Distinctive font imports for agent control interface
-   - Space Mono: Distinctive display font for SYSTEMATIC title (mechanical, terminal aesthetic)
-   - Space Grotesk: Refined geometric sans for UI body text (technical but readable)
-   - JetBrains Mono: Premium monospace for code/data displays
+   - JetBrains Mono: Primary display font for SYSTEMATIC title and headers (technical, premium)
+   - Fira Code: Secondary display font with ligatures for code displays
+   - Inter Variable: Modern variable font for body text (highly readable, variable weights)
+   - NOTE: Inter provides smooth weight transitions from 100-900
 */
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
 
 @import "tailwindcss" source(none);
 @source "../css";
@@ -117,89 +118,113 @@
    ===================================================== */
 
 /* Font family definitions
-   - display: Space Mono for commanding titles (SYSTEMATIC)
-   - ui: Space Grotesk for readable interface text
-   - mono: JetBrains Mono for data, stats, code displays
+   - display: JetBrains Mono for commanding titles and headers (technical, premium)
+   - ui: Inter Variable for readable interface text (modern, clean)
+   - mono: Fira Code for code displays with ligatures
+   - NO generic/system fonts - everything has character
 */
 :root {
-  --font-display: 'Space Mono', 'JetBrains Mono', 'SF Mono', monospace;
-  --font-ui: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
+  --font-display: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-ui: 'Inter', 'Inter Variable', sans-serif;
+  --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
   
-  /* Typography scale - increased for better legibility */
-  --text-title: 2rem;         /* 32px - commanding title (was 28px) */
-  --text-section: 1.125rem;   /* 18px - section headers (was 16px) */
-  --text-panel: 0.875rem;     /* 14px - panel labels (was 12px) */
-  --text-body: 1rem;          /* 16px - body text (was 14px) */
-  --text-small: 0.875rem;     /* 14px - labels, values (was 12px) */
-  --text-micro: 0.8125rem;    /* 13px - captions, hints (was 12px) */
+  /* Typography scale - DRAMATIC hierarchy for command presence */
+  --text-title: 2.5rem;       /* 40px - commanding title (large, bold) */
+  --text-section: 1.375rem;   /* 22px - section headers (prominent) */
+  --text-panel: 1rem;         /* 16px - panel labels (readable) */
+  --text-body: 1rem;          /* 16px - body text */
+  --text-small: 0.9375rem;    /* 15px - labels, values */
+  --text-micro: 0.875rem;     /* 14px - captions, hints */
+  
+  /* Letter spacing scale for typographic character */
+  --tracking-title: 0.3em;    /* Very wide for SYSTEMATIC */
+  --tracking-header: 0.12em;  /* Wide for section headers */
+  --tracking-panel: 0.08em;   /* Moderate for panel labels */
+  --tracking-body: 0.01em;    /* Subtle for body text */
+  --tracking-tight: -0.01em;  /* Tight for large numbers */
 }
 
 /* Base typography classes */
 body {
   font-family: var(--font-ui);
-  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  font-weight: 400;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1, 'cv01' 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: var(--tracking-body);
+  line-height: 1.6;
 }
 
 /* Display typography: SYSTEMATIC title and major headings */
 .font-display {
   font-family: var(--font-display);
-  font-feature-settings: 'kern' 1, 'liga' 0, 'calt' 1, 'zero' 1;
-  letter-spacing: 0.05em;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1, 'zero' 1;
+  letter-spacing: var(--tracking-header);
 }
 
 .font-ui {
   font-family: var(--font-ui);
-  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1, 'cv01' 1;
 }
 
 .font-mono {
   font-family: var(--font-mono);
-  font-feature-settings: 'kern' 1, 'liga' 0, 'calt' 1, 'zero' 1;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1, 'zero' 1, 'ss01' 1;
 }
 
 /* =============================================================
    TYPOGRAPHIC HIERARCHY
    Distinctive typography for agent control interface
+   Bold, commanding presence with clear visual hierarchy
    ============================================================= */
 
-/* SYSTEMATIC title - clean, crisp terminal aesthetic */
+/* SYSTEMATIC title - bold, commanding, unmistakable */
 .text-system-title {
   font-family: var(--font-display);
   font-size: var(--text-title);
-  font-weight: 700;
-  letter-spacing: 0.25em;
+  font-weight: 800;
+  letter-spacing: var(--tracking-title);
   text-transform: uppercase;
-  font-feature-settings: 'kern' 1, 'liga' 0, 'zero' 1;
-  /* Clean text - no glow for crisp legibility */
+  font-feature-settings: 'kern' 1, 'liga' 1, 'zero' 1;
+  line-height: 1;
+  /* Subtle text shadow for depth without glow */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Subtitle - supporting text beside title */
 .text-system-subtitle {
   font-family: var(--font-display);
-  font-size: var(--text-panel);
-  font-weight: 400;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  opacity: 0.85; /* Increased from 0.7 for WCAG AA compliance */
-}
-
-/* Section headers - Monitoring, Task Management, etc. */
-.text-section-header {
-  font-family: var(--font-ui);
-  font-size: var(--text-section);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-/* Panel labels - Linear, Dave, OpenCode panel titles */
-.text-panel-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-panel);
+  font-size: calc(var(--text-panel) * 0.85);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--tracking-header);
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+/* Section headers - Core Work, Agent Status, System Config */
+.text-section-header {
+  font-family: var(--font-display);
+  font-size: var(--text-section);
+  font-weight: 700;
+  letter-spacing: var(--tracking-header);
+  line-height: 1.2;
+}
+
+/* Panel labels - Linear, Dave, OpenCode panel titles - LARGER, MORE DRAMATIC */
+.text-panel-label {
+  font-family: var(--font-display);
+  font-size: calc(var(--text-panel) * 1.1);
+  font-weight: 700;
+  letter-spacing: var(--tracking-panel);
+  text-transform: uppercase;
+}
+
+/* Panel label large variant - for high-priority panels */
+.text-panel-label-lg {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: var(--tracking-panel);
   text-transform: uppercase;
 }
 
@@ -207,8 +232,8 @@ body {
 .text-ui-label {
   font-family: var(--font-ui);
   font-size: var(--text-small);
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-weight: 600;
+  letter-spacing: var(--tracking-body);
 }
 
 /* Data values - numbers, stats, tokens */
@@ -216,7 +241,17 @@ body {
   font-family: var(--font-mono);
   font-size: var(--text-small);
   font-weight: 600;
-  font-feature-settings: 'kern' 1, 'liga' 0, 'zero' 1, 'tnum' 1;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'zero' 1, 'tnum' 1;
+  letter-spacing: var(--tracking-tight);
+}
+
+/* Large data values - prominent stats */
+.text-ui-value-lg {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'zero' 1, 'tnum' 1;
+  letter-spacing: var(--tracking-tight);
 }
 
 /* Body text - descriptions, content */
@@ -224,7 +259,8 @@ body {
   font-family: var(--font-ui);
   font-size: var(--text-body);
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.65;
+  letter-spacing: var(--tracking-body);
 }
 
 /* Captions and hints */
@@ -232,7 +268,7 @@ body {
   font-family: var(--font-ui);
   font-size: var(--text-micro);
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-body);
 }
 
 /* Micro text - timestamps, secondary info */
@@ -240,12 +276,12 @@ body {
   font-family: var(--font-mono);
   font-size: var(--text-micro);
   font-weight: 400;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
 }
 
-/* Text glow class - disabled for crisp legibility */
+/* Text glow class - subtle glow for emphasis */
 .text-system-glow {
-  /* No glow effects - crisp text for readability */
+  text-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
 
 /* Tabular numbers for consistent spacing in stats */
@@ -253,6 +289,192 @@ body {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'kern' 1, 'tnum' 1;
 }
+
+/* =============================================================
+   TYPOGRAPHY ANIMATIONS
+   Staggered character reveals and loading state animations
+   ============================================================= */
+
+/* Container for staggered text animation */
+.text-stagger {
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.text-stagger span {
+  display: inline-block;
+  animation: char-reveal 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+@keyframes char-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Character reveal with delay multipliers (set via --char-index custom property) */
+.text-stagger span:nth-child(1) { animation-delay: 0.02s; }
+.text-stagger span:nth-child(2) { animation-delay: 0.04s; }
+.text-stagger span:nth-child(3) { animation-delay: 0.06s; }
+.text-stagger span:nth-child(4) { animation-delay: 0.08s; }
+.text-stagger span:nth-child(5) { animation-delay: 0.10s; }
+.text-stagger span:nth-child(6) { animation-delay: 0.12s; }
+.text-stagger span:nth-child(7) { animation-delay: 0.14s; }
+.text-stagger span:nth-child(8) { animation-delay: 0.16s; }
+.text-stagger span:nth-child(9) { animation-delay: 0.18s; }
+.text-stagger span:nth-child(10) { animation-delay: 0.20s; }
+.text-stagger span:nth-child(n+11) { animation-delay: 0.22s; }
+
+/* Loading text animation - typing effect */
+.text-loading {
+  position: relative;
+  display: inline-block;
+}
+
+.text-loading::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: currentColor;
+  animation: cursor-blink 0.8s steps(1) infinite;
+}
+
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Scanning text effect for loading states */
+.text-scan {
+  position: relative;
+  overflow: hidden;
+}
+
+.text-scan::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.3) 50%,
+    transparent 100%
+  );
+  animation: scan-text 2s ease-in-out infinite;
+}
+
+@keyframes scan-text {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Pulse text for emphasis */
+.text-pulse {
+  animation: text-pulse-anim 2s ease-in-out infinite;
+}
+
+@keyframes text-pulse-anim {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Typewriter effect for status messages */
+.text-typewriter {
+  overflow: hidden;
+  border-right: 2px solid currentColor;
+  white-space: nowrap;
+  animation: 
+    typewriter 2s steps(20, end) forwards,
+    cursor-blink 0.8s steps(1) infinite;
+}
+
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* Glitch text effect for errors/alerts */
+.text-glitch {
+  position: relative;
+}
+
+.text-glitch::before,
+.text-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+}
+
+.text-glitch::before {
+  animation: glitch-1 0.3s infinite linear alternate-reverse;
+  color: rgba(255, 0, 0, 0.75);
+  z-index: -1;
+}
+
+.text-glitch::after {
+  animation: glitch-2 0.3s infinite linear alternate-reverse;
+  color: rgba(0, 255, 255, 0.75);
+  z-index: -2;
+}
+
+@keyframes glitch-1 {
+  0% { clip-path: inset(20% 0 30% 0); transform: translate(-2px, 0); }
+  20% { clip-path: inset(60% 0 10% 0); transform: translate(2px, 0); }
+  40% { clip-path: inset(10% 0 70% 0); transform: translate(-1px, 0); }
+  60% { clip-path: inset(80% 0 5% 0); transform: translate(1px, 0); }
+  80% { clip-path: inset(5% 0 85% 0); transform: translate(-2px, 0); }
+  100% { clip-path: inset(40% 0 30% 0); transform: translate(2px, 0); }
+}
+
+@keyframes glitch-2 {
+  0% { clip-path: inset(60% 0 10% 0); transform: translate(2px, 0); }
+  20% { clip-path: inset(20% 0 30% 0); transform: translate(-2px, 0); }
+  40% { clip-path: inset(80% 0 5% 0); transform: translate(1px, 0); }
+  60% { clip-path: inset(10% 0 70% 0); transform: translate(-1px, 0); }
+  80% { clip-path: inset(40% 0 30% 0); transform: translate(2px, 0); }
+  100% { clip-path: inset(5% 0 85% 0); transform: translate(-2px, 0); }
+}
+
+/* Word-by-word reveal animation */
+.text-word-reveal {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25em;
+}
+
+.text-word-reveal > span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(8px) scale(0.95);
+  animation: word-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes word-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.text-word-reveal > span:nth-child(1) { animation-delay: 0.05s; }
+.text-word-reveal > span:nth-child(2) { animation-delay: 0.1s; }
+.text-word-reveal > span:nth-child(3) { animation-delay: 0.15s; }
+.text-word-reveal > span:nth-child(4) { animation-delay: 0.2s; }
+.text-word-reveal > span:nth-child(5) { animation-delay: 0.25s; }
+.text-word-reveal > span:nth-child(n+6) { animation-delay: 0.3s; }
 
 /* This file is for your main application CSS */
 
@@ -290,32 +512,48 @@ body {
 
 /* Data stream effect - disabled for cleaner UI */
 
-/* Quantum dot loading effect */
+/* Quantum dot loading effect with staggered animation */
 .quantum-loading {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  font-family: var(--font-mono);
 }
 
 .quantum-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 0;
   background: currentColor;
-  opacity: 1;
-  /* animation removed for static UI */
+  animation: quantum-pulse 1.4s ease-in-out infinite;
 }
 
-/* Terminal cursor effect */
+.quantum-dot:nth-child(1) { animation-delay: 0s; }
+.quantum-dot:nth-child(2) { animation-delay: 0.2s; }
+.quantum-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes quantum-pulse {
+  0%, 80%, 100% { 
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Terminal cursor effect - blinking block cursor */
 .terminal-cursor {
   position: relative;
 }
 
 .terminal-cursor::after {
   content: "▋";
-  color: rgba(139, 92, 246, 0.8);
-  /* animation removed for static UI */
-  margin-left: 2px;
+  color: rgba(139, 92, 246, 0.9);
+  animation: cursor-blink 0.8s steps(1) infinite;
+  margin-left: 4px;
+  font-family: var(--font-mono);
 }
 
 /* Enhanced glass morphism for modern panels - no glow */
@@ -461,7 +699,7 @@ button:focus-visible, .btn:focus-visible {
   }
 }
 
-/* Loading skeleton animations */
+/* Loading skeleton animations with shimmer */
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -481,6 +719,35 @@ button:focus-visible, .btn:focus-visible {
   100% {
     background-position: -200% 0;
   }
+}
+
+/* Skeleton text - mimics text loading */
+.skeleton-text {
+  display: inline-block;
+  min-height: 1em;
+  background: linear-gradient(
+    90deg,
+    rgba(139, 92, 246, 0.08) 0%,
+    rgba(139, 92, 246, 0.2) 50%,
+    rgba(139, 92, 246, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+  border-radius: 0;
+}
+
+/* Loading state text with animated ellipsis */
+.loading-ellipsis::after {
+  content: '';
+  animation: ellipsis 1.5s steps(4) infinite;
+}
+
+@keyframes ellipsis {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+  100% { content: ''; }
 }
 
 /* =====================================================
@@ -873,32 +1140,40 @@ button:focus-visible, .btn:focus-visible {
 }
 
 /* =====================================================
-   PANEL HEADER ENHANCEMENTS: Enhanced visual hierarchy with size scaling
+   PANEL HEADER ENHANCEMENTS: DRAMATIC visual hierarchy with size scaling
+   Large, bold headers that command attention
    ===================================================== */
 
 .panel-header-critical {
-  font-size: 1.1rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: var(--tracking-panel);
+  text-transform: uppercase;
   margin-bottom: 20px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(139, 92, 246, 0.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .panel-header-standard {
-  font-size: 0.95rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: var(--tracking-panel);
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   margin-bottom: 14px;
 }
 
 .panel-header-compact {
-  font-size: 0.8rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   margin-bottom: 8px;
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 /* Panel content spacing adjustments with enhanced hierarchy */
@@ -908,10 +1183,12 @@ button:focus-visible, .btn:focus-visible {
 
 .panel-content-critical {
   line-height: 1.6;
+  font-family: var(--font-ui);
 }
 
 .panel-content-standard {
-  line-height: 1.5;
+  line-height: 1.55;
+  font-family: var(--font-ui);
 }
 
 .panel-content-standard > * + * {
@@ -919,7 +1196,8 @@ button:focus-visible, .btn:focus-visible {
 }
 
 .panel-content-compact {
-  line-height: 1.4;
+  line-height: 1.5;
+  font-family: var(--font-ui);
 }
 
 .panel-content-compact > * + * {
@@ -928,15 +1206,18 @@ button:focus-visible, .btn:focus-visible {
 
 /* Enhanced visual separation for different priority levels */
 .panel-content-critical .text-xs {
-  font-size: 0.8rem;
+  font-size: 0.875rem;
+  font-family: var(--font-ui);
 }
 
 .panel-content-standard .text-xs {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
+  font-family: var(--font-ui);
 }
 
 .panel-content-compact .text-xs {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+  font-family: var(--font-ui);
 }
 
 /* =====================================================
@@ -2144,7 +2425,8 @@ textarea:focus-visible {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: var(--font-ui);
   font-size: var(--text-micro);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: var(--tracking-body);
 }
 
 .btn-interactive-icon:hover {
@@ -2173,8 +2455,9 @@ textarea:focus-visible {
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: var(--font-ui);
   font-size: var(--text-micro);
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  letter-spacing: var(--tracking-body);
+  text-transform: uppercase;
 }
 
 .btn-interactive-sm:focus-visible {
