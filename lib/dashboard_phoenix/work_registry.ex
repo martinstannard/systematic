@@ -445,11 +445,25 @@ defmodule DashboardPhoenix.WorkRegistry do
   end
 
   defp save_to_file(work) do
+    # Get path synchronously (ensures directory exists on first call)
     path = persistence_path()
-    content = Jason.encode!(work, pretty: true)
-    File.write!(path, content)
-  rescue
-    e ->
-      Logger.error("[WorkRegistry] Failed to save: #{inspect(e)}")
+    
+    # Perform file write asynchronously to avoid blocking the GenServer
+    Task.start(fn ->
+      try do
+        content = Jason.encode!(work, pretty: true)
+        
+        # Write to unique temp file first, then rename for atomicity
+        # Unique suffix prevents race conditions between concurrent writes
+        temp_path = path <> ".tmp.#{:erlang.unique_integer([:positive])}"
+        File.write!(temp_path, content)
+        File.rename!(temp_path, path)
+      rescue
+        e ->
+          Logger.error("[WorkRegistry] Async save failed: #{inspect(e)}")
+      end
+    end)
+    
+    :ok
   end
 end

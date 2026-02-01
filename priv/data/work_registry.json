@@ -1,1 +1,32 @@
-{}
+{
+  "work-1879587e944f95c7": {
+    "id": "work-1879587e944f95c7",
+    "label": null,
+    "status": "failed",
+    "description": "Task 1",
+    "started_at": "2026-02-01T21:11:34.035117Z",
+    "source": "manual",
+    "session_id": null,
+    "updated_at": "2026-02-01T21:11:34.035326Z",
+    "model": null,
+    "agent_type": "claude",
+    "failed_at": "2026-02-01T21:11:34.035314Z",
+    "failure_reason": "Error 1",
+    "ticket_id": null
+  },
+  "work-57c40c4885402138": {
+    "id": "work-57c40c4885402138",
+    "label": null,
+    "status": "failed",
+    "description": "Task 2",
+    "started_at": "2026-02-01T21:11:34.046269Z",
+    "source": "manual",
+    "session_id": null,
+    "updated_at": "2026-02-01T21:11:34.046724Z",
+    "model": null,
+    "agent_type": "opencode",
+    "failed_at": "2026-02-01T21:11:34.046719Z",
+    "failure_reason": "Error 2",
+    "ticket_id": null
+  }
+}
