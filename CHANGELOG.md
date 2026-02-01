@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- UI: Improve click targets and interactive affordances (#54)
 - UI: Remove min-height from panels - collapsed should be compact (#99)
 - Persist ActivityLog events to file/database (#100)
 - UI: Remove all throbbers, blinkers, pulse animations (#98)

@@ -1,6 +1,37 @@
 [
   {
     "details": {
+      "label": "ticket-99-min-height",
+      "session_id": "65f131a6-4486-427c-a13a-0a14d2105169",
+      "task": "**Chainlink Ticket #99: UI - Remove min-height from panels** Panels have forced min-height that makes collapsed state still take up space. When col..."
+    },
+    "id": "80cb644fff574cdf",
+    "message": "Sub-agent completed: ticket-99-min-height",
+    "timestamp": "2026-02-01T07:47:15.641457Z",
+    "type": "code_complete"
+  },
+  {
+    "details": {
+      "label": "ticket-100-persist-events",
+      "session_id": "913a0575-2923-4b45-8c7b-0005728f2fbc",
+      "task": "## Persist ActivityLog Events (#100) **Repo:** ~/code/systematic **Worktree workflow:** ```bash cd ~/code/systematic git fetch origin git worktree ..."
+    },
+    "id": "5860ea6a76ca37f4",
+    "message": "Sub-agent completed: ticket-100-persist-events",
+    "timestamp": "2026-02-01T07:43:44.434240Z",
+    "type": "code_complete"
+  },
+  {
+    "details": {
+      "version": "1.0"
+    },
+    "id": "f0a10f9b2377804d",
+    "message": "Dashboard started",
+    "timestamp": "2026-02-01T07:42:46.947124Z",
+    "type": "restart_complete"
+  },
+  {
+    "details": {
       "version": "1.0"
     },
     "id": "0c1a2a8fe65f0bcb",
