@@ -2005,3 +2005,20 @@ textarea:focus-visible {
 }
 
 /* No section hover effects - keeps UI stable and readable */
+
+/* =====================================================
+   ACCESSIBILITY UTILITIES
+   Screen reader only class for text alternatives
+   ===================================================== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

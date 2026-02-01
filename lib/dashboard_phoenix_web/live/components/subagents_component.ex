@@ -150,8 +150,8 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
           <span class="text-panel-label text-accent">Sub-Agents</span>
           <span class="text-xs font-mono text-base-content/50"><%= @sub_agent_sessions_count %></span>
           <%= if @running_count > 0 do %>
-            <span class="status-beacon text-warning"></span>
-            <span class="px-1.5 py-0.5bg-warning/20 text-warning text-xs">
+            <span class="status-beacon text-warning" aria-hidden="true"></span>
+            <span class="px-1.5 py-0.5bg-warning/20 text-warning text-xs" role="status">
               <%= @running_count %> active
             </span>
           <% end %>
@@ -283,18 +283,18 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                 <div class="px-3 py-1.5 panel-data border-t border-accent/10 flex items-center justify-between">
                   <div class="flex items-center space-x-3 text-ui-micro text-base-content/60">
                     <div class="flex items-center space-x-1">
-                      <span class="status-marker text-info opacity-60"></span>
-                      <span class="text-tabular">↓ <%= format_tokens(session.tokens_in) %></span>
+                      <span class="status-marker text-info opacity-60" aria-hidden="true"></span>
+                      <span class="text-tabular"><span class="sr-only">Input tokens: </span>↓ <%= format_tokens(session.tokens_in) %></span>
                     </div>
                     <div class="flex items-center space-x-1">
-                      <span class="status-marker text-secondary opacity-60"></span>
-                      <span class="text-tabular">↑ <%= format_tokens(session.tokens_out) %></span>
+                      <span class="status-marker text-secondary opacity-60" aria-hidden="true"></span>
+                      <span class="text-tabular"><span class="sr-only">Output tokens: </span>↑ <%= format_tokens(session.tokens_out) %></span>
                     </div>
                   </div>
                   <%= if Map.get(session, :cost, 0) > 0 do %>
                     <div class="flex items-center space-x-1">
-                      <span class="status-marker text-success"></span>
-                      <span class="text-ui-value text-success">$<%= Float.round(session.cost, 4) %></span>
+                      <span class="status-marker text-success" aria-hidden="true"></span>
+                      <span class="text-ui-value text-success"><span class="sr-only">Cost: </span>$<%= Float.round(session.cost, 4) %></span>
                     </div>
                   <% end %>
                 </div>
