@@ -8,6 +8,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   require Logger
 
   alias DashboardPhoenix.{CLITools, Paths, ProcessParser, StatePersistence, Status}
+  alias DashboardPhoenix.PubSub.Topics
 
   # Type definitions
   @typedoc "Agent type classification"
@@ -76,7 +77,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   @doc "Subscribe to agent activity updates via PubSub."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "agent_activity")
+    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, Topics.agent_activity())
   end
 
   # GenServer callbacks
@@ -776,7 +777,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   @spec broadcast_activity(map()) :: :ok | {:error, term()}
   defp broadcast_activity(agents) do
     activities = agents |> Map.values() |> Enum.sort_by(& &1.last_activity, {:desc, DateTime})
-    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, "agent_activity", {:agent_activity, activities})
+    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, Topics.agent_activity(), {:agent_activity, activities})
   end
 
   @spec truncate(term(), pos_integer()) :: String.t()

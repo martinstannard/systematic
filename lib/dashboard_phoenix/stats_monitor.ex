@@ -17,6 +17,7 @@ defmodule DashboardPhoenix.StatsMonitor do
   require Logger
 
   alias DashboardPhoenix.{CLITools, CLICache, Paths, StatePersistence}
+  alias DashboardPhoenix.PubSub.Topics
 
   # 15 seconds (Ticket #73: increased from 5s)
   @poll_interval 15_000
@@ -68,7 +69,7 @@ defmodule DashboardPhoenix.StatsMonitor do
   end
 
   def subscribe do
-    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "stats")
+    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, Topics.stats())
   end
 
   # GenServer callbacks
@@ -265,6 +266,6 @@ defmodule DashboardPhoenix.StatsMonitor do
   defp format_tokens(n), do: "#{n}"
 
   defp broadcast_stats(stats) do
-    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, "stats", {:stats_updated, stats})
+    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, Topics.stats(), {:stats_updated, stats})
   end
 end

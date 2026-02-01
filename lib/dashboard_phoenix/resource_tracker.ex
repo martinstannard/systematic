@@ -14,6 +14,7 @@ defmodule DashboardPhoenix.ResourceTracker do
   require Logger
 
   alias DashboardPhoenix.ProcessParser
+  alias DashboardPhoenix.PubSub.Topics
 
   @sample_interval 10_000  # 10 seconds (Ticket #73: reduced from 5s to lower CLI overhead)
   @max_history 60  # 5 minutes of history at 5-second intervals
@@ -81,7 +82,7 @@ defmodule DashboardPhoenix.ResourceTracker do
   end
 
   def subscribe do
-    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "resource_updates")
+    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, Topics.resource_updates())
   end
 
   # GenServer callbacks
@@ -253,7 +254,7 @@ defmodule DashboardPhoenix.ResourceTracker do
   defp parse_memory_kb(_), do: 0
 
   defp broadcast_update(history, current_processes) do
-    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, "resource_updates", 
+    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, Topics.resource_updates(), 
       {:resource_update, %{history: history, current: current_processes}})
   end
 end

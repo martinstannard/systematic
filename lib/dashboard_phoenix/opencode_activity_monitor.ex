@@ -14,6 +14,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   use GenServer
 
   alias DashboardPhoenix.{Paths, Status}
+  alias DashboardPhoenix.PubSub.Topics
   require Logger
 
   @poll_interval 3_000  # Poll every 3 seconds
@@ -364,6 +365,6 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   defp truncate_output(_), do: ""
 
   defp broadcast_progress(events) do
-    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, "agent_updates", {:progress, events})
+    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, Topics.agent_updates(), {:progress, events})
   end
 end
