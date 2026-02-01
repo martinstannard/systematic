@@ -59,14 +59,29 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class={"fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} phx-click="close_work_modal" phx-target={@myself}>
+    <div 
+      class={"fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} 
+      phx-click="close_work_modal" 
+      phx-target={@myself}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="work-modal-title"
+      aria-describedby="work-modal-description"
+      phx-window-keydown="close_work_modal"
+      phx-key="Escape"
+    >
       <!-- Modal panel -->
-      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" phx-click-away="close_work_modal" phx-target={@myself}>
+      <div 
+        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" 
+        phx-click-away="close_work_modal" 
+        phx-target={@myself}
+        onclick="event.stopPropagation()"
+      >
         <!-- Header -->
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center space-x-3">
-            <div class="w-3 h-3 rounded-full bg-purple-500"></div>
-            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100"><%= @work_ticket_id %></h2>
+            <div class="w-3 h-3 rounded-full bg-purple-500" aria-hidden="true"></div>
+            <h2 id="work-modal-title" class="text-xl font-bold text-gray-900 dark:text-gray-100">Work on Ticket: <%= @work_ticket_id %></h2>
           </div>
           <button 
             phx-click="close_work_modal" 
@@ -81,7 +96,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
         </div>
         
         <!-- Ticket Details with data panel styling -->
-        <div class="mb-6">
+        <div class="mb-6" id="work-modal-description">
           <div class="text-panel-label text-secondary mb-2">Ticket Details</div>
           <%= if @work_ticket_loading do %>
             <div class="flex items-center space-x-2 text-base-content/60" role="status" aria-live="polite">

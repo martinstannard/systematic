@@ -784,13 +784,34 @@ body {
    FOCUS STATES - Accessibility
    ===================================================== */
 
+/* Enhanced focus visible for all interactive elements */
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible,
 input:focus-visible,
 select:focus-visible,
-textarea:focus-visible {
-  @apply outline-2 outline-blue-500 outline-offset-2;
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  @apply outline-2 outline-offset-2;
+  outline-color: oklch(65% 0.25 280);
+  outline-style: solid;
+}
+
+/* High contrast focus for dark mode */
+[data-theme="dark"] button:focus-visible,
+[data-theme="dark"] a:focus-visible,
+[data-theme="dark"] [role="button"]:focus-visible,
+[data-theme="dark"] input:focus-visible,
+[data-theme="dark"] select:focus-visible,
+[data-theme="dark"] textarea:focus-visible,
+[data-theme="dark"] [tabindex]:focus-visible {
+  outline-color: oklch(75% 0.2 280);
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
+}
+
+/* Focus within for container elements */
+.panel-header-interactive:focus-within {
+  @apply bg-base-300/50;
 }
 
 /* Skip link */
@@ -809,6 +830,18 @@ textarea:focus-visible {
   @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap;
   clip: rect(0, 0, 0, 0);
   border-width: 0;
+}
+
+/* Focus not-sr-only helper - use when you need to show something only on focus */
+.sr-only-focusable:focus,
+.sr-only-focusable:active {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
 }
 
 /* =====================================================

@@ -33,13 +33,13 @@
   />
 
   <!-- Main Dashboard Layout -->
-  <div class="flex-1 flex flex-col gap-6 overflow-y-auto p-4">
+  <main class="flex-1 flex flex-col gap-6 overflow-y-auto p-4" role="main" aria-label="Dashboard content">
     
     <!-- CORE WORK Section -->
-    <section class="section-core-work p-5">
+    <section class="section-core-work p-5" aria-labelledby="core-work-heading">
       <div id="core-work-header" phx-update="ignore" class="flex items-center gap-3 mb-4">
-        <div class="w-2 h-2 rounded-full bg-green-500"></div>
-        <h2 class="text-section-header">Core Work</h2>
+        <div class="w-2 h-2 rounded-full bg-green-500" aria-hidden="true"></div>
+        <h2 id="core-work-heading" class="text-section-header">Core Work</h2>
         <span class="text-ui-caption ml-2">Tickets • PRs • Branches</span>
       </div>
       <div class="space-y-3">
@@ -144,10 +144,10 @@
     </section>
 
     <!-- AGENT STATUS Section -->
-    <section class="section-agent-status p-5">
+    <section class="section-agent-status p-5" aria-labelledby="agent-status-heading">
       <div id="agent-status-header" phx-update="ignore" class="flex items-center gap-3 mb-4">
-        <div class="w-2 h-2 rounded-full bg-purple-500"></div>
-        <h2 class="text-section-header">Agent Status</h2>
+        <div class="w-2 h-2 rounded-full bg-purple-500" aria-hidden="true"></div>
+        <h2 id="agent-status-heading" class="text-section-header">Agent Status</h2>
         <span class="text-ui-caption ml-2">OpenCode • Gemini • Dave • Subagents</span>
       </div>
       <div class="space-y-3">
@@ -229,10 +229,10 @@
     </section>
 
     <!-- SYSTEM CONFIG Section -->
-    <section class="section-system-config p-5">
+    <section class="section-system-config p-5" aria-labelledby="system-config-heading">
       <div id="system-config-header" phx-update="ignore" class="flex items-center gap-3 mb-4">
-        <div class="w-2 h-2 rounded-full bg-orange-500"></div>
-        <h2 class="text-section-header">System Config</h2>
+        <div class="w-2 h-2 rounded-full bg-orange-500" aria-hidden="true"></div>
+        <h2 id="system-config-heading" class="text-section-header">System Config</h2>
         <span class="text-ui-caption ml-2">Configuration • Processes</span>
       </div>
       <div class="space-y-3">
@@ -294,7 +294,7 @@
         usage_stats={@usage_stats}
       />
     </div>
-  </div>
+  </main>
 
   <!-- Work on Ticket Modal -->
   <.live_component
