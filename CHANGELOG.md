@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- Fix: Investigate and test Unmerged Branches merge button (#86)
+- Deploy: Live confirmation event and notification (#91)
+- Deploy: Health check after restart (#90)
+- Deploy: Auto-restart service after merge to main (#89)
 - UI: Add health check badge to dashboard header (#92)
 - Fix: Sub-Agents panel shows incorrect active count (#88)
 - Fix: Linear panel - add tests, fix issues, default to In Review (#87)
