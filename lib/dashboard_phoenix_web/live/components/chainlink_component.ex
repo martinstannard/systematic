@@ -49,6 +49,16 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   defp priority_badge(:low), do: "px-1.5 py-0.5bg-blue-500/20 text-blue-400 text-ui-caption"
   defp priority_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-ui-caption"
 
+  defp priority_text(:high), do: "HIGH"
+  defp priority_text(:medium), do: "MED"
+  defp priority_text(:low), do: "LOW"
+  defp priority_text(_), do: "UNKNOWN"
+
+  defp priority_symbol(:high), do: "▲"
+  defp priority_symbol(:medium), do: "◆"
+  defp priority_symbol(:low), do: "▼"
+  defp priority_symbol(_), do: "◌"
+
   defp priority_row_class(:high), do: "border-l-2 border-red-500/50"
   defp priority_row_class(:medium), do: "border-l-2 border-yellow-500/50"
   defp priority_row_class(:low), do: "border-l-2 border-blue-500/50"
@@ -101,9 +111,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         <div class="px-3 pb-3">
           <!-- Priority Legend -->
           <div class="flex items-center space-x-2 mb-2 text-ui-caption text-base-content/60">
-            <span class="flex items-center"><span class="w-2 h-2 bg-red-500/50mr-1"></span>High</span>
-            <span class="flex items-center"><span class="w-2 h-2 bg-yellow-500/50mr-1"></span>Med</span>
-            <span class="flex items-center"><span class="w-2 h-2 bg-blue-500/50mr-1"></span>Low</span>
+            <span class="flex items-center text-red-400"><%= priority_symbol(:high) %> HIGH</span>
+            <span class="flex items-center text-yellow-400"><%= priority_symbol(:medium) %> MED</span>
+            <span class="flex items-center text-blue-400"><%= priority_symbol(:low) %> LOW</span>
           </div>
 
           <!-- Issue List -->
@@ -143,7 +153,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                   <span class="text-base-content/40"><%= status_icon(issue.status) %></span>
                   <span class="text-ui-value text-accent">#<%= issue.id %></span>
                   <span class="text-ui-body text-white truncate flex-1" title={issue.title}><%= issue.title %></span>
-                  <span class={priority_badge(issue.priority)}><%= issue.priority %></span>
+                  <span class={priority_badge(issue.priority)} title={"Priority: " <> priority_text(issue.priority)}>
+                    <%= priority_symbol(issue.priority) %> <%= priority_text(issue.priority) %>
+                  </span>
                 </div>
               <% end %>
             <% end %>
