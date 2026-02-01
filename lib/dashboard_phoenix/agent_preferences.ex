@@ -187,8 +187,13 @@ defmodule DashboardPhoenix.AgentPreferences do
   def handle_call(:next_agent, _from, prefs) do
     case prefs.agent_mode do
       "round_robin" ->
-        # Alternate between claude and opencode
-        next = if prefs.last_agent == "claude", do: "opencode", else: "claude"
+        # Cycle through all three agents
+        next = case prefs.last_agent do
+          "claude" -> "opencode"
+          "opencode" -> "gemini"
+          "gemini" -> "claude"
+          _ -> "claude"  # fallback
+        end
         new_prefs = %{prefs | last_agent: next, updated_at: DateTime.utc_now() |> DateTime.to_iso8601()}
         save_preferences(new_prefs)
         broadcast_change(new_prefs)
