@@ -19,7 +19,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.SystemProcessesComponent
   alias DashboardPhoenixWeb.Live.Components.UsageStatsComponent
   alias DashboardPhoenixWeb.Live.Components.WorkModalComponent
+  alias DashboardPhoenixWeb.Live.Components.ActivityPanelComponent
   alias DashboardPhoenix.ProcessMonitor
+  alias DashboardPhoenix.ActivityLog
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
   alias DashboardPhoenix.InputValidator
@@ -157,7 +159,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
       agent_activity_collapsed: false,
       system_processes_collapsed: false,
       process_relationships_collapsed: false,
-      chat_collapsed: true
+      chat_collapsed: true,
+      # Activity panel state
+      activity_events: [],
+      activity_collapsed: false
     )
     
     # Initialize empty progress stream
@@ -180,6 +185,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       OpenCodeServer.subscribe()
       GeminiServer.subscribe()
       HealthCheck.subscribe()
+      ActivityLog.subscribe()
       
       # Schedule periodic updates (after initial data loads)
       Process.send_after(self(), :update_processes, 500)
@@ -201,6 +207,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       send(self(), :load_github_prs)
       send(self(), :load_branches)
       send(self(), :load_health_status)
+      send(self(), :load_activity_events)
     end
 
     {:ok, socket}
@@ -242,6 +249,46 @@ defmodule DashboardPhoenixWeb.HomeLive do
       health_status: health_state.status,
       health_last_check: health_state.last_check
     )}
+  end
+
+  # Handle activity log events (from PubSub)
+  def handle_info({:activity_log_event, event}, socket) do
+    # Add new event to the front of the list, keep last 20
+    updated_events = [event | socket.assigns.activity_events] |> Enum.take(20)
+    {:noreply, assign(socket, activity_events: updated_events)}
+  end
+
+  # Handle async activity events loading (initial mount)
+  def handle_info(:load_activity_events, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        events = ActivityLog.get_events(20)
+        send(parent, {:activity_events_loaded, events})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load activity events: #{inspect(e)}")
+          send(parent, {:activity_events_loaded, []})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Activity events load exited: #{inspect(reason)}")
+          send(parent, {:activity_events_loaded, []})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle activity events loaded result
+  def handle_info({:activity_events_loaded, events}, socket) do
+    {:noreply, assign(socket, activity_events: events)}
+  end
+
+  # Handle activity panel component events
+  def handle_info({:activity_panel_component, :toggle_panel}, socket) do
+    socket = assign(socket, activity_collapsed: !socket.assigns.activity_collapsed)
+    {:noreply, push_panel_state(socket)}
   end
 
   # Handle live progress updates (with validation for proper test isolation)
@@ -1891,7 +1938,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "agent_activity" => socket.assigns.agent_activity_collapsed,
       "system_processes" => socket.assigns.system_processes_collapsed,
       "process_relationships" => socket.assigns.process_relationships_collapsed,
-      "chat" => socket.assigns.chat_collapsed
+      "chat" => socket.assigns.chat_collapsed,
+      "activity" => socket.assigns.activity_collapsed
     }
     push_event(socket, "save_panel_state", %{panels: panels})
   end
