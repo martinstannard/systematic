@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- Fix: Sub-Agents panel shows incorrect active count (#88)
+- Fix: Linear panel - add tests, fix issues, default to In Review (#87)
 - Activity Log: Add event tracking GenServer for high-level workflow events (#82)
 - UI: Fix text size accessibility violations (#51)
 - UI: Add Status-Based Visual Indicators (#50)
