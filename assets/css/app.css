@@ -165,18 +165,28 @@ body {
    Distinctive typography for agent control interface
    ============================================================= */
 
-/* SYSTEMATIC title - commanding presence, terminal aesthetic */
+/* SYSTEMATIC title - commanding presence, enhanced terminal aesthetic */
 .text-system-title {
   font-family: var(--font-display);
   font-size: var(--text-title);
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.25em;
   text-transform: uppercase;
   font-feature-settings: 'kern' 1, 'liga' 0, 'zero' 1;
-  /* Subtle text shadow for depth */
+  /* Enhanced text shadow system for premium depth */
   text-shadow: 
-    0 1px 0 rgba(0, 0, 0, 0.3),
-    0 2px 4px rgba(0, 0, 0, 0.2);
+    /* Primary shadow for structure */
+    0 2px 0 rgba(0, 0, 0, 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    /* Color accent shadows */
+    0 1px 0 rgba(139, 92, 246, 0.2),
+    0 0 12px rgba(139, 92, 246, 0.15),
+    /* Depth shadows */
+    0 6px 16px rgba(0, 0, 0, 0.2),
+    0 0 40px rgba(139, 92, 246, 0.08);
+  /* Subtle transform for visual interest */
+  transform: perspective(500px) rotateX(2deg);
+  transform-origin: bottom center;
 }
 
 /* Subtitle - supporting text beside title */
@@ -246,32 +256,99 @@ body {
   letter-spacing: 0.03em;
 }
 
-/* Enhanced text glow effect for the main title - more dramatic for larger type */
+/* Enhanced text glow effect - premium holographic aesthetic */
 .text-system-glow {
   text-shadow: 
-    0 0 8px rgba(139, 92, 246, 0.6),
-    0 0 16px rgba(139, 92, 246, 0.4),
-    0 0 32px rgba(139, 92, 246, 0.25),
-    0 0 48px rgba(139, 92, 246, 0.15),
-    0 0 72px rgba(139, 92, 246, 0.08);
-  animation: glow-pulse 4s ease-in-out infinite alternate;
+    /* Base structural shadows (from .text-system-title) */
+    0 2px 0 rgba(0, 0, 0, 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    0 6px 16px rgba(0, 0, 0, 0.2),
+    /* Primary glow system */
+    0 0 8px rgba(139, 92, 246, 0.8),
+    0 0 16px rgba(139, 92, 246, 0.6),
+    0 0 32px rgba(139, 92, 246, 0.4),
+    0 0 64px rgba(139, 92, 246, 0.25),
+    0 0 96px rgba(139, 92, 246, 0.15),
+    /* Secondary color harmonics */
+    0 0 12px rgba(168, 85, 247, 0.4),
+    0 0 24px rgba(168, 85, 247, 0.2),
+    /* Accent highlights */
+    0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 4px rgba(255, 255, 255, 0.05);
+  animation: glow-pulse 6s ease-in-out infinite alternate;
+  /* Add subtle backdrop filter effect */
+  backdrop-filter: blur(0.5px);
 }
 
 @keyframes glow-pulse {
-  from {
-    filter: brightness(100%) drop-shadow(0 0 2px rgba(139, 92, 246, 0.3));
+  0% {
+    filter: brightness(100%) saturate(100%) contrast(100%);
+    text-shadow: 
+      0 2px 0 rgba(0, 0, 0, 0.4),
+      0 4px 8px rgba(0, 0, 0, 0.3),
+      0 6px 16px rgba(0, 0, 0, 0.2),
+      0 0 8px rgba(139, 92, 246, 0.8),
+      0 0 16px rgba(139, 92, 246, 0.6),
+      0 0 32px rgba(139, 92, 246, 0.4),
+      0 0 64px rgba(139, 92, 246, 0.25),
+      0 0 96px rgba(139, 92, 246, 0.15),
+      0 0 12px rgba(168, 85, 247, 0.4),
+      0 0 24px rgba(168, 85, 247, 0.2),
+      0 1px 0 rgba(255, 255, 255, 0.1),
+      0 0 4px rgba(255, 255, 255, 0.05);
   }
-  to {
-    filter: brightness(115%) drop-shadow(0 0 6px rgba(139, 92, 246, 0.5));
+  50% {
+    filter: brightness(110%) saturate(110%) contrast(105%);
+    text-shadow: 
+      0 2px 0 rgba(0, 0, 0, 0.4),
+      0 4px 8px rgba(0, 0, 0, 0.3),
+      0 6px 16px rgba(0, 0, 0, 0.2),
+      0 0 12px rgba(139, 92, 246, 0.9),
+      0 0 20px rgba(139, 92, 246, 0.7),
+      0 0 40px rgba(139, 92, 246, 0.5),
+      0 0 80px rgba(139, 92, 246, 0.3),
+      0 0 120px rgba(139, 92, 246, 0.2),
+      0 0 16px rgba(168, 85, 247, 0.5),
+      0 0 32px rgba(168, 85, 247, 0.25),
+      0 1px 0 rgba(255, 255, 255, 0.15),
+      0 0 8px rgba(255, 255, 255, 0.08);
+  }
+  100% {
+    filter: brightness(115%) saturate(120%) contrast(110%);
+    text-shadow: 
+      0 2px 0 rgba(0, 0, 0, 0.4),
+      0 4px 8px rgba(0, 0, 0, 0.3),
+      0 6px 16px rgba(0, 0, 0, 0.2),
+      0 0 16px rgba(139, 92, 246, 1),
+      0 0 24px rgba(139, 92, 246, 0.8),
+      0 0 48px rgba(139, 92, 246, 0.6),
+      0 0 96px rgba(139, 92, 246, 0.35),
+      0 0 144px rgba(139, 92, 246, 0.25),
+      0 0 20px rgba(168, 85, 247, 0.6),
+      0 0 40px rgba(168, 85, 247, 0.3),
+      0 1px 0 rgba(255, 255, 255, 0.2),
+      0 0 12px rgba(255, 255, 255, 0.1);
   }
 }
 
-/* Light mode adjustments for text glow - subtle but visible */
+/* Light mode adjustments for text glow - elegant and sophisticated */
 [data-theme="light"] .text-system-glow {
   text-shadow: 
-    0 0 6px rgba(109, 40, 217, 0.35),
-    0 0 12px rgba(109, 40, 217, 0.2),
-    0 0 24px rgba(109, 40, 217, 0.1);
+    /* Base structural shadows for light mode */
+    0 2px 0 rgba(109, 40, 217, 0.1),
+    0 4px 8px rgba(109, 40, 217, 0.08),
+    0 6px 16px rgba(109, 40, 217, 0.05),
+    /* Refined glow system for light backgrounds */
+    0 0 8px rgba(109, 40, 217, 0.4),
+    0 0 16px rgba(109, 40, 217, 0.25),
+    0 0 32px rgba(109, 40, 217, 0.15),
+    0 0 48px rgba(109, 40, 217, 0.08),
+    /* Secondary harmonics */
+    0 0 12px rgba(168, 85, 247, 0.3),
+    0 0 24px rgba(168, 85, 247, 0.15),
+    /* Subtle highlights */
+    0 1px 0 rgba(255, 255, 255, 0.6),
+    0 0 4px rgba(255, 255, 255, 0.3);
 }
 
 /* Tabular numbers for consistent spacing in stats */
@@ -283,84 +360,526 @@ body {
 /* This file is for your main application CSS */
 
 /* =====================================================
+   BRAND IDENTITY ENHANCEMENTS: Distinctive Visual Elements
+   Premium micro-interactions and visual metaphors for memorable UX
+   ===================================================== */
+
+/* Neural pulse effect for active elements */
+.neural-pulse {
+  position: relative;
+  overflow: hidden;
+}
+
+.neural-pulse::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.1) 30%,
+    rgba(168, 85, 247, 0.2) 50%,
+    rgba(139, 92, 246, 0.1) 70%,
+    transparent 100%
+  );
+  animation: neural-sweep 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes neural-sweep {
+  0% {
+    left: -100%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+/* Holographic button effect */
+.button-holographic {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.1) 0%,
+    rgba(168, 85, 247, 0.05) 50%,
+    rgba(59, 130, 246, 0.1) 100%
+  );
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 
+    0 2px 8px rgba(139, 92, 246, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.button-holographic::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.button-holographic:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15) 0%,
+    rgba(168, 85, 247, 0.1) 50%,
+    rgba(59, 130, 246, 0.15) 100%
+  );
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 
+    0 4px 16px rgba(139, 92, 246, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 0 20px rgba(139, 92, 246, 0.1);
+  transform: translateY(-1px);
+}
+
+.button-holographic:hover::before {
+  left: 100%;
+}
+
+/* Data stream effect for live elements */
+.data-stream {
+  position: relative;
+  overflow: hidden;
+}
+
+.data-stream::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.8) 50%,
+    transparent 100%
+  );
+  animation: data-flow 2s ease-in-out infinite;
+}
+
+@keyframes data-flow {
+  0%, 100% {
+    opacity: 0;
+    height: 0%;
+    top: 50%;
+  }
+  50% {
+    opacity: 1;
+    height: 100%;
+    top: 0%;
+  }
+}
+
+/* Quantum dot loading effect */
+.quantum-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quantum-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: quantum-pulse 1.5s ease-in-out infinite;
+}
+
+.quantum-dot:nth-child(2) { animation-delay: 0.2s; }
+.quantum-dot:nth-child(3) { animation-delay: 0.4s; }
+.quantum-dot:nth-child(4) { animation-delay: 0.6s; }
+
+@keyframes quantum-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* Terminal cursor effect */
+.terminal-cursor {
+  position: relative;
+}
+
+.terminal-cursor::after {
+  content: "▋";
+  color: rgba(139, 92, 246, 0.8);
+  animation: cursor-blink 1s step-end infinite;
+  margin-left: 2px;
+}
+
+@keyframes cursor-blink {
+  50% { opacity: 0; }
+}
+
+/* Enhanced glass morphism for modern panels */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .glass-morphism {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(1.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* =====================================================
+   ENHANCED INTERACTIVE ELEMENTS: Distinctive Brand Feel
+   Sophisticated button styling and micro-interactions
+   ===================================================== */
+
+/* Universal button enhancement */
+button, .btn, [role="button"] {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add holographic effect to primary buttons */
+button:not(.btn-ghost):not(.btn-link):not([disabled]):hover,
+.btn:not(.btn-ghost):not(.btn-link):not([disabled]):hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 
+    0 4px 16px rgba(139, 92, 246, 0.3),
+    0 0 20px rgba(139, 92, 246, 0.15);
+}
+
+/* Enhanced focus states with brand colors */
+button:focus-visible, .btn:focus-visible {
+  outline: 2px solid rgba(139, 92, 246, 0.8);
+  outline-offset: 2px;
+  box-shadow: 
+    0 0 0 4px rgba(139, 92, 246, 0.2),
+    0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+/* Quantum ripple effect for clicks */
+.quantum-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.quantum-ripple::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease-out, height 0.6s ease-out;
+  pointer-events: none;
+}
+
+.quantum-ripple:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Premium card hover effects */
+.card, .panel, .glass-morphism {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card:hover, .panel:hover, .glass-morphism:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(139, 92, 246, 0.1),
+    0 0 30px rgba(139, 92, 246, 0.05);
+}
+
+/* Enhanced status indicators */
+.status-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  transition: all 0.3s ease;
+}
+
+.status-indicator::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.6; 
+    transform: scale(1.2);
+  }
+}
+
+/* Floating label animations for forms */
+.floating-label {
+  position: relative;
+}
+
+.floating-label input,
+.floating-label textarea {
+  padding-top: 20px;
+  padding-bottom: 4px;
+}
+
+.floating-label label {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 14px;
+  color: rgba(139, 92, 246, 0.6);
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: left top;
+}
+
+.floating-label input:focus + label,
+.floating-label textarea:focus + label,
+.floating-label input:not(:placeholder-shown) + label,
+.floating-label textarea:not(:placeholder-shown) + label {
+  transform: translateY(-8px) scale(0.85);
+  color: rgba(139, 92, 246, 0.9);
+  font-weight: 600;
+}
+
+/* Page transition effects */
+.page-transition {
+  animation: page-enter 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes page-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading skeleton animations */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(139, 92, 246, 0.05) 0%,
+    rgba(139, 92, 246, 0.15) 50%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* =====================================================
    PANEL SYSTEM: Distinctive Visual Identity
    Command/control interface aesthetic with visual hierarchy
    ===================================================== */
 
 /* =====================================================
-   COMMAND HEADER: Top-level control interface bar
-   Features subtle scan lines and data terminal feel
+   COMMAND HEADER: Enhanced top-level control interface bar
+   Features sophisticated scan lines, neural grid, and premium materials
    ===================================================== */
 .panel-command {
-  background: linear-gradient(
-    180deg,
-    rgba(139, 92, 246, 0.08) 0%,
-    rgba(15, 10, 35, 0.95) 100%
-  );
-  backdrop-filter: blur(20px) saturate(1.2);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  border-bottom: 2px solid rgba(139, 92, 246, 0.4);
+  background: 
+    /* Multi-layer sophisticated gradient */
+    linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, transparent 30%),
+    linear-gradient(45deg, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
+    linear-gradient(180deg, rgba(15, 10, 35, 0.98) 0%, rgba(20, 15, 40, 0.95) 100%);
+  backdrop-filter: blur(24px) saturate(1.3) brightness(1.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-bottom: 3px solid rgba(139, 92, 246, 0.5);
   box-shadow: 
-    0 4px 24px -4px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 0 40px -10px rgba(139, 92, 246, 0.3);
+    /* Main shadow system */
+    0 8px 32px -4px rgba(0, 0, 0, 0.6),
+    0 4px 16px -2px rgba(139, 92, 246, 0.15),
+    /* Inner glow */
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(139, 92, 246, 0.1),
+    /* Outer glow */
+    0 0 60px -15px rgba(139, 92, 246, 0.4),
+    /* Surface reflection */
+    inset 0 2px 4px rgba(255, 255, 255, 0.02);
   position: relative;
   overflow: hidden;
+  /* Subtle premium material feel */
+  border-radius: 12px;
 }
 
-/* Subtle horizontal scan line effect */
+/* Enhanced horizontal scan line system with neural grid */
 .panel-command::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 2px,
-    rgba(139, 92, 246, 0.02) 2px,
-    rgba(139, 92, 246, 0.02) 4px
-  );
+  background: 
+    /* Primary scan lines */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(139, 92, 246, 0.03) 3px,
+      rgba(139, 92, 246, 0.03) 4px,
+      transparent 4px,
+      transparent 8px
+    ),
+    /* Secondary vertical lines for grid effect */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 40px,
+      rgba(168, 85, 247, 0.02) 40px,
+      rgba(168, 85, 247, 0.02) 41px
+    );
   pointer-events: none;
+  /* Subtle animation */
+  animation: scan-drift 8s ease-in-out infinite alternate;
 }
 
-/* Corner accent marks - control interface detail */
+/* Enhanced top accent bar with prismatic effect */
 .panel-command::after {
   content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(139, 92, 246, 0.8) 0%,
-    rgba(139, 92, 246, 0.2) 20%,
-    transparent 50%,
-    rgba(139, 92, 246, 0.2) 80%,
-    rgba(139, 92, 246, 0.8) 100%
-  );
+  height: 2px;
+  background: 
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(139, 92, 246, 0.9) 10%,
+      rgba(168, 85, 247, 0.7) 30%,
+      rgba(59, 130, 246, 0.5) 50%,
+      rgba(168, 85, 247, 0.7) 70%,
+      rgba(139, 92, 246, 0.9) 90%,
+      transparent 100%
+    );
+  border-radius: 12px 12px 0 0;
+  animation: accent-pulse 4s ease-in-out infinite;
+}
+
+/* Scan drift animation */
+@keyframes scan-drift {
+  0% { 
+    opacity: 0.6;
+    transform: translateX(0px);
+  }
+  100% { 
+    opacity: 0.8;
+    transform: translateX(2px);
+  }
+}
+
+/* Accent pulse animation */
+@keyframes accent-pulse {
+  0%, 100% { 
+    opacity: 0.8;
+    filter: brightness(100%);
+  }
+  50% { 
+    opacity: 1;
+    filter: brightness(120%);
+  }
 }
 
 [data-theme="light"] .panel-command {
-  background: linear-gradient(
-    180deg,
-    rgba(139, 92, 246, 0.1) 0%,
-    rgba(255, 255, 255, 0.95) 100%
-  );
-  border-color: rgba(139, 92, 246, 0.3);
+  background: 
+    /* Elegant light gradients */
+    linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, transparent 30%),
+    linear-gradient(45deg, rgba(168, 85, 247, 0.10) 0%, transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
+  border-color: rgba(139, 92, 246, 0.35);
+  border-bottom-color: rgba(139, 92, 246, 0.5);
   box-shadow: 
-    0 4px 20px -4px rgba(139, 92, 246, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    /* Refined shadow system for light mode */
+    0 8px 32px -4px rgba(139, 92, 246, 0.15),
+    0 4px 16px -2px rgba(0, 0, 0, 0.08),
+    /* Inner highlight */
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(139, 92, 246, 0.08),
+    /* Outer glow */
+    0 0 40px -15px rgba(139, 92, 246, 0.2);
 }
 
 [data-theme="light"] .panel-command::before {
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 3px,
-    rgba(139, 92, 246, 0.03) 3px,
-    rgba(139, 92, 246, 0.03) 6px
-  );
+  background: 
+    /* Delicate scan lines for light mode */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 4px,
+      rgba(139, 92, 246, 0.02) 4px,
+      rgba(139, 92, 246, 0.02) 5px,
+      transparent 5px,
+      transparent 10px
+    ),
+    /* Vertical accent lines */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 50px,
+      rgba(168, 85, 247, 0.015) 50px,
+      rgba(168, 85, 247, 0.015) 51px
+    );
 }
 
 /* =====================================================
@@ -636,45 +1155,71 @@ body {
 }
 
 /* =====================================================
-   STATUS INDICATORS: Creative visual metaphors
+   STATUS INDICATORS: Enhanced creative visual metaphors
+   Premium status communication with sophisticated animations
    ===================================================== */
 
-/* Beacon: Active/running state with radar-like pulse */
+/* Enhanced Beacon: Active/running state with multi-layer radar pulse */
 .status-beacon {
   position: relative;
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: currentColor;
+  background: 
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+    currentColor;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 8px currentColor;
 }
 
 .status-beacon::before {
   content: "";
   position: absolute;
-  inset: -3px;
+  inset: -4px;
   border-radius: 50%;
   border: 2px solid currentColor;
-  opacity: 0.4;
-  animation: beacon-pulse 2s ease-out infinite;
+  opacity: 0.5;
+  animation: beacon-pulse-primary 2.5s ease-out infinite;
 }
 
 .status-beacon::after {
   content: "";
   position: absolute;
-  inset: -6px;
+  inset: -8px;
   border-radius: 50%;
   border: 1px solid currentColor;
-  opacity: 0.2;
-  animation: beacon-pulse 2s ease-out infinite 0.3s;
+  opacity: 0.3;
+  animation: beacon-pulse-secondary 2.5s ease-out infinite 0.4s;
 }
 
-@keyframes beacon-pulse {
+@keyframes beacon-pulse-primary {
   0% {
-    transform: scale(0.8);
-    opacity: 0.6;
+    transform: scale(0.7);
+    opacity: 0.7;
+    border-width: 3px;
+  }
+  50% {
+    opacity: 0.4;
+    border-width: 2px;
   }
   100% {
-    transform: scale(1.5);
+    transform: scale(1.6);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+@keyframes beacon-pulse-secondary {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.4;
+  }
+  70% {
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(2.2);
     opacity: 0;
   }
 }
@@ -775,28 +1320,84 @@ body {
 }
 
 /* =====================================================
-   BACKGROUND SYSTEM: Space-themed environment
-   Creates atmospheric depth and context
+   BACKGROUND SYSTEM: Enhanced space-themed environment
+   Creates atmospheric depth and context with neural network aesthetics
    ===================================================== */
 
-/* Dark mode space background */
+/* Dark mode space background with enhanced depth */
 .bg-space {
-  background-color: oklch(10% 0.02 265);
+  background-color: oklch(8% 0.03 265);
   background-image: 
-    radial-gradient(circle at 0% 0%, rgba(109, 40, 217, 0.2) 0%, transparent 40%), 
-    radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.2) 0%, transparent 40%),
-    url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='stars' width='200' height='200' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='10' cy='10' r='1' fill='rgba(255,255,255,0.15)'/%3E%3Ccircle cx='50' cy='80' r='0.5' fill='rgba(255,255,255,0.1)'/%3E%3Ccircle cx='120' cy='40' r='0.8' fill='rgba(255,255,255,0.1)'/%3E%3Ccircle cx='160' cy='140' r='1.2' fill='rgba(255,255,255,0.15)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23stars)'/%3E%3C/svg%3E");
+    /* Primary gradients for depth */
+    radial-gradient(ellipse at 15% 10%, rgba(109, 40, 217, 0.25) 0%, transparent 45%), 
+    radial-gradient(ellipse at 85% 90%, rgba(59, 130, 246, 0.25) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 50%, rgba(168, 85, 247, 0.08) 0%, transparent 60%),
+    /* Neural network grid pattern */
+    linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+    /* Enhanced starfield */
+    url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='stars' width='300' height='300' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1.5' fill='rgba(255,255,255,0.2)'/%3E%3Ccircle cx='80' cy='120' r='0.8' fill='rgba(255,255,255,0.12)'/%3E%3Ccircle cx='160' cy='60' r='1' fill='rgba(255,255,255,0.15)'/%3E%3Ccircle cx='240' cy='200' r='1.8' fill='rgba(255,255,255,0.25)'/%3E%3Ccircle cx='50' cy='180' r='0.6' fill='rgba(255,255,255,0.1)'/%3E%3Ccircle cx='200' cy='40' r='1.2' fill='rgba(255,255,255,0.18)'/%3E%3Ccircle cx='280' cy='140' r='0.9' fill='rgba(255,255,255,0.14)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23stars)'/%3E%3C/svg%3E"),
+    /* Subtle noise texture for depth */
+    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+  background-size: 
+    cover, cover, cover,  
+    60px 60px, 60px 60px,
+    300px 300px,
+    100px 100px;
   background-attachment: fixed;
+  background-position: 
+    0% 0%, 100% 100%, 50% 50%,
+    0 0, 0 0,
+    0 0,
+    0 0;
   min-height: 100vh;
+  /* Subtle animation for living environment */
+  animation: space-shimmer 20s ease-in-out infinite alternate;
 }
 
-/* Light mode background */
+/* Light mode background with enhanced sophistication */
 [data-theme="light"] .bg-space {
-  background-color: oklch(96% 0.01 265);
+  background-color: oklch(97% 0.005 265);
   background-image: 
-    radial-gradient(circle at 0% 0%, rgba(109, 40, 217, 0.08) 0%, transparent 40%), 
-    radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
-    url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='dots' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1' fill='rgba(109,40,217,0.1)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23dots)'/%3E%3C/svg%3E");
+    /* Elegant gradient orbs */
+    radial-gradient(ellipse at 10% 15%, rgba(109, 40, 217, 0.12) 0%, transparent 50%), 
+    radial-gradient(ellipse at 90% 85%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(168, 85, 247, 0.05) 0%, transparent 60%),
+    /* Refined grid pattern */
+    linear-gradient(90deg, rgba(109, 40, 217, 0.04) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(109, 40, 217, 0.04) 1px, transparent 1px),
+    /* Sophisticated dot pattern */
+    url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='lightdots' width='80' height='80' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1.2' fill='rgba(109,40,217,0.08)'/%3E%3Ccircle cx='60' cy='60' r='0.8' fill='rgba(59,130,246,0.06)'/%3E%3Ccircle cx='40' cy='15' r='0.6' fill='rgba(168,85,247,0.05)'/%3E%3Ccircle cx='15' cy='50' r='1' fill='rgba(109,40,217,0.06)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23lightdots)'/%3E%3C/svg%3E"),
+    /* Paper texture for depth */
+    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='5' result='noise'/%3E%3CfeColorMatrix in='noise' type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)' opacity='0.015'/%3E%3C/svg%3E");
+  background-size: 
+    cover, cover, cover,
+    40px 40px, 40px 40px,
+    80px 80px,
+    200px 200px;
+  background-position: 
+    0% 0%, 100% 100%, 50% 50%,
+    0 0, 0 0,
+    0 0,
+    0 0;
+}
+
+/* Subtle space shimmer animation */
+@keyframes space-shimmer {
+  0% {
+    background-position: 
+      0% 0%, 100% 100%, 50% 50%,
+      0 0, 0 0,
+      0 0,
+      0 0;
+  }
+  100% {
+    background-position: 
+      2% 1%, 98% 99%, 52% 48%,
+      2px 2px, -2px 2px,
+      10px 10px,
+      5px 5px;
+  }
 }
 
 /* Dark mode glass panel (default) */

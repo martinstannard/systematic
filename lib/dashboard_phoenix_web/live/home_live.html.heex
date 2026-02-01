@@ -1,13 +1,15 @@
 <div class="min-h-screen flex flex-col" id="panel-state-container" phx-hook="PanelState">
-  <!-- Header Component -->
-  <.live_component
-    module={HeaderComponent}
-    id="header"
-    agent_sessions_count={@agent_sessions_count}
-    agent_progress_count={@agent_progress_count}
-    coding_agent_pref={@coding_agent_pref}
-    opencode_server_status={@opencode_server_status}
-  />
+  <!-- Header Component with Neural Pulse Effect -->
+  <div class="neural-pulse">
+    <.live_component
+      module={HeaderComponent}
+      id="header"
+      agent_sessions_count={@agent_sessions_count}
+      agent_progress_count={@agent_progress_count}
+      coding_agent_pref={@coding_agent_pref}
+      opencode_server_status={@opencode_server_status}
+    />
+  </div>
 
   <!-- Main Two-Column Layout -->
   <div class="flex-1 flex flex-col lg:flex-row gap-3 min-h-0">
@@ -18,10 +20,12 @@
     <div class="w-full flex flex-col gap-6 overflow-y-auto">
       
       <!-- MONITORING SECTION -->
-      <section class="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="w-2 h-2 bg-blue-500 rounded-full status-marker"></div>
-          <h2 class="text-section-header text-slate-800 dark:text-slate-200">Monitoring & Stats</h2>
+      <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream" style="border-radius: 16px;">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="status-beacon text-blue-400"></div>
+          <h2 class="text-section-header text-base-content font-semibold tracking-wide">
+            <span class="terminal-cursor">Monitoring & Stats</span>
+          </h2>
         </div>
         <div class="space-y-3">
           <!-- Usage Stats Panel (LiveComponent) -->
@@ -43,10 +47,12 @@
       </section>
 
       <!-- TASK MANAGEMENT SECTION -->
-      <section class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-700/50">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="w-2 h-2 bg-green-500 rounded-full status-marker"></div>
-          <h2 class="text-section-header text-slate-800 dark:text-slate-200">Task Management</h2>
+      <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream" style="border-radius: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05);">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="status-beacon text-green-400"></div>
+          <h2 class="text-section-header text-base-content font-semibold tracking-wide">
+            <span class="terminal-cursor">Task Management</span>
+          </h2>
         </div>
         <div class="space-y-3">
           <!-- Linear Tickets Panel (LiveComponent) -->
@@ -103,10 +109,12 @@
       </section>
 
       <!-- CODING AGENTS SECTION -->
-      <section class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-700/50">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="w-2 h-2 bg-purple-500 rounded-full status-marker"></div>
-          <h2 class="text-section-header text-slate-800 dark:text-slate-200">Coding Agents</h2>
+      <section class="glass-morphism rounded-xl p-5 neural-pulse data-stream" style="border-radius: 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05);">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="status-beacon text-purple-400"></div>
+          <h2 class="text-section-header text-base-content font-semibold tracking-wide">
+            <span class="terminal-cursor">Coding Agents</span>
+          </h2>
         </div>
         <div class="space-y-3">
           <!-- OpenCode Sessions Panel (LiveComponent) -->
@@ -153,10 +161,12 @@
   <div class="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
     
     <!-- SYSTEM CONFIGURATION SECTION -->
-    <section class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-700/50">
-      <div class="flex items-center gap-2 mb-3">
-        <div class="w-2 h-2 bg-orange-500 rounded-full status-marker"></div>
-        <h2 class="text-section-header text-slate-800 dark:text-slate-200">System & Configuration</h2>
+    <section class="glass-morphism rounded-xl p-5 neural-pulse" style="border-radius: 16px; background: linear-gradient(135deg, rgba(249, 115, 22, 0.10) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(255, 255, 255, 0.05);">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="status-beacon text-orange-400"></div>
+        <h2 class="text-section-header text-base-content font-semibold tracking-wide">
+          <span class="terminal-cursor">System & Configuration</span>
+        </h2>
       </div>
       <div class="space-y-3">
         <!-- Config Panel (LiveComponent) -->
