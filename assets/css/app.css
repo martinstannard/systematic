@@ -760,26 +760,21 @@ textarea:focus-visible {
    MISC UTILITIES
    ===================================================== */
 
-/* Terminal cursor effect (simplified) */
-.terminal-cursor {
-  /* Just text, no animation - kept for compatibility */
-}
-
-/* Quantum loading dots */
-.quantum-loading {
+/* Loading dots */
+.loading-dots {
   @apply inline-flex items-center gap-1.5;
 }
 
-.quantum-dot {
+.loading-dot {
   @apply w-2 h-2 rounded-full bg-current;
-  animation: quantum-pulse 1.4s ease-in-out infinite;
+  animation: loading-dot-pulse 1.4s ease-in-out infinite;
 }
 
-.quantum-dot:nth-child(1) { animation-delay: 0s; }
-.quantum-dot:nth-child(2) { animation-delay: 0.2s; }
-.quantum-dot:nth-child(3) { animation-delay: 0.4s; }
+.loading-dot:nth-child(1) { animation-delay: 0s; }
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
 
-@keyframes quantum-pulse {
+@keyframes loading-dot-pulse {
   0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
   40% { opacity: 1; transform: scale(1); }
 }

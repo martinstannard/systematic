@@ -36,9 +36,9 @@ defmodule DashboardPhoenixWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="panel-command px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header class="glass-header px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <div class="flex items-center gap-4">
-        <a href="/" class="text-2xl font-bold tracking-wider text-primary text-glow font-mono">
+        <a href="/" class="text-2xl font-bold tracking-wider text-slate-900 dark:text-slate-100">
           SYSTEMATIC
         </a>
       </div>
