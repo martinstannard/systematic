@@ -63,81 +63,128 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
 
   # Main polling function - finds recent tool call parts
   defp poll_opencode_parts(state) do
-    case File.ls(parts_dir()) do
-      {:ok, message_dirs} ->
-        cutoff = System.system_time(:second) - @lookback_seconds
-        
-        # Find recent part files across all message directories
-        {new_events, seen_ids} = message_dirs
-        |> Enum.flat_map(fn msg_dir ->
-          msg_path = Path.join(parts_dir(), msg_dir)
-          case File.ls(msg_path) do
-            {:ok, part_files} ->
-              part_files
-              |> Enum.filter(&String.ends_with?(&1, ".json"))
-              |> Enum.map(fn file -> Path.join(msg_path, file) end)
-            {:error, _} -> []
-          end
-        end)
-        |> Enum.filter(fn path ->
-          case File.stat(path) do
-            {:ok, %{mtime: mtime}} ->
-              epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-              epoch > cutoff
-            _ -> false
-          end
-        end)
-        |> Enum.reduce({[], state.seen_part_ids}, fn path, {events_acc, seen_acc} ->
-          case parse_part_file(path, seen_acc, state.session_titles) do
-            {:ok, event, part_id} ->
-              {[event | events_acc], MapSet.put(seen_acc, part_id)}
-            :skip ->
-              {events_acc, seen_acc}
-          end
-        end)
-        
-        if new_events != [] do
-          # Sort by timestamp, newest last
-          sorted_events = Enum.sort_by(new_events, & &1.ts)
+    try do
+      case File.ls(parts_dir()) do
+        {:ok, message_dirs} ->
+          cutoff = System.system_time(:second) - @lookback_seconds
           
-          # Merge with existing progress, keep last N events
-          updated_progress = (state.progress ++ sorted_events)
-          |> Enum.uniq_by(& &1.ts)
-          |> Enum.sort_by(& &1.ts)
-          |> Enum.take(-@max_events)
+          # Find recent part files across all message directories
+          {new_events, seen_ids} = message_dirs
+          |> Enum.flat_map(fn msg_dir ->
+            msg_path = Path.join(parts_dir(), msg_dir)
+            case File.ls(msg_path) do
+              {:ok, part_files} ->
+                part_files
+                |> Enum.filter(&String.ends_with?(&1, ".json"))
+                |> Enum.map(fn file -> Path.join(msg_path, file) end)
+              {:error, :enoent} ->
+                Logger.debug("OpenCodeActivityMonitor: Message directory #{msg_path} no longer exists")
+                []
+              {:error, :eacces} ->
+                Logger.warning("OpenCodeActivityMonitor: Permission denied accessing #{msg_path}")
+                []
+              {:error, reason} ->
+                Logger.debug("OpenCodeActivityMonitor: Failed to list files in #{msg_path}: #{inspect(reason)}")
+                []
+            end
+          end)
+          |> Enum.filter(fn path ->
+            case File.stat(path) do
+              {:ok, %{mtime: mtime}} ->
+                epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
+                epoch > cutoff
+              {:error, :enoent} ->
+                Logger.debug("OpenCodeActivityMonitor: Part file #{path} no longer exists")
+                false
+              {:error, reason} ->
+                Logger.debug("OpenCodeActivityMonitor: Failed to stat part file #{path}: #{inspect(reason)}")
+                false
+            end
+          end)
+          |> Enum.reduce({[], state.seen_part_ids}, fn path, {events_acc, seen_acc} ->
+            case parse_part_file(path, seen_acc, state.session_titles) do
+              {:ok, event, part_id} ->
+                {[event | events_acc], MapSet.put(seen_acc, part_id)}
+              :skip ->
+                {events_acc, seen_acc}
+            end
+          end)
           
-          # Broadcast to PubSub
-          broadcast_progress(sorted_events)
+          if new_events != [] do
+            # Sort by timestamp, newest last
+            sorted_events = Enum.sort_by(new_events, & &1.ts)
+            
+            # Merge with existing progress, keep last N events
+            updated_progress = (state.progress ++ sorted_events)
+            |> Enum.uniq_by(& &1.ts)
+            |> Enum.sort_by(& &1.ts)
+            |> Enum.take(-@max_events)
+            
+            # Broadcast to PubSub
+            broadcast_progress(sorted_events)
+            
+            %{state | progress: updated_progress, seen_part_ids: seen_ids}
+          else
+            %{state | seen_part_ids: seen_ids}
+          end
           
-          %{state | progress: updated_progress, seen_part_ids: seen_ids}
-        else
-          %{state | seen_part_ids: seen_ids}
-        end
-        
-      {:error, _} ->
-        # OpenCode storage doesn't exist yet, that's fine
+        {:error, :enoent} ->
+          Logger.debug("OpenCodeActivityMonitor: Parts directory #{parts_dir()} does not exist")
+          state
+        {:error, :eacces} ->
+          Logger.warning("OpenCodeActivityMonitor: Permission denied accessing parts directory #{parts_dir()}")
+          state
+        {:error, reason} ->
+          Logger.warning("OpenCodeActivityMonitor: Failed to read parts directory #{parts_dir()}: #{inspect(reason)}")
+          state
+      end
+    rescue
+      e ->
+        Logger.error("OpenCodeActivityMonitor: Exception in poll_opencode_parts: #{inspect(e)}")
         state
     end
   end
 
   # Parse a part JSON file and convert to progress event format
   defp parse_part_file(path, seen_ids, session_titles) do
-    with {:ok, content} <- File.read(path),
-         {:ok, data} <- Jason.decode(content) do
-      part_id = data["id"]
-      
-      # Skip if already seen or not a tool call
-      cond do
-        MapSet.member?(seen_ids, part_id) ->
+    try do
+      case File.read(path) do
+        {:ok, content} ->
+          case Jason.decode(content) do
+            {:ok, data} ->
+              part_id = data["id"]
+              
+              # Skip if already seen or not a tool call
+              cond do
+                MapSet.member?(seen_ids, part_id) ->
+                  :skip
+                data["type"] != "tool" ->
+                  :skip
+                true ->
+                  event = build_progress_event(data, session_titles)
+                  {:ok, event, part_id}
+              end
+            {:error, %Jason.DecodeError{} = e} ->
+              Logger.debug("OpenCodeActivityMonitor: Failed to decode JSON from #{path}: #{Exception.message(e)}")
+              :skip
+            {:error, reason} ->
+              Logger.debug("OpenCodeActivityMonitor: JSON decode error for #{path}: #{inspect(reason)}")
+              :skip
+          end
+        {:error, :enoent} ->
+          Logger.debug("OpenCodeActivityMonitor: Part file #{path} no longer exists")
           :skip
-        data["type"] != "tool" ->
+        {:error, :eacces} ->
+          Logger.debug("OpenCodeActivityMonitor: Permission denied reading part file #{path}")
           :skip
-        true ->
-          event = build_progress_event(data, session_titles)
-          {:ok, event, part_id}
+        {:error, reason} ->
+          Logger.debug("OpenCodeActivityMonitor: Failed to read part file #{path}: #{inspect(reason)}")
+          :skip
       end
-    else
-      _ -> :skip
+    rescue
+      e ->
+        Logger.debug("OpenCodeActivityMonitor: Exception parsing part file #{path}: #{inspect(e)}")
+        :skip
     end
   end
 
@@ -246,26 +293,49 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   # Get session title from session file (with caching potential)
   defp get_session_title(nil), do: nil
   defp get_session_title(session_id) do
-    # Find session file - it's stored under project dirs
-    case File.ls(sessions_dir()) do
-      {:ok, project_dirs} ->
-        project_dirs
-        |> Enum.find_value(fn project_dir ->
-          session_path = Path.join([sessions_dir(), project_dir, "#{session_id}.json"])
-          case File.read(session_path) do
-            {:ok, content} ->
-              case Jason.decode(content) do
-                {:ok, %{"title" => title}} when title != "" and not is_nil(title) ->
-                  # Return truncated title or slug
-                  truncate_title(title)
-                {:ok, %{"slug" => slug}} ->
-                  slug
-                _ -> nil
-              end
-            _ -> nil
-          end
-        end)
-      _ -> nil
+    try do
+      # Find session file - it's stored under project dirs
+      case File.ls(sessions_dir()) do
+        {:ok, project_dirs} ->
+          project_dirs
+          |> Enum.find_value(fn project_dir ->
+            session_path = Path.join([sessions_dir(), project_dir, "#{session_id}.json"])
+            case File.read(session_path) do
+              {:ok, content} ->
+                case Jason.decode(content) do
+                  {:ok, %{"title" => title}} when title != "" and not is_nil(title) ->
+                    # Return truncated title or slug
+                    truncate_title(title)
+                  {:ok, %{"slug" => slug}} when slug != "" and not is_nil(slug) ->
+                    slug
+                  {:ok, _} -> nil
+                  {:error, %Jason.DecodeError{}} ->
+                    Logger.debug("OpenCodeActivityMonitor: Failed to decode session JSON for #{session_path}")
+                    nil
+                  {:error, reason} ->
+                    Logger.debug("OpenCodeActivityMonitor: JSON decode error for session #{session_path}: #{inspect(reason)}")
+                    nil
+                end
+              {:error, :enoent} -> nil
+              {:error, :eacces} ->
+                Logger.debug("OpenCodeActivityMonitor: Permission denied reading session #{session_path}")
+                nil
+              {:error, reason} ->
+                Logger.debug("OpenCodeActivityMonitor: Failed to read session #{session_path}: #{inspect(reason)}")
+                nil
+            end
+          end)
+        {:error, :enoent} ->
+          Logger.debug("OpenCodeActivityMonitor: Sessions directory #{sessions_dir()} does not exist")
+          nil
+        {:error, reason} ->
+          Logger.debug("OpenCodeActivityMonitor: Failed to list sessions directory: #{inspect(reason)}")
+          nil
+      end
+    rescue
+      e ->
+        Logger.debug("OpenCodeActivityMonitor: Exception getting session title for #{session_id}: #{inspect(e)}")
+        nil
     end
   end
 

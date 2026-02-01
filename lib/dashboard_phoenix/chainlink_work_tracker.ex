@@ -148,47 +148,87 @@ defmodule DashboardPhoenix.ChainlinkWorkTracker do
   defp persistence_path do
     # Store in the app's priv directory or a data directory
     data_dir = Application.get_env(:dashboard_phoenix, :data_dir, "priv/data")
-    File.mkdir_p!(data_dir)
-    Path.join(data_dir, @persistence_file)
+    
+    case File.mkdir_p(data_dir) do
+      :ok -> Path.join(data_dir, @persistence_file)
+      {:error, reason} ->
+        Logger.error("ChainlinkWorkTracker: Failed to create data directory #{data_dir}: #{inspect(reason)}")
+        # Fallback to tmp directory
+        tmp_path = Path.join(System.tmp_dir!(), @persistence_file)
+        Logger.warning("ChainlinkWorkTracker: Using fallback path #{tmp_path}")
+        tmp_path
+    end
   end
 
   defp load_from_file do
     path = persistence_path()
     
-    case File.read(path) do
-      {:ok, content} ->
-        case Jason.decode(content) do
-          {:ok, data} ->
-            # Convert string keys to integer issue IDs
-            data
-            |> Enum.map(fn {k, v} ->
-              issue_id = if is_binary(k), do: String.to_integer(k), else: k
-              # Convert string keys in value to atoms for consistency
-              info = for {key, val} <- v, into: %{} do
-                atom_key = if is_binary(key), do: String.to_atom(key), else: key
-                {atom_key, val}
-              end
-              {issue_id, info}
-            end)
-            |> Map.new()
-          {:error, _} ->
-            Logger.warning("ChainlinkWorkTracker: failed to parse #{path}")
-            %{}
-        end
-      {:error, :enoent} ->
-        %{}
-      {:error, reason} ->
-        Logger.warning("ChainlinkWorkTracker: failed to read #{path}: #{inspect(reason)}")
+    try do
+      case File.read(path) do
+        {:ok, content} ->
+          case Jason.decode(content) do
+            {:ok, data} ->
+              # Convert string keys to integer issue IDs
+              data
+              |> Enum.map(fn {k, v} ->
+                issue_id = if is_binary(k), do: String.to_integer(k), else: k
+                # Convert string keys in value to atoms for consistency
+                info = for {key, val} <- v, into: %{} do
+                  atom_key = if is_binary(key), do: String.to_atom(key), else: key
+                  {atom_key, val}
+                end
+                {issue_id, info}
+              end)
+              |> Map.new()
+            {:error, %Jason.DecodeError{} = e} ->
+              Logger.warning("ChainlinkWorkTracker: Failed to parse JSON from #{path}: #{Exception.message(e)}")
+              %{}
+            {:error, reason} ->
+              Logger.warning("ChainlinkWorkTracker: JSON decode error from #{path}: #{inspect(reason)}")
+              %{}
+          end
+        {:error, :enoent} ->
+          Logger.debug("ChainlinkWorkTracker: Persistence file #{path} does not exist")
+          %{}
+        {:error, :eacces} ->
+          Logger.warning("ChainlinkWorkTracker: Permission denied reading #{path}")
+          %{}
+        {:error, reason} ->
+          Logger.warning("ChainlinkWorkTracker: Failed to read #{path}: #{inspect(reason)}")
+          %{}
+      end
+    rescue
+      e ->
+        Logger.error("ChainlinkWorkTracker: Exception loading from file: #{inspect(e)}")
         %{}
     end
   end
 
   defp save_to_file(work) do
     path = persistence_path()
-    content = Jason.encode!(work, pretty: true)
-    File.write!(path, content)
-  rescue
-    e ->
-      Logger.error("ChainlinkWorkTracker: failed to save: #{inspect(e)}")
+    
+    try do
+      case Jason.encode(work, pretty: true) do
+        {:ok, content} ->
+          case File.write(path, content) do
+            :ok ->
+              Logger.debug("ChainlinkWorkTracker: Successfully saved work tracker data")
+              :ok
+            {:error, reason} ->
+              Logger.error("ChainlinkWorkTracker: Failed to write to #{path}: #{inspect(reason)}")
+              {:error, reason}
+          end
+        {:error, %Jason.EncodeError{} = e} ->
+          Logger.error("ChainlinkWorkTracker: Failed to encode work data as JSON: #{Exception.message(e)}")
+          {:error, {:json_encode, e}}
+        {:error, reason} ->
+          Logger.error("ChainlinkWorkTracker: JSON encode error: #{inspect(reason)}")
+          {:error, {:json_encode, reason}}
+      end
+    rescue
+      e ->
+        Logger.error("ChainlinkWorkTracker: Exception saving work tracker data: #{inspect(e)}")
+        {:error, {:exception, e}}
+    end
   end
 end
