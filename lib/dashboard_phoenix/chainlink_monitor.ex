@@ -7,8 +7,7 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.CommandRunner
-  alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.{CLITools, Paths}
 
   @poll_interval_ms 60_000  # 60 seconds (chainlink issues change less frequently)
   @topic "chainlink_updates"
@@ -40,11 +39,16 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
 
   @doc "Get full details for a specific issue"
   def get_issue_details(issue_id) do
-    case CommandRunner.run(Paths.chainlink_bin(), ["show", to_string(issue_id)],
+    case CLITools.run_if_available(Paths.chainlink_bin(), ["show", to_string(issue_id)],
            cd: repo_path(),
-           timeout: @cli_timeout_ms) do
+           timeout: @cli_timeout_ms,
+           friendly_name: "Chainlink CLI") do
       {:ok, output} ->
         {:ok, output}
+
+      {:error, {:tool_not_available, message}} ->
+        Logger.info("Chainlink CLI not available for issue ##{issue_id}: #{message}")
+        {:error, message}
 
       {:error, {:exit, _code, error}} ->
         Logger.warning("Chainlink CLI error fetching ##{issue_id}: #{error}")
@@ -64,9 +68,24 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
 
   @impl true
   def init(_opts) do
+    # Check tool availability on startup
+    tools_status = CLITools.check_tools([
+      {Paths.chainlink_bin(), "Chainlink CLI"}
+    ])
+    
+    initial_error = if tools_status.all_available? do
+      nil
+    else
+      CLITools.format_status_message(tools_status)
+    end
+    
+    if initial_error do
+      Logger.warning("ChainlinkMonitor starting with missing tools: #{initial_error}")
+    end
+    
     # Start polling after a short delay
     Process.send_after(self(), :poll, 1_000)
-    {:ok, %{issues: [], last_updated: nil, error: nil}}
+    {:ok, %{issues: [], last_updated: nil, error: initial_error}}
   end
 
   @impl true
@@ -125,9 +144,10 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   def normalize_priority_for_test(priority), do: normalize_priority(priority)
 
   defp fetch_issues(state) do
-    case CommandRunner.run(Paths.chainlink_bin(), ["list"],
+    case CLITools.run_if_available(Paths.chainlink_bin(), ["list"],
            cd: repo_path(),
-           timeout: @cli_timeout_ms) do
+           timeout: @cli_timeout_ms,
+           friendly_name: "Chainlink CLI") do
       {:ok, output} ->
         issues = parse_chainlink_output(output)
         %{state |
@@ -135,6 +155,10 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
           last_updated: DateTime.utc_now(),
           error: nil
         }
+
+      {:error, {:tool_not_available, message}} ->
+        Logger.info("Chainlink CLI not available: #{message}")
+        %{state | error: message}
 
       {:error, {:exit, code, error}} ->
         Logger.warning("Chainlink CLI error (exit #{code}): #{error}")

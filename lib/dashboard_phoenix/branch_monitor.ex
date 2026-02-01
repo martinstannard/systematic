@@ -7,8 +7,7 @@ defmodule DashboardPhoenix.BranchMonitor do
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.CommandRunner
-  alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.{CLITools, CommandRunner, Paths}
 
   @poll_interval_ms 120_000  # 2 minutes
   @topic "branch_updates"
@@ -52,9 +51,22 @@ defmodule DashboardPhoenix.BranchMonitor do
 
   @impl true
   def init(_opts) do
+    # Check git availability on startup
+    tools_status = CLITools.check_tools([{"git", "Git"}])
+    
+    initial_error = if tools_status.all_available? do
+      nil
+    else
+      CLITools.format_status_message(tools_status)
+    end
+    
+    if initial_error do
+      Logger.warning("BranchMonitor starting with missing tools: #{initial_error}")
+    end
+    
     # Start polling after a short delay
     Process.send_after(self(), :poll, 1_000)
-    {:ok, %{branches: [], worktrees: %{}, last_updated: nil, error: nil}}
+    {:ok, %{branches: [], worktrees: %{}, last_updated: nil, error: initial_error}}
   end
 
   @impl true
@@ -147,11 +159,15 @@ defmodule DashboardPhoenix.BranchMonitor do
   end
 
   defp fetch_worktrees do
-    case CommandRunner.run("git", ["worktree", "list", "--porcelain"], 
-           cd: repo_path(), timeout: @cli_timeout_ms) do
+    case CLITools.run_if_available("git", ["worktree", "list", "--porcelain"], 
+           cd: repo_path(), timeout: @cli_timeout_ms, friendly_name: "Git") do
       {:ok, output} ->
         worktrees = parse_worktree_output(output)
         {:ok, worktrees}
+      
+      {:error, {:tool_not_available, message}} ->
+        Logger.info("Git not available: #{message}")
+        {:error, message}
       
       {:error, reason} ->
         Logger.warning("git worktree list failed: #{inspect(reason)}")

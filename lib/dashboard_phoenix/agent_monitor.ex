@@ -6,7 +6,7 @@ defmodule DashboardPhoenix.AgentMonitor do
 
   require Logger
 
-  alias DashboardPhoenix.{CommandRunner, ProcessParser}
+  alias DashboardPhoenix.{CLITools, ProcessParser}
 
   @agent_patterns ~w(claude opencode codex pi\ coding)
   @cli_timeout_ms 10_000
@@ -91,10 +91,12 @@ defmodule DashboardPhoenix.AgentMonitor do
 
   defp get_output_from_pty(pid, _agent_type) do
     # Try to find associated PTY and read recent output
-    case CommandRunner.run("sh", ["-c", "ls -la /proc/#{pid}/fd/ 2>/dev/null | grep pts"], 
-           timeout: 5_000) do
+    case CLITools.run_if_available("sh", ["-c", "ls -la /proc/#{pid}/fd/ 2>/dev/null | grep pts"], 
+           timeout: 5_000, friendly_name: "Shell") do
       {:ok, output} when output != "" ->
         "Running on PTY"
+      {:error, {:tool_not_available, _}} ->
+        nil
       _ ->
         nil
     end

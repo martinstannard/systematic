@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   require Logger
 
-  alias DashboardPhoenix.{CommandRunner, Paths, ProcessParser}
+  alias DashboardPhoenix.{CLITools, Paths, ProcessParser}
 
   @poll_interval 1_000  # 1 second for responsive updates
   @max_recent_actions 10
@@ -331,15 +331,18 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   defp get_recently_modified_files(nil), do: []
   defp get_recently_modified_files(cwd) do
-    case CommandRunner.run("find", [cwd, "-maxdepth", "3", "-type", "f", "-mmin", "-5", 
+    case CLITools.run_if_available("find", [cwd, "-maxdepth", "3", "-type", "f", "-mmin", "-5", 
                              "-name", "*.ex", "-o", "-name", "*.exs", 
                              "-o", "-name", "*.ts", "-o", "-name", "*.js",
                              "-o", "-name", "*.py", "-o", "-name", "*.rb"], 
-                    timeout: @cli_timeout_ms) do
+                    timeout: @cli_timeout_ms, friendly_name: "find") do
       {:ok, output} ->
         output
         |> String.split("\n", trim: true)
         |> Enum.take(10)
+        
+      {:error, {:tool_not_available, _}} ->
+        []
         
       {:error, _} ->
         []

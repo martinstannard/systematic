@@ -175,11 +175,17 @@ defmodule DashboardPhoenix.CLITools do
       name when name in ["gh", "github cli"] ->
         "Install from https://cli.github.com/ or your package manager"
       
-      name when name in ["ps"] ->
-        "This is usually a system command. Check your PATH or contact system administrator"
+      name when name in ["chainlink", "chainlink cli"] ->
+        "Install chainlink from your project's bin directory or build it with: mix escript.build"
       
-      name when name in ["kill"] ->
-        "This is usually a system command. Check your PATH or contact system administrator"
+      name when name in ["opencode"] ->
+        "Install from https://github.com/opencode-ai/opencode or your package manager"
+      
+      name when name in ["git"] ->
+        "Install git from https://git-scm.com/ or your package manager"
+      
+      name when name in ["ps", "kill", "find", "sh"] ->
+        "This is a core system command. Check your PATH or system installation"
       
       _ ->
         "Please install #{tool_name} and ensure it's in your PATH"
