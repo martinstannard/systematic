@@ -107,7 +107,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
           <%= if @agent_mode == "round_robin" do %>
             <span class="text-warning">🔄 Round Robin</span>
             <span class="text-base-content/30">|</span>
-            <span>Next: <%= if @last_agent == "claude", do: "OpenCode", else: "Claude" %></span>
+            <span>Next: <%= next_agent_display(@last_agent) %></span>
           <% else %>
             <span><%= if @coding_agent_pref == :opencode, do: "OpenCode + #{@opencode_model}", else: "Claude + #{String.replace(@claude_model, "anthropic/claude-", "")}" %></span>
           <% end %>
@@ -150,7 +150,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
               </div>
               <%= if @agent_mode == "round_robin" do %>
                 <div class="text-xs font-mono text-warning/70 mt-1">
-                  Next: <%= if @last_agent == "claude", do: "OpenCode", else: "Claude" %>
+                  Next: <%= next_agent_display(@last_agent) %>
                 </div>
               <% end %>
             </div>
@@ -287,4 +287,11 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
     </div>
     """
   end
+
+  # Helper to display the next agent in round-robin cycle
+  # Matches the cycle: claude -> opencode -> gemini -> claude
+  defp next_agent_display("claude"), do: "OpenCode"
+  defp next_agent_display("opencode"), do: "Gemini"
+  defp next_agent_display("gemini"), do: "Claude"
+  defp next_agent_display(_), do: "Claude"
 end
