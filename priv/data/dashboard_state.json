@@ -5,13 +5,13 @@
     "opencode_model": "gemini-3-pro"
   },
   "panels": {
-    "activity": true,
+    "activity": false,
     "agent_activity": false,
-    "branches": true,
-    "chainlink": true,
+    "branches": false,
+    "chainlink": false,
     "chat": true,
     "coding_agents": false,
-    "config": false,
+    "config": true,
     "dave": false,
     "gemini": false,
     "linear": true,
@@ -23,5 +23,5 @@
     "system_processes": false,
     "work_panel": false
   },
-  "updated_at": "2026-02-01T10:27:45.530927Z"
+  "updated_at": "2026-02-01T10:32:16.734898Z"
 }

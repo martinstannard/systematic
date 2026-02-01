@@ -1,1 +1,7 @@
-{}
+{
+  "99": {
+    "label": "persistent-agent",
+    "started_at": "2026-02-01T10:32:17.361030Z",
+    "job_id": "job-456"
+  }
+}
