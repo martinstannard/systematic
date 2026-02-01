@@ -74,10 +74,10 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
   # Helper functions
 
-  defp priority_badge(:high), do: "px-1.5 py-0.5bg-red-500/20 text-red-400 text-ui-caption"
-  defp priority_badge(:medium), do: "px-1.5 py-0.5bg-yellow-500/20 text-yellow-400 text-ui-caption"
-  defp priority_badge(:low), do: "px-1.5 py-0.5bg-blue-500/20 text-blue-400 text-ui-caption"
-  defp priority_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-ui-caption"
+  defp priority_badge(:high), do: "px-1.5 py-0.5 bg-red-500/20 text-red-400 dark:text-red-400 text-ui-caption rounded"
+  defp priority_badge(:medium), do: "px-1.5 py-0.5 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-ui-caption rounded"
+  defp priority_badge(:low), do: "px-1.5 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 text-ui-caption rounded"
+  defp priority_badge(_), do: "px-1.5 py-0.5 bg-base-content/10 text-base-content/60 text-ui-caption rounded"
 
   defp priority_text(:high), do: "HIGH"
   defp priority_text(:medium), do: "MED"
@@ -89,21 +89,21 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   defp priority_symbol(:low), do: "▼"
   defp priority_symbol(_), do: "◌"
 
-  defp priority_row_class(:high), do: "border-l-2 border-red-500/50"
-  defp priority_row_class(:medium), do: "border-l-2 border-yellow-500/50"
-  defp priority_row_class(:low), do: "border-l-2 border-blue-500/50"
+  defp priority_row_class(:high), do: "border-l-2 border-l-red-500/50"
+  defp priority_row_class(:medium), do: "border-l-2 border-l-yellow-500/50"
+  defp priority_row_class(:low), do: "border-l-2 border-l-blue-500/50"
   defp priority_row_class(_), do: ""
 
-  defp wip_row_class(nil), do: "hover:bg-white/5"
-  defp wip_row_class(_work_info), do: "bg-accent/10 border-r-2 border-success/50"
+  defp wip_row_class(nil), do: "hover:bg-base-300/50 dark:hover:bg-white/5"
+  defp wip_row_class(_work_info), do: "bg-success/10 border-r-2 border-r-success/50"
 
   defp status_icon("open"), do: "○"
   defp status_icon("closed"), do: "●"
   defp status_icon(_), do: "◌"
 
-  defp status_icon_class("open"), do: "text-base-content/40 cursor-help"
+  defp status_icon_class("open"), do: "text-base-content/60 cursor-help"
   defp status_icon_class("closed"), do: "text-success cursor-help"
-  defp status_icon_class(_), do: "text-base-content/40 cursor-help"
+  defp status_icon_class(_), do: "text-base-content/60 cursor-help"
 
   defp status_text("open"), do: "Status: Open"
   defp status_text("closed"), do: "Status: Closed"
@@ -135,7 +135,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-work overflow-hidden">
+    <div class="panel bg-base-200 border border-base-300 overflow-hidden">
       <div
         class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
@@ -161,13 +161,12 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         <button
           phx-click="refresh_chainlink"
           phx-target={@myself}
-          class="btn-interactive-icon text-base-content/60 hover:text-accent hover:bg-accent/10"
+          class="btn-interactive-icon text-base-content/60 hover:text-accent hover:bg-accent/10 !min-h-[32px] !min-w-[32px] !p-1"
           onclick="event.stopPropagation()"
           aria-label="Refresh Chainlink issues"
           title="Refresh issues"
         >
           <span class="text-sm" aria-hidden="true">↻</span>
-          <span class="text-ui-caption">Refresh</span>
         </button>
       </div>
 
@@ -175,13 +174,13 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         <div class="px-4 pb-4">
           <!-- Legend: Priority & Status -->
           <div class="flex items-center justify-between mb-3 text-ui-caption text-base-content/60">
-            <div class="flex items-center space-x-2">
-              <span class="flex items-center text-red-400"><%= priority_symbol(:high) %> HIGH</span>
-              <span class="flex items-center text-yellow-400"><%= priority_symbol(:medium) %> MED</span>
-              <span class="flex items-center text-blue-400"><%= priority_symbol(:low) %> LOW</span>
+            <div class="flex items-center space-x-3">
+              <span class="flex items-center gap-1 text-red-600 dark:text-red-400"><%= priority_symbol(:high) %> HIGH</span>
+              <span class="flex items-center gap-1 text-yellow-600 dark:text-yellow-400"><%= priority_symbol(:medium) %> MED</span>
+              <span class="flex items-center gap-1 text-blue-600 dark:text-blue-400"><%= priority_symbol(:low) %> LOW</span>
             </div>
-            <div class="flex items-center space-x-2 border-l border-base-content/20 pl-2">
-              <span class="flex items-center gap-1"><span class="text-base-content/40">○</span> Open</span>
+            <div class="flex items-center space-x-3 border-l border-base-300 pl-3">
+              <span class="flex items-center gap-1"><span class="text-base-content/60">○</span> Open</span>
               <span class="flex items-center gap-1"><span class="text-success">●</span> Closed</span>
             </div>
           </div>
@@ -195,14 +194,14 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
               </div>
             <% else %>
               <%= if @chainlink_error do %>
-                <div class="text-xs text-error/70 py-2 px-2"><%= @chainlink_error %></div>
+                <div class="text-ui-caption text-error py-2 px-2"><%= @chainlink_error %></div>
               <% end %>
               <%= if @chainlink_issues_empty and is_nil(@chainlink_error) do %>
-                <div class="text-ui-caption text-base-content/60 py-2 px-2">No open issues</div>
+                <div class="text-ui-caption text-base-content/60 py-4 text-center">No open issues</div>
               <% end %>
               <%= for issue <- @chainlink_issues do %>
                 <% work_info = Map.get(@chainlink_work_in_progress, issue.id) %>
-                <div class={"flex items-center space-x-3 px-3 py-2 rounded " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
+                <div class={"flex items-center space-x-3 px-3 py-2 rounded border border-base-300 " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
                   <%= if work_info do %>
                     <!-- Work in progress indicator - replaces Work button -->
                     <div class="flex items-center space-x-1.5 min-w-[70px]" role="status" aria-label={"Work in progress by " <> (work_info[:label] || "agent")}>
@@ -226,7 +225,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                   <% end %>
                   <span class={status_icon_class(issue.status)} title={status_text(issue.status)} aria-label={status_text(issue.status)}><%= status_icon(issue.status) %></span>
                   <span class="text-ui-value text-accent">#<%= issue.id %></span>
-                  <span class="text-ui-body text-white truncate flex-1" title={issue.title}><%= issue.title %></span>
+                  <span class="text-ui-body truncate flex-1" title={issue.title}><%= issue.title %></span>
                   <span class={priority_badge(issue.priority)} title={"Priority: " <> priority_text(issue.priority)}>
                     <%= priority_symbol(issue.priority) %> <%= priority_text(issue.priority) %>
                   </span>

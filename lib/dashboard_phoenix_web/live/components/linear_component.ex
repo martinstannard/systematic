@@ -63,18 +63,18 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   # Helper functions
 
-  defp linear_filter_button_active("Triaging"), do: "bg-red-500/30 text-red-400 border border-red-500/50"
-  defp linear_filter_button_active("Backlog"), do: "bg-blue-500/30 text-blue-400 border border-blue-500/50"
-  defp linear_filter_button_active("Todo"), do: "bg-yellow-500/30 text-yellow-400 border border-yellow-500/50"
-  defp linear_filter_button_active("In Review"), do: "bg-purple-500/30 text-purple-400 border border-purple-500/50"
-  defp linear_filter_button_active(_), do: "bg-accent/30 text-accent border border-accent/50"
+  defp linear_filter_button_active("Triaging"), do: "bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30"
+  defp linear_filter_button_active("Backlog"), do: "bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30"
+  defp linear_filter_button_active("Todo"), do: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30"
+  defp linear_filter_button_active("In Review"), do: "bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30"
+  defp linear_filter_button_active(_), do: "bg-accent/20 text-accent border border-accent/30"
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-content-critical">
+    <div class="panel bg-base-200 border border-base-300 overflow-hidden">
       <div 
-        class="panel-header-critical panel-header-interactive flex items-center justify-between select-none"
+        class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
         phx-target={@myself}
         role="button"
@@ -92,17 +92,18 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading tickets</span>
           <% else %>
-            <span class="text-xs font-mono text-base-content/50"><%= @linear_tickets_count %></span>
+            <span class="text-ui-caption text-tabular text-base-content/60"><%= @linear_tickets_count %></span>
           <% end %>
         </div>
         <button 
           phx-click="refresh_linear" 
           phx-target={@myself}
-          class="text-xs text-base-content/40 hover:text-accent" 
+          class="btn-interactive-icon text-base-content/60 hover:text-accent hover:bg-accent/10 !min-h-[32px] !min-w-[32px] !p-1"
           onclick="event.stopPropagation()"
           aria-label="Refresh Linear tickets"
+          title="Refresh tickets"
         >
-          ↻
+          <span class="text-sm" aria-hidden="true">↻</span>
         </button>
       </div>
       
@@ -116,10 +117,10 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                 phx-click="set_linear_filter"
                 phx-value-status={status}
                 phx-target={@myself}
-                class={"px-2.5 py-1 text-xs font-mono transition-all rounded " <> 
+                class={"px-2.5 py-1 text-ui-caption transition-all rounded " <> 
                   if(@linear_status_filter == status,
                     do: linear_filter_button_active(status),
-                    else: "bg-base-content/10 text-base-content/50 hover:bg-base-content/20"
+                    else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20 border border-transparent"
                   )}
                 role="button"
                 aria-pressed={if(@linear_status_filter == status, do: "true", else: "false")}
@@ -135,32 +136,35 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
             <%= if @linear_loading do %>
               <div class="flex items-center justify-center py-4 space-x-2">
                 <span class="throbber-small"></span>
-                <span class="text-xs text-base-content/50 font-mono">Loading tickets...</span>
+                <span class="text-ui-caption text-base-content/60">Loading tickets...</span>
               </div>
             <% else %>
               <%= if @linear_error do %>
-                <div class="text-xs text-error/70 py-2 px-2"><%= @linear_error %></div>
+                <div class="text-ui-caption text-error py-2 px-2"><%= @linear_error %></div>
+              <% end %>
+              <%= if @linear_filtered_tickets == [] and is_nil(@linear_error) do %>
+                <div class="text-ui-caption text-base-content/60 py-4 text-center">No tickets found</div>
               <% end %>
               <%= for ticket <- @linear_filtered_tickets do %>
                 <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
-                <div class={"flex items-center space-x-3 px-3 py-2 text-xs font-mono transition-all rounded " <> if(work_info, do: "panel-work bg-accent/15 border border-accent/30", else: "panel-status hover:bg-accent/10 hover:border-accent/30")}>
+                <div class={"flex items-center space-x-3 px-3 py-2 rounded border transition-all " <> if(work_info, do: "bg-success/10 border-success/30", else: "border-base-300 hover:bg-base-300/50 dark:hover:bg-white/5 hover:border-accent/30")}>
                   <%= if work_info do %>
-                    <span class="w-1.5 h-1.5 bg-success" aria-hidden="true"></span>
+                    <span class="status-activity-ring text-success" aria-hidden="true"></span>
                     <span class="sr-only">Work in progress</span>
                   <% else %>
                     <button
                       phx-click="work_on_ticket"
                       phx-value-id={ticket.id}
                       phx-target={@myself}
-                      class="text-xs px-2 py-1 bg-accent/20 text-accent hover:bg-accent/40 rounded"
+                      class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 hover:scale-105 active:scale-95"
                       aria-label={"Start work on ticket " <> ticket.id}
                       title={"Start work on ticket " <> ticket.id}
                     >
-                      ▶
+                      <span aria-hidden="true">▶</span>
                     </button>
                   <% end %>
-                  <a href={ticket.url} target="_blank" class="text-accent hover:underline"><%= ticket.id %></a>
-                  <span class="text-white truncate flex-1" title={ticket.title}><%= ticket.title %></span>
+                  <a href={ticket.url} target="_blank" class="text-ui-value text-accent hover:underline"><%= ticket.id %></a>
+                  <span class="text-ui-body truncate flex-1" title={ticket.title}><%= ticket.title %></span>
                 </div>
               <% end %>
             <% end %>
