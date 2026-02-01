@@ -188,19 +188,19 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                       phx-value-url={pr.url}
                       phx-value-number={pr.number}
                       phx-value-repo={pr.repo}
-                      class="btn-interactive-sm ml-2 bg-purple-500/20 text-purple-600 dark:text-purple-400 hover:bg-purple-500/40 whitespace-nowrap"
+                      class="btn-interactive-sm ml-2 px-3 py-2 sm:px-2 sm:py-1 min-h-[44px] sm:min-h-0 bg-purple-500/20 text-purple-600 dark:text-purple-400 hover:bg-purple-500/40 whitespace-nowrap rounded"
                       title="Request Super Review"
                       aria-label={"Request super review for PR #" <> to_string(pr.number)}
                     >
-                      🔍 Review
+                      🔍 <span class="hidden sm:inline">Review</span>
                     </button>
                   </div>
 
                   <!-- Author and Branch -->
-                  <div class="flex items-center space-x-2 text-ui-caption text-base-content/60 mb-2">
+                  <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui-caption text-base-content/60 mb-2">
                     <span>by <span class="text-base-content/80"><%= pr.author %></span></span>
-                    <span>•</span>
-                    <span class="truncate text-blue-600 dark:text-blue-400" title={pr.branch}><%= pr.branch %></span>
+                    <span class="hidden sm:inline">•</span>
+                    <span class="truncate text-blue-600 dark:text-blue-400 max-w-[120px] sm:max-w-none" title={pr.branch}><%= pr.branch %></span>
                     <span>•</span>
                     <span><%= format_pr_time(pr.created_at) %></span>
                   </div>

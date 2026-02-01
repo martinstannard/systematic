@@ -110,14 +110,14 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
       <div id="linear-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@linear_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
         <div class="px-4 pb-4">
           <!-- Status Filter -->
-          <div class="flex items-center space-x-2 mb-3 flex-wrap gap-2">
+          <div class="flex items-center flex-wrap gap-2 mb-3">
             <%= for status <- ["Triaging", "Backlog", "Todo", "In Review"] do %>
               <% count = Map.get(@linear_counts, status, 0) %>
               <button
                 phx-click="set_linear_filter"
                 phx-value-status={status}
                 phx-target={@myself}
-                class={"px-2.5 py-1 text-ui-caption transition-all rounded " <> 
+                class={"px-2.5 py-2 sm:py-1 text-ui-caption transition-all rounded min-h-[44px] sm:min-h-0 " <> 
                   if(@linear_status_filter == status,
                     do: linear_filter_button_active(status),
                     else: "bg-base-content/10 text-base-content/60 hover:bg-base-content/20 border border-transparent"
@@ -147,24 +147,26 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
               <% end %>
               <%= for ticket <- @linear_filtered_tickets do %>
                 <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
-                <div class={"flex items-center space-x-3 px-3 py-2 rounded border transition-all " <> if(work_info, do: "bg-success/10 border-success/30", else: "border-base-300 hover:bg-base-300/50 dark:hover:bg-white/5 hover:border-accent/30")}>
-                  <%= if work_info do %>
-                    <span class="status-activity-ring text-success" aria-hidden="true"></span>
-                    <span class="sr-only">Work in progress</span>
-                  <% else %>
-                    <button
-                      phx-click="work_on_ticket"
-                      phx-value-id={ticket.id}
-                      phx-target={@myself}
-                      class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 hover:scale-105 active:scale-95"
-                      aria-label={"Start work on ticket " <> ticket.id}
-                      title={"Start work on ticket " <> ticket.id}
-                    >
-                      <span aria-hidden="true">▶</span>
-                    </button>
-                  <% end %>
-                  <a href={ticket.url} target="_blank" class="text-ui-value text-accent hover:underline"><%= ticket.id %></a>
-                  <span class="text-ui-body truncate flex-1" title={ticket.title}><%= ticket.title %></span>
+                <div class={"flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-3 px-3 py-3 sm:py-2 rounded border transition-all " <> if(work_info, do: "bg-success/10 border-success/30", else: "border-base-300 hover:bg-base-300/50 dark:hover:bg-white/5 hover:border-accent/30")}>
+                  <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <%= if work_info do %>
+                      <span class="status-activity-ring text-success flex-shrink-0" aria-hidden="true"></span>
+                      <span class="sr-only">Work in progress</span>
+                    <% else %>
+                      <button
+                        phx-click="work_on_ticket"
+                        phx-value-id={ticket.id}
+                        phx-target={@myself}
+                        class="btn-interactive-sm min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 bg-accent/20 text-accent hover:bg-accent/40 hover:scale-105 active:scale-95 flex-shrink-0"
+                        aria-label={"Start work on ticket " <> ticket.id}
+                        title={"Start work on ticket " <> ticket.id}
+                      >
+                        <span aria-hidden="true">▶</span>
+                      </button>
+                    <% end %>
+                    <a href={ticket.url} target="_blank" class="text-ui-value text-accent hover:underline flex-shrink-0"><%= ticket.id %></a>
+                  </div>
+                  <span class="text-ui-body truncate w-full sm:flex-1" title={ticket.title}><%= ticket.title %></span>
                 </div>
               <% end %>
             <% end %>
