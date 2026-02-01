@@ -128,7 +128,7 @@ defmodule DashboardPhoenix.RateLimiter do
       updated_buckets = Map.put(state.buckets, bucket_key, updated_bucket)
       new_state = %{state | buckets: updated_buckets}
       
-      Logger.debug("Rate limit token acquired for #{command} (#{updated_bucket.tokens}/#{updated_bucket.max_tokens} remaining)")
+      # Removed noisy debug log for token acquisition
       {:reply, :ok, new_state}
     else
       # No tokens available
