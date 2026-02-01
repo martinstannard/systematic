@@ -30,6 +30,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
           slug: String.t(),
           title: String.t(),
           status: String.t(),
+          model: String.t(),
           directory: String.t() | nil,
           created_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil,
@@ -202,11 +203,16 @@ defmodule DashboardPhoenix.OpenCodeClient do
       true -> Status.idle()
     end
     
+    # Get configured OpenCode model from dashboard state, or use default
+    # OpenCode uses Gemini as its LLM backend
+    model = get_opencode_model()
+    
     %{
       id: session["id"],
       slug: session["slug"],
       title: session["title"] || session["slug"],
       status: status,
+      model: model,
       directory: session["directory"],
       created_at: created_at,
       updated_at: updated_at,
@@ -338,4 +344,18 @@ defmodule DashboardPhoenix.OpenCodeClient do
   defp format_error(reason) when is_atom(reason), do: to_string(reason)
   defp format_error(reason) when is_binary(reason), do: reason
   defp format_error(reason), do: inspect(reason)
+
+  # Get the configured OpenCode model from dashboard state
+  # Falls back to default Gemini model if not configured
+  @spec get_opencode_model() :: String.t()
+  defp get_opencode_model do
+    try do
+      state = DashboardPhoenix.DashboardState.get_state()
+      Map.get(state.models, :opencode_model) || "gemini"
+    rescue
+      _ -> "gemini"
+    catch
+      _, _ -> "gemini"
+    end
+  end
 end

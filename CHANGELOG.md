@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Test: Fix Mock Warnings (#121)
+- Refactor: Reduce PubSub in HomeLive (#119)
+- Refactor: Use Linear CLI JSON output (#115)
+- Refactor: Split HomeLive (#113)
+- Design Idea: Action Transitions (#126)
+- Design Idea: Unified Work Context (#125)
+- Design Idea: Work River View (#124)
+- Config: Bind to 0.0.0.0 in dev (#114)
 - Add @moduledoc to undocumented modules (#31)
 - Add loading states to all dashboard panels (#34)
 - UI: Enhance Header Design and Navigation (#52)
