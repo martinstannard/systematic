@@ -52,11 +52,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.GeminiComponent
   alias DashboardPhoenixWeb.Live.Components.ConfigComponent
   alias DashboardPhoenixWeb.Live.Components.DaveComponent
-  alias DashboardPhoenixWeb.Live.Components.LiveProgressComponent
+  alias DashboardPhoenixWeb.Live.Components.UnifiedActivityComponent
   alias DashboardPhoenixWeb.Live.Components.SystemProcessesComponent
   alias DashboardPhoenixWeb.Live.Components.UsageStatsComponent
   alias DashboardPhoenixWeb.Live.Components.WorkModalComponent
-  alias DashboardPhoenixWeb.Live.Components.ActivityPanelComponent
+  # ActivityPanelComponent - now merged into UnifiedActivityComponent
+  # Keep handler for backward compatibility
   alias DashboardPhoenixWeb.Live.Components.WorkPanelComponent
   alias DashboardPhoenixWeb.Live.Components.TestRunnerComponent
   alias DashboardPhoenix.ProcessMonitor
@@ -351,6 +352,40 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:activity_panel_component, :toggle_panel}, socket) do
     socket = assign(socket, activity_collapsed: !socket.assigns.activity_collapsed)
     {:noreply, push_panel_state(socket)}
+  end
+
+  # Handle unified activity component events
+  def handle_info({:unified_activity_component, :toggle_panel}, socket) do
+    socket = assign(socket, activity_collapsed: !socket.assigns.activity_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:unified_activity_component, :clear_progress}, socket) do
+    # Delegate to the existing clear logic
+    alias DashboardPhoenix.FileUtils
+    alias DashboardPhoenix.Paths
+    FileUtils.atomic_write(Paths.progress_file(), "")
+
+    socket =
+      socket
+      |> assign(agent_progress: [], main_activity_count: 0, agent_progress_count: 0)
+      |> stream(:progress_events, [], reset: true)
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:unified_activity_component, :toggle_output, ts_str}, socket) do
+    ts = String.to_integer(ts_str)
+    expanded = socket.assigns.expanded_outputs
+
+    new_expanded =
+      if MapSet.member?(expanded, ts) do
+        MapSet.delete(expanded, ts)
+      else
+        MapSet.put(expanded, ts)
+      end
+
+    {:noreply, assign(socket, expanded_outputs: new_expanded)}
   end
 
   # Handle work panel component events
