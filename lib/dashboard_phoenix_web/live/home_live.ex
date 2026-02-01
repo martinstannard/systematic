@@ -44,8 +44,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.FileUtils
   alias DashboardPhoenix.PanelStatus
   alias DashboardPhoenix.HealthCheck
+  alias DashboardPhoenix.DashboardState
 
   def mount(_params, _session, socket) do
+    # Load persisted UI state (panels, dismissed sessions, models)
+    persisted_state = DashboardState.get_state()
     # Initialize all assigns with empty/loading states first
     # This ensures the UI renders immediately with loading indicators
     socket = assign(socket,
@@ -78,8 +81,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       last_agent: "claude",           # Last agent used in round_robin mode
       # Graph data - computed after data loads
       graph_data: %{nodes: [], links: []},
-      # UI state
-      dismissed_sessions: MapSet.new(),
+      # UI state - load dismissed sessions from persisted state
+      dismissed_sessions: MapSet.new(persisted_state.dismissed_sessions),
       show_main_entries: true,
       progress_filter: "all",
       show_completed: true,
@@ -104,7 +107,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       chainlink_last_updated: nil,
       chainlink_error: nil,
       chainlink_loading: true,
-      chainlink_collapsed: false,
+      chainlink_collapsed: persisted_state.panels.chainlink,
       chainlink_work_in_progress: load_persisted_chainlink_work(),
       # GitHub PRs - loaded async
       github_prs: [],
@@ -145,32 +148,32 @@ defmodule DashboardPhoenixWeb.HomeLive do
       work_in_progress: false,
       work_sent: false,
       work_error: nil,
-      # Model selections
-      claude_model: "anthropic/claude-opus-4-5",
-      opencode_model: "gemini-3-pro",
+      # Model selections - load from persisted state
+      claude_model: persisted_state.models.claude_model,
+      opencode_model: persisted_state.models.opencode_model,
       # Health check status
       health_status: :unknown,
       health_last_check: nil,
-      # Panel collapse states
-      config_collapsed: false,
-      linear_collapsed: false,
-      prs_collapsed: false,
-      branches_collapsed: false,
-      opencode_collapsed: false,
-      gemini_collapsed: false,
-      coding_agents_collapsed: false,
-      subagents_collapsed: false,
-      dave_collapsed: false,
-      live_progress_collapsed: false,
-      agent_activity_collapsed: false,
-      system_processes_collapsed: false,
-      process_relationships_collapsed: false,
-      chat_collapsed: true,
+      # Panel collapse states - load from persisted state
+      config_collapsed: persisted_state.panels.config,
+      linear_collapsed: persisted_state.panels.linear,
+      prs_collapsed: persisted_state.panels.prs,
+      branches_collapsed: persisted_state.panels.branches,
+      opencode_collapsed: persisted_state.panels.opencode,
+      gemini_collapsed: persisted_state.panels.gemini,
+      coding_agents_collapsed: persisted_state.panels.coding_agents,
+      subagents_collapsed: persisted_state.panels.subagents,
+      dave_collapsed: persisted_state.panels.dave,
+      live_progress_collapsed: persisted_state.panels.live_progress,
+      agent_activity_collapsed: persisted_state.panels.agent_activity,
+      system_processes_collapsed: persisted_state.panels.system_processes,
+      process_relationships_collapsed: persisted_state.panels.process_relationships,
+      chat_collapsed: persisted_state.panels.chat,
       # Activity panel state
       activity_events: [],
-      activity_collapsed: false,
+      activity_collapsed: persisted_state.panels.activity,
       # Work panel state
-      work_panel_collapsed: false
+      work_panel_collapsed: persisted_state.panels.work_panel
     )
     
     # Initialize empty progress stream
@@ -194,6 +197,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       GeminiServer.subscribe()
       HealthCheck.subscribe()
       ActivityLog.subscribe()
+      DashboardState.subscribe()
       
       # Schedule periodic updates (after initial data loads)
       Process.send_after(self(), :update_processes, 1_000)
@@ -365,6 +369,32 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agent_pref: String.to_atom(prefs.coding_agent),
       agent_mode: prefs.agent_mode,
       last_agent: prefs.last_agent
+    )}
+  end
+
+  # Handle dashboard state updates (from other browser tabs/sessions)
+  def handle_info({:dashboard_state_updated, state}, socket) do
+    {:noreply, assign(socket,
+      dismissed_sessions: MapSet.new(state.dismissed_sessions),
+      claude_model: state.models.claude_model,
+      opencode_model: state.models.opencode_model,
+      config_collapsed: state.panels.config,
+      linear_collapsed: state.panels.linear,
+      chainlink_collapsed: state.panels.chainlink,
+      prs_collapsed: state.panels.prs,
+      branches_collapsed: state.panels.branches,
+      opencode_collapsed: state.panels.opencode,
+      gemini_collapsed: state.panels.gemini,
+      coding_agents_collapsed: state.panels.coding_agents,
+      subagents_collapsed: state.panels.subagents,
+      dave_collapsed: state.panels.dave,
+      live_progress_collapsed: state.panels.live_progress,
+      agent_activity_collapsed: state.panels.agent_activity,
+      system_processes_collapsed: state.panels.system_processes,
+      process_relationships_collapsed: state.panels.process_relationships,
+      chat_collapsed: state.panels.chat,
+      activity_collapsed: state.panels.activity,
+      work_panel_collapsed: state.panels.work_panel
     )}
   end
 
@@ -681,6 +711,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
     dismissed = Enum.reduce(completed_ids, socket.assigns.dismissed_sessions, fn id, acc ->
       MapSet.put(acc, id)
     end)
+    
+    # Persist to server (survives restarts)
+    DashboardState.dismiss_sessions(completed_ids)
     
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
   end
@@ -1826,6 +1859,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_event("dismiss_session", %{"id" => id}, socket) do
     dismissed = MapSet.put(socket.assigns.dismissed_sessions, id)
+    # Persist to server (survives restarts)
+    DashboardState.dismiss_session(id)
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
   end
 
@@ -1849,6 +1884,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
     dismissed = Enum.reduce(completed_ids, socket.assigns.dismissed_sessions, fn id, acc ->
       MapSet.put(acc, id)
     end)
+    
+    # Persist to server (survives restarts)
+    DashboardState.dismiss_sessions(completed_ids)
     
     {:noreply, assign(socket, dismissed_sessions: dismissed)}
   end
@@ -1978,7 +2016,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
-  # Push current panel state to JS for localStorage persistence
+  # Push current panel state to JS for localStorage persistence AND persist to server
   defp push_panel_state(socket) do
     panels = %{
       "config" => socket.assigns.config_collapsed,
@@ -1996,17 +2034,24 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "system_processes" => socket.assigns.system_processes_collapsed,
       "process_relationships" => socket.assigns.process_relationships_collapsed,
       "chat" => socket.assigns.chat_collapsed,
-      "activity" => socket.assigns.activity_collapsed
+      "activity" => socket.assigns.activity_collapsed,
+      "work_panel" => socket.assigns.work_panel_collapsed
     }
+    # Persist to server (survives restarts)
+    DashboardState.set_panels(panels)
+    # Also push to JS for localStorage (faster client-side restore)
     push_event(socket, "save_panel_state", %{panels: panels})
   end
 
-  # Push current model selections to JS for localStorage persistence
+  # Push current model selections to JS for localStorage persistence AND persist to server
   defp push_model_selections(socket) do
     models = %{
       "claude_model" => socket.assigns.claude_model,
       "opencode_model" => socket.assigns.opencode_model
     }
+    # Persist to server (survives restarts)
+    DashboardState.set_models(models)
+    # Also push to JS for localStorage
     push_event(socket, "save_model_selections", %{models: models})
   end
 

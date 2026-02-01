@@ -199,6 +199,15 @@ defmodule DashboardPhoenix.Paths do
       Path.join(openclaw_home(), "dashboard-prefs.json")
   end
 
+  @doc """
+  Get the dashboard UI state file path.
+  Default: priv/data/dashboard_state.json
+  """
+  def dashboard_state_file do
+    Application.get_env(:dashboard_phoenix, :dashboard_state_file) ||
+      Path.join([:code.priv_dir(:dashboard_phoenix), "data", "dashboard_state.json"])
+  end
+
   # Private helpers
 
   defp find_in_path(binary) do
