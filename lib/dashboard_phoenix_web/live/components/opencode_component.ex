@@ -77,10 +77,10 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
   defp opencode_status_symbol("idle"), do: "○"
   defp opencode_status_symbol(_), do: "◌"
 
-  defp opencode_status_text("active"), do: "ACTIVE"
-  defp opencode_status_text("subagent"), do: "SUBAGENT"
-  defp opencode_status_text("idle"), do: "IDLE"
-  defp opencode_status_text(status), do: String.upcase(status || "UNKNOWN")
+  defp opencode_status_text("active"), do: "active"
+  defp opencode_status_text("subagent"), do: "subagent"
+  defp opencode_status_text("idle"), do: "idle"
+  defp opencode_status_text(status), do: status || "unknown"
 
   @impl true
   def render(assigns) do
@@ -139,7 +139,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
             <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
               <div class="flex items-center space-x-2 text-xs font-mono">
                 <span class="w-2 h-2 bg-success animate-pulse" aria-label="Server running"></span>
-                <span class="text-success">● RUNNING on :<%= @opencode_server_status.port %></span>
+                <span class="text-success">Running on :<%= @opencode_server_status.port %></span>
               </div>
               <button
                 phx-click="stop_opencode_server"
@@ -161,7 +161,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
                   <!-- Session Header -->
                   <div class="flex items-start justify-between mb-1">
                     <div class="flex items-center space-x-2 min-w-0">
-                      <span class={opencode_status_badge(session.status)} title={"Session status: " <> opencode_status_text(session.status)}>
+                      <span class={opencode_status_badge(session.status)} title={"Session status: " <> String.upcase(opencode_status_text(session.status))}>
                         <%= opencode_status_symbol(session.status) %> <%= opencode_status_text(session.status) %>
                       </span>
                       <span class="text-white truncate" title={session.title || session.slug}><%= session.slug %></span>
