@@ -731,8 +731,271 @@ button:focus-visible, .btn:focus-visible {
 }
 
 /* =====================================================
-   PANEL SYSTEM: Distinctive Visual Identity
-   Command/control interface aesthetic with visual hierarchy
+   PANEL SYSTEM: Enhanced Visual Hierarchy and Sizing
+   Command/control interface aesthetic with importance-based sizing
+   ===================================================== */
+
+/* =====================================================
+   PANEL SIZE CLASSES: Variable sizing based on importance
+   ===================================================== */
+
+/* High-priority panels: Large, prominent display */
+.panel-priority-high {
+  min-height: 180px;
+  padding: 20px;
+  border-width: 2px;
+  box-shadow: 
+    0 8px 32px -4px rgba(0, 0, 0, 0.4),
+    0 4px 16px -2px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: 
+    radial-gradient(ellipse at top, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+    rgba(15, 12, 35, 0.9);
+  backdrop-filter: blur(20px) saturate(1.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.panel-priority-high:hover {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 12px 48px -4px rgba(0, 0, 0, 0.5),
+    0 8px 24px -2px rgba(139, 92, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 0 60px -15px rgba(139, 92, 246, 0.4);
+}
+
+/* Medium-priority panels: Standard display */
+.panel-priority-medium {
+  min-height: 120px;
+  padding: 16px;
+  border-width: 1px;
+  box-shadow: 
+    0 4px 16px -4px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(20, 16, 45, 0.8);
+  backdrop-filter: blur(12px);
+  transition: all 0.25s ease;
+}
+
+.panel-priority-medium:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 24px -4px rgba(0, 0, 0, 0.4),
+    0 0 30px -8px rgba(168, 85, 247, 0.2);
+}
+
+/* Quick-reference panels: Compact display */
+.panel-priority-compact {
+  min-height: 60px;
+  padding: 12px;
+  border-width: 1px;
+  box-shadow: 
+    0 2px 8px -2px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.03);
+  background: rgba(15, 12, 35, 0.6);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.panel-priority-compact:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 4px 12px -2px rgba(0, 0, 0, 0.3),
+    0 0 20px -6px rgba(59, 130, 246, 0.15);
+}
+
+/* Light mode adjustments */
+[data-theme="light"] .panel-priority-high {
+  background: 
+    radial-gradient(ellipse at top, rgba(139, 92, 246, 0.12) 0%, transparent 50%),
+    rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 8px 32px -4px rgba(139, 92, 246, 0.15),
+    0 4px 16px -2px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .panel-priority-medium {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .panel-priority-compact {
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.08);
+}
+
+/* =====================================================
+   PANEL ACCENT COLORS: Critical panel highlighting
+   ===================================================== */
+
+/* Critical work panels - Enhanced visual weight */
+.panel-accent-critical {
+  border-color: rgba(139, 92, 246, 0.6);
+  position: relative;
+}
+
+.panel-accent-critical::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(139, 92, 246, 0.8) 20%, 
+    rgba(168, 85, 247, 1) 50%, 
+    rgba(139, 92, 246, 0.8) 80%, 
+    transparent 100%
+  );
+  border-radius: 12px 12px 0 0;
+  animation: critical-pulse 3s ease-in-out infinite;
+}
+
+.panel-accent-critical::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, 
+    rgba(139, 92, 246, 0.8) 0%,
+    rgba(168, 85, 247, 0.6) 50%,
+    rgba(139, 92, 246, 0.8) 100%
+  );
+  border-radius: 0 0 0 12px;
+}
+
+@keyframes critical-pulse {
+  0%, 100% { 
+    opacity: 0.8;
+    filter: brightness(100%);
+  }
+  50% { 
+    opacity: 1;
+    filter: brightness(120%);
+  }
+}
+
+/* Active work panels - Stronger accent */
+.panel-accent-active {
+  border-color: rgba(34, 197, 94, 0.5);
+  box-shadow: 
+    0 0 0 1px rgba(34, 197, 94, 0.2),
+    0 4px 16px -4px rgba(34, 197, 94, 0.3);
+}
+
+.panel-accent-active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, 
+    rgba(34, 197, 94, 0.9) 0%,
+    rgba(34, 197, 94, 0.5) 50%,
+    rgba(34, 197, 94, 0.9) 100%
+  );
+  border-radius: 0 12px 12px 0;
+  animation: active-flow 2s ease-in-out infinite;
+}
+
+@keyframes active-flow {
+  0%, 100% { 
+    opacity: 0.6;
+    transform: scaleY(1);
+  }
+  50% { 
+    opacity: 1;
+    transform: scaleY(1.05);
+  }
+}
+
+/* Reference panels - Subtle accent */
+.panel-accent-reference {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.panel-accent-reference::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(59, 130, 246, 0.5) 50%, 
+    transparent 100%
+  );
+  border-radius: 0 0 12px 12px;
+}
+
+/* =====================================================
+   PANEL HEADER ENHANCEMENTS: Improved visual hierarchy
+   ===================================================== */
+
+.panel-header-critical {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+  margin-bottom: 16px;
+}
+
+.panel-header-standard {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin-bottom: 12px;
+}
+
+.panel-header-compact {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+}
+
+/* Panel content spacing adjustments */
+.panel-content-critical > * + * {
+  margin-top: 16px;
+}
+
+.panel-content-standard > * + * {
+  margin-top: 12px;
+}
+
+.panel-content-compact > * + * {
+  margin-top: 8px;
+}
+
+/* =====================================================
+   PANEL SIZE RESPONSIVE ADJUSTMENTS
+   ===================================================== */
+
+@media (max-width: 768px) {
+  .panel-priority-high {
+    min-height: 140px;
+    padding: 16px;
+  }
+  
+  .panel-priority-medium {
+    min-height: 100px;
+    padding: 14px;
+  }
+  
+  .panel-priority-compact {
+    min-height: 50px;
+    padding: 10px;
+  }
+}
+
+/* =====================================================
+   ORIGINAL PANEL SYSTEM: (preserved for compatibility)
    ===================================================== */
 
 /* =====================================================

@@ -81,9 +81,9 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-work rounded-lg overflow-hidden">
+    <div class="panel-content-critical">
       <div 
-        class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
+        class="panel-header-critical panel-header-interactive flex items-center justify-between select-none"
         phx-click="toggle_panel"
         phx-target={@myself}
         role="button"

@@ -21,8 +21,8 @@ defmodule DashboardPhoenixWeb.Live.Components.UsageStatsComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-data rounded-lg p-3">
-      <div class="flex items-center justify-between mb-2">
+    <div class="panel-content-compact">
+      <div class="flex items-center justify-between panel-header-compact">
         <span class="text-panel-label text-secondary">📊 Usage</span>
         <button phx-click="refresh_stats" phx-target={@myself} class="text-[10px] text-base-content/40 hover:text-secondary">↻</button>
       </div>
