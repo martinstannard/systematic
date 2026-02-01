@@ -16,101 +16,114 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="glass-header px-4 py-3 flex items-center justify-between mb-3">
-      <div class="flex items-center space-x-4">
-        <div class="flex items-center space-x-2">
-          <h1 class="text-system-title">SYSTEMATIC</h1>
-          <span class={health_badge_class(@health_status)} title={health_tooltip(@health_status, @health_last_check)} aria-label={health_text(@health_status)}>
-            <%= health_symbol(@health_status) %>
-          </span>
+    <header class="header-container" role="banner">
+      <div class="header-inner">
+        <!-- Left: Logo, Health, Breadcrumb -->
+        <div class="header-left">
+          <!-- Logo & Health -->
+          <div class="header-brand">
+            <a href="/" class="header-logo-link" aria-label="SYSTEMATIC Dashboard Home">
+              <span class="header-logo">SYSTEMATIC</span>
+            </a>
+            <span class={health_indicator_class(@health_status)} 
+                  title={health_tooltip(@health_status, @health_last_check)} 
+                  aria-label={"System status: " <> health_text(@health_status)}>
+            </span>
+          </div>
+          
+          <!-- Breadcrumb Navigation -->
+          <nav class="header-breadcrumb" aria-label="Breadcrumb">
+            <span class="breadcrumb-separator" aria-hidden="true">/</span>
+            <span class="breadcrumb-current">Dashboard</span>
+          </nav>
         </div>
-        <span class="text-ui-caption text-gray-500 dark:text-gray-400">Dashboard</span>
         
-        <!-- Theme Toggle -->
-        <button
-          id="theme-toggle"
-          phx-hook="ThemeToggle"
-          class="btn-interactive-icon bg-base-content/10 hover:bg-base-content/20 hover:scale-105 active:scale-95 transition-all"
-          title="Toggle light/dark mode"
-          aria-label="Toggle between light and dark theme"
-          aria-pressed="false"
-        >
-          <svg class="sun-icon w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-          <svg class="moon-icon w-5 h-5 text-indigo-400" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-        </button>
-      </div>
-      
-      <!-- Compact Stats -->
-      <div class="flex items-center space-x-6" aria-live="polite" aria-label="Dashboard statistics">
-        <div class="flex items-center space-x-2">
-          <span class="text-ui-label text-base-content/60">Agents:</span>
-          <span class="text-ui-value text-tabular text-success"><%= @agent_sessions_count %></span>
-        </div>
-        <div class="flex items-center space-x-2">
-          <span class="text-ui-label text-base-content/60">Events:</span>
-          <span class="text-ui-value text-tabular text-primary"><%= @agent_progress_count %></span>
-        </div>
-        <%= if @coding_agent_pref == :opencode do %>
-          <div class="flex items-center space-x-2">
-            <span class="text-ui-label text-base-content/60">ACP:</span>
-            <%= if @opencode_server_status.running do %>
-              <span class="status-beacon text-success" title="OpenCode Server Online" aria-label="Online">
-                <%= server_status_symbol(true) %>
-              </span>
-            <% else %>
-              <span class="status-marker-idle text-base-content/30" title="OpenCode Server Offline" aria-label="Offline">
-                <%= server_status_symbol(false) %>
-              </span>
+        <!-- Right: Stats & Controls -->
+        <div class="header-right">
+          <!-- Stats Bar -->
+          <div class="header-stats" aria-live="polite" aria-label="Dashboard statistics">
+            <div class="stat-item">
+              <span class="stat-label">Agents</span>
+              <span class="stat-value stat-value-success"><%= @agent_sessions_count %></span>
+            </div>
+            
+            <div class="stat-divider" aria-hidden="true"></div>
+            
+            <div class="stat-item">
+              <span class="stat-label">Events</span>
+              <span class="stat-value stat-value-primary"><%= @agent_progress_count %></span>
+            </div>
+            
+            <%= if @coding_agent_pref == :opencode do %>
+              <div class="stat-divider" aria-hidden="true"></div>
+              <div class="stat-item">
+                <span class="stat-label">Server</span>
+                <%= if @opencode_server_status.running do %>
+                  <span class="stat-status stat-status-online" title="OpenCode Server Online">●</span>
+                <% else %>
+                  <span class="stat-status stat-status-offline" title="OpenCode Server Offline">○</span>
+                <% end %>
+              </div>
             <% end %>
           </div>
-        <% end %>
-        <div class="flex items-center space-x-1">
-          <span class={"px-2 py-0.5text-ui-caption " <> coding_agent_badge_class(@coding_agent_pref)} 
-                title={"Active coding agent: " <> coding_agent_badge_text(@coding_agent_pref)}
-                aria-label={"Active coding agent: " <> coding_agent_badge_text(@coding_agent_pref)}>
-            <%= coding_agent_badge_text(@coding_agent_pref) %>
-          </span>
+          
+          <!-- Active Agent Badge -->
+          <div class={coding_agent_badge_classes(@coding_agent_pref)}
+               title={"Active coding agent: " <> coding_agent_name(@coding_agent_pref)}
+               aria-label={"Active coding agent: " <> coding_agent_name(@coding_agent_pref)}>
+            <span class="agent-badge-icon"><%= coding_agent_icon(@coding_agent_pref) %></span>
+            <span class="agent-badge-text"><%= coding_agent_name(@coding_agent_pref) %></span>
+          </div>
+          
+          <!-- Theme Toggle -->
+          <button
+            id="theme-toggle"
+            phx-hook="ThemeToggle"
+            class="header-theme-toggle"
+            title="Toggle light/dark mode"
+            aria-label="Toggle between light and dark theme"
+            aria-pressed="false"
+          >
+            <svg class="sun-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <svg class="moon-icon" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          </button>
         </div>
       </div>
-    </div>
+    </header>
     """
   end
 
   # Helper functions for coding agent styling
-  defp coding_agent_badge_class(:opencode), do: "bg-blue-500/20 text-blue-400"
-  defp coding_agent_badge_class(:claude), do: "bg-purple-500/20 text-purple-400"
-  defp coding_agent_badge_class(:gemini), do: "bg-green-500/20 text-green-400"
-  defp coding_agent_badge_class(_), do: "bg-base-content/10 text-base-content/60"
+  defp coding_agent_badge_classes(:opencode), do: "agent-badge agent-badge-opencode"
+  defp coding_agent_badge_classes(:claude), do: "agent-badge agent-badge-claude"
+  defp coding_agent_badge_classes(:gemini), do: "agent-badge agent-badge-gemini"
+  defp coding_agent_badge_classes(_), do: "agent-badge agent-badge-unknown"
 
-  defp coding_agent_badge_text(:opencode), do: "💻 OpenCode"
-  defp coding_agent_badge_text(:claude), do: "🤖 Claude"
-  defp coding_agent_badge_text(:gemini), do: "✨ Gemini"
-  defp coding_agent_badge_text(_), do: "❓ Unknown"
+  defp coding_agent_icon(:opencode), do: "💻"
+  defp coding_agent_icon(:claude), do: "🤖"
+  defp coding_agent_icon(:gemini), do: "✨"
+  defp coding_agent_icon(_), do: "❓"
 
-  # Helper functions for health badge styling
-  defp health_badge_class(:healthy), do: "health-badge health-badge-healthy"
-  defp health_badge_class(:unhealthy), do: "health-badge health-badge-unhealthy"
-  defp health_badge_class(:checking), do: "health-badge health-badge-checking"
-  defp health_badge_class(_), do: "health-badge health-badge-unknown"
+  defp coding_agent_name(:opencode), do: "OpenCode"
+  defp coding_agent_name(:claude), do: "Claude"
+  defp coding_agent_name(:gemini), do: "Gemini"
+  defp coding_agent_name(_), do: "Unknown"
 
-  # Health status text and symbols for accessibility
-  defp health_text(:healthy), do: "HEALTHY"
-  defp health_text(:unhealthy), do: "FAILED"
-  defp health_text(:checking), do: "CHECKING"
-  defp health_text(_), do: "UNKNOWN"
+  # Helper functions for health indicator styling
+  defp health_indicator_class(:healthy), do: "health-indicator health-indicator-healthy"
+  defp health_indicator_class(:unhealthy), do: "health-indicator health-indicator-unhealthy"
+  defp health_indicator_class(:checking), do: "health-indicator health-indicator-checking"
+  defp health_indicator_class(_), do: "health-indicator health-indicator-unknown"
 
-  defp health_symbol(:healthy), do: "●"
-  defp health_symbol(:unhealthy), do: "✗"
-  defp health_symbol(:checking), do: "◔"
-  defp health_symbol(_), do: "◌"
-
-  # Server status helpers
-  defp server_status_symbol(true), do: "●"
-  defp server_status_symbol(false), do: "○"
+  # Health status text for accessibility
+  defp health_text(:healthy), do: "healthy"
+  defp health_text(:unhealthy), do: "failed"
+  defp health_text(:checking), do: "checking"
+  defp health_text(_), do: "unknown"
 
   defp health_tooltip(:healthy, last_check) do
     time_ago = format_time_ago(last_check)

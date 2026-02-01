@@ -1,17 +1,15 @@
 <div class="min-h-screen flex flex-col" id="panel-state-container" phx-hook="PanelState">
   <!-- Header Component -->
-  <div>
-    <.live_component
-      module={HeaderComponent}
-      id="header"
-      agent_sessions_count={@agent_sessions_count}
-      agent_progress_count={@agent_progress_count}
-      coding_agent_pref={@coding_agent_pref}
-      opencode_server_status={@opencode_server_status}
-      health_status={@health_status}
-      health_last_check={@health_last_check}
-    />
-  </div>
+  <.live_component
+    module={HeaderComponent}
+    id="header"
+    agent_sessions_count={@agent_sessions_count}
+    agent_progress_count={@agent_progress_count}
+    coding_agent_pref={@coding_agent_pref}
+    opencode_server_status={@opencode_server_status}
+    health_status={@health_status}
+    health_last_check={@health_last_check}
+  />
 
   <!-- Activity Panel - Recent high-priority events -->
   <.live_component

@@ -307,6 +307,233 @@ body {
 }
 
 /* =====================================================
+   ENHANCED HEADER SYSTEM
+   ===================================================== */
+
+.header-container {
+  @apply bg-base-100/95 backdrop-blur-md;
+  @apply border-b border-base-300;
+  @apply sticky top-0 z-50;
+  @apply transition-shadow duration-200;
+}
+
+.header-container:hover {
+  @apply shadow-sm;
+}
+
+.header-inner {
+  @apply flex items-center justify-between;
+  @apply px-4 sm:px-6 lg:px-8;
+  @apply h-14 sm:h-16;
+  @apply mx-auto max-w-[2000px];
+}
+
+/* Header Left Section - Logo & Breadcrumb */
+.header-left {
+  @apply flex items-center gap-3 sm:gap-4;
+}
+
+.header-brand {
+  @apply flex items-center gap-2.5;
+}
+
+.header-logo-link {
+  @apply flex items-center;
+  @apply transition-opacity duration-150;
+}
+
+.header-logo-link:hover {
+  @apply opacity-80;
+}
+
+.header-logo-link:focus-visible {
+  @apply outline-2 outline-offset-2 outline-primary rounded;
+}
+
+.header-logo {
+  @apply text-lg sm:text-xl font-bold tracking-widest;
+  @apply text-gray-900 dark:text-gray-100;
+  letter-spacing: 0.15em;
+}
+
+/* Health Indicator - Subtle dot */
+.health-indicator {
+  @apply w-2 h-2 rounded-full flex-shrink-0;
+  @apply transition-colors duration-200;
+}
+
+.health-indicator-healthy {
+  @apply bg-green-500;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+}
+
+.health-indicator-unhealthy {
+  @apply bg-red-500;
+  animation: health-pulse 1s ease-in-out infinite;
+}
+
+.health-indicator-checking {
+  @apply bg-yellow-500;
+  animation: health-pulse 1.5s ease-in-out infinite;
+}
+
+.health-indicator-unknown {
+  @apply bg-gray-400;
+}
+
+/* Breadcrumb Navigation */
+.header-breadcrumb {
+  @apply flex items-center gap-2;
+  @apply text-sm text-gray-500 dark:text-gray-400;
+}
+
+.breadcrumb-separator {
+  @apply text-gray-300 dark:text-gray-600 select-none;
+}
+
+.breadcrumb-current {
+  @apply font-medium text-gray-600 dark:text-gray-300;
+}
+
+/* Header Right Section - Stats & Controls */
+.header-right {
+  @apply flex items-center gap-3 sm:gap-4;
+}
+
+/* Stats Bar */
+.header-stats {
+  @apply hidden sm:flex items-center gap-4;
+  @apply px-3 py-1.5;
+  @apply bg-base-200/60 dark:bg-base-200/40;
+  @apply border border-base-300/50;
+  @apply rounded-lg;
+}
+
+.stat-item {
+  @apply flex items-center gap-2;
+}
+
+.stat-label {
+  @apply text-xs font-medium uppercase tracking-wider;
+  @apply text-gray-500 dark:text-gray-400;
+}
+
+.stat-value {
+  @apply text-sm font-bold font-mono tabular-nums;
+}
+
+.stat-value-success {
+  @apply text-green-600 dark:text-green-400;
+}
+
+.stat-value-primary {
+  @apply text-blue-600 dark:text-blue-400;
+}
+
+.stat-divider {
+  @apply w-px h-4 bg-base-300;
+}
+
+.stat-status {
+  @apply text-base leading-none;
+}
+
+.stat-status-online {
+  @apply text-green-500;
+}
+
+.stat-status-offline {
+  @apply text-gray-400;
+}
+
+/* Agent Badge */
+.agent-badge {
+  @apply inline-flex items-center gap-1.5;
+  @apply px-2.5 py-1;
+  @apply text-xs font-semibold;
+  @apply rounded-md;
+  @apply transition-colors duration-150;
+}
+
+.agent-badge-icon {
+  @apply text-sm;
+}
+
+.agent-badge-text {
+  @apply hidden xs:inline;
+}
+
+.agent-badge-opencode {
+  @apply bg-blue-500/15 text-blue-600 dark:text-blue-400;
+  @apply border border-blue-500/20;
+}
+
+.agent-badge-claude {
+  @apply bg-purple-500/15 text-purple-600 dark:text-purple-400;
+  @apply border border-purple-500/20;
+}
+
+.agent-badge-gemini {
+  @apply bg-emerald-500/15 text-emerald-600 dark:text-emerald-400;
+  @apply border border-emerald-500/20;
+}
+
+.agent-badge-unknown {
+  @apply bg-gray-500/15 text-gray-600 dark:text-gray-400;
+  @apply border border-gray-500/20;
+}
+
+/* Theme Toggle Button */
+.header-theme-toggle {
+  @apply flex items-center justify-center;
+  @apply w-9 h-9 sm:w-10 sm:h-10;
+  @apply rounded-lg;
+  @apply bg-base-200/60 hover:bg-base-300;
+  @apply border border-base-300/50 hover:border-base-300;
+  @apply transition-all duration-150;
+  @apply active:scale-95;
+}
+
+.header-theme-toggle:focus-visible {
+  @apply outline-2 outline-offset-2 outline-primary;
+}
+
+.header-theme-toggle .sun-icon,
+.header-theme-toggle .moon-icon {
+  @apply w-5 h-5;
+}
+
+.header-theme-toggle .sun-icon {
+  @apply text-amber-500;
+}
+
+.header-theme-toggle .moon-icon {
+  @apply text-indigo-400;
+}
+
+/* Responsive: Extra small screens */
+@media (max-width: 480px) {
+  .header-inner {
+    @apply px-3;
+  }
+  
+  .header-logo {
+    @apply text-base;
+  }
+  
+  .header-breadcrumb {
+    @apply hidden;
+  }
+}
+
+/* Custom breakpoint for xs */
+@media (min-width: 480px) {
+  .xs\:inline {
+    display: inline;
+  }
+}
+
+/* =====================================================
    HEALTH BADGE - Dashboard status indicator
    ===================================================== */
 
