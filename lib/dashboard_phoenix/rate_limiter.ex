@@ -191,10 +191,12 @@ defmodule DashboardPhoenix.RateLimiter do
 
   # Get the bucket key for a command
   defp get_bucket_key(command) when is_binary(command) do
-    if Map.has_key?(@rate_limits, command) do
-      command
-    else
-      :default
+    # Normalize: try full path first, then basename (for /path/to/linear -> "linear")
+    basename = Path.basename(command)
+    cond do
+      Map.has_key?(@rate_limits, command) -> command
+      Map.has_key?(@rate_limits, basename) -> basename
+      true -> :default
     end
   end
   defp get_bucket_key(_), do: :default
