@@ -69,7 +69,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
               No recent activity
             </div>
           <% else %>
-            <%= for event <- @events do %>
+            <%= for event <- Enum.take(@events, 10) do %>
               <div
                 class={"py-1.5 px-2 cursor-pointer transition-colors " <> event_bg_class(event.type)}
                 phx-click="toggle_expand"

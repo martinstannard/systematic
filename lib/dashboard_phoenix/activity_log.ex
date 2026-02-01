@@ -31,6 +31,7 @@ defmodule DashboardPhoenix.ActivityLog do
 
   @max_events 50
   @pubsub_topic "activity_log:events"
+  @events_file "priv/activity_events.json"
   @valid_event_types ~w(code_complete merge_started merge_complete restart_triggered restart_complete deploy_complete restart_failed test_passed test_failed task_started)a
 
   # Client API
@@ -99,7 +100,8 @@ defmodule DashboardPhoenix.ActivityLog do
 
   @impl true
   def init(_opts) do
-    {:ok, %{events: []}}
+    events = load_events_from_file()
+    {:ok, %{events: events}}
   end
 
   @impl true
@@ -115,6 +117,9 @@ defmodule DashboardPhoenix.ActivityLog do
 
       # Add to front, trim to max
       new_events = [event | state.events] |> Enum.take(@max_events)
+
+      # Persist to file
+      save_events_to_file(new_events)
 
       # Broadcast to subscribers
       Phoenix.PubSub.broadcast(
@@ -135,6 +140,8 @@ defmodule DashboardPhoenix.ActivityLog do
   end
 
   def handle_call(:clear, _from, state) do
+    # Also clear the persisted file
+    File.rm(@events_file)
     {:reply, :ok, %{state | events: []}}
   end
 
@@ -143,4 +150,69 @@ defmodule DashboardPhoenix.ActivityLog do
   defp generate_id do
     :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
   end
+
+  defp load_events_from_file do
+    case File.read(@events_file) do
+      {:ok, content} ->
+        content
+        |> Jason.decode!()
+        |> Enum.map(&decode_event/1)
+        |> Enum.take(@max_events)
+
+      {:error, _} ->
+        []
+    end
+  rescue
+    _ -> []
+  end
+
+  defp save_events_to_file(events) do
+    content =
+      events
+      |> Enum.map(&encode_event/1)
+      |> Jason.encode!(pretty: true)
+
+    File.write(@events_file, content)
+  end
+
+  defp encode_event(event) do
+    %{
+      "id" => event.id,
+      "type" => Atom.to_string(event.type),
+      "message" => event.message,
+      "details" => encode_details(event.details),
+      "timestamp" => DateTime.to_iso8601(event.timestamp)
+    }
+  end
+
+  defp decode_event(data) do
+    %{
+      id: data["id"],
+      type: String.to_existing_atom(data["type"]),
+      message: data["message"],
+      details: decode_details(data["details"]),
+      timestamp: parse_timestamp(data["timestamp"])
+    }
+  end
+
+  defp encode_details(details) when is_map(details) do
+    Map.new(details, fn {k, v} -> {to_string(k), v} end)
+  end
+
+  defp decode_details(details) when is_map(details) do
+    Map.new(details, fn {k, v} -> {String.to_atom(k), v} end)
+  end
+
+  defp decode_details(_), do: %{}
+
+  defp parse_timestamp(nil), do: DateTime.utc_now()
+
+  defp parse_timestamp(iso_string) when is_binary(iso_string) do
+    case DateTime.from_iso8601(iso_string) do
+      {:ok, dt, _offset} -> dt
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_timestamp(_), do: DateTime.utc_now()
 end
