@@ -20,6 +20,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.UsageStatsComponent
   alias DashboardPhoenixWeb.Live.Components.WorkModalComponent
   alias DashboardPhoenixWeb.Live.Components.ActivityPanelComponent
+  alias DashboardPhoenixWeb.Live.Components.WorkPanelComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.ActivityLog
   alias DashboardPhoenix.SessionBridge
@@ -162,7 +163,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       chat_collapsed: true,
       # Activity panel state
       activity_events: [],
-      activity_collapsed: false
+      activity_collapsed: false,
+      # Work panel state
+      work_panel_collapsed: false
     )
     
     # Initialize empty progress stream
@@ -288,6 +291,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle activity panel component events
   def handle_info({:activity_panel_component, :toggle_panel}, socket) do
     socket = assign(socket, activity_collapsed: !socket.assigns.activity_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  # Handle work panel component events
+  def handle_info({:work_panel_component, :toggle_panel}, socket) do
+    socket = assign(socket, work_panel_collapsed: !socket.assigns.work_panel_collapsed)
     {:noreply, push_panel_state(socket)}
   end
 

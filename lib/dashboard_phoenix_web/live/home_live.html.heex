@@ -21,6 +21,17 @@
     collapsed={@activity_collapsed}
   />
 
+  <!-- Work Panel - Unified view of all coding agents -->
+  <.live_component
+    module={WorkPanelComponent}
+    id="work-panel"
+    agent_sessions={@agent_sessions}
+    opencode_sessions={@opencode_sessions}
+    gemini_server_status={@gemini_server_status}
+    gemini_output={@gemini_output}
+    work_panel_collapsed={@work_panel_collapsed}
+  />
+
   <!-- Main Dashboard Layout -->
   <div class="flex-1 flex flex-col gap-6 overflow-y-auto">
     
