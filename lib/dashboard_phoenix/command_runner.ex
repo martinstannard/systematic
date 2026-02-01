@@ -71,7 +71,6 @@ defmodule DashboardPhoenix.CommandRunner do
           :ok -> 
             run_command_internal(command, args, opts)
           {:error, :rate_limited} = error ->
-            Logger.warning("Rate limit exceeded for command: #{command}")
             error
         end
       else
