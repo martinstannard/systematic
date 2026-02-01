@@ -39,6 +39,22 @@
     gemini_loading={@gemini_loading}
   />
 
+  <!-- Work River - Holistic horizontal workflow view (#124) -->
+  <.live_component
+    module={WorkRiverComponent}
+    id="work-river"
+    work_river_collapsed={@work_river_collapsed}
+    linear_tickets={@linear_tickets}
+    chainlink_issues={@chainlink_issues}
+    tickets_in_progress={@tickets_in_progress}
+    chainlink_work_in_progress={@chainlink_work_in_progress}
+    agent_sessions={@agent_sessions}
+    opencode_sessions={@opencode_sessions}
+    work_registry_entries={@work_registry_entries}
+    github_prs={@github_prs}
+    pr_verifications={@pr_verifications}
+  />
+
   <!-- Main Dashboard Layout -->
   <div class="flex-1 flex flex-col gap-6 sm:gap-10 overflow-y-auto p-4 sm:p-8" role="region" aria-label="Dashboard panels">
     
@@ -292,7 +308,7 @@
     </div>
   </div>
 
-  <!-- Work on Ticket Modal -->
+  <!-- Work on Ticket Modal (legacy) -->
   <.live_component
     module={WorkModalComponent}
     id="work-modal"
@@ -309,5 +325,21 @@
     claude_model={@claude_model}
     opencode_model={@opencode_model}
     tickets_in_progress={@tickets_in_progress}
+  />
+
+  <!-- Work Context Modal - Unified work item details (#125) -->
+  <.live_component
+    module={WorkContextModalComponent}
+    id="work-context-modal"
+    show_modal={@show_work_context_modal}
+    selected_item={@selected_work_item}
+    linear_tickets={@linear_tickets}
+    chainlink_issues={@chainlink_issues}
+    tickets_in_progress={@tickets_in_progress}
+    chainlink_work_in_progress={@chainlink_work_in_progress}
+    agent_sessions={@agent_sessions}
+    opencode_sessions={@opencode_sessions}
+    github_prs={@github_prs}
+    pr_verifications={@pr_verifications}
   />
 </div>

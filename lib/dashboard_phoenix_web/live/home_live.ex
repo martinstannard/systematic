@@ -58,6 +58,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.WorkModalComponent
   alias DashboardPhoenixWeb.Live.Components.ActivityPanelComponent
   alias DashboardPhoenixWeb.Live.Components.WorkPanelComponent
+  alias DashboardPhoenixWeb.Live.Components.WorkRiverComponent
+  alias DashboardPhoenixWeb.Live.Components.WorkContextModalComponent
   alias DashboardPhoenixWeb.Live.Components.TestRunnerComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.ActivityLog
@@ -216,6 +218,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
         activity_collapsed: persisted_state.panels.activity,
         # Work panel state
         work_panel_collapsed: persisted_state.panels.work_panel,
+        # Work River state (holistic view)
+        work_river_collapsed: Map.get(persisted_state.panels, :work_river, false),
+        # Work Context Modal state
+        show_work_context_modal: false,
+        selected_work_item: nil,
+        # Linear tickets for Work River (loaded via LinearMonitor)
+        linear_tickets: [],
         # Test runner state
         test_running: false
       )
@@ -260,6 +269,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       send(self(), :load_pr_verifications)
       send(self(), :load_pr_state)
       # Linear and Chainlink handled by smart components - just subscribe for forwarding
+      # Also load for Work River
+      send(self(), :load_linear_tickets)
+      send(self(), :load_chainlink_issues)
       send(self(), :load_github_prs)
       send(self(), :load_branches)
       send(self(), :load_health_status)
@@ -357,6 +369,138 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:work_panel_component, :toggle_panel}, socket) do
     socket = assign(socket, work_panel_collapsed: !socket.assigns.work_panel_collapsed)
     {:noreply, push_panel_state(socket)}
+  end
+
+  # Handle Work River component events
+  def handle_info({:work_river_component, :toggle_panel}, socket) do
+    socket = assign(socket, work_river_collapsed: !socket.assigns.work_river_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:work_river_component, :open_context, item}, socket) do
+    socket = assign(socket, 
+      show_work_context_modal: true,
+      selected_work_item: item
+    )
+    {:noreply, socket}
+  end
+
+  def handle_info({:work_river_component, :start_work, {item_id, item_type}}, socket) do
+    # Extract the actual identifier from the item_id (e.g., "linear-COR-123" -> "COR-123")
+    actual_id = case item_type do
+      "linear" -> String.replace_prefix(item_id, "linear-", "")
+      "chainlink" -> 
+        case String.replace_prefix(item_id, "chainlink-", "") |> Integer.parse() do
+          {id, ""} -> id
+          _ -> nil
+        end
+      _ -> item_id
+    end
+    
+    case item_type do
+      "linear" when is_binary(actual_id) ->
+        # Trigger the existing work on ticket flow
+        send(self(), {:linear_component, :work_on_ticket, actual_id})
+      
+      "chainlink" when is_integer(actual_id) ->
+        # Trigger the existing chainlink work flow
+        send(self(), {:chainlink_component, :work_on_issue, actual_id})
+      
+      _ ->
+        nil
+    end
+    
+    {:noreply, socket}
+  end
+
+  # Handle Work Context Modal events
+  def handle_info({:work_context_modal, :close}, socket) do
+    {:noreply, assign(socket, show_work_context_modal: false, selected_work_item: nil)}
+  end
+
+  def handle_info({:work_context_modal, :start_work, item}, socket) do
+    # Close modal and trigger work start
+    socket = assign(socket, show_work_context_modal: false, selected_work_item: nil)
+    
+    case item.type do
+      :linear ->
+        send(self(), {:linear_component, :work_on_ticket, item.identifier})
+      
+      :chainlink ->
+        issue_id = item.source_data.id
+        send(self(), {:chainlink_component, :work_on_issue, issue_id})
+      
+      _ -> nil
+    end
+    
+    {:noreply, socket}
+  end
+
+  def handle_info({:work_context_modal, :create_pr, session}, socket) do
+    socket = assign(socket, show_work_context_modal: false, selected_work_item: nil)
+    
+    pr_prompt = """
+    The work looks complete. Please create a Pull Request with:
+    1. A clear, descriptive title
+    2. A detailed description explaining what was changed and why
+    3. Any relevant context for reviewers
+
+    Use `gh pr create` to create the PR.
+    """
+    
+    # Determine the type of session and send appropriate message
+    cond do
+      Map.get(session, :slug) ->
+        # OpenCode session
+        ClientFactory.opencode_client().send_message(session.id, pr_prompt)
+      
+      true ->
+        # Claude sub-agent - send via main session
+        ClientFactory.openclaw_client().send_message(pr_prompt, channel: "webchat")
+    end
+    
+    {:noreply, put_flash(socket, :info, "PR creation requested")}
+  end
+
+  def handle_info({:work_context_modal, :fix_issues, pr}, socket) do
+    socket = assign(socket, show_work_context_modal: false, selected_work_item: nil)
+    
+    # Use existing fix_pr_issues flow
+    params = %{
+      "url" => pr.url,
+      "number" => to_string(pr.number),
+      "repo" => pr.repo,
+      "branch" => pr.branch,
+      "has-conflicts" => to_string(Map.get(pr, :has_conflicts, false)),
+      "ci-failing" => to_string(Map.get(pr, :ci_status) == "failure")
+    }
+    
+    send(self(), {:prs_component, :fix_pr_issues, params})
+    {:noreply, socket}
+  end
+
+  def handle_info({:work_context_modal, :merge_pr, pr}, socket) do
+    socket = assign(socket, show_work_context_modal: false, selected_work_item: nil)
+    
+    merge_prompt = """
+    Please merge PR ##{pr.number} in #{pr.repo}.
+    
+    Use: `gh pr merge #{pr.number} --repo #{pr.repo} --squash --delete-branch`
+    
+    After merging, confirm the merge was successful.
+    """
+    
+    case ClientFactory.openclaw_client().spawn_subagent(merge_prompt,
+           name: "pr-merge-#{pr.number}",
+           thinking: "low",
+           post_mode: "summary"
+         ) do
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Merge sub-agent spawned for PR ##{pr.number}")}
+      
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to spawn merge agent: #{inspect(reason)}")}
+    end
   end
 
   # Handle live progress updates (with validation for proper test isolation)
@@ -496,7 +640,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
        chat_collapsed: state.panels.chat,
        test_runner_collapsed: state.panels.test_runner,
        activity_collapsed: state.panels.activity,
-       work_panel_collapsed: state.panels.work_panel
+       work_panel_collapsed: state.panels.work_panel,
+       work_river_collapsed: Map.get(state.panels, :work_river, false)
      )}
   end
 
@@ -524,10 +669,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
-  # Handle Linear ticket updates (from PubSub) - forward to smart component
+  # Handle Linear ticket updates (from PubSub) - forward to smart component and store for Work River
   def handle_info({:linear_update, data}, socket) do
     send_update(LinearComponent, id: :linear, linear_data: data)
-    {:noreply, socket}
+    # Also store tickets locally for Work River component
+    tickets = Map.get(data, :tickets, [])
+    {:noreply, assign(socket, linear_tickets: tickets)}
   end
 
   # Handle ChainlinkComponent messages
@@ -695,10 +842,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
-  # Handle Chainlink issue updates (from PubSub) - forward to smart component
-  def handle_info({:chainlink_update, _data} = msg, socket) do
+  # Handle Chainlink issue updates (from PubSub) - forward to smart component and store for Work River
+  def handle_info({:chainlink_update, data} = msg, socket) do
     ChainlinkComponent.handle_pubsub(msg, socket)
-    {:noreply, socket}
+    # Also update local state for Work River component
+    issues = Map.get(data, :issues, socket.assigns.chainlink_issues)
+    {:noreply, assign(socket, chainlink_issues: issues)}
   end
 
   # PRsComponent handlers
@@ -1321,6 +1470,64 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle PR verification updates (from PubSub)
   def handle_info({:pr_verification_update, verifications}, socket) do
     {:noreply, assign(socket, pr_verifications: verifications)}
+  end
+
+  # Handle async Linear tickets loading (for Work River)
+  def handle_info(:load_linear_tickets, socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        %{tickets: tickets} = LinearMonitor.get_tickets()
+        send(parent, {:linear_tickets_loaded, tickets})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load Linear tickets: #{inspect(e)}")
+          send(parent, {:linear_tickets_loaded, []})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Linear tickets load exited: #{inspect(reason)}")
+          send(parent, {:linear_tickets_loaded, []})
+      end
+    end)
+
+    {:noreply, socket}
+  end
+
+  # Handle Linear tickets loaded result
+  def handle_info({:linear_tickets_loaded, tickets}, socket) do
+    {:noreply, assign(socket, linear_tickets: tickets)}
+  end
+
+  # Handle async Chainlink issues loading (for Work River)
+  def handle_info(:load_chainlink_issues, socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        %{issues: issues} = ChainlinkMonitor.get_issues()
+        send(parent, {:chainlink_issues_loaded, issues})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load Chainlink issues: #{inspect(e)}")
+          send(parent, {:chainlink_issues_loaded, []})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Chainlink issues load exited: #{inspect(reason)}")
+          send(parent, {:chainlink_issues_loaded, []})
+      end
+    end)
+
+    {:noreply, socket}
+  end
+
+  # Handle Chainlink issues loaded result
+  def handle_info({:chainlink_issues_loaded, issues}, socket) do
+    {:noreply, assign(socket, chainlink_issues: issues)}
   end
 
   # Handle async GitHub PR loading (initial mount)
@@ -2471,7 +2678,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "chat" => socket.assigns.chat_collapsed,
       "test_runner" => socket.assigns.test_runner_collapsed,
       "activity" => socket.assigns.activity_collapsed,
-      "work_panel" => socket.assigns.work_panel_collapsed
+      "work_panel" => socket.assigns.work_panel_collapsed,
+      "work_river" => socket.assigns.work_river_collapsed
     }
 
     # Persist to server (survives restarts)

@@ -1,17 +1,1 @@
-{
-  "work-fa25a99c8e115482": {
-    "id": "work-fa25a99c8e115482",
-    "label": null,
-    "status": "failed",
-    "description": "Test task",
-    "started_at": "2026-02-01T14:26:48.120727Z",
-    "source": "manual",
-    "session_id": null,
-    "updated_at": "2026-02-01T14:26:48.123354Z",
-    "model": null,
-    "agent_type": "claude",
-    "ticket_id": null,
-    "failed_at": "2026-02-01T14:26:48.123342Z",
-    "failure_reason": "[connection_error] Server not reachable"
-  }
-}
+{}
