@@ -48,10 +48,10 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-data rounded-lg overflow-hidden mb-3">
+    <div class="panel-data overflow-hidden mb-3">
       <div class="flex items-center justify-between px-3 py-2">
         <div
-          class="panel-header-interactive flex items-center space-x-2 select-none flex-1 py-1 -mx-1 px-1 rounded"
+          class="panel-header-interactive flex items-center space-x-2 select-none flex-1 py-1 -mx-1 px-1"
           phx-click="toggle_panel"
           phx-target={@myself}
         >
@@ -71,7 +71,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
           <% else %>
             <%= for event <- @events do %>
               <div
-                class={"py-1.5 px-2 rounded cursor-pointer transition-colors " <> event_bg_class(event.type)}
+                class={"py-1.5 px-2 cursor-pointer transition-colors " <> event_bg_class(event.type)}
                 phx-click="toggle_expand"
                 phx-value-id={event.id}
                 phx-target={@myself}
@@ -90,7 +90,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
                 </div>
 
                 <%= if @expanded_event == event.id and event.details != %{} do %>
-                  <div class="mt-2 pl-8 text-xs text-base-content/60 font-mono bg-base-content/5 rounded p-2">
+                  <div class="mt-2 pl-8 text-xs text-base-content/60 font-mono bg-base-content/5 p-2">
                     <%= for {key, value} <- event.details do %>
                       <div class="flex space-x-2">
                         <span class="text-base-content/40"><%= key %>:</span>
