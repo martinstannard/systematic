@@ -2,6 +2,13 @@ defmodule DashboardPhoenix.SessionBridge do
   @moduledoc """
   Bridges sub-agent progress to the dashboard.
   Tails JSONL progress files written by sub-agents.
+  
+  ## Performance Optimizations (Ticket #70)
+  
+  - Caches parsed sessions.json with mtime checking
+  - Batches file stat calls during directory scans
+  - Caches transcript details per session, re-parses only on mtime change
+  - Single-pass file stat collection for cleanup operations
   """
   use GenServer
 
@@ -60,7 +67,10 @@ defmodule DashboardPhoenix.SessionBridge do
       transcript_offsets: %{},  # Track read positions per transcript file
       last_transcript_poll: 0,
       current_poll_interval: @base_poll_interval,  # Adaptive polling interval
-      last_cleanup: System.system_time(:millisecond)
+      last_cleanup: System.system_time(:millisecond),
+      # Performance caches (Ticket #70)
+      sessions_cache: %{parsed: nil, mtime: nil},  # Cached parsed sessions.json
+      transcript_details_cache: %{}  # %{session_id => %{mtime: _, size: _, details: _}}
     }}
   end
 
@@ -94,6 +104,9 @@ defmodule DashboardPhoenix.SessionBridge do
     old_progress_offset = state.progress_offset
     old_session_mtime = state.last_session_mtime
     old_transcript_offsets = state.transcript_offsets
+    
+    # Refresh sessions cache first (used by transcript polling)
+    state = refresh_sessions_cache(state)
     
     new_state = state
     |> poll_progress()
@@ -135,39 +148,66 @@ defmodule DashboardPhoenix.SessionBridge do
     Process.send_after(self(), :cleanup_transcripts, @transcript_cleanup_interval)
   end
 
+  # Refresh sessions.json cache if mtime changed
+  defp refresh_sessions_cache(state) do
+    case File.stat(sessions_file()) do
+      {:ok, %{mtime: mtime}} when mtime != state.sessions_cache.mtime ->
+        case File.read(sessions_file()) do
+          {:ok, content} ->
+            case Jason.decode(content) do
+              {:ok, sessions_map} when is_map(sessions_map) ->
+                %{state | sessions_cache: %{parsed: sessions_map, mtime: mtime}}
+              _ ->
+                state
+            end
+          _ ->
+            state
+        end
+      _ ->
+        state
+    end
+  end
+
   # Clean up old transcript offsets to prevent unbounded memory growth
+  # Optimized: Single pass file stat collection, reuse stat info
   defp cleanup_old_transcript_offsets(state) do
     dir = transcripts_dir()
     cutoff = System.system_time(:second) - 3600  # Keep files from last hour
     
     case File.ls(dir) do
       {:ok, files} ->
-        # Get files that still exist and are recent
-        active_files = files
+        # Single pass: collect stats for all relevant files at once
+        jsonl_files = files
         |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
         |> Enum.reject(&(&1 == "sessions.json"))
-        |> Enum.filter(fn file ->
+        
+        # Batch stat all files once
+        file_stats = jsonl_files
+        |> Enum.map(fn file ->
           path = Path.join(dir, file)
           case File.stat(path) do
             {:ok, %{mtime: mtime}} ->
               epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-              epoch > cutoff
-            _ -> false
+              {file, epoch}
+            _ -> 
+              nil
           end
         end)
+        |> Enum.reject(&is_nil/1)
+        |> Map.new()
+        
+        # Filter to recent files using pre-collected stats
+        active_files = file_stats
+        |> Enum.filter(fn {_file, epoch} -> epoch > cutoff end)
+        |> Enum.map(fn {file, _epoch} -> file end)
         |> MapSet.new()
         
         # Clean up transcript_offsets - keep only recent files and limit size
+        # Sort by pre-collected epoch (descending) to keep most recent
         cleaned_offsets = state.transcript_offsets
         |> Enum.filter(fn {filename, _offset} -> MapSet.member?(active_files, filename) end)
         |> Enum.sort_by(fn {filename, _offset} -> 
-          # Sort by mtime descending to keep most recent files
-          path = Path.join(dir, filename)
-          case File.stat(path) do
-            {:ok, %{mtime: mtime}} -> 
-              mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix() 
-            _ -> 0
-          end
+          Map.get(file_stats, filename, 0)
         end, :desc)
         |> Enum.take(@max_transcript_offsets)
         |> Map.new()
@@ -257,15 +297,20 @@ defmodule DashboardPhoenix.SessionBridge do
     end
   end
 
+  # Optimized: Single-pass directory scan with batched stat calls
   defp do_poll_transcripts(state) do
     dir = transcripts_dir()
     case File.ls(dir) do
       {:ok, files} ->
         cutoff = System.system_time(:second) - 600  # Last 10 minutes
         
-        recent_files = files
+        # Single pass: filter to jsonl files and batch stat
+        jsonl_files = files
         |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
         |> Enum.reject(&(&1 == "sessions.json"))
+        
+        # Batch stat all candidate files once
+        recent_files = jsonl_files
         |> Enum.map(fn file ->
           path = Path.join(dir, file)
           case File.stat(path) do
@@ -279,11 +324,11 @@ defmodule DashboardPhoenix.SessionBridge do
         |> Enum.sort_by(fn {_, _, size} -> size end, :desc)
         |> Enum.take(5)  # Top 5 most recent/active
         
-        # Extract new tool calls from each file
+        # Extract new tool calls from each file, using cached sessions for labels
         {new_events, new_offsets} = 
           Enum.reduce(recent_files, {[], state.transcript_offsets}, fn {path, file, _size}, {events_acc, offsets_acc} ->
             offset = Map.get(offsets_acc, file, 0)
-            {new_events, new_offset} = extract_tool_calls_from_transcript(path, file, offset)
+            {new_events, new_offset} = extract_tool_calls_from_transcript(path, file, offset, state.sessions_cache.parsed)
             {events_acc ++ new_events, Map.put(offsets_acc, file, new_offset)}
           end)
         
@@ -305,7 +350,8 @@ defmodule DashboardPhoenix.SessionBridge do
     end
   end
 
-  defp extract_tool_calls_from_transcript(path, filename, offset) do
+  # Optimized: Accept pre-parsed sessions map to avoid repeated file reads
+  defp extract_tool_calls_from_transcript(path, filename, offset, sessions_map) do
     case File.stat(path) do
       {:ok, %{size: size}} when size > offset ->
         case File.open(path, [:read]) do
@@ -314,9 +360,9 @@ defmodule DashboardPhoenix.SessionBridge do
             content = IO.read(file, :eof)
             File.close(file)
             
-            # Extract session label from sessions.json if available
+            # Extract session label using cached sessions map (no file read!)
             session_id = String.replace(filename, ".jsonl", "")
-            agent_label = get_session_label(session_id)
+            agent_label = get_session_label_from_cache(session_id, sessions_map)
             
             # Parse all lines, collecting tool calls and results
             lines = String.split(content, "\n", trim: true)
@@ -452,32 +498,26 @@ defmodule DashboardPhoenix.SessionBridge do
     end)
   end
 
-  defp get_session_label(session_id) do
-    case File.read(sessions_file()) do
-      {:ok, content} ->
-        case Jason.decode(content) do
-          {:ok, sessions_map} when is_map(sessions_map) ->
-            sessions_map
-            |> Enum.find(fn {_key, val} -> val["sessionId"] == session_id end)
-            |> case do
-              {key, val} -> 
-                cond do
-                  # Has explicit label
-                  val["label"] && val["label"] != "" -> val["label"]
-                  # Main session
-                  String.contains?(key, ":main:main") -> "main"
-                  # Cron job - extract name from key
-                  String.contains?(key, ":cron:") -> "cron"
-                  # Subagent without label
-                  String.contains?(key, ":subagent:") -> "subagent"
-                  # Fallback
-                  true -> String.slice(session_id, 0, 8)
-                end
-              nil -> String.slice(session_id, 0, 8)
-            end
-          _ -> String.slice(session_id, 0, 8)
+  # Optimized: Use pre-parsed sessions map instead of re-reading file
+  defp get_session_label_from_cache(session_id, nil), do: String.slice(session_id, 0, 8)
+  defp get_session_label_from_cache(session_id, sessions_map) when is_map(sessions_map) do
+    sessions_map
+    |> Enum.find(fn {_key, val} -> val["sessionId"] == session_id end)
+    |> case do
+      {key, val} -> 
+        cond do
+          # Has explicit label
+          val["label"] && val["label"] != "" -> val["label"]
+          # Main session
+          String.contains?(key, ":main:main") -> "main"
+          # Cron job - extract name from key
+          String.contains?(key, ":cron:") -> "cron"
+          # Subagent without label
+          String.contains?(key, ":subagent:") -> "subagent"
+          # Fallback
+          true -> String.slice(session_id, 0, 8)
         end
-      _ -> String.slice(session_id, 0, 8)
+      nil -> String.slice(session_id, 0, 8)
     end
   end
 
@@ -491,28 +531,32 @@ defmodule DashboardPhoenix.SessionBridge do
   defp truncate_target(_), do: ""
 
   # Poll the OpenClaw sessions.json file
+  # Optimized: Uses pre-cached sessions data and caches transcript details
   defp poll_sessions(state) do
     case File.stat(sessions_file()) do
       {:ok, %{mtime: mtime}} when mtime != state.last_session_mtime ->
-        case File.read(sessions_file()) do
-          {:ok, content} ->
-            case Jason.decode(content) do
-              {:ok, sessions_map} when is_map(sessions_map) ->
-                # OpenClaw format: %{"session:key" => %{...session data...}}
-                normalized = 
-                  sessions_map
-                  |> Enum.map(fn {key, data} -> normalize_session(key, data) end)
-                  |> Enum.filter(&filter_relevant_session/1)
-                  |> Enum.sort_by(& &1.updated_at, :desc)
-                  |> Enum.take(20)
-                
-                broadcast_sessions(normalized)
-                %{state | sessions: normalized, last_session_mtime: mtime}
-              _ ->
-                state
-            end
-          {:error, _} ->
-            state
+        # Use cached parsed sessions (already refreshed at start of poll cycle)
+        sessions_map = state.sessions_cache.parsed
+        
+        if sessions_map && is_map(sessions_map) do
+          # OpenClaw format: %{"session:key" => %{...session data...}}
+          {normalized, new_details_cache} = 
+            sessions_map
+            |> Enum.map(fn {key, data} -> normalize_session(key, data, state.transcript_details_cache) end)
+            |> Enum.filter(fn {session, _cache_entry} -> filter_relevant_session(session) end)
+            |> Enum.map(fn {session, cache_entry} -> {session, cache_entry} end)
+            |> Enum.sort_by(fn {session, _} -> session.updated_at end, :desc)
+            |> Enum.take(20)
+            |> Enum.reduce({[], state.transcript_details_cache}, fn {session, cache_entry}, {sessions_acc, cache_acc} ->
+              new_cache = if cache_entry, do: Map.put(cache_acc, session.id, cache_entry), else: cache_acc
+              {[session | sessions_acc], new_cache}
+            end)
+          
+          normalized = Enum.reverse(normalized)
+          broadcast_sessions(normalized)
+          %{state | sessions: normalized, last_session_mtime: mtime, transcript_details_cache: new_details_cache}
+        else
+          state
         end
       _ ->
         state
@@ -524,7 +568,8 @@ defmodule DashboardPhoenix.SessionBridge do
     String.contains?(key, "subagent") || key == "agent:main:main"
   end
 
-  defp normalize_session(key, s) do
+  # Optimized: Returns {session, cache_entry} tuple for caching transcript details
+  defp normalize_session(key, s, transcript_cache) do
     # Determine status based on recent activity
     updated_at = s["updatedAt"] || 0
     now = System.system_time(:millisecond)
@@ -538,12 +583,12 @@ defmodule DashboardPhoenix.SessionBridge do
 
     session_id = s["sessionId"] || key
     
-    # Extract details from transcript for all sessions (running and completed)
-    # Running sessions get live progress data, completed get final summary
-    {task_summary, result_snippet, runtime, tokens_in, tokens_out, cost, time_info, current_action, recent_actions} = 
-      extract_transcript_details(session_id, status)
+    # Extract details from transcript with caching
+    {details, cache_entry} = extract_transcript_details_cached(session_id, status, transcript_cache)
+    
+    {task_summary, result_snippet, runtime, tokens_in, tokens_out, cost, time_info, current_action, recent_actions} = details
 
-    %{
+    session = %{
       id: session_id,
       session_key: key,
       label: s["label"] || extract_label(key),
@@ -566,12 +611,38 @@ defmodule DashboardPhoenix.SessionBridge do
       current_action: current_action,  # What's happening right now (for running)
       recent_actions: recent_actions   # Last few tool calls (for running)
     }
+    
+    {session, cache_entry}
   end
 
-  # Extract details from transcript file for all sessions (running and completed)
-  defp extract_transcript_details(session_id, status) do
+  # Optimized: Cache transcript details per session, only re-parse when file changes
+  defp extract_transcript_details_cached(session_id, status, transcript_cache) do
     transcript_path = Path.join(transcripts_dir(), "#{session_id}.jsonl")
     
+    case File.stat(transcript_path) do
+      {:ok, %{mtime: mtime, size: size}} ->
+        cached = Map.get(transcript_cache, session_id)
+        
+        # Check if cache is still valid (same mtime and size)
+        # For running sessions, always re-parse to get latest progress
+        if cached && cached.mtime == mtime && cached.size == size && status == "completed" do
+          # Cache hit! Return cached details
+          {cached.details, cached}
+        else
+          # Cache miss or running session - parse the file
+          details = do_extract_transcript_details(transcript_path, status)
+          cache_entry = %{mtime: mtime, size: size, details: details}
+          {details, cache_entry}
+        end
+        
+      {:error, _} ->
+        # File doesn't exist
+        {{nil, nil, nil, 0, 0, 0, nil, nil, []}, nil}
+    end
+  end
+
+  # The actual transcript parsing logic (extracted from original extract_transcript_details)
+  defp do_extract_transcript_details(transcript_path, status) do
     case File.read(transcript_path) do
       {:ok, content} ->
         lines = String.split(content, "\n", trim: true)
