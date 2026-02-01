@@ -127,10 +127,11 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   defp health_text(:checking), do: "CHECKING"
   defp health_text(_), do: "UNKNOWN"
 
-  defp health_symbol(:healthy), do: "●"
+  # Using CSS for visual indicator, text only for screen readers
+  defp health_symbol(:healthy), do: ""
   defp health_symbol(:unhealthy), do: "✗"
-  defp health_symbol(:checking), do: "◔"
-  defp health_symbol(_), do: "◌"
+  defp health_symbol(:checking), do: ""
+  defp health_symbol(_), do: ""
 
   # Server status helpers
   defp server_status_symbol(true), do: "●"
