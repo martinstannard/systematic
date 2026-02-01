@@ -447,6 +447,31 @@ body {
   @apply border-gray-200 dark:border-gray-700;
 }
 
+/* Agent card expandable states */
+.agent-card[data-expanded="true"] {
+  @apply bg-base-300/30;
+}
+
+.agent-card[data-expanded="true"]:hover {
+  @apply bg-base-300/50;
+}
+
+/* Agent card details section */
+.agent-card-details {
+  will-change: max-height, opacity;
+}
+
+/* Smooth expand animation */
+.agent-card-details.max-h-0 {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* Agent card focus state */
+.agent-card:focus-visible {
+  @apply outline-2 outline-blue-500 outline-offset-2;
+}
+
 /* =====================================================
    SECTION HEADERS - Category groupings
    ===================================================== */
