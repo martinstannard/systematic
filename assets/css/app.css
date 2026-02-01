@@ -183,7 +183,7 @@ body {
   font-weight: 400;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  opacity: 0.7;
+  opacity: 0.85; /* Increased from 0.7 for WCAG AA compliance */
 }
 
 /* Section headers - Monitoring, Task Management, etc. */
@@ -762,7 +762,7 @@ button:focus-visible, .btn:focus-visible {
 
 /* Idle state panels - No activity */
 .panel-status-idle {
-  opacity: 0.85;
+  opacity: 0.92; /* Increased from 0.85 for better text contrast */
   border-color: rgba(100, 116, 139, 0.4);
 }
 
@@ -1562,6 +1562,11 @@ button:focus-visible, .btn:focus-visible {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+/* =====================================================
+   TEXT CONTRAST FIXES: WCAG AA Compliance
+   Normal text: 4.5:1 minimum, Large text: 3:1 minimum
+   ===================================================== */
+
 /* Light mode text color overrides */
 [data-theme="light"] .text-white {
   color: oklch(15% 0.02 265);
@@ -1569,14 +1574,55 @@ button:focus-visible, .btn:focus-visible {
 
 [data-theme="light"] .text-white\/60,
 [data-theme="light"] .text-white\/70 {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.7);
 }
 
-[data-theme="light"] .text-base-content\/40,
-[data-theme="light"] .text-base-content\/50,
-[data-theme="light"] .text-base-content\/60,
+/* Light mode: Ensure muted text still meets 4.5:1 contrast on white backgrounds */
+[data-theme="light"] .text-base-content\/30 {
+  color: rgba(0, 0, 0, 0.65); /* Boosted from 0.3 for accessibility */
+}
+
+[data-theme="light"] .text-base-content\/40 {
+  color: rgba(0, 0, 0, 0.65); /* Boosted from 0.4 for accessibility */
+}
+
+[data-theme="light"] .text-base-content\/50 {
+  color: rgba(0, 0, 0, 0.68); /* Boosted from 0.5 for accessibility */
+}
+
+[data-theme="light"] .text-base-content\/60 {
+  color: rgba(0, 0, 0, 0.72); /* Slightly boosted for accessibility */
+}
+
 [data-theme="light"] .text-base-content\/70 {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.78);
+}
+
+/* Dark mode: Boost low-opacity text for accessibility */
+/* Background is oklch(15% 0.05 265), content is oklch(95% 0.02 260) */
+.text-base-content\/30 {
+  color: oklch(72% 0.02 260); /* Boosted from 30% opacity for 4.5:1 contrast */
+}
+
+.text-base-content\/40 {
+  color: oklch(72% 0.02 260); /* Boosted from 40% opacity for 4.5:1 contrast */
+}
+
+.text-base-content\/50 {
+  color: oklch(75% 0.02 260); /* Boosted from 50% opacity for better contrast */
+}
+
+.text-base-content\/60 {
+  color: oklch(78% 0.02 260); /* Boosted slightly for better readability */
+}
+
+/* Ensure text-white opacity variants meet contrast in dark mode */
+.text-white\/60 {
+  color: oklch(78% 0 0); /* Boosted for 4.5:1 contrast */
+}
+
+.text-white\/70 {
+  color: oklch(82% 0 0); /* Boosted for better contrast */
 }
 
 /* Light mode badge backgrounds */
@@ -1677,6 +1723,71 @@ button:focus-visible, .btn:focus-visible {
 
 [data-theme="light"] .text-green-400 {
   color: oklch(50% 0.18 150);
+}
+
+/* =====================================================
+   COLORED TEXT OPACITY FIXES: WCAG AA Compliance
+   Ensure colored text with opacity modifiers meets contrast requirements
+   ===================================================== */
+
+/* Purple text opacity variants - used for status/info */
+.text-purple-400\/60 {
+  color: oklch(68% 0.18 300); /* Boosted from 60% opacity */
+}
+
+.text-purple-400\/70 {
+  color: oklch(72% 0.18 300); /* Boosted for better contrast */
+}
+
+/* Green text opacity variants - used for success states */
+.text-green-400\/60 {
+  color: oklch(62% 0.16 150); /* Boosted from 60% opacity */
+}
+
+.text-success\/60 {
+  color: oklch(62% 0.15 160); /* Boosted for accessibility */
+}
+
+.text-success\/70 {
+  color: oklch(65% 0.15 160); /* Boosted for accessibility */
+}
+
+/* Error/warning text opacity variants */
+.text-error\/70 {
+  color: oklch(60% 0.2 30); /* Boosted for accessibility */
+}
+
+.text-warning\/70 {
+  color: oklch(72% 0.15 70); /* Boosted for accessibility */
+}
+
+/* Light mode colored text opacity fixes */
+[data-theme="light"] .text-purple-400\/60 {
+  color: oklch(48% 0.2 300); /* Darker for light backgrounds */
+}
+
+[data-theme="light"] .text-purple-400\/70 {
+  color: oklch(45% 0.2 300);
+}
+
+[data-theme="light"] .text-green-400\/60 {
+  color: oklch(42% 0.16 150);
+}
+
+[data-theme="light"] .text-success\/60 {
+  color: oklch(42% 0.15 160);
+}
+
+[data-theme="light"] .text-success\/70 {
+  color: oklch(40% 0.15 160);
+}
+
+[data-theme="light"] .text-error\/70 {
+  color: oklch(48% 0.22 25);
+}
+
+[data-theme="light"] .text-warning\/70 {
+  color: oklch(48% 0.18 70);
 }
 
 .glass-header {
@@ -1954,6 +2065,48 @@ textarea:focus-visible {
 }
 
 /* No section hover effects - keeps UI stable and readable */
+
+/* =====================================================
+   ICON OPACITY FIXES: WCAG AA Compliance
+   Ensure icon visibility meets accessibility standards
+   ===================================================== */
+
+/* Boost low opacity values for better visibility */
+.opacity-40 {
+  opacity: 0.6; /* Boosted from 0.4 for accessibility */
+}
+
+.opacity-50 {
+  opacity: 0.65; /* Boosted from 0.5 for accessibility */
+}
+
+.opacity-60 {
+  opacity: 0.7; /* Slight boost for better visibility */
+}
+
+/* Panel icon opacity - ensure readable */
+.panel-icon.opacity-60 {
+  opacity: 0.75;
+}
+
+/* =====================================================
+   PLACEHOLDER TEXT FIXES: WCAG AA Compliance
+   Placeholder text needs 4.5:1 contrast ratio
+   ===================================================== */
+
+/* Fix gray-500 placeholder (used in login form) */
+.placeholder-gray-500::placeholder {
+  color: oklch(55% 0.02 265); /* Darker than gray-500 for contrast on gray-700 bg */
+}
+
+/* Fix base-content opacity placeholder */
+.placeholder-base-content\/50::placeholder {
+  color: oklch(72% 0.02 260); /* Matches boosted text-base-content/50 */
+}
+
+[data-theme="light"] .placeholder-base-content\/50::placeholder {
+  color: rgba(0, 0, 0, 0.65);
+}
 
 /* =====================================================
    ACCESSIBILITY UTILITIES
