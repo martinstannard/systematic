@@ -84,7 +84,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       linear_last_updated: nil,
       linear_error: nil,
       linear_loading: true,
-      linear_status_filter: "Todo",
+      linear_status_filter: "In Review",
       # Work in progress tracking - computed after data loads
       tickets_in_progress: %{},
       pr_created_tickets: MapSet.new(),
