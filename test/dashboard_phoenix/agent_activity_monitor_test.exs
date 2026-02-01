@@ -221,21 +221,34 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
   end
 
   describe "GenServer behavior" do
+    alias DashboardPhoenix.AgentActivityMonitor.{Config, Server}
+
     test "module exports expected client API functions" do
       assert function_exported?(AgentActivityMonitor, :start_link, 1)
       assert function_exported?(AgentActivityMonitor, :get_activity, 0)
       assert function_exported?(AgentActivityMonitor, :subscribe, 0)
     end
 
-    test "init returns expected state structure" do
-      {:ok, state} = AgentActivityMonitor.init([])
+    test "Server.init returns expected state structure" do
+      # Use a minimal config for testing with a temp directory
+      sessions_dir = System.tmp_dir!() |> Path.join("test_sessions_#{:rand.uniform(100000)}")
+      File.mkdir_p!(sessions_dir)
+      
+      config = Config.minimal(sessions_dir)
+      {:ok, state} = Server.init(config)
 
       assert state.agents == %{}
       assert state.session_offsets == %{}
       assert state.last_poll == nil
+      assert state.config == config
+      
+      File.rm_rf!(sessions_dir)
     end
 
-    test "handle_call :get_activity returns sorted activities" do
+    test "Server.handle_call :get_activity returns sorted activities" do
+      sessions_dir = System.tmp_dir!() |> Path.join("test_sessions_#{:rand.uniform(100000)}")
+      File.mkdir_p!(sessions_dir)
+      
       now = DateTime.utc_now()
       old = DateTime.add(now, -3600, :second)
 
@@ -243,13 +256,24 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
         "agent-1" => %{id: "agent-1", last_activity: old},
         "agent-2" => %{id: "agent-2", last_activity: now}
       }
-      state = %{agents: agents, session_offsets: %{}, last_poll: nil}
+      
+      config = Config.minimal(sessions_dir)
+      state = %{
+        config: config,
+        agents: agents, 
+        session_offsets: %{}, 
+        last_poll: nil,
+        polling: false,
+        last_cache_cleanup: System.system_time(:millisecond)
+      }
 
-      {:reply, activities, _new_state} = AgentActivityMonitor.handle_call(:get_activity, self(), state)
+      {:reply, activities, _new_state} = Server.handle_call(:get_activity, self(), state)
 
       # Should be sorted by last_activity descending (newest first)
       assert length(activities) == 2
       assert hd(activities).id == "agent-2"  # More recent first
+      
+      File.rm_rf!(sessions_dir)
     end
   end
 
