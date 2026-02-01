@@ -218,8 +218,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
     activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, socket.assigns.agent_progress)
     tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
     prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
+    chainlink_work_in_progress = build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
     agent_sessions_count = length(sessions)
-    {:noreply, assign(socket, agent_sessions: sessions, agent_sessions_count: agent_sessions_count, agent_activity: activity, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
+    {:noreply, assign(socket, agent_sessions: sessions, agent_sessions_count: agent_sessions_count, agent_activity: activity, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress, chainlink_work_in_progress: chainlink_work_in_progress)}
   end
 
   # Handle stats updates
@@ -615,6 +616,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Rebuild work-in-progress maps now that we have sessions
     tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
     prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
+    chainlink_work_in_progress = build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
     
     # Rebuild graph data if coding agents are loaded
     graph_data = if socket.assigns.coding_agents_loading do
@@ -643,6 +645,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       main_activity_count: main_activity_count,
       tickets_in_progress: tickets_in_progress,
       prs_in_progress: prs_in_progress,
+      chainlink_work_in_progress: chainlink_work_in_progress,
       graph_data: graph_data,
       sessions_loading: false
     )
@@ -1896,6 +1899,42 @@ defmodule DashboardPhoenixWeb.HomeLive do
     
     # Combine - OpenCode takes precedence if both are working on same PR
     Map.new(subagent_work ++ opencode_work)
+  end
+
+  # Build map of chainlink issue_id -> work session info from sub-agent sessions
+  # Looks for sessions with labels containing "ticket-" to detect active chainlink work
+  # Merges with existing manually started work
+  defp build_chainlink_work_in_progress(agent_sessions, current_work \\ %{}) do
+    detected_work = agent_sessions
+    |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
+    |> Enum.filter(fn session -> 
+      label = Map.get(session, :label, "")
+      String.contains?(label, "ticket-")
+    end)
+    |> Enum.map(fn session ->
+      label = Map.get(session, :label, "")
+      # Extract issue ID from label like "ticket-123", "fix-work-indicator-ticket-456", etc.
+      case Regex.run(~r/ticket-(\d+)/, label) do
+        [_, issue_id_str] ->
+          case Integer.parse(issue_id_str) do
+            {issue_id, ""} ->
+              {issue_id, %{
+                type: :subagent,
+                label: label,
+                session_id: session.id,
+                status: session.status,
+                task_summary: Map.get(session, :task_summary)
+              }}
+            _ -> nil
+          end
+        _ -> nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Map.new()
+    
+    # Merge detected work with current work - detected sessions take precedence
+    Map.merge(current_work, detected_work)
   end
 
   # build_graph_data function moved to DashboardPhoenixWeb.HomeLiveCache for memoization
