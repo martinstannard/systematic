@@ -1,6 +1,10 @@
 defmodule DashboardPhoenixWeb.HomeLive do
   use DashboardPhoenixWeb, :live_view
   
+  # Precompiled regex patterns - compiled once at compile time, not on every function call
+  @ticket_regex ~r/([A-Z]{2,5}-\d+)/i
+  @pr_regex ~r/(?:#(\d+)|(?:PR[-#]?)(\d+)|(?:fix|review|update|work-on)[-_]?pr[-_]?(\d+))/i
+  
   alias DashboardPhoenixWeb.Live.Components.HeaderComponent
   alias DashboardPhoenixWeb.Live.Components.LinearComponent
   alias DashboardPhoenixWeb.Live.Components.ChainlinkComponent
@@ -72,7 +76,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
       {[], []}
     else
       try do
-        {SessionBridge.get_sessions(), SessionBridge.get_progress()}
+        raw_sessions = SessionBridge.get_sessions()
+        # Enrich sessions with extracted ticket/PR data once (O(n) instead of O(n*m))
+        enriched = Enum.map(raw_sessions, &enrich_agent_session/1)
+        {enriched, SessionBridge.get_progress()}
       rescue
         _ -> {[], []}
       end
@@ -234,7 +241,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   # Handle session updates
-  def handle_info({:sessions, sessions}, socket) do
+  def handle_info({:sessions, raw_sessions}, socket) do
+    # Enrich sessions with extracted ticket/PR data once (O(n) instead of O(n*m))
+    sessions = Enum.map(raw_sessions, &enrich_agent_session/1)
     activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, socket.assigns.agent_progress)
     tickets_in_progress = build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
     prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
@@ -1501,137 +1510,79 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Build map of ticket_id -> work session info from OpenCode and sub-agent sessions
   # Parses ticket IDs (like COR-123, FRE-456) from session titles and labels
+  # Optimized: Uses pre-extracted ticket IDs from enriched sessions (O(n) simple iteration)
+  # Previously: O(n*m) - ran regex on every session on every call
   defp build_tickets_in_progress(opencode_sessions, agent_sessions) do
-    ticket_regex = ~r/([A-Z]{2,5}-\d+)/i
-    
-    # Build from OpenCode sessions (look at title)
+    # Build from OpenCode sessions using pre-extracted ticket IDs
     opencode_work = opencode_sessions
-    |> Enum.filter(fn session -> 
-      # Only include active/running sessions
-      session.status in ["active", "idle"]
-    end)
+    |> Enum.filter(fn session -> session.status in ["active", "idle"] end)
     |> Enum.flat_map(fn session ->
-      title = session.title || ""
-      case Regex.scan(ticket_regex, title) do
-        [] -> []
-        matches -> 
-          Enum.map(matches, fn [_, ticket_id] -> 
-            {String.upcase(ticket_id), %{
-              type: :opencode,
-              slug: session.slug,
-              session_id: session.id,
-              status: session.status,
-              title: session.title
-            }}
-          end)
-      end
+      ticket_ids = Map.get(session, :extracted_tickets, [])
+      Enum.map(ticket_ids, fn ticket_id -> 
+        {ticket_id, %{
+          type: :opencode,
+          slug: session.slug,
+          session_id: session.id,
+          status: session.status,
+          title: session.title
+        }}
+      end)
     end)
     
-    # Build from sub-agent sessions (look at label and task_summary)
+    # Build from sub-agent sessions using pre-extracted ticket IDs
     subagent_work = agent_sessions
-    |> Enum.filter(fn session -> 
-      # Only include running/idle sessions (not completed)
-      session.status in ["running", "idle"]
-    end)
+    |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
     |> Enum.flat_map(fn session ->
-      label = Map.get(session, :label) || ""
-      task = Map.get(session, :task_summary) || ""
-      text_to_search = "#{label} #{task}"
-      
-      case Regex.scan(ticket_regex, text_to_search) do
-        [] -> []
-        matches -> 
-          Enum.map(matches, fn [_, ticket_id] -> 
-            {String.upcase(ticket_id), %{
-              type: :subagent,
-              label: label,
-              session_id: session.id,
-              status: session.status,
-              task_summary: Map.get(session, :task_summary)
-            }}
-          end)
-      end
+      ticket_ids = Map.get(session, :extracted_tickets, [])
+      Enum.map(ticket_ids, fn ticket_id -> 
+        {ticket_id, %{
+          type: :subagent,
+          label: Map.get(session, :label),
+          session_id: session.id,
+          status: session.status,
+          task_summary: Map.get(session, :task_summary)
+        }}
+      end)
     end)
     
     # Combine - OpenCode takes precedence if both are working on same ticket
     Map.new(subagent_work ++ opencode_work)
   end
 
-  # Build map of pr_number -> work session info from OpenCode and sub-agent sessions
-  # Parses PR numbers (like #123, PR-123, pr-244, fix-pr-244) from session titles and labels
+  # Optimized: Uses pre-extracted PR numbers from enriched sessions (O(n) simple iteration)
+  # Previously: O(n*m) - ran complex regex on every session on every call
+  # Matches PR numbers like #123, PR-123, pr-244, fix-pr-244
   defp build_prs_in_progress(opencode_sessions, agent_sessions) do
-    # Multiple patterns to match PR references:
-    # - #123 (GitHub-style)
-    # - PR-123, pr-123, PR#123 (explicit PR prefix)
-    # - fix-pr-244, review-pr-123 (prefixed patterns)
-    pr_regex = ~r/(?:#(\d+)|(?:PR[-#]?)(\d+)|(?:fix|review|update|work-on)[-_]?pr[-_]?(\d+))/i
-    
-    # Build from OpenCode sessions (look at title)
+    # Build from OpenCode sessions using pre-extracted PR numbers
     opencode_work = opencode_sessions
-    |> Enum.filter(fn session -> 
-      # Only include active/running sessions
-      session.status in ["active", "idle"]
-    end)
+    |> Enum.filter(fn session -> session.status in ["active", "idle"] end)
     |> Enum.flat_map(fn session ->
-      title = session.title || ""
-      case Regex.scan(pr_regex, title) do
-        [] -> []
-        matches -> 
-          Enum.map(matches, fn match_groups ->
-            # Get the first non-nil, non-empty capture group (since we have alternatives)
-            pr_number = match_groups
-            |> Enum.drop(1)  # Skip the full match
-            |> Enum.find(fn g -> g != nil and g != "" end)  # Find first valid capture
-            
-            if pr_number do
-              {String.to_integer(pr_number), %{
-                type: :opencode,
-                slug: session.slug,
-                session_id: session.id,
-                status: session.status,
-                title: session.title
-              }}
-            else
-              nil
-            end
-          end)
-          |> Enum.reject(&is_nil/1)
-      end
+      pr_numbers = Map.get(session, :extracted_prs, [])
+      Enum.map(pr_numbers, fn pr_number -> 
+        {pr_number, %{
+          type: :opencode,
+          slug: session.slug,
+          session_id: session.id,
+          status: session.status,
+          title: session.title
+        }}
+      end)
     end)
     
-    # Build from sub-agent sessions (look at label and task_summary)
+    # Build from sub-agent sessions using pre-extracted PR numbers
     subagent_work = agent_sessions
-    |> Enum.filter(fn session -> 
-      # Only include running/idle sessions (not completed)
-      session.status in ["running", "idle"]
-    end)
+    |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
     |> Enum.flat_map(fn session ->
-      label = Map.get(session, :label) || ""
-      task = Map.get(session, :task_summary) || ""
-      text_to_search = "#{label} #{task}"
-      
-      case Regex.scan(pr_regex, text_to_search) do
-        [] -> []
-        matches -> 
-          Enum.map(matches, fn match_groups ->
-            pr_number = match_groups
-            |> Enum.drop(1)
-            |> Enum.find(fn g -> g != nil and g != "" end)  # Find first valid capture
-            
-            if pr_number do
-              {String.to_integer(pr_number), %{
-                type: :subagent,
-                label: label,
-                session_id: session.id,
-                status: session.status,
-                task_summary: Map.get(session, :task_summary)
-              }}
-            else
-              nil
-            end
-          end)
-          |> Enum.reject(&is_nil/1)
-      end
+      pr_numbers = Map.get(session, :extracted_prs, [])
+      Enum.map(pr_numbers, fn pr_number -> 
+        {pr_number, %{
+          type: :subagent,
+          label: Map.get(session, :label),
+          session_id: session.id,
+          status: session.status,
+          task_summary: Map.get(session, :task_summary)
+        }}
+      end)
     end)
     
     # Combine - OpenCode takes precedence if both are working on same PR
@@ -1643,11 +1594,54 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Fetch OpenCode sessions if server is running
   defp fetch_opencode_sessions(%{running: true}) do
     case ClientFactory.opencode_client().list_sessions_formatted() do
-      {:ok, sessions} -> sessions
+      {:ok, sessions} -> Enum.map(sessions, &enrich_opencode_session/1)
       {:error, _} -> []
     end
   end
   defp fetch_opencode_sessions(_), do: []
+
+  # Extract ticket/PR info once per session (O(1) regex per session instead of O(n*m) total)
+  defp enrich_opencode_session(session) do
+    title = session.title || ""
+    
+    ticket_ids = case Regex.scan(@ticket_regex, title) do
+      [] -> []
+      matches -> Enum.map(matches, fn [_, id] -> String.upcase(id) end)
+    end
+    
+    pr_numbers = extract_pr_numbers_from_text(title)
+    
+    Map.merge(session, %{extracted_tickets: ticket_ids, extracted_prs: pr_numbers})
+  end
+  
+  defp enrich_agent_session(session) do
+    label = Map.get(session, :label) || ""
+    task = Map.get(session, :task_summary) || ""
+    text = "#{label} #{task}"
+    
+    ticket_ids = case Regex.scan(@ticket_regex, text) do
+      [] -> []
+      matches -> Enum.map(matches, fn [_, id] -> String.upcase(id) end)
+    end
+    
+    pr_numbers = extract_pr_numbers_from_text(text)
+    
+    Map.merge(session, %{extracted_tickets: ticket_ids, extracted_prs: pr_numbers})
+  end
+  
+  defp extract_pr_numbers_from_text(text) do
+    case Regex.scan(@pr_regex, text) do
+      [] -> []
+      matches ->
+        Enum.flat_map(matches, fn match_groups ->
+          pr_num = match_groups
+          |> Enum.drop(1)
+          |> Enum.find(fn g -> g != nil and g != "" end)
+          
+          if pr_num, do: [String.to_integer(pr_num)], else: []
+        end)
+    end
+  end
 
   # PR state persistence - stores which tickets have PRs created
   defp pr_state_file, do: Paths.pr_state_file()
