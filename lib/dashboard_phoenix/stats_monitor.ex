@@ -1,6 +1,12 @@
 defmodule DashboardPhoenix.StatsMonitor do
   @moduledoc """
   Fetches usage stats from OpenCode and Claude Code.
+  
+  ## Performance Optimizations (Ticket #71)
+  
+  - Uses ETS for fast data reads (no GenServer.call blocking)
+  - GenServer only manages lifecycle and periodic polling
+  - All public getters read directly from ETS
   """
   use GenServer
   require Logger
@@ -10,31 +16,30 @@ defmodule DashboardPhoenix.StatsMonitor do
   # 5 seconds
   @poll_interval 5_000
   @persistence_file "stats_state.json"
+  
+  # ETS table name for fast reads
+  @ets_table :stats_monitor_data
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
+  @doc """
+  Get usage stats. Reads directly from ETS (non-blocking).
+  """
   def get_stats do
-    GenServer.call(__MODULE__, :get_stats, 5_000)
+    case :ets.lookup(@ets_table, :stats) do
+      [{:stats, stats}] -> stats
+      [] -> default_stats()
+    end
   end
 
   def refresh do
     GenServer.cast(__MODULE__, :refresh)
   end
-
-  def subscribe do
-    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "stats")
-  end
-
-  # GenServer callbacks
-
-  @impl true
-  def init(_) do
-    schedule_poll()
-
-    # Load persisted state
-    default_stats = %{
+  
+  defp default_stats do
+    %{
       opencode: %{
         sessions: 0,
         messages: 0,
@@ -54,8 +59,25 @@ defmodule DashboardPhoenix.StatsMonitor do
       },
       updated_at: 0
     }
+  end
 
-    persisted_state = StatePersistence.load(@persistence_file, %{stats: default_stats})
+  def subscribe do
+    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "stats")
+  end
+
+  # GenServer callbacks
+
+  @impl true
+  def init(_) do
+    # Create ETS table for fast reads (Ticket #71)
+    :ets.new(@ets_table, [:named_table, :public, :set, read_concurrency: true])
+    
+    # Initialize ETS with default stats
+    :ets.insert(@ets_table, {:stats, default_stats()})
+    
+    schedule_poll()
+
+    persisted_state = StatePersistence.load(@persistence_file, %{stats: default_stats()})
 
     # Try to fetch fresh stats, but fallback to persisted if fails
     stats =
@@ -67,13 +89,11 @@ defmodule DashboardPhoenix.StatsMonitor do
         fresh_stats ->
           fresh_stats
       end
+    
+    # Update ETS with initial stats
+    :ets.insert(@ets_table, {:stats, stats})
 
     {:ok, %{stats: stats}}
-  end
-
-  @impl true
-  def handle_call(:get_stats, _from, state) do
-    {:reply, state.stats, state}
   end
 
   @impl true
@@ -90,6 +110,9 @@ defmodule DashboardPhoenix.StatsMonitor do
         stats
       end
 
+    # Update ETS (Ticket #71)
+    :ets.insert(@ets_table, {:stats, final_stats})
+    
     broadcast_stats(final_stats)
     {:noreply, %{state | stats: final_stats}}
   end
@@ -111,6 +134,9 @@ defmodule DashboardPhoenix.StatsMonitor do
         stats
       end
 
+    # Update ETS (Ticket #71)
+    :ets.insert(@ets_table, {:stats, final_stats})
+    
     schedule_poll()
     {:noreply, %{state | stats: final_stats}}
   end

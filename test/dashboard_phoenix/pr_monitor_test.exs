@@ -252,23 +252,16 @@ defmodule DashboardPhoenix.PRMonitorTest do
       assert function_exported?(PRMonitor, :subscribe, 0)
     end
 
-    test "init returns expected state structure" do
-      {:ok, state} = PRMonitor.init([])
+    # Note: Ticket #71 - init creates ETS table, can't test directly without conflicts
+    test "get_prs returns expected structure (ETS-based)" do
+      # The monitor is started as part of the application
+      # Just verify the public API returns the expected structure
+      result = PRMonitor.get_prs()
 
-      assert state.prs == []
-      assert state.last_updated == nil
-      assert state.error == nil
-    end
-
-    test "handle_call :get_prs returns state data" do
-      state = %{prs: [%{number: 1}], last_updated: DateTime.utc_now(), error: nil}
-
-      {:reply, reply, new_state} = PRMonitor.handle_call(:get_prs, self(), state)
-
-      assert reply.prs == state.prs
-      assert reply.last_updated == state.last_updated
-      assert reply.error == state.error
-      assert new_state == state
+      assert is_map(result)
+      assert is_list(result.prs)
+      assert Map.has_key?(result, :last_updated)
+      assert Map.has_key?(result, :error)
     end
 
     test "handle_cast :refresh sends poll message" do

@@ -9,6 +9,12 @@ defmodule DashboardPhoenix.SessionBridge do
   - Batches file stat calls during directory scans
   - Caches transcript details per session, re-parses only on mtime change
   - Single-pass file stat collection for cleanup operations
+  
+  ## Performance Optimizations (Ticket #71)
+  
+  - Uses ETS for fast data reads (no GenServer.call blocking)
+  - GenServer only manages lifecycle and periodic polling
+  - All public getters read directly from ETS
   """
   use GenServer
 
@@ -23,6 +29,9 @@ defmodule DashboardPhoenix.SessionBridge do
   @max_transcript_offsets 50  # Limit transcript_offsets map size
   @transcript_cleanup_interval 300_000  # Clean up old transcripts every 5 minutes
   @directory_scan_cache_ttl 5000  # Cache directory listings for 5 seconds
+  
+  # ETS table name for fast reads
+  @ets_table :session_bridge_data
 
   defp sessions_file do
     Paths.sessions_file()
@@ -36,16 +45,42 @@ defmodule DashboardPhoenix.SessionBridge do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
+  @doc """
+  Get all sessions. Reads directly from ETS (non-blocking).
+  """
   def get_sessions do
-    GenServer.call(__MODULE__, :get_sessions)
+    case :ets.lookup(@ets_table, :sessions) do
+      [{:sessions, sessions}] -> sessions
+      [] -> []
+    end
   end
 
+  @doc """
+  Get progress events. Reads directly from ETS (non-blocking).
+  """
   def get_progress do
-    GenServer.call(__MODULE__, :get_progress)
+    case :ets.lookup(@ets_table, :progress) do
+      [{:progress, progress}] -> progress
+      [] -> []
+    end
   end
 
+  @doc """
+  Get state metrics. Reads directly from ETS (non-blocking).
+  """
   def get_state_metrics do
-    GenServer.call(__MODULE__, :get_state_metrics)
+    case :ets.lookup(@ets_table, :metrics) do
+      [{:metrics, metrics}] -> metrics
+      [] -> %{
+        sessions_count: 0,
+        progress_events: 0,
+        transcript_offsets_count: 0,
+        last_cleanup: 0,
+        progress_offset: 0,
+        current_poll_interval: @base_poll_interval,
+        memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
+      }
+    end
   end
 
   def subscribe do
@@ -56,6 +91,24 @@ defmodule DashboardPhoenix.SessionBridge do
 
   @impl true
   def init(_) do
+    # Create ETS table for fast reads (Ticket #71)
+    # Use :named_table so we can access by name, :public for reads from any process
+    :ets.new(@ets_table, [:named_table, :public, :set, read_concurrency: true])
+    
+    # Initialize ETS with empty data
+    now = System.system_time(:millisecond)
+    :ets.insert(@ets_table, {:sessions, []})
+    :ets.insert(@ets_table, {:progress, []})
+    :ets.insert(@ets_table, {:metrics, %{
+      sessions_count: 0,
+      progress_events: 0,
+      transcript_offsets_count: 0,
+      last_cleanup: now,
+      progress_offset: 0,
+      current_poll_interval: @base_poll_interval,
+      memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
+    }})
+    
     # Ensure progress file exists (don't overwrite sessions - it's managed by OpenClaw)
     FileUtils.ensure_exists(Paths.progress_file())
     
@@ -81,30 +134,6 @@ defmodule DashboardPhoenix.SessionBridge do
       # Track start times for duration calculation
       subagent_start_times: %{}  # %{session_id => start_timestamp_ms}
     }}
-  end
-
-  @impl true
-  def handle_call(:get_sessions, _from, state) do
-    {:reply, state.sessions, state}
-  end
-
-  @impl true
-  def handle_call(:get_progress, _from, state) do
-    {:reply, state.progress, state}
-  end
-
-  @impl true
-  def handle_call(:get_state_metrics, _from, state) do
-    metrics = %{
-      sessions_count: length(state.sessions),
-      progress_events: length(state.progress),
-      transcript_offsets_count: map_size(state.transcript_offsets),
-      last_cleanup: state.last_cleanup,
-      progress_offset: state.progress_offset,
-      current_poll_interval: state.current_poll_interval,
-      memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
-    }
-    {:reply, metrics, state}
   end
 
   @impl true
@@ -138,6 +167,10 @@ defmodule DashboardPhoenix.SessionBridge do
     end
     
     new_state = %{new_state | current_poll_interval: new_interval}
+    
+    # Update ETS with current data (Ticket #71)
+    update_ets(new_state)
+    
     schedule_poll(new_interval)
     {:noreply, new_state}
   end
@@ -145,8 +178,24 @@ defmodule DashboardPhoenix.SessionBridge do
   @impl true
   def handle_info(:cleanup_transcripts, state) do
     new_state = cleanup_old_transcript_offsets(state)
+    update_ets(new_state)
     schedule_transcript_cleanup()
     {:noreply, new_state}
+  end
+
+  # Write current state to ETS for non-blocking reads (Ticket #71)
+  defp update_ets(state) do
+    :ets.insert(@ets_table, {:sessions, state.sessions})
+    :ets.insert(@ets_table, {:progress, state.progress})
+    :ets.insert(@ets_table, {:metrics, %{
+      sessions_count: length(state.sessions),
+      progress_events: length(state.progress),
+      transcript_offsets_count: map_size(state.transcript_offsets),
+      last_cleanup: state.last_cleanup,
+      progress_offset: state.progress_offset,
+      current_poll_interval: state.current_poll_interval,
+      memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
+    }})
   end
 
   defp schedule_poll(interval) do

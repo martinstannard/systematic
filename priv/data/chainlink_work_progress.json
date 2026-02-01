@@ -1,6 +1,7 @@
 {
   "42": {
     "label": "test-agent",
-    "started_at": "2026-02-01T09:54:14.464672Z"
+    "started_at": "2026-02-01T09:56:55.648339Z",
+    "session_id": "session-abc"
   }
 }

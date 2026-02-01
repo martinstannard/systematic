@@ -2,6 +2,12 @@ defmodule DashboardPhoenix.ResourceTracker do
   @moduledoc """
   Tracks CPU and memory usage over time for system processes.
   Samples every 5 seconds and keeps a rolling window of 60 data points (5 minutes).
+  
+  ## Performance Optimizations (Ticket #71)
+  
+  - Uses ETS for fast data reads (no GenServer.call blocking)
+  - GenServer only manages lifecycle and periodic sampling
+  - All public getters read directly from ETS
   """
   use GenServer
 
@@ -15,6 +21,9 @@ defmodule DashboardPhoenix.ResourceTracker do
   @cli_timeout_ms 10_000
   @max_tracked_processes 100  # Limit total number of tracked processes
   @process_inactive_threshold 120_000  # Remove processes inactive for 2 minutes
+  
+  # ETS table name for fast reads
+  @ets_table :resource_tracker_data
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -23,30 +32,51 @@ defmodule DashboardPhoenix.ResourceTracker do
   @doc """
   Get the full history for all tracked processes.
   Returns %{pid => [{timestamp, cpu, memory}, ...]}
+  Reads directly from ETS (non-blocking).
   """
   def get_history do
-    GenServer.call(__MODULE__, :get_history)
+    case :ets.lookup(@ets_table, :history) do
+      [{:history, history}] -> history
+      [] -> %{}
+    end
   end
 
   @doc """
   Get history for a specific PID.
+  Reads directly from ETS (non-blocking).
   """
   def get_history(pid) do
-    GenServer.call(__MODULE__, {:get_history, pid})
+    history = get_history()
+    Map.get(history, pid, [])
   end
 
   @doc """
   Get the current snapshot of all tracked processes with their latest stats.
+  Reads directly from ETS (non-blocking).
   """
   def get_current do
-    GenServer.call(__MODULE__, :get_current)
+    case :ets.lookup(@ets_table, :current) do
+      [{:current, current}] -> current
+      [] -> %{}
+    end
   end
 
   @doc """
   Get state metrics for telemetry monitoring.
+  Reads directly from ETS (non-blocking).
   """
   def get_state_metrics do
-    GenServer.call(__MODULE__, :get_state_metrics)
+    case :ets.lookup(@ets_table, :metrics) do
+      [{:metrics, metrics}] -> metrics
+      [] -> %{
+        tracked_processes: 0,
+        total_history_points: 0,
+        last_sample: nil,
+        memory_usage_mb: :erlang.memory(:total) / (1024 * 1024),
+        max_tracked_processes: @max_tracked_processes,
+        max_history_per_process: @max_history
+      }
+    end
   end
 
   def subscribe do
@@ -57,51 +87,23 @@ defmodule DashboardPhoenix.ResourceTracker do
 
   @impl true
   def init(_) do
-    schedule_sample()
-    {:ok, %{history: %{}, last_sample: nil}}
-  end
-
-  @impl true
-  def handle_call(:get_history, _from, state) do
-    {:reply, state.history, state}
-  end
-
-  @impl true
-  def handle_call({:get_history, pid}, _from, state) do
-    {:reply, Map.get(state.history, pid, []), state}
-  end
-
-  @impl true
-  def handle_call(:get_current, _from, state) do
-    current = state.history
-    |> Enum.map(fn {pid, history} ->
-      case List.first(history) do
-        {ts, cpu, mem} -> {pid, %{timestamp: ts, cpu: cpu, memory: mem, history: history}}
-        nil -> nil
-      end
-    end)
-    |> Enum.reject(&is_nil/1)
-    |> Map.new()
+    # Create ETS table for fast reads (Ticket #71)
+    :ets.new(@ets_table, [:named_table, :public, :set, read_concurrency: true])
     
-    {:reply, current, state}
-  end
-
-  @impl true
-  def handle_call(:get_state_metrics, _from, state) do
-    total_history_points = state.history 
-    |> Map.values() 
-    |> Enum.map(&length/1) 
-    |> Enum.sum()
-    
-    metrics = %{
-      tracked_processes: map_size(state.history),
-      total_history_points: total_history_points,
-      last_sample: state.last_sample,
-      memory_usage_mb: :erlang.memory(:total) / (1024 * 1024),
+    # Initialize ETS with empty data
+    :ets.insert(@ets_table, {:history, %{}})
+    :ets.insert(@ets_table, {:current, %{}})
+    :ets.insert(@ets_table, {:metrics, %{
+      tracked_processes: 0,
+      total_history_points: 0,
+      last_sample: nil,
+      memory_usage_mb: 0,
       max_tracked_processes: @max_tracked_processes,
       max_history_per_process: @max_history
-    }
-    {:reply, metrics, state}
+    }})
+    
+    schedule_sample()
+    {:ok, %{history: %{}, last_sample: nil}}
   end
 
   @impl true
@@ -170,10 +172,43 @@ defmodule DashboardPhoenix.ResourceTracker do
       Logger.info("ResourceTracker telemetry: tracked_processes=#{map_size(final_history)}/#{@max_tracked_processes}, total_history_points=#{total_points}")
     end
     
+    # Update ETS with current data (Ticket #71)
+    update_ets(final_history, timestamp)
+    
     # Broadcast update
     broadcast_update(final_history, processes)
     
     %{state | history: final_history, last_sample: timestamp}
+  end
+  
+  # Write current state to ETS for non-blocking reads (Ticket #71)
+  defp update_ets(history, timestamp) do
+    # Compute current snapshot from history
+    current = history
+    |> Enum.map(fn {pid, hist} ->
+      case List.first(hist) do
+        {ts, cpu, mem} -> {pid, %{timestamp: ts, cpu: cpu, memory: mem, history: hist}}
+        nil -> nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Map.new()
+    
+    total_history_points = history 
+    |> Map.values() 
+    |> Enum.map(&length/1) 
+    |> Enum.sum()
+    
+    :ets.insert(@ets_table, {:history, history})
+    :ets.insert(@ets_table, {:current, current})
+    :ets.insert(@ets_table, {:metrics, %{
+      tracked_processes: map_size(history),
+      total_history_points: total_history_points,
+      last_sample: timestamp,
+      memory_usage_mb: :erlang.memory(:total) / (1024 * 1024),
+      max_tracked_processes: @max_tracked_processes,
+      max_history_per_process: @max_history
+    }})
   end
 
   defp fetch_process_stats do
