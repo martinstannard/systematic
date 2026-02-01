@@ -10,13 +10,9 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   @impl true
   def update(assigns, socket) do
-    # Pre-calculate filtered tickets to avoid template computation
-    filtered_tickets = assigns.linear_tickets
-    |> Enum.filter(& &1.status == assigns.linear_status_filter)
-    |> Enum.take(10)
-    
-    assigns_with_filtered = Map.put(assigns, :linear_filtered_tickets, filtered_tickets)
-    {:ok, assign(socket, assigns_with_filtered)}
+    # Use pre-filtered tickets from HomeLive - no redundant computation needed
+    # HomeLive already calculates linear_filtered_tickets and linear_tickets_count
+    {:ok, assign(socket, assigns)}
   end
 
   @impl true
@@ -96,7 +92,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading tickets</span>
           <% else %>
-            <span class="text-xs font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
+            <span class="text-xs font-mono text-base-content/50"><%= @linear_tickets_count %></span>
           <% end %>
         </div>
         <button 

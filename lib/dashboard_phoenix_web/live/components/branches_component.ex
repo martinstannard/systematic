@@ -130,7 +130,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading branches</span>
           <% else %>
-            <span class="text-ui-caption text-tabular text-base-content/60"><%= length(@unmerged_branches) %></span>
+            <span class="text-ui-caption text-tabular text-base-content/60"><%= @unmerged_branches_count %></span>
           <% end %>
         </div>
         <button

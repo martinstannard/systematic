@@ -131,7 +131,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading issues</span>
           <% else %>
-            <span class="text-ui-caption text-tabular text-base-content/60"><%= length(@chainlink_issues) %></span>
+            <span class="text-ui-caption text-tabular text-base-content/60"><%= @chainlink_issues_count %></span>
           <% end %>
         </div>
         <button
