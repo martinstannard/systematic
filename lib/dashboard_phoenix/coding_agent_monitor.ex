@@ -21,6 +21,35 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
   @agent_patterns ~w(opencode claude-code codex aider)
   @cli_timeout_ms 10_000
 
+  @doc """
+  Lists all active coding agent processes.
+
+  Scans system processes for known AI coding assistants (OpenCode, Claude Code,
+  Codex, Aider) and returns enriched information about each.
+
+  ## Returns
+
+  A list of agent maps with keys:
+  - `:pid` - Process ID
+  - `:type` - Agent type ("OpenCode", "Claude Code", etc.)
+  - `:cpu` - CPU usage percentage
+  - `:memory` - Memory usage percentage
+  - `:status` - Human-readable status
+  - `:started` - Process start time
+  - `:runtime` - Total runtime
+  - `:working_dir` - Current working directory
+  - `:project` - Extracted project name from working directory
+  - `:command` - Truncated command (max 100 chars)
+
+  Returns an empty list if the `ps` command is unavailable or fails.
+
+  ## Examples
+
+      iex> DashboardPhoenix.CodingAgentMonitor.list_agents()
+      [%{pid: "1234", type: "OpenCode", project: "my-app", ...}]
+
+  """
+  @spec list_agents() :: [map()]
   def list_agents do
     case CLITools.run_if_available("ps", ["aux"], timeout: @cli_timeout_ms, friendly_name: "ps command") do
       {:ok, output} ->
@@ -41,6 +70,34 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
     end
   end
 
+  @doc """
+  Terminates a coding agent process by PID.
+
+  Sends SIGTERM (signal 15) to gracefully terminate the process.
+  Accepts both string and integer PIDs.
+
+  ## Parameters
+
+  - `pid` - Process ID as string or integer
+
+  ## Returns
+
+  - `:ok` - Process was successfully signaled
+  - `{:error, reason}` - Failed to terminate (invalid PID, permission denied, etc.)
+
+  ## Examples
+
+      iex> DashboardPhoenix.CodingAgentMonitor.kill_agent("1234")
+      :ok
+
+      iex> DashboardPhoenix.CodingAgentMonitor.kill_agent(1234)
+      :ok
+
+      iex> DashboardPhoenix.CodingAgentMonitor.kill_agent("invalid")
+      {:error, "Invalid PID"}
+
+  """
+  @spec kill_agent(binary() | integer()) :: :ok | {:error, binary()}
   def kill_agent(pid) when is_binary(pid) do
     case Integer.parse(pid) do
       {pid_int, ""} -> kill_agent(pid_int)
@@ -48,6 +105,7 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
     end
   end
 
+  @spec kill_agent(integer()) :: :ok | {:error, binary()}
   def kill_agent(pid) when is_integer(pid) do
     case CLITools.run_if_available("kill", ["-15", to_string(pid)], 
          timeout: 5_000, friendly_name: "kill command") do
