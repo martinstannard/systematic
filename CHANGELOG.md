@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Add PR state persistence file to .gitignore (#38)
 - Activity Log: Integrate sub-agent lifecycle events (#84)
 - Activity Log: Add merge and restart event tracking (#85)
 - Reliability: Implement state persistence for critical monitors (#78)
