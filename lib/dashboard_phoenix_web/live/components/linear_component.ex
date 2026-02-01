@@ -7,6 +7,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
   use DashboardPhoenixWeb, :live_component
 
   alias DashboardPhoenix.InputValidator
+  alias DashboardPhoenix.Status
 
   @impl true
   def update(assigns, socket) do
@@ -63,11 +64,15 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   # Helper functions
 
-  defp linear_filter_button_active("Triage"), do: "bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30"
-  defp linear_filter_button_active("Backlog"), do: "bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30"
-  defp linear_filter_button_active("Todo"), do: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30"
-  defp linear_filter_button_active("In Review"), do: "bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30"
-  defp linear_filter_button_active(_), do: "bg-accent/20 text-accent border border-accent/30"
+  defp linear_filter_button_active(status) do
+    cond do
+      status == Status.triage() -> "bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30"
+      status == Status.backlog() -> "bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30"
+      status == Status.todo() -> "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30"
+      status == Status.in_review() -> "bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30"
+      true -> "bg-accent/20 text-accent border border-accent/30"
+    end
+  end
 
   @impl true
   def render(assigns) do
@@ -111,7 +116,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
         <div class="px-4 pb-4">
           <!-- Status Filter -->
           <div class="flex items-center flex-wrap gap-2 mb-3">
-            <%= for status <- ["Triage", "Backlog", "Todo", "In Review"] do %>
+            <%= for status <- Status.linear_states() do %>
               <% count = Map.get(@linear_counts, status, 0) %>
               <button
                 phx-click="set_linear_filter"

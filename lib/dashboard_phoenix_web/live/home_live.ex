@@ -49,6 +49,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.GeminiServer
   alias DashboardPhoenix.ClientFactory
   alias DashboardPhoenix.Status
+  alias DashboardPhoenix.Models
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
   alias DashboardPhoenix.HealthCheck
@@ -112,7 +113,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
         linear_last_updated: nil,
         linear_error: nil,
         linear_loading: true,
-        linear_status_filter: "In Review",
+        linear_status_filter: Status.in_review(),
         # Work in progress tracking - computed after data loads
         tickets_in_progress: %{},
         pr_created_tickets: MapSet.new(),
@@ -389,7 +390,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     # Sync WorkRegistry with active sessions
     active_session_ids =
       sessions
-      |> Enum.filter(fn s -> s.status in ["running", "idle"] end)
+      |> Enum.filter(fn s -> s.status in [Status.running(), Status.idle()] end)
       |> Enum.map(& &1.id)
 
     WorkRegistry.sync_with_sessions(active_session_ids)
@@ -2383,7 +2384,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {agent_type, model} =
       case coding_pref do
         :opencode -> {:opencode, opencode_model}
-        :gemini -> {:gemini, "gemini-2.0-flash"}
+        :gemini -> {:gemini, Models.gemini_2_flash()}
         _ -> {:claude, claude_model}
       end
 
@@ -2445,7 +2446,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
         ticket_id: ticket_id,
         source: :linear,
         description: "Linear: #{ticket_id}",
-        model: "gemini-2.0-flash"
+        model: Models.gemini_2_flash()
       })
 
     if GeminiServer.running?() do

@@ -158,7 +158,7 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp has_overdue_tickets?(tickets) when is_list(tickets) do
     Enum.any?(tickets, fn ticket ->
-      ticket.status in ["Todo", "In Progress"] and 
+      ticket.status in [Status.todo(), Status.in_progress()] and 
       is_overdue?(ticket.due_date) and
       ticket.priority in ["High", "Urgent"]
     end)
@@ -169,7 +169,7 @@ defmodule DashboardPhoenix.PanelStatus do
   defp has_high_priority_tickets?(tickets) when is_list(tickets) do
     Enum.any?(tickets, fn ticket ->
       ticket.priority in ["High", "Urgent"] and
-      ticket.status in ["Todo", "In Progress"]
+      ticket.status in [Status.todo(), Status.in_progress()]
     end)
   end
 
@@ -177,7 +177,7 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp has_active_work?(tickets) when is_list(tickets) do
     Enum.any?(tickets, fn ticket ->
-      ticket.status == "In Progress"
+      ticket.status == Status.in_progress()
     end)
   end
 
@@ -213,7 +213,7 @@ defmodule DashboardPhoenix.PanelStatus do
       ci_status = Map.get(pr, :ci_status)
       has_conflicts = Map.get(pr, :has_conflicts, false)
       # Check for conflicts via either mergeable=false or has_conflicts=true
-      has_conflicts or mergeable == false or ci_status in ["failure", Status.error(), :failure, :error]
+      has_conflicts or mergeable == false or ci_status in [Status.failure(), Status.error(), :failure, :error]
     end)
   end
 
@@ -226,7 +226,7 @@ defmodule DashboardPhoenix.PanelStatus do
       ci_status = Map.get(pr, :ci_status)
       approved = Map.get(pr, :approved, false)
       review_status = Map.get(pr, :review_status)
-      mergeable == true and ci_status in ["success", :success] and (approved == true or review_status == :approved)
+      mergeable == true and ci_status in [Status.success(), :success] and (approved == true or review_status == :approved)
     end)
   end
 
