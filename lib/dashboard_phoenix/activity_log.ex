@@ -32,6 +32,8 @@ defmodule DashboardPhoenix.ActivityLog do
 
   use GenServer
 
+  alias DashboardPhoenix.FileUtils
+
   @max_events 50
   @pubsub_topic "activity_log:events"
   @events_file "priv/activity_events.json"
@@ -175,7 +177,8 @@ defmodule DashboardPhoenix.ActivityLog do
       |> Enum.map(&encode_event/1)
       |> Jason.encode!(pretty: true)
 
-    File.write(@events_file, content)
+    # Use atomic write to prevent file corruption on crash or concurrent access
+    FileUtils.atomic_write(@events_file, content)
   end
 
   defp encode_event(event) do
