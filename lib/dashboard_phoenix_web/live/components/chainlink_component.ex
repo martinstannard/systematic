@@ -20,6 +20,14 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
     issues_empty = Enum.empty?(assigns.chainlink_issues)
     
     assigns_with_computed = Map.put(assigns, :chainlink_issues_empty, issues_empty)
+    
+    # Initialize confirm_issue to nil if not already set
+    socket = if Map.has_key?(socket.assigns, :confirm_issue) do
+      socket
+    else
+      assign(socket, confirm_issue: nil)
+    end
+    
     {:ok, assign(socket, assigns_with_computed)}
   end
 
@@ -36,16 +44,32 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   end
 
   @impl true
-  def handle_event("work_on_chainlink", %{"id" => issue_id}, socket) do
+  def handle_event("show_work_confirm", %{"id" => issue_id}, socket) do
     case InputValidator.validate_chainlink_issue_id(issue_id) do
       {:ok, validated_issue_id} ->
-        send(self(), {:chainlink_component, :work_on_issue, validated_issue_id})
-        {:noreply, socket}
+        # Find the issue to show in the modal
+        issue = Enum.find(socket.assigns.chainlink_issues, &(&1.id == validated_issue_id))
+        {:noreply, assign(socket, confirm_issue: issue)}
       
-      {:error, reason} ->
-        socket = put_flash(socket, :error, "Invalid issue ID: #{reason}")
+      {:error, _reason} ->
         {:noreply, socket}
     end
+  end
+
+  @impl true
+  def handle_event("confirm_work", _, socket) do
+    if socket.assigns.confirm_issue do
+      issue_id = socket.assigns.confirm_issue.id
+      send(self(), {:chainlink_component, :work_on_issue, issue_id})
+      {:noreply, assign(socket, confirm_issue: nil)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_confirm", _, socket) do
+    {:noreply, assign(socket, confirm_issue: nil)}
   end
 
   # Helper functions
@@ -189,7 +213,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                     </div>
                   <% else %>
                     <button
-                      phx-click="work_on_chainlink"
+                      phx-click="show_work_confirm"
                       phx-value-id={issue.id}
                       phx-target={@myself}
                       class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 hover:scale-105 active:scale-95 min-w-[70px]"
@@ -212,6 +236,73 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
           </div>
         </div>
       </div>
+
+      <!-- Confirmation Modal -->
+      <%= if @confirm_issue do %>
+        <div
+          class="fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 flex items-center justify-center z-50"
+          phx-click="cancel_confirm"
+          phx-target={@myself}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="chainlink-confirm-title"
+          phx-window-keydown="cancel_confirm"
+          phx-key="Escape"
+        >
+          <div
+            class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            onclick="event.stopPropagation()"
+          >
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-3">
+                <span class="text-2xl">🔗</span>
+                <h2 id="chainlink-confirm-title" class="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  Start Work?
+                </h2>
+              </div>
+              <button
+                phx-click="cancel_confirm"
+                phx-target={@myself}
+                class="text-base-content/60 hover:text-error hover:bg-error/10 p-1 rounded transition-all"
+                aria-label="Close modal"
+              >
+                <span class="text-lg">✕</span>
+              </button>
+            </div>
+
+            <!-- Issue details -->
+            <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div class="flex items-center space-x-2 mb-2">
+                <span class="text-ui-value text-accent font-bold">#<%= @confirm_issue.id %></span>
+                <span class={priority_badge(@confirm_issue.priority)}>
+                  <%= priority_symbol(@confirm_issue.priority) %> <%= priority_text(@confirm_issue.priority) %>
+                </span>
+              </div>
+              <p class="text-ui-body text-gray-800 dark:text-gray-200"><%= @confirm_issue.title %></p>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center space-x-3">
+              <button
+                phx-click="cancel_confirm"
+                phx-target={@myself}
+                class="flex-1 py-2 px-4 text-ui-label border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                phx-click="confirm_work"
+                phx-target={@myself}
+                class="flex-1 py-2 px-4 text-ui-label bg-accent text-white rounded hover:bg-accent/80 transition-all font-medium"
+              >
+                <span aria-hidden="true">▶</span>
+                Start Work
+              </button>
+            </div>
+          </div>
+        </div>
+      <% end %>
     </div>
     """
   end
