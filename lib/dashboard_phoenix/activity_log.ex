@@ -45,6 +45,7 @@ defmodule DashboardPhoenix.ActivityLog do
   # Client API
 
   @doc "Start the ActivityLog GenServer"
+  @spec start_link(keyword()) :: {:ok, pid()} | {:error, term()}
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -61,6 +62,7 @@ defmodule DashboardPhoenix.ActivityLog do
   - `{:ok, event}` - The created event
   - `{:error, :invalid_type}` - If the event type is not valid
   """
+  @spec log_event(atom(), binary(), map()) :: {:ok, map()} | {:error, :invalid_type}
   def log_event(type, message, details \\ %{}) when is_atom(type) and is_binary(message) do
     GenServer.call(__MODULE__, {:log_event, type, message, details})
   end
@@ -74,6 +76,7 @@ defmodule DashboardPhoenix.ActivityLog do
   ## Returns
   List of event maps, most recent first.
   """
+  @spec get_events(pos_integer()) :: [map()]
   def get_events(limit \\ 20) when is_integer(limit) and limit > 0 do
     GenServer.call(__MODULE__, {:get_events, limit})
   end
@@ -84,35 +87,43 @@ defmodule DashboardPhoenix.ActivityLog do
   Subscribers receive messages in the format:
   `{:activity_log_event, event}` where event is a map.
   """
+  @spec subscribe() :: :ok
   def subscribe do
     Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, @pubsub_topic)
   end
 
   @doc "Unsubscribe from events"
+  @spec unsubscribe() :: :ok
   def unsubscribe do
     Phoenix.PubSub.unsubscribe(DashboardPhoenix.PubSub, @pubsub_topic)
   end
 
   @doc "Clear all events (useful for testing)"
+  @spec clear() :: :ok
   def clear do
     GenServer.call(__MODULE__, :clear)
   end
 
   @doc "Get the list of valid event types"
+  @spec valid_event_types() :: [atom()]
   def valid_event_types, do: @valid_event_types
 
   @doc "Get the PubSub topic for activity log events"
+  @spec pubsub_topic() :: binary()
   def pubsub_topic, do: @pubsub_topic
 
   # Server Callbacks
 
   @impl true
+  @spec init(term()) :: {:ok, map()}
   def init(_opts) do
     events = load_events_from_file()
     {:ok, %{events: events}}
   end
 
   @impl true
+  @spec handle_call({:log_event, atom(), binary(), map()}, GenServer.from(), map()) :: 
+          {:reply, {:ok, map()} | {:error, :invalid_type}, map()}
   def handle_call({:log_event, type, message, details}, _from, state) do
     if type in @valid_event_types do
       event = %{
@@ -142,11 +153,13 @@ defmodule DashboardPhoenix.ActivityLog do
     end
   end
 
+  @spec handle_call({:get_events, pos_integer()}, GenServer.from(), map()) :: {:reply, [map()], map()}
   def handle_call({:get_events, limit}, _from, state) do
     events = Enum.take(state.events, limit)
     {:reply, events, state}
   end
 
+  @spec handle_call(:clear, GenServer.from(), map()) :: {:reply, :ok, map()}
   def handle_call(:clear, _from, state) do
     # Also clear the persisted file
     File.rm(@events_file)

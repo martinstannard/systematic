@@ -39,6 +39,7 @@ defmodule DashboardPhoenix.AgentPreferences do
 
   # Client API
 
+  @spec start_link(keyword()) :: {:ok, pid()} | {:error, term()}
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -46,6 +47,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   @doc """
   Get current preferences.
   """
+  @spec get_preferences() :: map()
   def get_preferences do
     GenServer.call(__MODULE__, :get_preferences)
   end
@@ -54,6 +56,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   Get current coding agent preference.
   Returns :opencode, :claude, or :gemini
   """
+  @spec get_coding_agent() :: :opencode | :claude | :gemini
   def get_coding_agent do
     prefs = get_preferences()
     String.to_atom(prefs.coding_agent)
@@ -63,6 +66,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   Set coding agent preference.
   agent should be "opencode", "claude", or "gemini"
   """
+  @spec set_coding_agent(binary()) :: :ok
   def set_coding_agent(agent) when agent in @valid_agents do
     GenServer.call(__MODULE__, {:set_coding_agent, agent})
   end
@@ -70,6 +74,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   @doc """
   Cycle through coding agents: opencode -> claude -> gemini -> opencode
   """
+  @spec toggle_coding_agent() :: :ok
   def toggle_coding_agent do
     current = get_coding_agent()
     new_agent = case current do
@@ -83,12 +88,14 @@ defmodule DashboardPhoenix.AgentPreferences do
   @doc """
   Get list of valid coding agents.
   """
+  @spec valid_agents() :: [binary()]
   def valid_agents, do: @valid_agents
   
   @doc """
   Get current agent mode.
   Returns "single" or "round_robin"
   """
+  @spec get_agent_mode() :: binary()
   def get_agent_mode do
     prefs = get_preferences()
     prefs.agent_mode
@@ -98,6 +105,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   Set agent mode.
   mode should be "single" or "round_robin"
   """
+  @spec set_agent_mode(binary()) :: :ok
   def set_agent_mode(mode) when mode in @valid_modes do
     GenServer.call(__MODULE__, {:set_agent_mode, mode})
   end
@@ -106,6 +114,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   Get the last agent used in round-robin mode.
   Returns "claude" or "opencode"
   """
+  @spec get_last_agent() :: binary()
   def get_last_agent do
     prefs = get_preferences()
     prefs.last_agent
@@ -119,6 +128,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   
   Returns {:ok, agent_atom} where agent_atom is :claude or :opencode (or :gemini in single mode)
   """
+  @spec next_agent() :: {:ok, :claude | :opencode | :gemini}
   def next_agent do
     GenServer.call(__MODULE__, :next_agent)
   end
@@ -126,11 +136,13 @@ defmodule DashboardPhoenix.AgentPreferences do
   @doc """
   Get list of valid agent modes.
   """
+  @spec valid_modes() :: [binary()]
   def valid_modes, do: @valid_modes
 
   @doc """
   Subscribe to preference changes.
   """
+  @spec subscribe() :: :ok
   def subscribe do
     Phoenix.PubSub.subscribe(@pubsub, @topic)
   end
@@ -138,17 +150,20 @@ defmodule DashboardPhoenix.AgentPreferences do
   # Server callbacks
 
   @impl true
+  @spec init(keyword()) :: {:ok, map()}
   def init(_opts) do
     prefs = load_preferences()
     {:ok, prefs}
   end
 
   @impl true
+  @spec handle_call(:get_preferences, GenServer.from(), map()) :: {:reply, map(), map()}
   def handle_call(:get_preferences, _from, prefs) do
     {:reply, prefs, prefs}
   end
 
   @impl true
+  @spec handle_call({:set_coding_agent, binary()}, GenServer.from(), map()) :: {:reply, :ok, map()}
   def handle_call({:set_coding_agent, agent}, _from, prefs) do
     new_prefs = %{prefs | coding_agent: agent, updated_at: DateTime.utc_now() |> DateTime.to_iso8601()}
     save_preferences(new_prefs)
@@ -158,6 +173,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   end
   
   @impl true
+  @spec handle_call({:set_agent_mode, binary()}, GenServer.from(), map()) :: {:reply, :ok, map()}
   def handle_call({:set_agent_mode, mode}, _from, prefs) do
     new_prefs = %{prefs | agent_mode: mode, updated_at: DateTime.utc_now() |> DateTime.to_iso8601()}
     save_preferences(new_prefs)
@@ -167,6 +183,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   end
   
   @impl true
+  @spec handle_call(:next_agent, GenServer.from(), map()) :: {:reply, {:ok, atom()}, map()}
   def handle_call(:next_agent, _from, prefs) do
     case prefs.agent_mode do
       "round_robin" ->

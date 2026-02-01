@@ -29,6 +29,7 @@ defmodule DashboardPhoenix.CLICache do
 
   # Client API
 
+  @spec start_link(keyword()) :: {:ok, pid()} | {:error, term()}
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -45,6 +46,7 @@ defmodule DashboardPhoenix.CLICache do
   - `{:ok, result}` - Cached or freshly fetched result
   - `{:error, reason}` - Error from fetch_fn (not cached)
   """
+  @spec get_or_fetch(binary(), integer(), (() -> {:ok, term()} | {:error, term()})) :: {:ok, term()} | {:error, term()}
   def get_or_fetch(key, ttl_ms, fetch_fn) when is_binary(key) and is_integer(ttl_ms) and is_function(fetch_fn, 0) do
     now = System.system_time(:millisecond)
     
@@ -71,6 +73,7 @@ defmodule DashboardPhoenix.CLICache do
   @doc """
   Invalidate a specific cache entry.
   """
+  @spec invalidate(binary()) :: :ok
   def invalidate(key) when is_binary(key) do
     :ets.delete(@ets_table, key)
     :ok
