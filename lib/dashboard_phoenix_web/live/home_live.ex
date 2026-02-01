@@ -213,8 +213,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
       
       # Schedule periodic updates (after initial data loads)
       Process.send_after(self(), :update_processes, 1_000)
-      :timer.send_interval(10_000, :update_processes)
-      :timer.send_interval(15_000, :refresh_opencode_sessions)
+      schedule_update_processes()
+      schedule_refresh_opencode_sessions()
       
       # Trigger all async loads - UI renders immediately with loading states
       send(self(), :load_processes)
@@ -1647,15 +1647,19 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle periodic OpenCode sessions refresh
   def handle_info(:refresh_opencode_sessions, socket) do
-    if socket.assigns.opencode_server_status.running do
+    result = if socket.assigns.opencode_server_status.running do
       sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
       tickets_in_progress = build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
       prs_in_progress = build_prs_in_progress(sessions, socket.assigns.agent_sessions)
       opencode_sessions_count = length(sessions)
-      {:noreply, assign(socket, opencode_sessions: sessions, opencode_sessions_count: opencode_sessions_count, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)}
+      assign(socket, opencode_sessions: sessions, opencode_sessions_count: opencode_sessions_count, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress)
     else
-      {:noreply, socket}
+      socket
     end
+    
+    # Schedule next refresh after processing completes
+    schedule_refresh_opencode_sessions()
+    {:noreply, result}
   end
 
   # Handle async work result (from OpenCode or OpenClaw)
@@ -1717,6 +1721,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     )
     |> push_event("graph_update", graph_data)
     
+    # Schedule next update after processing completes
+    schedule_update_processes()
     {:noreply, socket}
   end
 
@@ -2379,4 +2385,18 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Linear filter button styling moved to LinearComponent
   # Template moved to home_live.html.heex for cleaner separation
+
+  # ============================================================================
+  # TIMER SCHEDULING FUNCTIONS
+  # ============================================================================
+
+  # Schedule next process update tick
+  defp schedule_update_processes do
+    Process.send_after(self(), :update_processes, 10_000)
+  end
+
+  # Schedule next OpenCode sessions refresh tick  
+  defp schedule_refresh_opencode_sessions do
+    Process.send_after(self(), :refresh_opencode_sessions, 15_000)
+  end
 end
