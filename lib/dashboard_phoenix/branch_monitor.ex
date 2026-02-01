@@ -154,9 +154,10 @@ defmodule DashboardPhoenix.BranchMonitor do
         _ -> nil
       end
 
-    # Detect new commits on main
-    if state.main_head && current_head && state.main_head != current_head do
-      detect_and_log_new_commits(state.main_head, current_head, base_branch)
+    # Detect new commits on main (use Map.get for backwards compatibility with old state)
+    prev_head = Map.get(state, :main_head)
+    if prev_head && current_head && prev_head != current_head do
+      detect_and_log_new_commits(prev_head, current_head, base_branch)
     end
 
     with {:ok, worktrees} <- fetch_worktrees(),
