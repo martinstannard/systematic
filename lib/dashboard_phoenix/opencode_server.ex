@@ -21,7 +21,7 @@ defmodule DashboardPhoenix.OpenCodeServer do
   alias DashboardPhoenix.OpenCodeClient
   alias DashboardPhoenix.ActivityLog
 
-  @default_port 9100
+  @default_port 9101
   @pubsub DashboardPhoenix.PubSub
   @topic "opencode_server"
 

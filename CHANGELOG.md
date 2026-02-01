@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- OpenCode: Auto-cleanup stale sessions older than 1 hour (#103)
+- BranchMonitor crash: key :main_head not found in state (#107)
+- BranchMonitor crash: key :main_head not found in state (#107)
 - UI: Implement Distinctive Typography System (#56)
 - UI: Fix low contrast text for accessibility compliance (#55)
 - UI: Improve click targets and interactive affordances (#54)
