@@ -1,0 +1,15 @@
+{
+  "work-34741250daa3e3c5": {
+    "id": "work-34741250daa3e3c5",
+    "label": "COR-SONNET-TEST-linear-cor-sonnet-test",
+    "status": "running",
+    "description": "Linear: COR-SONNET-TEST",
+    "started_at": "2026-02-01T13:09:18.370786Z",
+    "source": "linear",
+    "session_id": null,
+    "updated_at": "2026-02-01T13:09:18.370795Z",
+    "model": "gemini-3-pro",
+    "agent_type": "opencode",
+    "ticket_id": "COR-SONNET-TEST"
+  }
+}

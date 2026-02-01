@@ -17,6 +17,26 @@ defmodule DashboardPhoenix.ProcessMonitor do
 
   @interesting_patterns ~w(opencode openclaw-tui openclaw-gateway)
 
+  @doc """
+  Lists interesting processes filtered by `@interesting_patterns`.
+
+  Returns a list of dashboard-friendly process maps with the following keys:
+  - `:name` - Auto-generated process name
+  - `:pid` - Process ID
+  - `:status` - Derived status (busy, idle, etc.)
+  - `:cpu_usage` - CPU percentage as string
+  - `:memory_usage` - Formatted memory usage
+  - `:command` - Truncated command string
+  - `:directory` - Working directory
+  - `:model` - Detected AI model (if any)
+
+  ## Examples
+
+      iex> DashboardPhoenix.ProcessMonitor.list_processes()
+      [%{name: "agent_1234", pid: "1234", status: :busy, ...}, ...]
+
+  """
+  @spec list_processes() :: [map()]
   def list_processes do
     ProcessParser.list_processes(
       sort: "-pcpu",
@@ -68,6 +88,31 @@ defmodule DashboardPhoenix.ProcessMonitor do
     end
   end
 
+  @doc """
+  Calculates aggregate statistics from a list of processes.
+
+  ## Parameters
+
+  - `processes` - List of process maps from `list_processes/0`
+
+  ## Returns
+
+  A map with the following keys:
+  - `:running` - Total active (busy + idle)
+  - `:busy` - Count of busy processes
+  - `:idle` - Count of idle processes
+  - `:completed` - Always 0 (cannot detect from ps)
+  - `:failed` - Count of stopped/zombie processes
+  - `:total` - Total process count
+
+  ## Examples
+
+      iex> processes = DashboardPhoenix.ProcessMonitor.list_processes()
+      iex> DashboardPhoenix.ProcessMonitor.get_stats(processes)
+      %{running: 2, busy: 1, idle: 1, completed: 0, failed: 0, total: 2}
+
+  """
+  @spec get_stats([map()]) :: map()
   def get_stats(processes) do
     busy = Enum.count(processes, &(&1.status == Status.busy()))
     idle = Enum.count(processes, &(&1.status == Status.idle()))

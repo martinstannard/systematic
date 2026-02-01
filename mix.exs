@@ -66,7 +66,8 @@ defmodule DashboardPhoenix.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:mox, "~> 1.2", only: :test}
+      {:mox, "~> 1.2", only: :test},
+      {:ex_doc, "~> 0.35", only: :dev, runtime: false}
     ]
   end
 
