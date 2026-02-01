@@ -13,6 +13,12 @@ defmodule DashboardPhoenix.AgentActivityMonitorRaceTest do
   @test_file_path Path.join(@test_sessions_dir, "test_session.jsonl")
   
   setup do
+    # Stop any existing AgentActivityMonitor
+    case GenServer.whereis(AgentActivityMonitor) do
+      nil -> :ok
+      pid -> GenServer.stop(pid, :normal, 1000)
+    end
+    
     # Clean up any existing test data
     File.rm_rf(@test_sessions_dir)
     File.mkdir_p!(@test_sessions_dir)
@@ -21,6 +27,12 @@ defmodule DashboardPhoenix.AgentActivityMonitorRaceTest do
     Application.put_env(:dashboard_phoenix, :openclaw_sessions_dir, @test_sessions_dir)
     
     on_exit(fn ->
+      # Stop the GenServer if running
+      case GenServer.whereis(AgentActivityMonitor) do
+        nil -> :ok
+        pid -> GenServer.stop(pid, :normal, 1000)
+      end
+      
       File.rm_rf(@test_sessions_dir)
       Application.delete_env(:dashboard_phoenix, :openclaw_sessions_dir)
     end)

@@ -4,8 +4,25 @@ defmodule DashboardPhoenix.RateLimiterTest do
   alias DashboardPhoenix.RateLimiter
 
   setup do
+    # Ensure RateLimiter is started
+    case GenServer.whereis(RateLimiter) do
+      nil ->
+        {:ok, _pid} = RateLimiter.start_link([])
+      _pid ->
+        :ok
+    end
+    
     # Reset rate limiter before each test for proper test isolation
     RateLimiter.reset()
+    
+    on_exit(fn ->
+      # Reset after test
+      case GenServer.whereis(RateLimiter) do
+        nil -> :ok
+        _pid -> RateLimiter.reset()
+      end
+    end)
+    
     :ok
   end
 
