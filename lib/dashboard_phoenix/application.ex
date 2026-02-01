@@ -74,3 +74,9 @@ defmodule DashboardPhoenix.Application do
     :ok
   end
 end
+
+# Temporary: Log a startup event (remove later)
+# spawn(fn -> 
+#   Process.sleep(5000)
+#   DashboardPhoenix.ActivityLog.log_event(:task_started, "Dashboard started", %{})
+# end)
