@@ -11,13 +11,15 @@
     health_last_check={@health_last_check}
   />
 
-  <!-- Activity Panel - Recent high-priority events -->
+  <!-- Unified Activity Panel - Combines high-level events and live feed -->
   <.live_component
-    module={ActivityPanelComponent}
-    id="activity-panel"
-    events={@activity_events}
+    module={UnifiedActivityComponent}
+    id="unified-activity"
+    activity_events={@activity_events}
+    progress_events={@streams.progress_events}
+    agent_progress_count={@agent_progress_count}
     collapsed={@activity_collapsed}
-    loading={@sessions_loading}
+    sessions_loading={@sessions_loading}
   />
 
   <!-- Work Panel - Unified view of all coding agents -->
@@ -146,18 +148,6 @@
             id="dave-panel"
             agent_sessions={@agent_sessions}
             dave_collapsed={@dave_collapsed}
-            sessions_loading={@sessions_loading}
-          />
-        </div>
-
-        <!-- Live Progress Panel -->
-        <div class={["panel-priority-medium panel-accent-active p-4 sm:p-6", @live_progress_collapsed && "panel-collapsed"]}>
-          <.live_component
-            module={LiveProgressComponent}
-            id="live-progress-panel"
-            live_progress_collapsed={@live_progress_collapsed}
-            agent_progress_count={@agent_progress_count}
-            progress_events={@streams.progress_events}
             sessions_loading={@sessions_loading}
           />
         </div>
