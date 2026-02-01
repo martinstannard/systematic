@@ -523,8 +523,8 @@ button:focus-visible, .btn:focus-visible {
 
 /* High-priority panels: Large, commanding presence - no glow */
 .panel-priority-high {
-  min-height: 220px;
-  padding: 24px;
+  min-height: unset;
+  padding: 0;
   border-width: 3px;
   font-size: 1.05em;
   box-shadow: 
@@ -541,8 +541,8 @@ button:focus-visible, .btn:focus-visible {
 
 /* Medium-priority panels: Standard display with clear differentiation - no glow */
 .panel-priority-medium {
-  min-height: 140px;
-  padding: 18px;
+  min-height: unset;
+  padding: 0;
   border-width: 1.5px;
   box-shadow: 
     0 2px 8px -2px rgba(0, 0, 0, 0.3),
@@ -557,8 +557,8 @@ button:focus-visible, .btn:focus-visible {
 
 /* Quick-reference panels: Compact, recessed appearance - no glow */
 .panel-priority-compact {
-  min-height: 50px;
-  padding: 10px;
+  min-height: unset;
+  padding: 0;
   border-width: 1px;
   font-size: 0.9em;
   opacity: 0.92;
