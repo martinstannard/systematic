@@ -57,17 +57,18 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="glass-panel rounded-lg overflow-hidden">
+    <div class="panel-work rounded-lg overflow-hidden">
       <div 
-        class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+        class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
         phx-target={@myself}
       >
         <div class="flex items-center space-x-2">
-          <span class={"text-xs transition-transform duration-200 " <> if(@gemini_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">✨ Gemini CLI</span>
+          <span class={"panel-chevron " <> if(@gemini_collapsed, do: "collapsed", else: "")}>▼</span>
+          <span class="panel-icon">✨</span>
+          <span class="text-xs font-mono text-accent uppercase tracking-wider">Gemini CLI</span>
           <%= if @gemini_server_status.running do %>
-            <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+            <span class="status-beacon text-success"></span>
           <% end %>
         </div>
         <%= if @gemini_server_status.running do %>

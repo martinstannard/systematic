@@ -72,15 +72,16 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
     <div class="space-y-2">
       <!-- Coding Agents Panel -->
       <%= if @coding_agents != [] do %>
-        <div class="glass-panel rounded-lg overflow-hidden">
+        <div class="panel-status rounded-lg overflow-hidden">
           <div 
-            class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+            class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
             phx-click="toggle_coding_agents_panel"
             phx-target={@myself}
           >
             <div class="flex items-center space-x-2">
-              <span class={"text-xs transition-transform duration-200 " <> if(@coding_agents_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">💻 Coding Agents</span>
+              <span class={"panel-chevron " <> if(@coding_agents_collapsed, do: "collapsed", else: "")}>▼</span>
+              <span class="panel-icon opacity-60">💻</span>
+              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">Coding Agents</span>
               <span class="text-[10px] font-mono text-base-content/50"><%= @coding_agents_count %></span>
             </div>
           </div>
@@ -108,15 +109,16 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
       <!-- System & Relationships Row -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
         <!-- System Processes -->
-        <div class="glass-panel rounded-lg overflow-hidden">
+        <div class="panel-status rounded-lg overflow-hidden">
           <div 
-            class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+            class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
             phx-click="toggle_system_processes_panel"
             phx-target={@myself}
           >
             <div class="flex items-center space-x-2">
-              <span class={"text-xs transition-transform duration-200 " <> if(@system_processes_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ System</span>
+              <span class={"panel-chevron " <> if(@system_processes_collapsed, do: "collapsed", else: "")}>▼</span>
+              <span class="panel-icon opacity-60">⚙️</span>
+              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">System</span>
               <span class="text-[10px] font-mono text-base-content/50"><%= @recent_processes_count %></span>
             </div>
           </div>
@@ -134,15 +136,16 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
         </div>
 
         <!-- Process Relationships -->
-        <div class="glass-panel rounded-lg overflow-hidden">
+        <div class="panel-status rounded-lg overflow-hidden">
           <div 
-            class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+            class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
             phx-click="toggle_process_relationships_panel"
             phx-target={@myself}
           >
             <div class="flex items-center space-x-2">
-              <span class={"text-xs transition-transform duration-200 " <> if(@process_relationships_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">🔗 Relationships</span>
+              <span class={"panel-chevron " <> if(@process_relationships_collapsed, do: "collapsed", else: "")}>▼</span>
+              <span class="panel-icon opacity-60">🔗</span>
+              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">Relationships</span>
             </div>
           </div>
           

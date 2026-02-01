@@ -15,7 +15,9 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
 
       html = render_component(SubagentsComponent, assigns)
 
-      assert html =~ "🤖 Sub-Agents"
+      assert html =~ "panel-icon"
+      assert html =~ "🤖"
+      assert html =~ "Sub-Agents"
       assert html =~ "No active sub-agents"
     end
 
@@ -93,7 +95,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
       assert html =~ "3K"    # tokens_in formatted
       assert html =~ "1.2K"  # tokens_out formatted
       assert html =~ "$0.045" # cost
-      refute html =~ "active" # no running sessions
+      refute html =~ "1 active" # no running sessions, so no "X active" badge
       assert html =~ "Clear Completed (1)"
     end
 
@@ -215,9 +217,10 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
 
       html = render_component(SubagentsComponent, assigns)
 
-      assert html =~ "🤖 Sub-Agents"
+      assert html =~ "🤖"
+      assert html =~ "Sub-Agents"
       assert html =~ "max-h-0"  # collapsed state CSS class
-      assert html =~ "-rotate-90"  # collapsed arrow
+      assert html =~ "panel-chevron collapsed"  # collapsed arrow
     end
 
     test "handles different agent types and models" do
@@ -326,7 +329,8 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
       # Should not crash and should render something reasonable
       html = render_component(SubagentsComponent, assigns)
 
-      assert html =~ "🤖 Sub-Agents"
+      assert html =~ "🤖"
+      assert html =~ "Sub-Agents"
       assert html =~ "minimal-"  # truncated ID used as label
       assert html =~ "⚡ Unknown"  # unknown agent type
       assert html =~ "Initializing..."  # no current action

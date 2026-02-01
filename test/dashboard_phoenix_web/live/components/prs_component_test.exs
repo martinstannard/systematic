@@ -260,7 +260,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponentTest do
       html = render_component(PRsComponent, assigns)
 
       assert html =~ "max-h-0"
-      assert html =~ "-rotate-90"
+      assert html =~ "panel-chevron collapsed"
     end
   end
 end

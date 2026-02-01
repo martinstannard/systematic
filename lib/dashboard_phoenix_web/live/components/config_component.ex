@@ -86,15 +86,16 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="glass-panel rounded-lg overflow-hidden">
+    <div class="panel-status rounded-lg overflow-hidden">
       <div 
-        class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/5 transition-colors"
+        class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
         phx-target={@myself}
       >
         <div class="flex items-center space-x-2">
-          <span class={"text-xs transition-transform duration-200 " <> if(@config_collapsed, do: "-rotate-90", else: "rotate-0")}>▼</span>
-          <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">⚙️ Config</span>
+          <span class={"panel-chevron " <> if(@config_collapsed, do: "collapsed", else: "")}>▼</span>
+          <span class="panel-icon opacity-60">⚙️</span>
+          <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">Config</span>
         </div>
         <div class="flex items-center space-x-2 text-[10px] font-mono text-base-content/40">
           <span><%= if @coding_agent_pref == :opencode, do: "OpenCode + #{@opencode_model}", else: "Claude + #{String.replace(@claude_model, "anthropic/claude-", "")}" %></span>

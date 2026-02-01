@@ -769,8 +769,8 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
     test "includes CSS classes for styling", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/")
       
-      # Should include key CSS classes for styling
-      assert html =~ "glass-panel"
+      # Should include key CSS classes for styling (panel system)
+      assert html =~ "panel-command" or html =~ "panel-work" or html =~ "panel-data"
       assert html =~ "rounded-lg"
     end
 
