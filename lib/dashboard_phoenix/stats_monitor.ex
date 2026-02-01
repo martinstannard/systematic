@@ -16,7 +16,7 @@ defmodule DashboardPhoenix.StatsMonitor do
   end
 
   def get_stats do
-    GenServer.call(__MODULE__, :get_stats)
+    GenServer.call(__MODULE__, :get_stats, 5_000)
   end
 
   def refresh do

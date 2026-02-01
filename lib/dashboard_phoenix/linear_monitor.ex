@@ -26,7 +26,7 @@ defmodule DashboardPhoenix.LinearMonitor do
 
   @doc "Get all cached tickets"
   def get_tickets do
-    GenServer.call(__MODULE__, :get_tickets)
+    GenServer.call(__MODULE__, :get_tickets, 5_000)
   end
 
   @doc "Force refresh tickets from Linear"

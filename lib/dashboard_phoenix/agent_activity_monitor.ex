@@ -25,7 +25,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   Returns a list of agent activity maps.
   """
   def get_activity do
-    GenServer.call(__MODULE__, :get_activity)
+    GenServer.call(__MODULE__, :get_activity, 5_000)
   end
 
   def subscribe do

@@ -74,7 +74,7 @@ defmodule DashboardPhoenix.OpenCodeServer do
   Stop the OpenCode ACP server.
   """
   def stop_server do
-    GenServer.call(__MODULE__, :stop_server)
+    GenServer.call(__MODULE__, :stop_server, 30_000)
   end
 
   @doc """
@@ -82,7 +82,7 @@ defmodule DashboardPhoenix.OpenCodeServer do
   Returns a map with :running, :port, :cwd, :pid, :started_at, :health_status, :restart_count
   """
   def status do
-    GenServer.call(__MODULE__, :status)
+    GenServer.call(__MODULE__, :status, 5_000)
   end
 
   @doc """
