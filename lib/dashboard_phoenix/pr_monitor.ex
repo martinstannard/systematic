@@ -2,6 +2,12 @@ defmodule DashboardPhoenix.PRMonitor do
   @moduledoc """
   Monitors GitHub Pull Requests by polling the GitHub CLI.
   Fetches open PRs with CI status, review status, and associated Linear tickets.
+  
+  ## Performance Optimizations (Ticket #71)
+  
+  - Uses ETS for fast data reads (no GenServer.call blocking)
+  - GenServer only manages lifecycle and periodic polling
+  - All public getters read directly from ETS
   """
 
   use GenServer
@@ -14,6 +20,9 @@ defmodule DashboardPhoenix.PRMonitor do
   @linear_workspace "fresh-clinics"  # Workspace slug for Linear URLs
   @repos ["Fresh-Clinics/core-platform"]  # Repos to monitor
   @cli_timeout_ms 60_000  # GitHub API can be slow
+  
+  # ETS table name for fast reads
+  @ets_table :pr_monitor_data
 
   # Client API
 
@@ -21,9 +30,12 @@ defmodule DashboardPhoenix.PRMonitor do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @doc "Get all cached PRs"
+  @doc "Get all cached PRs. Reads directly from ETS (non-blocking)."
   def get_prs do
-    GenServer.call(__MODULE__, :get_prs)
+    case :ets.lookup(@ets_table, :prs) do
+      [{:prs, data}] -> data
+      [] -> %{prs: [], last_updated: nil, error: nil}
+    end
   end
 
   @doc "Force refresh PRs from GitHub"
@@ -40,6 +52,12 @@ defmodule DashboardPhoenix.PRMonitor do
 
   @impl true
   def init(_opts) do
+    # Create ETS table for fast reads (Ticket #71)
+    :ets.new(@ets_table, [:named_table, :public, :set, read_concurrency: true])
+    
+    # Initialize ETS with empty data
+    :ets.insert(@ets_table, {:prs, %{prs: [], last_updated: nil, error: nil}})
+    
     # Check tool availability on startup
     initial_error = case CLITools.check_tool("gh", "GitHub CLI") do
       {:ok, _path} ->
@@ -62,15 +80,6 @@ defmodule DashboardPhoenix.PRMonitor do
   end
 
   @impl true
-  def handle_call(:get_prs, _from, state) do
-    {:reply, %{
-      prs: state.prs,
-      last_updated: state.last_updated,
-      error: state.error
-    }, state}
-  end
-
-  @impl true
   def handle_cast(:refresh, state) do
     send(self(), :poll)
     {:noreply, state}
@@ -88,6 +97,13 @@ defmodule DashboardPhoenix.PRMonitor do
   end
 
   def handle_info({:poll_complete, new_state}, _state) do
+    # Update ETS (Ticket #71)
+    :ets.insert(@ets_table, {:prs, %{
+      prs: new_state.prs,
+      last_updated: new_state.last_updated,
+      error: new_state.error
+    }})
+    
     # Broadcast update to subscribers
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,

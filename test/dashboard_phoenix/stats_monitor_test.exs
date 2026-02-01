@@ -175,14 +175,14 @@ defmodule DashboardPhoenix.StatsMonitorTest do
       assert function_exported?(StatsMonitor, :subscribe, 0)
     end
 
-    test "handle_call :get_stats returns current stats" do
-      stats = %{opencode: %{sessions: 10}, claude: %{sessions: 5}}
-      state = %{stats: stats}
+    # Note: Ticket #71 - get_stats now reads directly from ETS, no handle_call
+    test "get_stats returns expected structure (ETS-based)" do
+      # The monitor is started as part of the application
+      result = StatsMonitor.get_stats()
 
-      {:reply, reply, new_state} = StatsMonitor.handle_call(:get_stats, self(), state)
-
-      assert reply == stats
-      assert new_state == state
+      assert is_map(result)
+      assert Map.has_key?(result, :opencode)
+      assert Map.has_key?(result, :claude)
     end
 
     test "handle_cast :refresh updates stats" do

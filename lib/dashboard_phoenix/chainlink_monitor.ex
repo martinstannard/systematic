@@ -2,6 +2,12 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   @moduledoc """
   Monitors Chainlink issues by polling the chainlink CLI.
   Fetches open issues and tracks them for work assignment.
+  
+  ## Performance Optimizations (Ticket #71)
+  
+  - Uses ETS for fast data reads (no GenServer.call blocking)
+  - GenServer only manages lifecycle and periodic polling
+  - All public getters read directly from ETS
   """
 
   use GenServer
@@ -12,6 +18,9 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   @poll_interval_ms 60_000  # 60 seconds (chainlink issues change less frequently)
   @topic "chainlink_updates"
   @cli_timeout_ms 30_000
+  
+  # ETS table name for fast reads
+  @ets_table :chainlink_monitor_data
 
   # Get the repository path from configuration
   defp repo_path, do: Paths.systematic_repo()
@@ -22,9 +31,12 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @doc "Get all cached issues"
+  @doc "Get all cached issues. Reads directly from ETS (non-blocking)."
   def get_issues do
-    GenServer.call(__MODULE__, :get_issues)
+    case :ets.lookup(@ets_table, :issues) do
+      [{:issues, data}] -> data
+      [] -> %{issues: [], last_updated: nil, error: nil}
+    end
   end
 
   @doc "Force refresh issues from Chainlink"
@@ -68,6 +80,12 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
 
   @impl true
   def init(_opts) do
+    # Create ETS table for fast reads (Ticket #71)
+    :ets.new(@ets_table, [:named_table, :public, :set, read_concurrency: true])
+    
+    # Initialize ETS with empty data
+    :ets.insert(@ets_table, {:issues, %{issues: [], last_updated: nil, error: nil}})
+    
     # Check tool availability on startup
     tools_status = CLITools.check_tools([
       {Paths.chainlink_bin(), "Chainlink CLI"}
@@ -89,15 +107,6 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   end
 
   @impl true
-  def handle_call(:get_issues, _from, state) do
-    {:reply, %{
-      issues: state.issues,
-      last_updated: state.last_updated,
-      error: state.error
-    }, state}
-  end
-
-  @impl true
   def handle_cast(:refresh, state) do
     send(self(), :poll)
     {:noreply, state}
@@ -115,6 +124,13 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   end
 
   def handle_info({:poll_complete, new_state}, _state) do
+    # Update ETS (Ticket #71)
+    :ets.insert(@ets_table, {:issues, %{
+      issues: new_state.issues,
+      last_updated: new_state.last_updated,
+      error: new_state.error
+    }})
+    
     # Broadcast update to subscribers
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
