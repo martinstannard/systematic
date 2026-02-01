@@ -67,6 +67,20 @@ defmodule DashboardPhoenix.GeminiServer do
   end
 
   @doc """
+  List available Gemini sessions for the current project.
+  """
+  def list_sessions do
+    GenServer.call(__MODULE__, :list_sessions, 10_000)
+  end
+  
+  @doc """
+  Refresh the session list from Gemini CLI.
+  """
+  def refresh_sessions do
+    GenServer.cast(__MODULE__, :refresh_sessions)
+  end
+
+  @doc """
   Subscribe to server status changes and output.
   """
   def subscribe do
@@ -78,16 +92,73 @@ defmodule DashboardPhoenix.GeminiServer do
   @impl true
   def init(opts) do
     cwd = Keyword.get(opts, :cwd) || default_cwd()
+    auto_start = Keyword.get(opts, :auto_start, true)
     
     state = %{
       running: false,
       cwd: cwd,
       started_at: nil,
       busy: false,
-      gemini_path: nil
+      gemini_path: nil,
+      auto_start: auto_start,
+      sessions: []  # Track Gemini sessions
     }
     
+    # Auto-start if enabled
+    if auto_start do
+      send(self(), :auto_start)
+    end
+    
     {:ok, state}
+  end
+  
+  @impl true
+  def handle_info(:auto_start, state) do
+    Logger.info("[GeminiServer] Auto-starting on boot...")
+    
+    gemini_path = find_gemini_binary()
+    
+    if gemini_path do
+      case CommandRunner.run(gemini_path, ["--version"], timeout: 10_000, stderr_to_stdout: true) do
+        {:ok, output} ->
+          Logger.info("[GeminiServer] Auto-start successful: #{String.trim(output)}")
+          
+          new_state = %{state |
+            running: true,
+            cwd: state.cwd,
+            started_at: DateTime.utc_now(),
+            gemini_path: gemini_path
+          }
+          
+          broadcast_status(new_state)
+          # Also fetch initial session list
+          send(self(), :refresh_sessions)
+          {:noreply, new_state}
+        
+        {:error, reason} ->
+          Logger.warning("[GeminiServer] Auto-start failed: #{inspect(reason)}, will retry on demand")
+          {:noreply, state}
+      end
+    else
+      Logger.warning("[GeminiServer] Gemini CLI not found, will retry on demand")
+      {:noreply, state}
+    end
+  end
+  
+  @impl true
+  def handle_info(:refresh_sessions, state) do
+    if state.running and state.gemini_path do
+      case CommandRunner.run(state.gemini_path, ["--list-sessions"], 
+             timeout: 10_000, cd: state.cwd, stderr_to_stdout: true) do
+        {:ok, output} ->
+          sessions = parse_session_list(output)
+          {:noreply, %{state | sessions: sessions}}
+        _ ->
+          {:noreply, state}
+      end
+    else
+      {:noreply, state}
+    end
   end
 
   @impl true
@@ -156,9 +227,15 @@ defmodule DashboardPhoenix.GeminiServer do
       running: state.running,
       cwd: state.cwd,
       started_at: state.started_at,
-      busy: state.busy
+      busy: state.busy,
+      sessions: Map.get(state, :sessions, [])
     }
     {:reply, status, state}
+  end
+
+  @impl true
+  def handle_call(:list_sessions, _from, state) do
+    {:reply, {:ok, Map.get(state, :sessions, [])}, state}
   end
 
   @impl true
@@ -277,15 +354,57 @@ defmodule DashboardPhoenix.GeminiServer do
     end
   end
 
+  @impl true
+  def handle_cast(:refresh_sessions, state) do
+    if state.running and state.gemini_path do
+      case CommandRunner.run(state.gemini_path, ["--list-sessions"], 
+             timeout: 10_000, cd: state.cwd, stderr_to_stdout: true) do
+        {:ok, output} ->
+          sessions = parse_session_list(output)
+          new_state = %{state | sessions: sessions}
+          broadcast_status(new_state)
+          {:noreply, new_state}
+        _ ->
+          {:noreply, state}
+      end
+    else
+      {:noreply, state}
+    end
+  end
+
   defp broadcast_status(state) do
     status = %{
       running: state.running,
       cwd: state.cwd,
       started_at: state.started_at,
-      busy: state.busy
+      busy: state.busy,
+      sessions: Map.get(state, :sessions, [])
     }
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_status, status})
   end
+  
+  # Parse the output of `gemini --list-sessions`
+  # Example output:
+  # Available sessions:
+  # 1. fix-bug (2 hours ago)
+  # 2. refactor (yesterday)
+  defp parse_session_list(output) when is_binary(output) do
+    output
+    |> String.split("\n")
+    |> Enum.filter(fn line -> Regex.match?(~r/^\d+\.\s+/, line) end)
+    |> Enum.map(fn line ->
+      case Regex.run(~r/^(\d+)\.\s+(.+?)(?:\s+\((.+)\))?$/, line) do
+        [_, index, name, time] ->
+          %{index: String.to_integer(index), name: String.trim(name), time: time}
+        [_, index, name] ->
+          %{index: String.to_integer(index), name: String.trim(name), time: nil}
+        _ ->
+          nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+  defp parse_session_list(_), do: []
 
   # Format error reasons into human-readable strings
   defp format_error(%{reason: reason}) when is_atom(reason), do: to_string(reason)

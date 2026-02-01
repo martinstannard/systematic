@@ -119,11 +119,13 @@ defmodule DashboardPhoenix.OpenCodeServer do
   @impl true
   def init(opts) do
     port = Keyword.get(opts, :port, @default_port)
+    auto_start = Keyword.get(opts, :auto_start, true)
     
     state = %{
       # Configuration
       port: port,
       auto_restart: Keyword.get(opts, :auto_restart, true),
+      auto_start: auto_start,
       
       # Process state
       running: false,
@@ -157,8 +159,28 @@ defmodule DashboardPhoenix.OpenCodeServer do
     
     # Schedule periodic session cleanup
     cleanup_timer = schedule_session_cleanup()
+    state = %{state | cleanup_timer: cleanup_timer}
     
-    {:ok, %{state | cleanup_timer: cleanup_timer}}
+    # Auto-start if enabled
+    if auto_start do
+      Logger.info("[OpenCodeServer] Auto-starting on boot...")
+      send(self(), :auto_start)
+    end
+    
+    {:ok, state}
+  end
+  
+  @impl true
+  def handle_info(:auto_start, state) do
+    cwd = default_cwd()
+    case do_start_server(cwd, state) do
+      {:ok, new_state} ->
+        Logger.info("[OpenCodeServer] Auto-start successful")
+        {:noreply, new_state}
+      {:error, reason, new_state} ->
+        Logger.warning("[OpenCodeServer] Auto-start failed: #{inspect(reason)}, will retry on demand")
+        {:noreply, new_state}
+    end
   end
 
   @impl true

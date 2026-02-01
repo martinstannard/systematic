@@ -569,7 +569,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # Spawn a sub-agent to work on it
 
       # Use coding preference (Claude vs OpenCode) like Linear tickets
-      coding_pref = socket.assigns.coding_pref
+      coding_pref = socket.assigns.coding_agent_pref
 
       case coding_pref do
         :opencode ->
@@ -2378,13 +2378,14 @@ defmodule DashboardPhoenixWeb.HomeLive do
        ) do
     alias DashboardPhoenix.WorkSpawner
     alias DashboardPhoenix.WorkRegistry
-    
+
     # Determine agent type and model
-    {agent_type, model} = case coding_pref do
-      :opencode -> {:opencode, opencode_model}
-      :gemini -> {:gemini, "gemini-2.0-flash"}
-      _ -> {:claude, claude_model}
-    end
+    {agent_type, model} =
+      case coding_pref do
+        :opencode -> {:opencode, opencode_model}
+        :gemini -> {:gemini, "gemini-2.0-flash"}
+        _ -> {:claude, claude_model}
+      end
 
     ActivityLog.log_event(:task_started, "Work started on #{ticket_id}", %{
       ticket_id: ticket_id,
@@ -2408,53 +2409,65 @@ defmodule DashboardPhoenixWeb.HomeLive do
     else
       # Claude and OpenCode go through WorkSpawner
       parent = self()
-      
+
       Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-        result = WorkSpawner.spawn_linear(
-          ticket_id, 
-          "Linear: #{ticket_id}", 
-          ticket_details || "No details available",
-          agent_type: agent_type,
-          model: model
-        )
+        result =
+          WorkSpawner.spawn_linear(
+            ticket_id,
+            "Linear: #{ticket_id}",
+            ticket_details || "No details available",
+            agent_type: agent_type,
+            model: model
+          )
+
         send(parent, {:work_result, result})
       end)
-      
+
       agent_label = if agent_type == :opencode, do: "OpenCode", else: "Claude"
-      
-      socket = socket
-      |> assign(work_in_progress: true, work_error: nil, show_work_modal: false)
-      |> put_flash(:info, "Starting work with #{agent_label} (#{model})...")
-      
+
+      socket =
+        socket
+        |> assign(work_in_progress: true, work_error: nil, show_work_modal: false)
+        |> put_flash(:info, "Starting work with #{agent_label} (#{model})...")
+
       {:noreply, socket}
     end
   end
-  
+
   # Special handling for Gemini which uses GeminiServer
   defp execute_gemini_work(socket, ticket_id, prompt) do
     alias DashboardPhoenix.WorkRegistry
-    
+
     # Register with WorkRegistry first
-    {:ok, work_id} = WorkRegistry.register(%{
-      agent_type: :gemini,
-      ticket_id: ticket_id,
-      source: :linear,
-      description: "Linear: #{ticket_id}",
-      model: "gemini-2.0-flash"
-    })
-    
+    {:ok, work_id} =
+      WorkRegistry.register(%{
+        agent_type: :gemini,
+        ticket_id: ticket_id,
+        source: :linear,
+        description: "Linear: #{ticket_id}",
+        model: "gemini-2.0-flash"
+      })
+
     if GeminiServer.running?() do
       case GeminiServer.send_prompt(prompt) do
         :ok ->
-          socket = socket
-          |> assign(work_in_progress: false, work_error: nil, show_work_modal: false)
-          |> put_flash(:info, "Prompt sent to Gemini CLI for #{ticket_id}")
+          socket =
+            socket
+            |> assign(work_in_progress: false, work_error: nil, show_work_modal: false)
+            |> put_flash(:info, "Prompt sent to Gemini CLI for #{ticket_id}")
+
           {:noreply, socket}
 
         {:error, reason} ->
           WorkRegistry.fail(work_id, inspect(reason))
-          socket = socket
-          |> assign(work_in_progress: false, work_error: "Failed to send to Gemini: #{inspect(reason)}")
+
+          socket =
+            socket
+            |> assign(
+              work_in_progress: false,
+              work_error: "Failed to send to Gemini: #{inspect(reason)}"
+            )
+
           {:noreply, socket}
       end
     else
@@ -2465,22 +2478,42 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
           case GeminiServer.send_prompt(prompt) do
             :ok ->
-              socket = socket
-              |> assign(work_in_progress: false, work_error: nil, show_work_modal: false, gemini_server_status: GeminiServer.status())
-              |> put_flash(:info, "Started Gemini and sent prompt for #{ticket_id}")
+              socket =
+                socket
+                |> assign(
+                  work_in_progress: false,
+                  work_error: nil,
+                  show_work_modal: false,
+                  gemini_server_status: GeminiServer.status()
+                )
+                |> put_flash(:info, "Started Gemini and sent prompt for #{ticket_id}")
+
               {:noreply, socket}
 
             {:error, reason} ->
               WorkRegistry.fail(work_id, inspect(reason))
-              socket = socket
-              |> assign(work_in_progress: false, work_error: "Gemini started but failed to send: #{inspect(reason)}", gemini_server_status: GeminiServer.status())
+
+              socket =
+                socket
+                |> assign(
+                  work_in_progress: false,
+                  work_error: "Gemini started but failed to send: #{inspect(reason)}",
+                  gemini_server_status: GeminiServer.status()
+                )
+
               {:noreply, socket}
           end
 
         {:error, reason} ->
           WorkRegistry.fail(work_id, inspect(reason))
-          socket = socket
-          |> assign(work_in_progress: false, work_error: "Failed to start Gemini: #{inspect(reason)}")
+
+          socket =
+            socket
+            |> assign(
+              work_in_progress: false,
+              work_error: "Failed to start Gemini: #{inspect(reason)}"
+            )
+
           {:noreply, socket}
       end
     end
