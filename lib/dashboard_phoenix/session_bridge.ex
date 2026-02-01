@@ -75,7 +75,11 @@ defmodule DashboardPhoenix.SessionBridge do
       transcript_details_cache: %{},  # %{session_id => %{mtime: _, size: _, details: _}}
       directory_scan_cache: %{files: nil, timestamp: 0},  # Cache directory listings
       # Track previous session statuses to detect completions
-      previous_session_statuses: %{}  # %{session_id => status}
+      previous_session_statuses: %{},  # %{session_id => status}
+      # Track known session IDs to detect new subagent spawns
+      known_subagent_ids: MapSet.new(),
+      # Track start times for duration calculation
+      subagent_start_times: %{}  # %{session_id => start_timestamp_ms}
     }}
   end
 
@@ -609,13 +613,44 @@ defmodule DashboardPhoenix.SessionBridge do
           
           normalized = Enum.reverse(normalized)
           
-          # Detect session completions (transition from running/idle to completed)
-          new_statuses = normalized
+          # Get all current subagent sessions
+          subagent_sessions = normalized
           |> Enum.filter(fn s -> String.contains?(s.session_key, "subagent") end)
+          
+          new_statuses = subagent_sessions
           |> Enum.map(fn s -> {s.id, s.status} end)
           |> Map.new()
           
-          # Log code_complete for sessions that just transitioned to completed
+          current_subagent_ids = subagent_sessions
+          |> Enum.map(fn s -> s.id end)
+          |> MapSet.new()
+          
+          # Detect new subagent spawns (sessions we haven't seen before)
+          new_subagent_ids = MapSet.difference(current_subagent_ids, state.known_subagent_ids)
+          
+          # Track start times for new subagents
+          now_ms = System.system_time(:millisecond)
+          new_start_times = Enum.reduce(new_subagent_ids, state.subagent_start_times, fn id, acc ->
+            session = Enum.find(subagent_sessions, fn s -> s.id == id end)
+            # Use the session's update time as approximate start, or now
+            start_time = if session, do: session.updated_at, else: now_ms
+            Map.put(acc, id, start_time)
+          end)
+          
+          # Log subagent_started for new subagents
+          Enum.each(new_subagent_ids, fn session_id ->
+            session = Enum.find(subagent_sessions, fn s -> s.id == session_id end)
+            label = if session, do: session.label, else: String.slice(session_id, 0, 8)
+            task = if session, do: session.task_summary, else: nil
+            
+            ActivityLog.log_event(:subagent_started, "Sub-agent spawned: #{label}", %{
+              session_id: session_id,
+              label: label,
+              task: task
+            })
+          end)
+          
+          # Log subagent_completed or subagent_failed for sessions that transitioned to completed
           Enum.each(new_statuses, fn {session_id, new_status} ->
             old_status = Map.get(state.previous_session_statuses, session_id)
             
@@ -624,12 +659,35 @@ defmodule DashboardPhoenix.SessionBridge do
               session = Enum.find(normalized, fn s -> s.id == session_id end)
               label = if session, do: session.label, else: String.slice(session_id, 0, 8)
               task = if session, do: session.task_summary, else: nil
+              result = if session, do: session.result_snippet, else: nil
               
-              ActivityLog.log_event(:code_complete, "Sub-agent completed: #{label}", %{
-                session_id: session_id,
-                label: label,
-                task: task
-              })
+              # Calculate duration
+              start_time = Map.get(new_start_times, session_id, now_ms)
+              duration_ms = now_ms - start_time
+              duration_str = format_duration(duration_ms)
+              
+              # Detect failure indicators in result or task
+              failed = detect_failure(result, session)
+              
+              if failed do
+                ActivityLog.log_event(:subagent_failed, "Sub-agent failed: #{label}", %{
+                  session_id: session_id,
+                  label: label,
+                  task: task,
+                  result: result,
+                  duration: duration_str,
+                  duration_ms: duration_ms
+                })
+              else
+                ActivityLog.log_event(:subagent_completed, "Sub-agent completed: #{label}", %{
+                  session_id: session_id,
+                  label: label,
+                  task: task,
+                  result: result,
+                  duration: duration_str,
+                  duration_ms: duration_ms
+                })
+              end
             end
           end)
           
@@ -638,7 +696,9 @@ defmodule DashboardPhoenix.SessionBridge do
             sessions: normalized, 
             last_session_mtime: mtime, 
             transcript_details_cache: new_details_cache,
-            previous_session_statuses: new_statuses
+            previous_session_statuses: new_statuses,
+            known_subagent_ids: current_subagent_ids,
+            subagent_start_times: new_start_times
           }
         else
           state
@@ -963,5 +1023,50 @@ defmodule DashboardPhoenix.SessionBridge do
 
   defp broadcast_sessions(sessions) do
     Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, "agent_updates", {:sessions, sessions})
+  end
+
+  # Helper to format duration for activity log
+  defp format_duration(ms) when ms < 1000, do: "<1s"
+  defp format_duration(ms) when ms < 60_000 do
+    "#{div(ms, 1000)}s"
+  end
+  defp format_duration(ms) when ms < 3_600_000 do
+    mins = div(ms, 60_000)
+    secs = div(rem(ms, 60_000), 1000)
+    "#{mins}m #{secs}s"
+  end
+  defp format_duration(ms) do
+    hours = div(ms, 3_600_000)
+    mins = div(rem(ms, 3_600_000), 60_000)
+    "#{hours}h #{mins}m"
+  end
+
+  # Detect if a subagent session failed based on result text or session details
+  defp detect_failure(result, session) do
+    result_text = result || ""
+    
+    # Look for common failure indicators in the result
+    failure_patterns = [
+      ~r/\bfailed\b/i,
+      ~r/\berror\b/i,
+      ~r/\btest.*failed\b/i,
+      ~r/\bcompilation error\b/i,
+      ~r/\bcould not compile\b/i,
+      ~r/\bexited with\s+[1-9]\d*\b/i,
+      ~r/\bexit code\s+[1-9]\d*\b/i,
+      ~r/\b\*\*\s*\(.*Error\)\b/i  # Elixir exception pattern
+    ]
+    
+    result_has_failure = Enum.any?(failure_patterns, fn pattern ->
+      Regex.match?(pattern, result_text)
+    end)
+    
+    # Also check the task summary for failure hints (e.g., "fix" tasks that didn't complete)
+    task_text = if session, do: session.task_summary || "", else: ""
+    
+    # If the task was to fix something and the result mentions failure, that's a failure
+    is_fix_task = String.contains?(String.downcase(task_text), ["fix", "debug", "resolve"])
+    
+    result_has_failure || (is_fix_task && Regex.match?(~r/\bunresolved\b|\bstill broken\b/i, result_text))
   end
 end
