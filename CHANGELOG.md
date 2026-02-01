@@ -7,6 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Perf: Reduce external CLI command overhead (#73)
+- Fix rate limit warnings in journalctl logs (#105)
+- Live Feed: Add agent type to messages (#101)
+- Perf: Replace blocking GenServer calls with casts/ETS (#71)
+- Activity Log: Add commit/merge detection for main branch (#102)
+- Perf: Cache and optimize transcript parsing (#77)
+- UI: Add meaningful animations and micro-interactions (#65)
+- Perf: Optimize LiveView assigns and data transfer (#75)
+- UI: Asymmetric Command Bridge Layout (#59)
+- UI: High-Impact Motion System (#60)
+- UI: Bold Color Hierarchy System (#61)
+- UI: Cyberpunk Agent Interface Character (#62)
+- UI: Add meaningful animations and micro-interactions (#65)
+- UI: Implement unexpected spatial composition and visual hierarchy (#66)
+- UI: Add atmospheric backgrounds and contextual visual details (#67)
+- Reliability: Add timeouts to all GenServer calls (#72)
+- UI: Atmospheric Space Theme Enhancement (#58)
+- UI: Distinctive Agent-Themed Typography (#57)
+- OpenCode updates not appearing in Live Feed (#106)
 - Show model name on agent cards (#108)
 
 ### Added
