@@ -53,10 +53,10 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
   # Helper functions
 
   # PR CI status badges
-  defp pr_ci_badge(:success), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-xs"
-  defp pr_ci_badge(:failure), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-xs"
-  defp pr_ci_badge(:pending), do: "px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs animate-pulse"
-  defp pr_ci_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-xs"
+  defp pr_ci_badge(:success), do: "px-1.5 py-0.5bg-green-500/20 text-green-400 text-xs"
+  defp pr_ci_badge(:failure), do: "px-1.5 py-0.5bg-red-500/20 text-red-400 text-xs"
+  defp pr_ci_badge(:pending), do: "px-1.5 py-0.5bg-yellow-500/20 text-yellow-400 text-xs animate-pulse"
+  defp pr_ci_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs"
 
   defp pr_ci_icon(:success), do: "✓"
   defp pr_ci_icon(:failure), do: "✗"
@@ -64,11 +64,11 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
   defp pr_ci_icon(_), do: "?"
 
   # PR review status badges
-  defp pr_review_badge(:approved), do: "px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-xs"
-  defp pr_review_badge(:changes_requested), do: "px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-xs"
-  defp pr_review_badge(:commented), do: "px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs"
-  defp pr_review_badge(:pending), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-xs"
-  defp pr_review_badge(_), do: "px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60 text-xs"
+  defp pr_review_badge(:approved), do: "px-1.5 py-0.5bg-green-500/20 text-green-400 text-xs"
+  defp pr_review_badge(:changes_requested), do: "px-1.5 py-0.5bg-red-500/20 text-red-400 text-xs"
+  defp pr_review_badge(:commented), do: "px-1.5 py-0.5bg-blue-500/20 text-blue-400 text-xs"
+  defp pr_review_badge(:pending), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs"
+  defp pr_review_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs"
 
   defp pr_review_text(:approved), do: "Approved"
   defp pr_review_text(:changes_requested), do: "Changes"
@@ -106,7 +106,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="panel-work rounded-lg overflow-hidden">
+    <div class="panel-work overflow-hidden">
       <div
         class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
@@ -159,7 +159,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                 <% pr_work_info = Map.get(@prs_in_progress, pr.number) %>
                 <% status_bg = pr_status_bg(pr) %>
                 <% verification = Map.get(@pr_verifications, pr.url) %>
-                <div class={"px-2 py-2 rounded text-xs font-mono " <>
+                <div class={"px-2 py-2text-xs font-mono " <>
                   if(pr_work_info,
                     do: "bg-accent/10 border-2 border-accent/50 animate-pulse-subtle",
                     else: "panel-status hover:bg-accent/10 border border-accent/20 hover:border-accent/40 transition-all #{status_bg}")}>
@@ -168,7 +168,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                     <div class="flex-1 min-w-0">
                       <a href={pr.url} target="_blank" class="text-white hover:text-accent flex items-center space-x-1">
                         <%= if pr_work_info do %>
-                          <span class="w-2 h-2 bg-success rounded-full animate-pulse flex-shrink-0" title={"Agent working: #{pr_work_info[:label] || pr_work_info[:slug]}"}></span>
+                          <span class="w-2 h-2 bg-success animate-pulse flex-shrink-0" title={"Agent working: #{pr_work_info[:label] || pr_work_info[:slug]}"}></span>
                         <% end %>
                         <span class="text-accent font-bold">#<%= pr.number %></span>
                         <span class="truncate"><%= pr.title %></span>
@@ -181,7 +181,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                       phx-value-url={pr.url}
                       phx-value-number={pr.number}
                       phx-value-repo={pr.repo}
-                      class="ml-2 px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 text-xs whitespace-nowrap"
+                      class="ml-2 px-2 py-0.5bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 text-xs whitespace-nowrap"
                       title="Request Super Review"
                       aria-label={"Request super review for PR #" <> to_string(pr.number)}
                     >
@@ -207,7 +207,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
 
                     <!-- Conflict Badge -->
                     <%= if pr.has_conflicts do %>
-                      <span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs" title="Has merge conflicts">
+                      <span class="px-1.5 py-0.5bg-yellow-500/20 text-yellow-400 text-xs" title="Has merge conflicts">
                         ⚠️ Conflict
                       </span>
                     <% end %>
@@ -228,7 +228,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                         phx-value-ci-failing={pr.ci_status == :failure}
                         disabled={is_disabled}
                         class={[
-                          "min-h-[32px] min-w-[44px] px-2 py-1 rounded text-xs font-medium",
+                          "min-h-[32px] min-w-[44px] px-2 py-1text-xs font-medium",
                           "transition-all duration-150 select-none touch-manipulation",
                           if(is_fix_pending,
                             do: "bg-warning/30 text-warning animate-pulse cursor-wait",
@@ -259,7 +259,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                     <!-- Verification Status Badge -->
                     <%= if verification do %>
                       <span
-                        class="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 text-xs inline-flex items-center gap-1"
+                        class="px-1.5 py-0.5bg-green-500/20 text-green-400 text-xs inline-flex items-center gap-1"
                         title={"Verified by #{verification["verified_by"]} at #{verification["verified_at"]}"}
                       >
                         ✓ Verified
@@ -279,7 +279,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                         phx-value-url={pr.url}
                         phx-value-number={pr.number}
                         phx-value-repo={pr.repo}
-                        class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/40 hover:bg-green-500/20 hover:text-green-400 text-xs"
+                        class="px-1.5 py-0.5bg-base-content/10 text-base-content/40 hover:bg-green-500/20 hover:text-green-400 text-xs"
                         title="Mark as verified"
                         aria-label={"Mark PR #" <> to_string(pr.number) <> " as verified"}
                       >
@@ -297,7 +297,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                       <a
                         href={PRMonitor.build_ticket_url(ticket_id)}
                         target="_blank"
-                        class="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 hover:bg-orange-500/40 text-xs"
+                        class="px-1.5 py-0.5bg-orange-500/20 text-orange-400 hover:bg-orange-500/40 text-xs"
                         title="View in Linear"
                         aria-label={"View ticket " <> ticket_id <> " in Linear (opens in new tab)"}
                       >
@@ -307,7 +307,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
 
                     <!-- Agent Working Indicator -->
                     <%= if pr_work_info do %>
-                      <span class="px-1.5 py-0.5 rounded bg-success/20 text-success text-xs animate-pulse"
+                      <span class="px-1.5 py-0.5bg-success/20 text-success text-xs animate-pulse"
                             title={"#{if pr_work_info.type == :opencode, do: "OpenCode", else: "Sub-agent"} working on this PR"}>
                         🤖 <%= pr_work_info[:label] || pr_work_info[:slug] || "Working..." %>
                       </span>

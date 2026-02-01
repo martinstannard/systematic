@@ -45,7 +45,7 @@ defmodule DashboardPhoenixWeb.Layouts do
       <div class="flex items-center gap-4">
         <a
           href="/dev/dashboard"
-          class="text-xs font-mono px-3 py-1.5 rounded-lg bg-base-content/10 hover:bg-base-content/20 text-base-content/70 hover:text-base-content transition-colors"
+          class="text-xs font-mono px-3 py-1.5 bg-base-content/10 hover:bg-base-content/20 text-base-content/70 hover:text-base-content transition-colors"
           title="Phoenix LiveDashboard - System Metrics"
         >
           📊 LiveDashboard
@@ -53,7 +53,7 @@ defmodule DashboardPhoenixWeb.Layouts do
         <.theme_toggle />
         <div class="dropdown dropdown-end">
           <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar placeholder">
-            <div class="bg-neutral text-neutral-content rounded-full w-10">
+            <div class="bg-neutral text-neutral-content w-10">
               <span class="text-xs">CMD</span>
             </div>
           </div>
@@ -121,8 +121,8 @@ defmodule DashboardPhoenixWeb.Layouts do
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
+    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300">
+      <div class="absolute w-1/3 h-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
 
       <button
         class="flex p-2 cursor-pointer w-1/3"
