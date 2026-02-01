@@ -1008,7 +1008,9 @@ textarea:focus-visible,
    RESPONSIVE ADJUSTMENTS
    ===================================================== */
 
+/* Mobile-first responsive breakpoints */
 @media (max-width: 640px) {
+  /* Grid layouts stack on mobile */
   .agent-cards-grid {
     grid-template-columns: 1fr;
   }
@@ -1017,12 +1019,131 @@ textarea:focus-visible,
     min-height: 80px;
   }
   
+  /* Typography adjustments */
   .text-system-title {
     @apply text-xl;
   }
   
   .text-section-header {
     @apply text-base;
+  }
+  
+  /* Touch-friendly button sizes - minimum 44x44px for accessibility */
+  .btn-interactive-icon,
+  .btn-interactive-sm,
+  .btn-interactive-close,
+  button,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Panel headers need more tap area on mobile */
+  .panel-header-interactive {
+    padding: 0.75rem;
+    min-height: 48px;
+  }
+  
+  /* Reduce text sizes for compact mobile display */
+  .text-ui-label {
+    @apply text-xs;
+  }
+  
+  .text-ui-caption {
+    @apply text-xs;
+  }
+  
+  .text-panel-label {
+    @apply text-xs;
+  }
+  
+  /* Section headers - more compact on mobile */
+  .section-core-work,
+  .section-agent-status,
+  .section-system-config {
+    @apply p-3;
+  }
+  
+  /* Stats in header - stack or hide on very small screens */
+  .header-stats {
+    @apply hidden;
+  }
+  
+  /* Glass header adjustments */
+  .glass-header {
+    @apply px-3 py-3;
+  }
+  
+  /* Accordion content - tighter spacing on mobile */
+  .accordion-content {
+    @apply px-2;
+  }
+  
+  /* Modal adjustments for mobile */
+  .modal-box {
+    @apply mx-2 max-w-[calc(100vw-1rem)];
+  }
+}
+
+/* Extra small screens (< 480px) */
+@media (max-width: 480px) {
+  /* Even more compact typography */
+  .text-system-title {
+    @apply text-lg;
+    letter-spacing: 0.1em;
+  }
+  
+  /* Hide secondary labels */
+  .text-ui-caption.mobile-hide,
+  .stat-label {
+    @apply hidden;
+  }
+  
+  /* Stack stat items */
+  .stat-item {
+    @apply flex-col gap-0;
+  }
+  
+  /* Smaller panel padding */
+  .panel-priority-high,
+  .panel-priority-medium,
+  .panel-priority-compact {
+    @apply p-2;
+  }
+  
+  /* Compact agent cards */
+  .agent-card {
+    @apply p-3;
+    min-height: 70px;
+  }
+  
+  .agent-card-icon {
+    @apply text-lg;
+  }
+  
+  .agent-card-name {
+    @apply text-xs;
+  }
+  
+  /* Reduce gap between elements */
+  .space-y-4 {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(0.5rem * var(--tw-space-y-reverse));
+  }
+}
+
+/* Tablet breakpoint adjustments (641px - 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .agent-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* Two-column layout for larger tablets */
+  .section-core-work,
+  .section-agent-status,
+  .section-system-config {
+    @apply p-4;
   }
 }
 

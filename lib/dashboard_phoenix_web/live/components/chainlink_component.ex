@@ -172,8 +172,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
       <div id="chainlink-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@chainlink_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
         <div class="px-4 pb-4">
-          <!-- Legend: Priority & Status -->
-          <div class="flex items-center justify-between mb-3 text-ui-caption text-base-content/60">
+          <!-- Legend: Priority & Status - hidden on mobile for space -->
+          <div class="hidden sm:flex items-center justify-between mb-3 text-ui-caption text-base-content/60">
             <div class="flex items-center space-x-3">
               <span class="flex items-center gap-1 text-red-600 dark:text-red-400"><%= priority_symbol(:high) %> HIGH</span>
               <span class="flex items-center gap-1 text-yellow-600 dark:text-yellow-400"><%= priority_symbol(:medium) %> MED</span>
@@ -201,32 +201,37 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
               <% end %>
               <%= for issue <- @chainlink_issues do %>
                 <% work_info = Map.get(@chainlink_work_in_progress, issue.id) %>
-                <div class={"flex items-center space-x-3 px-3 py-2 rounded border border-base-300 " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
-                  <%= if work_info do %>
-                    <!-- Work in progress indicator - replaces Work button -->
-                    <div class="flex items-center space-x-1.5 min-w-[70px]" role="status" aria-label={"Work in progress by " <> (work_info[:label] || "agent")}>
-                      <span class="status-activity-ring text-success" aria-hidden="true"></span>
-                      <span class="text-ui-caption text-success font-medium" title={work_info[:label] || "Working"}>
-                        <%= format_agent_label(work_info[:label]) %>
-                      </span>
-                    </div>
-                  <% else %>
-                    <button
-                      phx-click="show_work_confirm"
-                      phx-value-id={issue.id}
-                      phx-target={@myself}
-                      class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 hover:scale-105 active:scale-95 min-w-[70px]"
-                      title="Start work on this issue"
-                      aria-label={"Start work on issue #" <> to_string(issue.id)}
-                    >
-                      <span aria-hidden="true">▶</span>
-                      <span>Work</span>
-                    </button>
-                  <% end %>
-                  <span class={status_icon_class(issue.status)} title={status_text(issue.status)} aria-label={status_text(issue.status)}><%= status_icon(issue.status) %></span>
-                  <span class="text-ui-value text-accent">#<%= issue.id %></span>
+                <div class={"flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-3 px-3 py-3 sm:py-2 rounded border border-base-300 " <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
+                  <div class="flex items-center gap-2 sm:gap-3">
+                    <%= if work_info do %>
+                      <!-- Work in progress indicator - replaces Work button -->
+                      <div class="flex items-center space-x-1.5 min-w-[70px]" role="status" aria-label={"Work in progress by " <> (work_info[:label] || "agent")}>
+                        <span class="status-activity-ring text-success" aria-hidden="true"></span>
+                        <span class="text-ui-caption text-success font-medium" title={work_info[:label] || "Working"}>
+                          <%= format_agent_label(work_info[:label]) %>
+                        </span>
+                      </div>
+                    <% else %>
+                      <button
+                        phx-click="show_work_confirm"
+                        phx-value-id={issue.id}
+                        phx-target={@myself}
+                        class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 hover:scale-105 active:scale-95 min-w-[70px] min-h-[44px] sm:min-h-0"
+                        title="Start work on this issue"
+                        aria-label={"Start work on issue #" <> to_string(issue.id)}
+                      >
+                        <span aria-hidden="true">▶</span>
+                        <span>Work</span>
+                      </button>
+                    <% end %>
+                    <span class={status_icon_class(issue.status)} title={status_text(issue.status)} aria-label={status_text(issue.status)}><%= status_icon(issue.status) %></span>
+                    <span class="text-ui-value text-accent">#<%= issue.id %></span>
+                    <span class={priority_badge(issue.priority) <> " sm:hidden"} title={"Priority: " <> priority_text(issue.priority)}>
+                      <%= priority_symbol(issue.priority) %>
+                    </span>
+                  </div>
                   <span class="text-ui-body truncate flex-1" title={issue.title}><%= issue.title %></span>
-                  <span class={priority_badge(issue.priority)} title={"Priority: " <> priority_text(issue.priority)}>
+                  <span class={"hidden sm:inline " <> priority_badge(issue.priority)} title={"Priority: " <> priority_text(issue.priority)}>
                     <%= priority_symbol(issue.priority) %> <%= priority_text(issue.priority) %>
                   </span>
                 </div>
@@ -282,18 +287,18 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center space-x-3">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-3">
               <button
                 phx-click="cancel_confirm"
                 phx-target={@myself}
-                class="flex-1 py-2 px-4 text-ui-label border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+                class="flex-1 py-3 sm:py-2 px-4 text-ui-label border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-all min-h-[44px]"
               >
                 Cancel
               </button>
               <button
                 phx-click="confirm_work"
                 phx-target={@myself}
-                class="flex-1 py-2 px-4 text-ui-label bg-accent text-white rounded hover:bg-accent/80 transition-all font-medium"
+                class="flex-1 py-3 sm:py-2 px-4 text-ui-label bg-accent text-white rounded hover:bg-accent/80 transition-all font-medium min-h-[44px]"
               >
                 <span aria-hidden="true">▶</span>
                 Start Work
