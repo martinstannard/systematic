@@ -1,4 +1,10 @@
 defmodule DashboardPhoenixWeb.AuthController do
+  @moduledoc """
+  Handles authentication and authorization for the dashboard.
+  
+  Provides login, logout, and token-based authentication functionality.
+  Supports secure token comparison and session management.
+  """
   use DashboardPhoenixWeb, :controller
 
   alias DashboardPhoenixWeb.Plugs.Auth

@@ -1,4 +1,11 @@
 defmodule DashboardPhoenixWeb.Router do
+  @moduledoc """
+  Application routing configuration for the dashboard.
+  
+  Defines HTTP request routing, authentication pipelines, and access control.
+  Separates public routes (login) from protected routes (main dashboard) with
+  optional token-based authentication.
+  """
   use DashboardPhoenixWeb, :router
 
   pipeline :browser do

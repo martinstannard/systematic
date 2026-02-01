@@ -1,4 +1,12 @@
 defmodule DashboardPhoenixWeb.HomeLive do
+  @moduledoc """
+  Main LiveView for the dashboard application.
+  
+  Orchestrates the entire dashboard interface including activity monitoring,
+  system processes, agent management, and various operational panels.
+  Handles real-time updates, user interactions, and coordination between
+  multiple components for project management and system oversight.
+  """
   use DashboardPhoenixWeb, :live_view
   
   # Precompiled regex patterns - compiled once at compile time, not on every function call

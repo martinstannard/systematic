@@ -1,4 +1,11 @@
 defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
+  @moduledoc """
+  LiveView component for displaying real-time progress and activity feed.
+  
+  Provides a collapsible panel showing agent activities, progress events,
+  and system operations. Supports filtering, output toggling, and clearing
+  of progress data with proper input validation.
+  """
   use DashboardPhoenixWeb, :live_component
 
   alias DashboardPhoenix.InputValidator

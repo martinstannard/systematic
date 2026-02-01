@@ -1,4 +1,11 @@
 defmodule DashboardPhoenixWeb.Telemetry do
+  @moduledoc """
+  Telemetry supervisor for application monitoring and metrics collection.
+  
+  Configures and manages telemetry metrics for Phoenix endpoints, database queries,
+  and VM performance monitoring. Provides comprehensive instrumentation for
+  application health and performance tracking.
+  """
   use Supervisor
   import Telemetry.Metrics
 
