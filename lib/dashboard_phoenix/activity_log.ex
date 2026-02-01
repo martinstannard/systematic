@@ -161,26 +161,63 @@ defmodule DashboardPhoenix.ActivityLog do
   defp load_events_from_file do
     case File.read(@events_file) do
       {:ok, content} ->
-        content
-        |> Jason.decode!()
-        |> Enum.map(&decode_event/1)
-        |> Enum.take(@max_events)
+        try do
+          content
+          |> Jason.decode!()
+          |> Enum.map(&decode_event/1)
+          |> Enum.take(@max_events)
+        rescue
+          %Jason.DecodeError{} = e ->
+            Logger.warning("ActivityLog: Failed to decode events JSON: #{Exception.message(e)}")
+            []
+          e ->
+            Logger.warning("ActivityLog: Exception decoding events: #{inspect(e)}")
+            []
+        end
 
-      {:error, _} ->
+      {:error, :enoent} ->
+        Logger.debug("ActivityLog: Events file #{@events_file} does not exist, starting with empty log")
+        []
+      {:error, :eacces} ->
+        Logger.warning("ActivityLog: Permission denied reading events file #{@events_file}")
+        []
+      {:error, reason} ->
+        Logger.warning("ActivityLog: Failed to read events file #{@events_file}: #{inspect(reason)}")
         []
     end
   rescue
-    _ -> []
+    e ->
+      Logger.error("ActivityLog: Exception loading events from file: #{inspect(e)}")
+      []
   end
 
   defp save_events_to_file(events) do
-    content =
-      events
-      |> Enum.map(&encode_event/1)
-      |> Jason.encode!(pretty: true)
-
-    # Use atomic write to prevent file corruption on crash or concurrent access
-    FileUtils.atomic_write(@events_file, content)
+    try do
+      case events
+           |> Enum.map(&encode_event/1)
+           |> Jason.encode(pretty: true) do
+        {:ok, content} ->
+          # Use atomic write to prevent file corruption on crash or concurrent access
+          case FileUtils.atomic_write(@events_file, content) do
+            :ok ->
+              Logger.debug("ActivityLog: Successfully saved #{length(events)} events")
+              :ok
+            {:error, reason} ->
+              Logger.error("ActivityLog: Failed to save events file: #{inspect(reason)}")
+              {:error, reason}
+          end
+        {:error, %Jason.EncodeError{} = e} ->
+          Logger.error("ActivityLog: Failed to encode events as JSON: #{Exception.message(e)}")
+          {:error, {:json_encode, e}}
+        {:error, reason} ->
+          Logger.error("ActivityLog: JSON encode error for events: #{inspect(reason)}")
+          {:error, {:json_encode, reason}}
+      end
+    rescue
+      e ->
+        Logger.error("ActivityLog: Exception saving events to file: #{inspect(e)}")
+        {:error, {:exception, e}}
+    end
   end
 
   defp encode_event(event) do

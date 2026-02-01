@@ -12,32 +12,48 @@ defmodule DashboardPhoenix.StatePersistence do
   def load(filename, default_state) do
     path = get_path(filename)
 
-    if File.exists?(path) do
-      case File.read(path) do
-        {:ok, content} ->
-          case Jason.decode(content) do
-            {:ok, data} ->
-              # Merge with default state to ensure all keys exist if structure changed
-              # This is simple for maps, but might need more care for nested structures
-              if is_map(data) and is_map(default_state) do
-                # Convert string keys to atoms if default_state uses atoms
-                data = sanitize_keys(data, default_state)
-                Map.merge(default_state, data)
-              else
-                data
-              end
+    try do
+      if File.exists?(path) do
+        case File.read(path) do
+          {:ok, content} ->
+            case Jason.decode(content) do
+              {:ok, data} ->
+                # Merge with default state to ensure all keys exist if structure changed
+                # This is simple for maps, but might need more care for nested structures
+                if is_map(data) and is_map(default_state) do
+                  # Convert string keys to atoms if default_state uses atoms
+                  data = sanitize_keys(data, default_state)
+                  Map.merge(default_state, data)
+                else
+                  data
+                end
 
-            {:error, reason} ->
-              Logger.warning("Failed to decode state from #{path}: #{inspect(reason)}")
-              default_state
-          end
+              {:error, %Jason.DecodeError{} = e} ->
+                Logger.warning("StatePersistence: Failed to decode JSON from #{path}: #{Exception.message(e)}")
+                default_state
+              {:error, reason} ->
+                Logger.warning("StatePersistence: JSON decode error from #{path}: #{inspect(reason)}")
+                default_state
+            end
 
-        {:error, reason} ->
-          Logger.warning("Failed to read state from #{path}: #{inspect(reason)}")
-          default_state
+          {:error, :enoent} ->
+            Logger.debug("StatePersistence: State file #{path} does not exist, using default state")
+            default_state
+          {:error, :eacces} ->
+            Logger.warning("StatePersistence: Permission denied reading state file #{path}")
+            default_state
+          {:error, reason} ->
+            Logger.warning("StatePersistence: Failed to read state from #{path}: #{inspect(reason)}")
+            default_state
+        end
+      else
+        Logger.debug("StatePersistence: State file #{path} does not exist, using default state")
+        default_state
       end
-    else
-      default_state
+    rescue
+      e ->
+        Logger.error("StatePersistence: Exception loading state from #{filename}: #{inspect(e)}")
+        default_state
     end
   end
 
@@ -49,16 +65,46 @@ defmodule DashboardPhoenix.StatePersistence do
     tmp_path = path <> ".tmp"
 
     try do
-      content = Jason.encode!(state)
-      File.write!(tmp_path, content)
-      File.rename!(tmp_path, path)
-      :ok
+      # Ensure the directory exists
+      case File.mkdir_p(Path.dirname(path)) do
+        :ok -> :ok
+        {:error, reason} ->
+          Logger.error("StatePersistence: Failed to create directory for #{path}: #{inspect(reason)}")
+          return {:error, {:mkdir, reason}}
+      end
+
+      # Encode JSON
+      case Jason.encode(state) do
+        {:ok, content} ->
+          # Atomic write: tmp file then rename
+          case File.write(tmp_path, content) do
+            :ok ->
+              case File.rename(tmp_path, path) do
+                :ok ->
+                  Logger.debug("StatePersistence: Successfully saved state to #{filename}")
+                  :ok
+                {:error, reason} ->
+                  Logger.error("StatePersistence: Failed to rename #{tmp_path} to #{path}: #{inspect(reason)}")
+                  File.rm(tmp_path)  # Clean up
+                  {:error, {:rename, reason}}
+              end
+            {:error, reason} ->
+              Logger.error("StatePersistence: Failed to write to #{tmp_path}: #{inspect(reason)}")
+              {:error, {:write, reason}}
+          end
+        {:error, %Jason.EncodeError{} = e} ->
+          Logger.error("StatePersistence: Failed to encode state as JSON for #{filename}: #{Exception.message(e)}")
+          {:error, {:json_encode, e}}
+        {:error, reason} ->
+          Logger.error("StatePersistence: JSON encode error for #{filename}: #{inspect(reason)}")
+          {:error, {:json_encode, reason}}
+      end
     rescue
       e ->
-        Logger.error("Failed to save state to #{path}: #{inspect(e)}")
+        Logger.error("StatePersistence: Exception saving state to #{filename}: #{inspect(e)}")
         # Clean up tmp file if it exists
         File.rm(tmp_path)
-        {:error, e}
+        {:error, {:exception, e}}
     end
   end
 

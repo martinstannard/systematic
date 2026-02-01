@@ -201,13 +201,30 @@ defmodule DashboardPhoenix.StatsMonitor do
     case File.read(stats_file) do
       {:ok, content} ->
         case Jason.decode(content) do
-          {:ok, data} -> parse_claude_stats(data)
-          _ -> %{error: "Invalid JSON"}
+          {:ok, data} -> 
+            parse_claude_stats(data)
+          {:error, %Jason.DecodeError{} = e} ->
+            Logger.warning("StatsMonitor: Failed to decode Claude stats JSON: #{Exception.message(e)}")
+            %{error: "Invalid JSON: #{Exception.message(e)}"}
+          {:error, reason} ->
+            Logger.warning("StatsMonitor: JSON decode error for Claude stats: #{inspect(reason)}")
+            %{error: "JSON decode error: #{inspect(reason)}"}
         end
 
-      _ ->
-        %{error: "No stats file"}
+      {:error, :enoent} ->
+        Logger.debug("StatsMonitor: Claude stats file #{stats_file} does not exist")
+        %{error: "Stats file not found"}
+      {:error, :eacces} ->
+        Logger.warning("StatsMonitor: Permission denied reading Claude stats file #{stats_file}")
+        %{error: "Permission denied"}
+      {:error, reason} ->
+        Logger.warning("StatsMonitor: Failed to read Claude stats file #{stats_file}: #{inspect(reason)}")
+        %{error: "Failed to read file: #{inspect(reason)}"}
     end
+  rescue
+    e ->
+      Logger.error("StatsMonitor: Exception fetching Claude stats: #{inspect(e)}")
+      %{error: "Exception: #{Exception.message(e)}"}
   end
 
   defp parse_claude_stats(data) do

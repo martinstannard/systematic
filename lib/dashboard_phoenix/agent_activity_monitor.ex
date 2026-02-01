@@ -133,6 +133,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   defp parse_openclaw_sessions(state) do
     sessions_dir = openclaw_sessions_dir()
+    
     case File.ls(sessions_dir) do
       {:ok, files} ->
         # Get the most recent sessions (modified in last 30 minutes)
@@ -146,7 +147,9 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
             {:ok, %{mtime: mtime}} ->
               epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
               if epoch > cutoff, do: {path, file, mtime}, else: nil
-            _ -> nil
+            {:error, reason} ->
+              Logger.debug("AgentActivityMonitor: Failed to stat file #{path}: #{inspect(reason)}")
+              nil
           end
         end)
         |> Enum.reject(&is_nil/1)
@@ -155,9 +158,17 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
         |> Enum.map(fn {path, file, mtime} -> parse_session_file(path, file, mtime, state.session_offsets) end)
         |> Enum.reject(&is_nil/1)
         |> Map.new(fn agent -> {agent.id, agent} end)
-      _ ->
+      {:error, :enoent} ->
+        Logger.debug("AgentActivityMonitor: Sessions directory #{sessions_dir} does not exist")
+        %{}
+      {:error, reason} ->
+        Logger.warning("AgentActivityMonitor: Failed to read sessions directory #{sessions_dir}: #{inspect(reason)}")
         %{}
     end
+  rescue
+    e ->
+      Logger.error("AgentActivityMonitor: Exception in parse_openclaw_sessions: #{inspect(e)}")
+      %{}
   end
 
   defp parse_session_file(path, filename, mtime, _offsets) do
@@ -188,16 +199,36 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
         
         agent
         
-      _ ->
+      {:error, :enoent} ->
+        Logger.debug("AgentActivityMonitor: Session file #{path} no longer exists")
+        nil
+      {:error, :eacces} ->
+        Logger.warning("AgentActivityMonitor: Permission denied reading session file #{path}")
+        nil
+      {:error, reason} ->
+        Logger.warning("AgentActivityMonitor: Failed to read session file #{path}: #{inspect(reason)}")
         nil
     end
+  rescue
+    e ->
+      Logger.error("AgentActivityMonitor: Exception parsing session file #{path}: #{inspect(e)}")
+      nil
   end
 
   defp parse_jsonl_line(line) do
     case Jason.decode(line) do
       {:ok, data} -> data
-      _ -> nil
+      {:error, %Jason.DecodeError{} = e} ->
+        Logger.debug("AgentActivityMonitor: Failed to decode JSON line: #{Exception.message(e)}")
+        nil
+      {:error, reason} ->
+        Logger.debug("AgentActivityMonitor: JSON decode error: #{inspect(reason)}")
+        nil
     end
+  rescue
+    e ->
+      Logger.debug("AgentActivityMonitor: Exception decoding JSON line: #{inspect(e)}")
+      nil
   end
 
   defp extract_agent_activity(events, filename) do
@@ -393,10 +424,25 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   end
 
   defp get_process_cwd(pid) do
-    case File.read_link("/proc/#{pid}/cwd") do
+    proc_path = "/proc/#{pid}/cwd"
+    case File.read_link(proc_path) do
       {:ok, cwd} -> cwd
-      _ -> nil
+      {:error, :enoent} ->
+        # Process no longer exists
+        Logger.debug("AgentActivityMonitor: Process #{pid} no longer exists")
+        nil
+      {:error, :eacces} ->
+        # Permission denied to read process info
+        Logger.debug("AgentActivityMonitor: Permission denied reading process #{pid} info")
+        nil
+      {:error, reason} ->
+        Logger.debug("AgentActivityMonitor: Failed to read process #{pid} working directory: #{inspect(reason)}")
+        nil
     end
+  rescue
+    e ->
+      Logger.debug("AgentActivityMonitor: Exception reading process #{pid} cwd: #{inspect(e)}")
+      nil
   end
 
   defp get_recently_modified_files(nil), do: []
