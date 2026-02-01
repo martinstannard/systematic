@@ -460,7 +460,7 @@ body {
 }
 
 .agent-badge-text {
-  @apply hidden xs:inline;
+  @apply hidden sm:inline;
 }
 
 .agent-badge-opencode {
@@ -523,13 +523,6 @@ body {
   
   .header-breadcrumb {
     @apply hidden;
-  }
-}
-
-/* Custom breakpoint for xs */
-@media (min-width: 480px) {
-  .xs\:inline {
-    display: inline;
   }
 }
 
