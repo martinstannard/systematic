@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- UI: Develop cohesive brand identity and distinctive character (#68)
 - UI: Establish distinctive typography system to avoid generic aesthetics (#63)
 - UI: Replace generic glass panels with distinctive visual identity (#64)
 - UI: Establish distinctive typography system to avoid generic aesthetics (#63)
