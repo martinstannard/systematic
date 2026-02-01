@@ -260,9 +260,10 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
       aria-label={"Agent card: #{@name}. Click to #{if @expanded, do: "collapse", else: "expand"} details."}
       onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
     >
-      <!-- Card Header: Icon, Name, State Indicator -->
-      <div class="agent-card-header">
-        <div class="agent-card-identity">
+      <!-- Card Header: Stacked layout - Name on top, details below -->
+      <div class="agent-card-header flex-col items-start gap-1.5">
+        <!-- Line 1: Icon + Name (full width) -->
+        <div class="flex items-center gap-2 w-full min-w-0">
           <!-- State Indicator Dot -->
           <span 
             class={"w-2.5 h-2.5 rounded-full flex-shrink-0 " <> state_indicator_class(@state) <> if(@state == :running, do: " animate-pulse", else: "")}
@@ -273,21 +274,21 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
           <!-- Agent Icon -->
           <span class="agent-card-icon" aria-hidden="true"><%= @icon %></span>
           
-          <!-- Agent Name -->
-          <span class="agent-card-name" title={@name}>
+          <!-- Agent Name - now gets full width -->
+          <span class="agent-card-name flex-1" title={@name}>
             <%= @name %>
           </span>
           
           <!-- Expand chevron indicator -->
           <%= if has_details?(assigns) do %>
-            <span class={"text-xs text-base-content/40 transition-transform duration-200 " <> if(@expanded, do: "rotate-180", else: "")}>
+            <span class={"text-xs text-base-content/40 transition-transform duration-200 flex-shrink-0 " <> if(@expanded, do: "rotate-180", else: "")}>
               ▼
             </span>
           <% end %>
         </div>
         
-        <!-- Badges: Duration & State -->
-        <div class="agent-card-badges">
+        <!-- Line 2: Model, Duration, State badges -->
+        <div class="agent-card-badges w-full justify-start">
           <%= if @state == :running do %>
             <span 
               class={"px-2 py-1 text-xs font-mono tabular-nums rounded " <> duration_badge_class(@state)}
