@@ -60,6 +60,12 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
   end
 
   @impl true
+  def handle_event("set_agent_mode", %{"mode" => mode}, socket) when mode in ["single", "round_robin"] do
+    send(self(), {:config_component, :set_agent_mode, mode})
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("start_opencode_server", _, socket) do
     send(self(), {:config_component, :start_opencode_server})
     {:noreply, socket}
@@ -98,21 +104,66 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
           <span class="text-panel-label text-base-content/60">Config</span>
         </div>
         <div class="flex items-center space-x-2 text-xs font-mono text-base-content/40">
-          <span><%= if @coding_agent_pref == :opencode, do: "OpenCode + #{@opencode_model}", else: "Claude + #{String.replace(@claude_model, "anthropic/claude-", "")}" %></span>
+          <%= if @agent_mode == "round_robin" do %>
+            <span class="text-warning">🔄 Round Robin</span>
+            <span class="text-base-content/30">|</span>
+            <span>Next: <%= if @last_agent == "claude", do: "OpenCode", else: "Claude" %></span>
+          <% else %>
+            <span><%= if @coding_agent_pref == :opencode, do: "OpenCode + #{@opencode_model}", else: "Claude + #{String.replace(@claude_model, "anthropic/claude-", "")}" %></span>
+          <% end %>
         </div>
       </div>
       
       <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@config_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
         <div class="px-4 py-3 border-t border-white/5">
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <!-- Coding Agent Toggle (3-way) -->
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <!-- Agent Distribution Mode -->
             <div>
+              <div class="text-xs font-mono text-base-content/50 mb-2">Distribution</div>
+              <div class="flex rounded-lg overflow-hidden border border-white/10">
+                <button 
+                  phx-click="set_agent_mode"
+                  phx-value-mode="single"
+                  phx-target={@myself}
+                  class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all " <> 
+                    if(@agent_mode == "single", 
+                      do: "bg-accent/30 text-accent",
+                      else: "bg-base-content/5 text-base-content/50 hover:bg-base-content/10"
+                    )}
+                >
+                  <span>🎯</span>
+                  <span class="hidden sm:inline">Single</span>
+                </button>
+                <button 
+                  phx-click="set_agent_mode"
+                  phx-value-mode="round_robin"
+                  phx-target={@myself}
+                  class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all border-l border-white/10 " <> 
+                    if(@agent_mode == "round_robin", 
+                      do: "bg-warning/30 text-warning",
+                      else: "bg-base-content/5 text-base-content/50 hover:bg-base-content/10"
+                    )}
+                >
+                  <span>🔄</span>
+                  <span class="hidden sm:inline">Round Robin</span>
+                </button>
+              </div>
+              <%= if @agent_mode == "round_robin" do %>
+                <div class="text-xs font-mono text-warning/70 mt-1">
+                  Next: <%= if @last_agent == "claude", do: "OpenCode", else: "Claude" %>
+                </div>
+              <% end %>
+            </div>
+            
+            <!-- Coding Agent Toggle (3-way) - disabled in round_robin mode -->
+            <div class={if @agent_mode == "round_robin", do: "opacity-50", else: ""}>
               <div class="text-xs font-mono text-base-content/50 mb-2">Coding Agent</div>
               <div class="flex rounded-lg overflow-hidden border border-white/10">
                 <button 
                   phx-click="set_coding_agent"
                   phx-value-agent="opencode"
                   phx-target={@myself}
+                  disabled={@agent_mode == "round_robin"}
                   class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all " <> 
                     if(@coding_agent_pref == :opencode, 
                       do: "bg-blue-500/30 text-blue-400",
@@ -126,6 +177,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                   phx-click="set_coding_agent"
                   phx-value-agent="claude"
                   phx-target={@myself}
+                  disabled={@agent_mode == "round_robin"}
                   class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all border-x border-white/10 " <> 
                     if(@coding_agent_pref == :claude, 
                       do: "bg-purple-500/30 text-purple-400",
@@ -139,6 +191,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                   phx-click="set_coding_agent"
                   phx-value-agent="gemini"
                   phx-target={@myself}
+                  disabled={@agent_mode == "round_robin"}
                   class={"flex-1 flex items-center justify-center space-x-1 px-2 py-2 text-xs font-mono transition-all " <> 
                     if(@coding_agent_pref == :gemini, 
                       do: "bg-green-500/30 text-green-400",
