@@ -106,10 +106,11 @@ defmodule DashboardPhoenix.LinearMonitor do
     # Ensure last_updated is a DateTime if it was loaded as a string
     state = fix_loaded_state(persisted_state, initial_error)
     
-    # Add backoff tracking (Ticket #73)
+    # Add backoff tracking (Ticket #73) and polling mutex (Ticket #81)
     state = Map.merge(state, %{
       consecutive_failures: 0,
-      current_interval: @poll_interval_ms
+      current_interval: @poll_interval_ms,
+      polling: false  # Mutex to prevent concurrent polls
     })
     
     # Start polling after a short delay
@@ -128,6 +129,9 @@ defmodule DashboardPhoenix.LinearMonitor do
         end
       _ -> %{state | last_updated: nil}
     end
+    
+    # Ensure required fields exist for race condition fixes (Ticket #81)
+    state = Map.put_new(state, :polling, false)
     
     # Always use the current tools error
     %{state | error: current_error}
@@ -150,19 +154,40 @@ defmodule DashboardPhoenix.LinearMonitor do
 
   @impl true
   def handle_info(:poll, state) do
-    # Fetch async to avoid blocking GenServer calls
-    parent = self()
-    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
-      new_state = fetch_all_tickets(state)
-      send(parent, {:poll_complete, new_state})
-    end)
-    {:noreply, state}
+    # Prevent concurrent polls - critical for race condition fix (Ticket #81)
+    if state.polling do
+      Logger.debug("LinearMonitor: Poll already in progress, skipping")
+      Process.send_after(self(), :poll, state.current_interval)
+      {:noreply, state}
+    else
+      # Mark as polling and start async poll
+      state = %{state | polling: true}
+      parent = self()
+      
+      Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+        try do
+          new_state = fetch_all_tickets(state)
+          send(parent, {:poll_complete, new_state})
+        rescue
+          e ->
+            Logger.error("LinearMonitor: Poll failed: #{inspect(e)}")
+            send(parent, {:poll_error, e})
+        end
+      end)
+      
+      {:noreply, state}
+    end
   end
 
   def handle_info({:poll_complete, new_state}, state) do
-    # Persist successful poll (if no error)
+    # Reset polling flag atomically (Ticket #81)
+    new_state = %{new_state | polling: false}
+    
+    # Persist successful poll (if no error) - async to avoid blocking
     if is_nil(new_state.error) do
-      StatePersistence.save(@persistence_file, new_state)
+      Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+        StatePersistence.save(@persistence_file, new_state)
+      end)
     end
 
     # Broadcast update to subscribers
@@ -195,6 +220,25 @@ defmodule DashboardPhoenix.LinearMonitor do
       consecutive_failures: consecutive_failures,
       current_interval: next_interval
     })}
+  end
+
+  @impl true
+  def handle_info({:poll_error, _error}, state) do
+    # Reset polling flag on error (Ticket #81)
+    state = %{state | polling: false, error: "Poll failed"}
+    
+    # Calculate backoff interval
+    failures = Map.get(state, :consecutive_failures, 0) + 1
+    backoff = min(@poll_interval_ms * :math.pow(2, failures), @max_poll_interval_ms) |> trunc()
+    Logger.info("LinearMonitor: Failure ##{failures}, backing off to #{div(backoff, 1000)}s")
+    
+    # Schedule next poll with backoff
+    Process.send_after(self(), :poll, backoff)
+    
+    {:noreply, %{state | 
+      consecutive_failures: failures,
+      current_interval: backoff
+    }}
   end
 
   # Private functions
