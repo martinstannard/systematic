@@ -40,6 +40,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
     |> Map.put(:running_count, running_count)
     |> Map.put(:completed_count, completed_count)
     |> Map.put(:sub_agent_sessions_count, sub_agent_sessions_count)
+    |> Map.put_new(:sessions_loading, false)
 
     {:ok, assign(socket, updated_assigns)}
   end
@@ -154,12 +155,17 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
           <span class={"panel-chevron " <> if(@subagents_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">🤖</span>
           <span class="text-panel-label text-accent">Sub-Agents</span>
-          <span class="text-xs font-mono text-base-content/50"><%= @sub_agent_sessions_count %></span>
-          <%= if @running_count > 0 do %>
-            <span class="status-beacon text-warning" aria-hidden="true"></span>
-            <span class="px-1.5 py-0.5bg-warning/20 text-warning text-xs" role="status">
-              <%= @running_count %> active
-            </span>
+          <%= if @sessions_loading do %>
+            <span class="status-activity-ring text-accent" aria-hidden="true"></span>
+            <span class="sr-only">Loading sub-agents</span>
+          <% else %>
+            <span class="text-xs font-mono text-base-content/50"><%= @sub_agent_sessions_count %></span>
+            <%= if @running_count > 0 do %>
+              <span class="status-beacon text-warning" aria-hidden="true"></span>
+              <span class="px-1.5 py-0.5bg-warning/20 text-warning text-xs" role="status">
+                <%= @running_count %> active
+              </span>
+            <% end %>
           <% end %>
         </div>
         <%= if @completed_count > 0 do %>
@@ -176,10 +182,16 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
       </div>
       
       <div id="subagents-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}>
-        <div class="px-5 pb-5 pt-2 space-y-4 max-h-[450px] overflow-y-auto" role="region" aria-live="polite" aria-label="Sub-agent sessions list">
-          <%= if @visible_sessions == [] do %>
-            <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sub-agents</div>
-          <% end %>
+        <div class="px-4 pb-4 space-y-3 max-h-[450px] overflow-y-auto" role="region" aria-live="polite" aria-label="Sub-agent sessions list">
+          <%= if @sessions_loading do %>
+            <div class="flex items-center justify-center py-4 space-x-2">
+              <span class="throbber-small"></span>
+              <span class="text-ui-caption text-base-content/60">Loading sub-agents...</span>
+            </div>
+          <% else %>
+            <%= if @visible_sessions == [] do %>
+              <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sub-agents</div>
+            <% end %>
           <%= for session <- @visible_sessions do %>
             <% status = Map.get(session, :status, "unknown") %>
             <% {agent_type, agent_name, agent_icon} = agent_type_from_model(Map.get(session, :model)) %>
@@ -306,6 +318,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                 </div>
               <% end %>
             </div>
+          <% end %>
           <% end %>
         </div>
       </div>

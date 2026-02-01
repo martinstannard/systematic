@@ -22,6 +22,12 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
 
   @impl true
   def update(assigns, socket) do
+    # Check if any data is still loading
+    sessions_loading = Map.get(assigns, :sessions_loading, false)
+    opencode_loading = Map.get(assigns, :opencode_loading, false)
+    gemini_loading = Map.get(assigns, :gemini_loading, false)
+    any_loading = sessions_loading or opencode_loading or gemini_loading
+    
     # Build unified agent list for cards with full details
     agents = build_agent_list(assigns)
     
@@ -44,6 +50,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     |> Map.put(:active_count, active_count)
     |> Map.put(:type_counts, type_counts)
     |> Map.put(:failed_spawns, failed_spawns)
+    |> Map.put(:any_loading, any_loading)
 
     {:ok, assign(socket, updated_assigns)}
   end
@@ -312,12 +319,17 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
           <span class={"panel-chevron " <> if(@work_panel_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">⚡</span>
           <span class="text-panel-label text-accent">Work</span>
-          <span class="text-xs font-mono text-base-content/50"><%= length(@agents) %></span>
-          <%= if @active_count > 0 do %>
-            <span class="status-beacon text-success"></span>
-            <span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
-              <%= @active_count %> active
-            </span>
+          <%= if @any_loading do %>
+            <span class="status-activity-ring text-accent" aria-hidden="true"></span>
+            <span class="sr-only">Loading agents</span>
+          <% else %>
+            <span class="text-xs font-mono text-base-content/50"><%= length(@agents) %></span>
+            <%= if @active_count > 0 do %>
+              <span class="status-beacon text-success"></span>
+              <span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                <%= @active_count %> active
+              </span>
+            <% end %>
           <% end %>
         </div>
         
@@ -340,15 +352,21 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       </div>
 
       <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[1000px]")}>
-        <div class="px-5 pb-5 pt-2">
-          <!-- Failed Spawns Section -->
+        <div class="px-4 pb-4">
+          <%= if @any_loading do %>
+            <div class="flex items-center justify-center py-6 space-x-2">
+              <span class="throbber-small"></span>
+              <span class="text-ui-caption text-base-content/60">Loading agents...</span>
+            </div>
+          <% else %>
+            <!-- Failed Spawns Section -->
           <%= if length(@failed_spawns) > 0 do %>
-            <div class="mb-5">
-              <div class="flex items-center gap-2 mb-3">
+            <div class="mb-4">
+              <div class="flex items-center gap-2 mb-2">
                 <span class="text-red-400 text-sm">⚠️</span>
                 <span class="text-xs font-medium text-red-400">Recent Failures (<%= length(@failed_spawns) %>)</span>
               </div>
-              <div class="space-y-3">
+              <div class="space-y-2">
                 <%= for failure <- @failed_spawns do %>
                   <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
                     <div class="flex items-start justify-between gap-2">
@@ -414,6 +432,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
                 <% end %>
               </div>
             <% end %>
+          <% end %>
           <% end %>
         </div>
       </div>

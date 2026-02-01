@@ -13,6 +13,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
 
   @impl true
   def update(assigns, socket) do
+    assigns = Map.put_new(assigns, :opencode_loading, false)
     {:ok, assign(socket, assigns)}
   end
 
@@ -114,9 +115,14 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
           <span class={"panel-chevron " <> if(@opencode_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">💻</span>
           <span class="text-panel-label text-accent">OpenCode</span>
-          <%= if @opencode_server_status.running do %>
-            <span class="status-beacon text-success" title="Server Online" aria-label="Online">●</span>
-            <span class="text-xs font-mono text-base-content/50"><%= length(@opencode_sessions) %></span>
+          <%= if @opencode_loading do %>
+            <span class="status-activity-ring text-accent" aria-hidden="true"></span>
+            <span class="sr-only">Loading OpenCode status</span>
+          <% else %>
+            <%= if @opencode_server_status.running do %>
+              <span class="status-beacon text-success" title="Server Online" aria-label="Online">●</span>
+              <span class="text-xs font-mono text-base-content/50"><%= length(@opencode_sessions) %></span>
+            <% end %>
           <% end %>
         </div>
         <%= if @opencode_server_status.running do %>
@@ -133,8 +139,14 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
       </div>
 
       <div id="opencode-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@opencode_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-5 pb-5 pt-2">
-          <%= if not @opencode_server_status.running do %>
+        <div class="px-4 pb-4">
+          <%= if @opencode_loading do %>
+            <div class="flex items-center justify-center py-4 space-x-2">
+              <span class="throbber-small"></span>
+              <span class="text-ui-caption text-base-content/60">Loading OpenCode...</span>
+            </div>
+          <% else %>
+            <%= if not @opencode_server_status.running do %>
             <!-- Server Not Running -->
             <div class="text-center py-4">
               <div class="text-xs text-base-content/40 mb-2">ACP Server not running</div>
@@ -165,7 +177,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
             </div>
 
             <!-- Sessions List -->
-            <div class="space-y-4 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="OpenCode sessions list">
+            <div class="space-y-3 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="OpenCode sessions list">
               <%= if @opencode_sessions == [] do %>
                 <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sessions</div>
               <% end %>
@@ -236,6 +248,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
                 </div>
               <% end %>
             </div>
+          <% end %>
           <% end %>
         </div>
       </div>

@@ -23,6 +23,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
       |> assign(assigns)
       |> assign_new(:events, fn -> [] end)
       |> assign_new(:collapsed, fn -> false end)
+      |> assign_new(:loading, fn -> false end)
 
     {:ok, socket}
   end
@@ -64,17 +65,28 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
           <span class={"panel-chevron " <> if(@collapsed, do: "collapsed", else: "")} aria-hidden="true">▼</span>
           <span class="panel-icon" aria-hidden="true">📋</span>
           <span class="text-panel-label text-secondary">Activity</span>
-          <span class="text-xs font-mono text-base-content/50 text-tabular" aria-label={"#{length(@events)} events"}><%= length(@events) %></span>
+          <%= if @loading do %>
+            <span class="status-activity-ring text-secondary" aria-hidden="true"></span>
+            <span class="sr-only">Loading activity events</span>
+          <% else %>
+            <span class="text-xs font-mono text-base-content/50 text-tabular" aria-label={"#{length(@events)} events"}><%= length(@events) %></span>
+          <% end %>
         </div>
       </div>
 
       <div id="activity-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[600px]")}>
-        <div class="px-4 pb-4 pt-2 overflow-y-auto max-h-[580px] space-y-2" id="activity-panel-events" role="log" aria-live="polite" aria-label="Recent activity events">
-          <%= if @events == [] do %>
-            <div class="text-xs text-base-content/40 py-2 text-center italic">
-              No recent activity
+        <div class="px-3 pb-3 overflow-y-auto max-h-[580px] space-y-1" id="activity-panel-events" role="log" aria-live="polite" aria-label="Recent activity events">
+          <%= if @loading do %>
+            <div class="flex items-center justify-center py-4 space-x-2">
+              <span class="throbber-small"></span>
+              <span class="text-ui-caption text-base-content/60">Loading activity...</span>
             </div>
           <% else %>
+            <%= if @events == [] do %>
+              <div class="text-xs text-base-content/40 py-2 text-center italic">
+                No recent activity
+              </div>
+            <% else %>
             <%= for event <- Enum.take(@events, 50) do %>
               <div
                 class={"py-1.5 px-2 cursor-pointer transition-colors " <> event_bg_class(event.type)}
@@ -112,6 +124,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
                 <% end %>
               </div>
             <% end %>
+          <% end %>
           <% end %>
         </div>
       </div>

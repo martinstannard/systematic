@@ -11,6 +11,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
 
   @impl true
   def update(assigns, socket) do
+    assigns = Map.put_new(assigns, :gemini_loading, false)
     {:ok, assign(socket, assigns)}
   end
 
@@ -73,9 +74,14 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
           <span class={"panel-chevron " <> if(@gemini_collapsed, do: "collapsed", else: "")} aria-hidden="true">▼</span>
           <span class="panel-icon" aria-hidden="true">✨</span>
           <span class="text-panel-label text-accent">Gemini CLI</span>
-          <%= if @gemini_server_status.running do %>
-            <span class="status-beacon text-success" aria-hidden="true"></span>
-            <span class="sr-only">Server running</span>
+          <%= if @gemini_loading do %>
+            <span class="status-activity-ring text-accent" aria-hidden="true"></span>
+            <span class="sr-only">Loading Gemini status</span>
+          <% else %>
+            <%= if @gemini_server_status.running do %>
+              <span class="status-beacon text-success" aria-hidden="true"></span>
+              <span class="sr-only">Server running</span>
+            <% end %>
           <% end %>
         </div>
         <%= if @gemini_server_status.running do %>
@@ -84,8 +90,14 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
       </div>
       
       <div id="gemini-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@gemini_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-4 pb-4 pt-2">
-          <%= if not @gemini_server_status.running do %>
+        <div class="px-3 pb-3">
+          <%= if @gemini_loading do %>
+            <div class="flex items-center justify-center py-4 space-x-2">
+              <span class="throbber-small"></span>
+              <span class="text-ui-caption text-base-content/60">Loading Gemini...</span>
+            </div>
+          <% else %>
+            <%= if not @gemini_server_status.running do %>
             <div class="text-center py-4">
               <div class="text-xs text-base-content/40 mb-2">Gemini CLI not running</div>
               <button phx-click="start_server" phx-target={@myself} class="text-xs px-3 py-1.5bg-green-500/20 text-green-400 hover:bg-green-500/40" aria-label="Start Gemini CLI server">
@@ -146,6 +158,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
                 <span class="ml-1">Send</span>
               </button>
             </form>
+          <% end %>
           <% end %>
         </div>
       </div>

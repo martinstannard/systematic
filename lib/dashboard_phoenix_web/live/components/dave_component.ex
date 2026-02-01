@@ -27,7 +27,8 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
     socket = assign(socket,
       main_agent_session: main_agent_session,
       recent_actions: recent_actions,
-      dave_collapsed: assigns.dave_collapsed
+      dave_collapsed: assigns.dave_collapsed,
+      sessions_loading: Map.get(assigns, :sessions_loading, false)
     )
     
     {:ok, socket}
@@ -41,7 +42,23 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
   def render(assigns) do
     ~H"""
     <div class="panel-content-standard" id="dave" role="region" aria-label="Dave - Main agent status">
-      <%= if @main_agent_session do %>
+      <%= if @sessions_loading do %>
+        <div class="flex items-center justify-between px-3 py-2 bg-base-content/5">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs">▼</span>
+            <span class="text-panel-label text-purple-400">🐙 Dave</span>
+            <span class="status-activity-ring text-purple-400" aria-hidden="true"></span>
+            <span class="sr-only">Loading</span>
+          </div>
+        </div>
+        <div class="px-3 py-4">
+          <div class="flex items-center justify-center space-x-2">
+            <span class="throbber-small"></span>
+            <span class="text-ui-caption text-base-content/60">Loading main agent...</span>
+          </div>
+        </div>
+      <% else %>
+        <%= if @main_agent_session do %>
         <div 
           class="panel-header-standard panel-header-interactive flex items-center justify-between select-none"
           phx-click="toggle_panel"
@@ -75,7 +92,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
         </div>
         
         <div id="dave-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@dave_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-          <div class="px-4 pb-4 pt-2">
+          <div class="px-3 pb-3">
             <% current_action = Map.get(@main_agent_session, :current_action) %>
             
             <!-- Current Activity -->
@@ -140,6 +157,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
         <div class="px-3 py-2">
           <div class="text-xs text-base-content/50 italic">No main agent session found</div>
         </div>
+      <% end %>
       <% end %>
     </div>
     """

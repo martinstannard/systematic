@@ -15,6 +15,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
   end
 
   def update(assigns, socket) do
+    assigns = Map.put_new(assigns, :sessions_loading, false)
     socket = assign(socket, assigns)
     {:ok, socket}
   end
@@ -76,14 +77,25 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
           <span class={"panel-chevron " <> if(@live_progress_collapsed, do: "collapsed", else: "")} aria-hidden="true">▼</span>
           <span class="panel-icon" aria-hidden="true">📡</span>
           <span class="text-panel-label text-secondary">Live Feed</span>
-          <span class="text-xs font-mono text-base-content/50 text-tabular" aria-label={"#{@agent_progress_count} events"}><%= @agent_progress_count %></span>
+          <%= if @sessions_loading do %>
+            <span class="status-activity-ring text-secondary" aria-hidden="true"></span>
+            <span class="sr-only">Loading live feed</span>
+          <% else %>
+            <span class="text-xs font-mono text-base-content/50 text-tabular" aria-label={"#{@agent_progress_count} events"}><%= @agent_progress_count %></span>
+          <% end %>
         </div>
         <button phx-click="clear_progress" phx-target={@myself} class="text-xs text-base-content/40 hover:text-secondary px-2 py-1" aria-label="Clear live feed">Clear</button>
       </div>
       
       <div id="live-progress-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@live_progress_collapsed, do: "max-h-0", else: "max-h-[400px] flex-1")}>
-        <div class="px-4 pb-4 pt-2 h-full max-h-[350px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream" role="log" aria-live="polite" aria-label="Agent activity log">
-          <div :for={{dom_id, event} <- @progress_events} id={dom_id} class="py-0.5 flex items-start space-x-1" role="listitem">
+        <%= if @sessions_loading do %>
+          <div class="flex items-center justify-center py-4 space-x-2">
+            <span class="throbber-small"></span>
+            <span class="text-ui-caption text-base-content/60">Loading live feed...</span>
+          </div>
+        <% else %>
+          <div class="px-3 pb-3 h-full max-h-[350px] overflow-y-auto font-mono text-xs" id="progress-feed" phx-hook="ScrollBottom" phx-update="stream" role="log" aria-live="polite" aria-label="Agent activity log">
+            <div :for={{dom_id, event} <- @progress_events} id={dom_id} class="py-0.5 flex items-start space-x-1" role="listitem">
             <span class="text-base-content/40 w-12 flex-shrink-0"><%= format_time(event.ts) %></span>
             <span class={"flex-shrink-0 px-1 rounded-[2px] text-[9px] uppercase font-bold " <> type_color(Map.get(event, :agent_type))}>
               <%= Map.get(event, :agent_type) || "???" %>
@@ -91,8 +103,9 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
             <span class={agent_color(event.agent) <> " w-[180px] flex-shrink-0 truncate"}><%= event.agent %></span>
             <span class={action_color(event.action) <> " font-bold w-10 flex-shrink-0"}><%= event.action %></span>
             <span class="text-base-content/70 truncate flex-1"><%= event.target %></span>
+            </div>
           </div>
-        </div>
+        <% end %>
       </div>
     </div>
     """
