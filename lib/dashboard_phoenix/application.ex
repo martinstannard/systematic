@@ -30,6 +30,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.AgentPreferences,
       # Activity log for workflow event tracking
       DashboardPhoenix.ActivityLog,
+      # Deploy manager for post-merge deployment pipeline
+      DashboardPhoenix.DeployManager,
       # HomeLive memoization cache
       DashboardPhoenixWeb.HomeLiveCache,
     ] ++ session_bridge_child ++ [
