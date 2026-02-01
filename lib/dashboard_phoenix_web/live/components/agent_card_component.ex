@@ -23,6 +23,27 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   @type state :: :running | :completed | :failed | :idle
 
   @doc """
+  Extracts a short model name for display (e.g., "opus", "sonnet", "gemini").
+  """
+  def short_model_name(nil), do: nil
+  def short_model_name(model) when is_binary(model) do
+    model_lower = String.downcase(model)
+    cond do
+      String.contains?(model_lower, "opus") -> "opus"
+      String.contains?(model_lower, "sonnet") -> "sonnet"
+      String.contains?(model_lower, "haiku") -> "haiku"
+      String.contains?(model_lower, "gemini") -> "gemini"
+      String.contains?(model_lower, "gpt-4o") -> "gpt-4o"
+      String.contains?(model_lower, "gpt-4") -> "gpt-4"
+      String.contains?(model_lower, "gpt-3") -> "gpt-3"
+      String.contains?(model_lower, "o1") -> "o1"
+      String.contains?(model_lower, "o3") -> "o3"
+      true -> nil
+    end
+  end
+  def short_model_name(_), do: nil
+
+  @doc """
   Determines the agent type info (atom, display name, icon) from the type string or model.
   """
   def agent_type_info("claude"), do: {:claude, "Claude", "🟣"}
@@ -87,6 +108,10 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     start_time = compute_start_time(agent)
     runtime = Map.get(agent, :runtime)
     
+    # Model name for display
+    model = Map.get(agent, :model)
+    model_short = short_model_name(model)
+    
     socket = socket
     |> assign(assigns)
     |> assign(:type_atom, type_atom)
@@ -97,6 +122,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     |> assign(:task, task)
     |> assign(:start_time, start_time)
     |> assign(:runtime, runtime)
+    |> assign(:model_short, model_short)
     |> assign(:agent_id, Map.get(agent, :id, "unknown"))
     
     {:ok, socket}
@@ -195,22 +221,27 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
           </span>
         </div>
         
-        <!-- Right: Duration, State Badge -->
+        <!-- Right: Model + Duration, State Badge -->
         <div class="flex items-center space-x-2 flex-shrink-0">
-          <!-- Duration -->
+          <!-- Model + Duration -->
           <%= if @state == :running do %>
             <span 
               class={"px-1.5 py-0.5 text-xs tabular-nums " <> duration_badge_class(@state)}
               id={"duration-#{@agent_id}"}
               phx-hook="LiveDuration"
               data-start-time={@start_time}
+              data-model={@model_short}
             >
-              <%= @runtime || "0s" %>
+              <%= if @model_short do %><%= @model_short %> • <% end %><%= @runtime || "0s" %>
             </span>
           <% else %>
-            <%= if @runtime do %>
+            <%= if @runtime || @model_short do %>
               <span class={"px-1.5 py-0.5 text-xs tabular-nums " <> duration_badge_class(@state)}>
-                <%= @runtime %>
+                <%= if @model_short && @runtime do %>
+                  <%= @model_short %> • <%= @runtime %>
+                <% else %>
+                  <%= @model_short || @runtime %>
+                <% end %>
               </span>
             <% end %>
           <% end %>

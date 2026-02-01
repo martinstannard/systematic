@@ -4,6 +4,46 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
   import Phoenix.LiveViewTest
   alias DashboardPhoenixWeb.Live.Components.AgentCardComponent
 
+  describe "AgentCardComponent short_model_name/1" do
+    test "extracts opus from claude model strings" do
+      assert "opus" = AgentCardComponent.short_model_name("claude-opus-4-5")
+      assert "opus" = AgentCardComponent.short_model_name("anthropic/claude-opus-4-5")
+      assert "opus" = AgentCardComponent.short_model_name("CLAUDE-OPUS-4")
+    end
+
+    test "extracts sonnet from claude model strings" do
+      assert "sonnet" = AgentCardComponent.short_model_name("claude-sonnet-4-20250514")
+      assert "sonnet" = AgentCardComponent.short_model_name("anthropic/claude-sonnet-4")
+    end
+
+    test "extracts haiku from claude model strings" do
+      assert "haiku" = AgentCardComponent.short_model_name("claude-3-haiku")
+      assert "haiku" = AgentCardComponent.short_model_name("anthropic/claude-haiku-3")
+    end
+
+    test "extracts gemini from google model strings" do
+      assert "gemini" = AgentCardComponent.short_model_name("gemini-2.5-pro")
+      assert "gemini" = AgentCardComponent.short_model_name("google/gemini-flash")
+    end
+
+    test "extracts gpt variants from openai model strings" do
+      assert "gpt-4o" = AgentCardComponent.short_model_name("gpt-4o-mini")
+      assert "gpt-4" = AgentCardComponent.short_model_name("gpt-4-turbo")
+      assert "gpt-3" = AgentCardComponent.short_model_name("gpt-3.5-turbo")
+    end
+
+    test "extracts o1/o3 reasoning models" do
+      assert "o1" = AgentCardComponent.short_model_name("o1-preview")
+      assert "o3" = AgentCardComponent.short_model_name("o3-mini")
+    end
+
+    test "returns nil for unknown models" do
+      assert nil == AgentCardComponent.short_model_name("unknown-model")
+      assert nil == AgentCardComponent.short_model_name(nil)
+      assert nil == AgentCardComponent.short_model_name("")
+    end
+  end
+
   describe "AgentCardComponent agent_type_info/1" do
     test "identifies Claude agents" do
       assert {:claude, "Claude", "🟣"} = AgentCardComponent.agent_type_info("claude")
@@ -405,6 +445,87 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       assert html =~ "🔥"  # OpenAI icon
       assert html =~ "GPT Agent"
+    end
+  end
+
+  describe "AgentCardComponent model display" do
+    test "shows model name with duration for running agent" do
+      agent = %{
+        id: "model-test",
+        type: "claude",
+        model: "anthropic/claude-opus-4-5",
+        name: "Test Agent",
+        status: "running",
+        runtime: "2m 30s"
+      }
+
+      html = render_component(AgentCardComponent, id: "test-card", agent: agent)
+
+      assert html =~ "opus"
+      assert html =~ "•"
+      assert html =~ "2m 30s"
+    end
+
+    test "shows model name with duration for completed agent" do
+      agent = %{
+        id: "model-test",
+        type: "claude",
+        model: "claude-sonnet-4-20250514",
+        name: "Test Agent",
+        status: "completed",
+        runtime: "5m 12s"
+      }
+
+      html = render_component(AgentCardComponent, id: "test-card", agent: agent)
+
+      assert html =~ "sonnet"
+      assert html =~ "•"
+      assert html =~ "5m 12s"
+    end
+
+    test "shows only model name when no runtime" do
+      agent = %{
+        id: "model-only",
+        type: "claude",
+        model: "gemini-2.5-pro",
+        name: "Test Agent",
+        status: "idle"
+      }
+
+      html = render_component(AgentCardComponent, id: "test-card", agent: agent)
+
+      assert html =~ "gemini"
+    end
+
+    test "shows only duration when model is unknown" do
+      agent = %{
+        id: "duration-only",
+        type: "claude",
+        model: "some-unknown-model",
+        name: "Test Agent",
+        status: "completed",
+        runtime: "3m 45s"
+      }
+
+      html = render_component(AgentCardComponent, id: "test-card", agent: agent)
+
+      assert html =~ "3m 45s"
+      refute html =~ "•"
+    end
+
+    test "includes data-model attribute for LiveDuration hook" do
+      agent = %{
+        id: "data-attr-test",
+        type: "claude",
+        model: "claude-opus-4-5",
+        name: "Test Agent",
+        status: "running",
+        runtime: "1m 0s"
+      }
+
+      html = render_component(AgentCardComponent, id: "test-card", agent: agent)
+
+      assert html =~ "data-model=\"opus\""
     end
   end
 
