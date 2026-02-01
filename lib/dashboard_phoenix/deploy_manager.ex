@@ -365,7 +365,17 @@ defmodule DashboardPhoenix.DeployManager do
 
   @doc false
   def run_command(cmd, args, opts \\ []) do
-    System.cmd(cmd, args, opts)
+    try do
+      System.cmd(cmd, args, opts)
+    rescue
+      e in ErlangError ->
+        # Handle cases where the command doesn't exist or can't be executed
+        Logger.error("[DeployManager] Command execution failed: #{inspect(e)}")
+        {"Command execution failed: #{inspect(e.original)}", 127}
+      e ->
+        Logger.error("[DeployManager] Unexpected error running command: #{inspect(e)}")
+        {"Unexpected error: #{Exception.message(e)}", 1}
+    end
   end
 
   @doc false

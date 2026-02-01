@@ -31,6 +31,7 @@ defmodule DashboardPhoenix.ActivityLog do
   """
 
   use GenServer
+  require Logger
 
   alias DashboardPhoenix.FileUtils
 
@@ -159,16 +160,43 @@ defmodule DashboardPhoenix.ActivityLog do
   defp load_events_from_file do
     case File.read(@events_file) do
       {:ok, content} ->
-        content
-        |> Jason.decode!()
-        |> Enum.map(&decode_event/1)
-        |> Enum.take(@max_events)
+        case Jason.decode(content) do
+          {:ok, events} when is_list(events) ->
+            events
+            |> Enum.map(&decode_event_safe/1)
+            |> Enum.reject(&is_nil/1)
+            |> Enum.take(@max_events)
+          
+          {:ok, _} ->
+            Logger.warning("[ActivityLog] Events file contains non-list data, returning empty")
+            []
+          
+          {:error, decode_error} ->
+            Logger.warning("[ActivityLog] Failed to decode events file: #{inspect(decode_error)}")
+            []
+        end
 
-      {:error, _} ->
+      {:error, :enoent} ->
+        # File doesn't exist yet, this is normal on first run
+        []
+
+      {:error, reason} ->
+        Logger.warning("[ActivityLog] Failed to read events file: #{inspect(reason)}")
         []
     end
   rescue
-    _ -> []
+    e ->
+      Logger.error("[ActivityLog] Exception loading events: #{Exception.message(e)}")
+      []
+  end
+
+  # Safe version of decode_event that returns nil on failure
+  defp decode_event_safe(data) do
+    decode_event(data)
+  rescue
+    e ->
+      Logger.warning("[ActivityLog] Failed to decode event: #{inspect(e)}, data: #{inspect(data)}")
+      nil
   end
 
   defp save_events_to_file(events) do

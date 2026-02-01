@@ -647,28 +647,38 @@ defmodule DashboardPhoenix.OpenCodeServer do
       Logger.debug("[OpenCodeServer] Skipping session cleanup - server not running")
       state
     else
-      case OpenCodeClient.list_sessions() do
-        {:ok, sessions} ->
-          now_ms = System.system_time(:millisecond)
-          stale_sessions = find_stale_sessions(sessions, now_ms)
-          deleted_count = delete_stale_sessions(stale_sessions)
-          
-          if deleted_count > 0 do
-            Logger.info("[OpenCodeServer] Cleaned up #{deleted_count} stale session(s)")
+      try do
+        case OpenCodeClient.list_sessions() do
+          {:ok, sessions} when is_list(sessions) ->
+            now_ms = System.system_time(:millisecond)
+            stale_sessions = find_stale_sessions(sessions, now_ms)
+            deleted_count = delete_stale_sessions(stale_sessions)
             
-            ActivityLog.log_event(
-              :session_cleanup,
-              "Cleaned up #{deleted_count} stale OpenCode session(s)",
-              %{count: deleted_count, session_ids: Enum.map(stale_sessions, & &1["id"])}
-            )
-          else
-            Logger.debug("[OpenCodeServer] No stale sessions to cleanup")
-          end
+            if deleted_count > 0 do
+              Logger.info("[OpenCodeServer] Cleaned up #{deleted_count} stale session(s)")
+              
+              ActivityLog.log_event(
+                :session_cleanup,
+                "Cleaned up #{deleted_count} stale OpenCode session(s)",
+                %{count: deleted_count, session_ids: Enum.map(stale_sessions, & &1["id"])}
+              )
+            else
+              Logger.debug("[OpenCodeServer] No stale sessions to cleanup")
+            end
+            
+            state
           
-          state
-          
-        {:error, reason} ->
-          Logger.warning("[OpenCodeServer] Failed to list sessions for cleanup: #{inspect(reason)}")
+          {:ok, _} ->
+            Logger.warning("[OpenCodeServer] Unexpected response format from list_sessions")
+            state
+            
+          {:error, reason} ->
+            Logger.warning("[OpenCodeServer] Failed to list sessions for cleanup: #{inspect(reason)}")
+            state
+        end
+      rescue
+        e ->
+          Logger.error("[OpenCodeServer] Exception during session cleanup: #{Exception.message(e)}")
           state
       end
     end

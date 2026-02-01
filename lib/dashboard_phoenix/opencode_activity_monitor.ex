@@ -82,9 +82,14 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
         |> Enum.filter(fn path ->
           case File.stat(path) do
             {:ok, %{mtime: mtime}} ->
-              epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-              epoch > cutoff
-            _ -> false
+              # Safely convert mtime with error handling
+              try do
+                epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
+                epoch > cutoff
+              rescue
+                _ -> false
+              end
+            {:error, _} -> false
           end
         end)
         |> Enum.reduce({[], state.seen_part_ids}, fn path, {events_acc, seen_acc} ->
@@ -114,8 +119,12 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
           %{state | seen_part_ids: seen_ids}
         end
         
-      {:error, _} ->
+      {:error, :enoent} ->
         # OpenCode storage doesn't exist yet, that's fine
+        state
+
+      {:error, reason} ->
+        Logger.debug("[OpenCodeActivityMonitor] Failed to list parts dir: #{inspect(reason)}")
         state
     end
   end

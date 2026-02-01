@@ -11,7 +11,12 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
 
   @impl true
   def update(assigns, socket) do
-    {:ok, assign(socket, assigns)}
+    # Compute count if not provided, with fallback to prevent crashes
+    prs = Map.get(assigns, :github_prs, [])
+    prs_count = Map.get(assigns, :github_prs_count, length(prs))
+    
+    assigns_with_defaults = Map.put(assigns, :github_prs_count, prs_count)
+    {:ok, assign(socket, assigns_with_defaults)}
   end
 
   @impl true

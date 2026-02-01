@@ -16,10 +16,14 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
 
   @impl true
   def update(assigns, socket) do
-    # Pre-calculate empty state to avoid template computation
-    issues_empty = Enum.empty?(assigns.chainlink_issues)
+    # Compute derived values with fallbacks to prevent crashes
+    issues = Map.get(assigns, :chainlink_issues, [])
+    issues_empty = Enum.empty?(issues)
+    issues_count = Map.get(assigns, :chainlink_issues_count, length(issues))
     
-    assigns_with_computed = Map.put(assigns, :chainlink_issues_empty, issues_empty)
+    assigns_with_computed = assigns
+    |> Map.put(:chainlink_issues_empty, issues_empty)
+    |> Map.put(:chainlink_issues_count, issues_count)
     {:ok, assign(socket, assigns_with_computed)}
   end
 

@@ -10,9 +10,13 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
   @impl true
   def update(assigns, socket) do
-    # Use pre-filtered tickets from HomeLive - no redundant computation needed
-    # HomeLive already calculates linear_filtered_tickets and linear_tickets_count
-    {:ok, assign(socket, assigns)}
+    # Compute count if not provided, with fallback to prevent crashes
+    # This ensures the component works even if parent forgets to pass the count
+    tickets = Map.get(assigns, :linear_tickets, [])
+    tickets_count = Map.get(assigns, :linear_tickets_count, length(tickets))
+    
+    assigns_with_defaults = Map.put(assigns, :linear_tickets_count, tickets_count)
+    {:ok, assign(socket, assigns_with_defaults)}
   end
 
   @impl true

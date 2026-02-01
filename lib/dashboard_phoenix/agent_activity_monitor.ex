@@ -134,9 +134,16 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
           path = Path.join(sessions_dir, file)
           case File.stat(path) do
             {:ok, %{mtime: mtime}} ->
-              epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-              if epoch > cutoff, do: {path, file, epoch}, else: nil
-            _ -> nil
+              # Use try/rescue to handle potential datetime conversion errors
+              try do
+                epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
+                if epoch > cutoff, do: {path, file, epoch}, else: nil
+              rescue
+                _ -> nil
+              end
+            {:error, reason} ->
+              Logger.debug("[AgentActivityMonitor] Failed to stat #{path}: #{inspect(reason)}")
+              nil
           end
         end)
         |> Enum.reject(&is_nil/1)
@@ -145,7 +152,13 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
         |> Enum.map(fn {path, file, _} -> parse_session_file(path, file, state.session_offsets) end)
         |> Enum.reject(&is_nil/1)
         |> Map.new(fn agent -> {agent.id, agent} end)
-      _ ->
+
+      {:error, :enoent} ->
+        # Directory doesn't exist yet, this is normal
+        %{}
+
+      {:error, reason} ->
+        Logger.debug("[AgentActivityMonitor] Failed to list sessions dir: #{inspect(reason)}")
         %{}
     end
   end

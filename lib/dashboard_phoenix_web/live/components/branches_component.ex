@@ -11,7 +11,12 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
 
   @impl true
   def update(assigns, socket) do
-    {:ok, assign(socket, assigns)}
+    # Compute count if not provided, with fallback to prevent crashes
+    branches = Map.get(assigns, :unmerged_branches, [])
+    branches_count = Map.get(assigns, :unmerged_branches_count, length(branches))
+    
+    assigns_with_defaults = Map.put(assigns, :unmerged_branches_count, branches_count)
+    {:ok, assign(socket, assigns_with_defaults)}
   end
 
   @impl true
