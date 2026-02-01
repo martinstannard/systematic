@@ -24,21 +24,6 @@
   <!-- Main Dashboard Layout -->
   <div class="flex-1 flex flex-col gap-6 overflow-y-auto">
     
-    <!-- Usage Stats - Compact utility bar at top -->
-    <div class={[
-      "glass-morphism panel-priority-compact panel-accent-reference relative",
-      DashboardPhoenix.PanelStatus.status_classes(:usage_stats, %{
-        opencode: @usage_stats[:opencode] || %{},
-        claude: @usage_stats[:claude] || %{}
-      })
-    ]} style="border-radius: 12px;">
-      <.live_component
-        module={UsageStatsComponent}
-        id="usage-stats"
-        usage_stats={@usage_stats}
-      />
-    </div>
-
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
     <!-- CORE WORK - Linear / Chainlink / PRs / Branches                             -->
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
@@ -273,6 +258,21 @@
         </div>
       </div>
     </section>
+
+    <!-- Usage Stats - Compact utility bar at bottom -->
+    <div class={[
+      "glass-morphism panel-priority-compact panel-accent-reference relative",
+      DashboardPhoenix.PanelStatus.status_classes(:usage_stats, %{
+        opencode: @usage_stats[:opencode] || %{},
+        claude: @usage_stats[:claude] || %{}
+      })
+    ]}>
+      <.live_component
+        module={UsageStatsComponent}
+        id="usage-stats"
+        usage_stats={@usage_stats}
+      />
+    </div>
   </div>
 
   <!-- Work on Ticket Modal (LiveComponent) -->

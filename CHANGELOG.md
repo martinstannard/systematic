@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - UI: Make borders plain - no rounded corners, no glow/animations (#97)
+- UI: Make borders plain - no rounded corners, no glow/animations (#97)
 - Activity Log: Add activity panel to dashboard header (#83)
 - Fix: Round robin toggle needs integration tests and verification (#95)
 - UI: Remove all glow animations from panels (#96)
