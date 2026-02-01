@@ -1,4 +1,10 @@
 defmodule DashboardPhoenixWeb.Endpoint do
+  @moduledoc """
+  Phoenix endpoint for the dashboard web application.
+  
+  Configures HTTP request handling, static asset serving, session management,
+  and WebSocket connections for LiveView functionality.
+  """
   use Phoenix.Endpoint, otp_app: :dashboard_phoenix
 
   # The session will be stored in the cookie and signed,
