@@ -65,46 +65,56 @@ defmodule DashboardPhoenix.StatePersistence do
     tmp_path = path <> ".tmp"
 
     try do
-      # Ensure the directory exists
-      case File.mkdir_p(Path.dirname(path)) do
-        :ok -> :ok
-        {:error, reason} ->
-          Logger.error("StatePersistence: Failed to create directory for #{path}: #{inspect(reason)}")
-          return {:error, {:mkdir, reason}}
-      end
-
-      # Encode JSON
-      case Jason.encode(state) do
-        {:ok, content} ->
-          # Atomic write: tmp file then rename
-          case File.write(tmp_path, content) do
-            :ok ->
-              case File.rename(tmp_path, path) do
-                :ok ->
-                  Logger.debug("StatePersistence: Successfully saved state to #{filename}")
-                  :ok
-                {:error, reason} ->
-                  Logger.error("StatePersistence: Failed to rename #{tmp_path} to #{path}: #{inspect(reason)}")
-                  File.rm(tmp_path)  # Clean up
-                  {:error, {:rename, reason}}
-              end
-            {:error, reason} ->
-              Logger.error("StatePersistence: Failed to write to #{tmp_path}: #{inspect(reason)}")
-              {:error, {:write, reason}}
-          end
-        {:error, %Jason.EncodeError{} = e} ->
-          Logger.error("StatePersistence: Failed to encode state as JSON for #{filename}: #{Exception.message(e)}")
-          {:error, {:json_encode, e}}
-        {:error, reason} ->
-          Logger.error("StatePersistence: JSON encode error for #{filename}: #{inspect(reason)}")
-          {:error, {:json_encode, reason}}
+      with :ok <- ensure_directory(path),
+           {:ok, content} <- encode_json(filename, state),
+           :ok <- write_atomic(path, tmp_path, content, filename) do
+        :ok
       end
     rescue
       e ->
         Logger.error("StatePersistence: Exception saving state to #{filename}: #{inspect(e)}")
-        # Clean up tmp file if it exists
         File.rm(tmp_path)
         {:error, {:exception, e}}
+    end
+  end
+
+  defp ensure_directory(path) do
+    case File.mkdir_p(Path.dirname(path)) do
+      :ok -> :ok
+      {:error, reason} ->
+        Logger.error("StatePersistence: Failed to create directory for #{path}: #{inspect(reason)}")
+        {:error, {:mkdir, reason}}
+    end
+  end
+
+  defp encode_json(filename, state) do
+    case Jason.encode(state) do
+      {:ok, content} ->
+        {:ok, content}
+      {:error, %Jason.EncodeError{} = e} ->
+        Logger.error("StatePersistence: Failed to encode state as JSON for #{filename}: #{Exception.message(e)}")
+        {:error, {:json_encode, e}}
+      {:error, reason} ->
+        Logger.error("StatePersistence: JSON encode error for #{filename}: #{inspect(reason)}")
+        {:error, {:json_encode, reason}}
+    end
+  end
+
+  defp write_atomic(path, tmp_path, content, filename) do
+    case File.write(tmp_path, content) do
+      :ok ->
+        case File.rename(tmp_path, path) do
+          :ok ->
+            Logger.debug("StatePersistence: Successfully saved state to #{filename}")
+            :ok
+          {:error, reason} ->
+            Logger.error("StatePersistence: Failed to rename #{tmp_path} to #{path}: #{inspect(reason)}")
+            File.rm(tmp_path)
+            {:error, {:rename, reason}}
+        end
+      {:error, reason} ->
+        Logger.error("StatePersistence: Failed to write to #{tmp_path}: #{inspect(reason)}")
+        {:error, {:write, reason}}
     end
   end
 

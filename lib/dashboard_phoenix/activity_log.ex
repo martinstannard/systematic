@@ -33,6 +33,7 @@ defmodule DashboardPhoenix.ActivityLog do
   """
 
   use GenServer
+  require Logger
 
   alias DashboardPhoenix.FileUtils
 
@@ -167,7 +168,7 @@ defmodule DashboardPhoenix.ActivityLog do
           |> Enum.map(&decode_event/1)
           |> Enum.take(@max_events)
         rescue
-          %Jason.DecodeError{} = e ->
+          e in Jason.DecodeError ->
             Logger.warning("ActivityLog: Failed to decode events JSON: #{Exception.message(e)}")
             []
           e ->
