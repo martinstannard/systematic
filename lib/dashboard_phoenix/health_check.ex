@@ -7,6 +7,8 @@ defmodule DashboardPhoenix.HealthCheck do
   use GenServer
   require Logger
 
+  alias DashboardPhoenix.PubSub.Topics
+
   @check_interval :timer.seconds(30)
   @health_url "http://127.0.0.1:4000/"
   @timeout 5_000
@@ -19,7 +21,7 @@ defmodule DashboardPhoenix.HealthCheck do
 
   @doc "Subscribe to health check updates"
   def subscribe do
-    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "health_check")
+    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, Topics.health_check())
   end
 
   @doc "Get current health status"
@@ -103,7 +105,7 @@ defmodule DashboardPhoenix.HealthCheck do
   defp broadcast(state) do
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
-      "health_check",
+      Topics.health_check(),
       {:health_update, state}
     )
   end

@@ -22,6 +22,7 @@ defmodule DashboardPhoenix.SessionBridge do
   alias DashboardPhoenix.FileUtils
   alias DashboardPhoenix.ActivityLog
   alias DashboardPhoenix.Status
+  alias DashboardPhoenix.PubSub.Topics
   
   @base_poll_interval 5000   # Start at 5s 
   @max_poll_interval 10000   # Back off to 10s when idle
@@ -88,7 +89,7 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   def subscribe do
-    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "agent_updates")
+    Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, Topics.agent_updates())
   end
 
   # GenServer callbacks
@@ -1161,11 +1162,11 @@ defmodule DashboardPhoenix.SessionBridge do
   defp format_age(ms), do: "#{div(ms, 86_400_000)}d ago"
 
   defp broadcast_progress(events) do
-    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, "agent_updates", {:progress, events})
+    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, Topics.agent_updates(), {:progress, events})
   end
 
   defp broadcast_sessions(sessions) do
-    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, "agent_updates", {:sessions, sessions})
+    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, Topics.agent_updates(), {:sessions, sessions})
   end
 
   # Helper to format duration for activity log
