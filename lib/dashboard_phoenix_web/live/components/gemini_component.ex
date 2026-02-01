@@ -68,7 +68,8 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
           <span class="panel-icon">✨</span>
           <span class="text-panel-label text-accent">Gemini CLI</span>
           <%= if @gemini_server_status.running do %>
-            <span class="status-beacon text-success"></span>
+            <span class="status-beacon text-success" aria-hidden="true"></span>
+            <span class="sr-only">Server running</span>
           <% end %>
         </div>
         <%= if @gemini_server_status.running do %>
@@ -107,8 +108,8 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
             <!-- Output - using data panel for terminal display -->
             <div class="panel-data p-3 mb-2 max-h-[200px] overflow-y-auto" id="gemini-output" phx-hook="ScrollBottom">
               <%= if @gemini_output == "" do %>
-                <div class="flex items-center space-x-2 text-base-content/50">
-                  <span class="status-marker text-info opacity-50"></span>
+                <div class="flex items-center space-x-2 text-base-content/50" role="status">
+                  <span class="status-marker text-info opacity-50" aria-hidden="true"></span>
                   <span class="text-ui-caption italic">Waiting for output...</span>
                 </div>
               <% else %>

@@ -50,9 +50,10 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             <span class="panel-icon">🐙</span>
             <span class="text-panel-label text-purple-400">Dave</span>
             <%= if @main_agent_session.status == "running" do %>
-              <span class="status-beacon text-warning"></span>
+              <span class="status-beacon text-warning" aria-label="Running" role="status"></span>
+              <span class="sr-only">Running</span>
             <% else %>
-              <span class={"px-1.5 py-0.5text-xs " <> status_badge(@main_agent_session.status)}>
+              <span class={"px-1.5 py-0.5text-xs " <> status_badge(@main_agent_session.status)} role="status">
                 <%= @main_agent_session.status %>
               </span>
             <% end %>
@@ -73,22 +74,22 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             <div class="py-2">
               <%= if @main_agent_session.status == "running" do %>
                 <%= if current_action do %>
-                  <div class="flex items-center space-x-2 mb-2">
-                    <span class="status-activity-ring text-purple-400"></span>
+                  <div class="flex items-center space-x-2 mb-2" role="status" aria-live="polite">
+                    <span class="status-activity-ring text-purple-400" aria-hidden="true"></span>
                     <span class="text-xs text-purple-400/70">Current:</span>
                     <span class="text-purple-300 text-xs font-mono truncate" title={current_action}>
                       <%= current_action %>
                     </span>
                   </div>
                 <% else %>
-                  <div class="flex items-center space-x-2 mb-2">
-                    <span class="status-activity-ring text-purple-400"></span>
+                  <div class="flex items-center space-x-2 mb-2" role="status" aria-live="polite">
+                    <span class="status-activity-ring text-purple-400" aria-hidden="true"></span>
                     <span class="text-xs text-purple-400/60 italic">Working...</span>
                   </div>
                 <% end %>
               <% else %>
-                <div class="flex items-center space-x-2 mb-2">
-                  <span class="status-marker-idle w-2 h-2 bg-purple-400"></span>
+                <div class="flex items-center space-x-2 mb-2" role="status">
+                  <span class="status-marker-idle w-2 h-2 bg-purple-400" aria-hidden="true"></span>
                   <span class="text-xs text-purple-400/60">Idle</span>
                 </div>
               <% end %>

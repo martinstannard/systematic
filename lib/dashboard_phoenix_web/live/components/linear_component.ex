@@ -98,7 +98,8 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
           <span class="panel-icon">🎫</span>
           <span class="text-panel-label text-accent">Linear</span>
           <%= if @linear_loading do %>
-            <span class="status-activity-ring text-accent"></span>
+            <span class="status-activity-ring text-accent" aria-hidden="true"></span>
+            <span class="sr-only">Loading tickets</span>
           <% else %>
             <span class="text-xs font-mono text-base-content/50"><%= length(@linear_tickets) %></span>
           <% end %>
@@ -153,7 +154,8 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                 <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
                 <div class={"flex items-center space-x-2 px-2 py-1.5text-xs font-mono transition-all " <> if(work_info, do: "panel-work bg-accent/15 border border-accent/30", else: "panel-status hover:bg-accent/10 hover:border-accent/30")}>
                   <%= if work_info do %>
-                    <span class="w-1.5 h-1.5 bg-success animate-pulse"></span>
+                    <span class="w-1.5 h-1.5 bg-success animate-pulse" aria-hidden="true"></span>
+                    <span class="sr-only">Work in progress</span>
                   <% else %>
                     <button
                       phx-click="work_on_ticket"

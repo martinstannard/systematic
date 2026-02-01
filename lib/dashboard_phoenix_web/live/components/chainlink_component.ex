@@ -71,6 +71,10 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   defp status_icon("closed"), do: "●"
   defp status_icon(_), do: "◌"
 
+  defp status_text("open"), do: "Open"
+  defp status_text("closed"), do: "Closed"
+  defp status_text(_), do: "Unknown status"
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -91,7 +95,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
           <span class="panel-icon">🔗</span>
           <span class="text-panel-label text-accent">Chainlink</span>
           <%= if @chainlink_loading do %>
-            <span class="status-activity-ring text-accent"></span>
+            <span class="status-activity-ring text-accent" aria-hidden="true"></span>
+            <span class="sr-only">Loading issues</span>
           <% else %>
             <span class="text-ui-caption text-tabular text-base-content/60"><%= length(@chainlink_issues) %></span>
           <% end %>
@@ -134,8 +139,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                 <% work_info = Map.get(@chainlink_work_in_progress, issue.id) %>
                 <div class={"flex items-center space-x-2 px-2 py-1.5" <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
                   <%= if work_info do %>
-                    <div class="flex items-center space-x-1" title={"Work in progress: #{work_info[:label]}"}>
-                      <span class="w-1.5 h-1.5 bg-success animate-pulse"></span>
+                    <div class="flex items-center space-x-1" title={"Work in progress: #{work_info[:label]}"} role="status">
+                      <span class="w-1.5 h-1.5 bg-success animate-pulse" aria-hidden="true"></span>
                       <span class="text-ui-caption text-success/70 truncate max-w-[60px]"><%= work_info[:label] || "Working" %></span>
                     </div>
                   <% else %>
@@ -150,7 +155,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       ▶
                     </button>
                   <% end %>
-                  <span class="text-base-content/40"><%= status_icon(issue.status) %></span>
+                  <span class="text-base-content/40" aria-label={status_text(issue.status)}><%= status_icon(issue.status) %></span>
                   <span class="text-ui-value text-accent">#<%= issue.id %></span>
                   <span class="text-ui-body text-white truncate flex-1" title={issue.title}><%= issue.title %></span>
                   <span class={priority_badge(issue.priority)} title={"Priority: " <> priority_text(issue.priority)}>

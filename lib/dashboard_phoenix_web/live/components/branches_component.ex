@@ -127,7 +127,8 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
           <span class="panel-icon">🌿</span>
           <span class="text-panel-label text-accent">Unmerged Branches</span>
           <%= if @branches_loading do %>
-            <span class="status-activity-ring text-accent"></span>
+            <span class="status-activity-ring text-accent" aria-hidden="true"></span>
+            <span class="sr-only">Loading branches</span>
           <% else %>
             <span class="text-ui-caption text-tabular text-base-content/60"><%= length(@unmerged_branches) %></span>
           <% end %>

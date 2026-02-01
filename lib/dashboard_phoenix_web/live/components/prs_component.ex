@@ -63,6 +63,11 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
   defp pr_ci_icon(:pending), do: "○"
   defp pr_ci_icon(_), do: "?"
 
+  defp pr_ci_text(:success), do: "Passed"
+  defp pr_ci_text(:failure), do: "Failed"
+  defp pr_ci_text(:pending), do: "Pending"
+  defp pr_ci_text(_), do: "Unknown"
+
   # PR review status badges
   defp pr_review_badge(:approved), do: "px-1.5 py-0.5bg-green-500/20 text-green-400 text-xs"
   defp pr_review_badge(:changes_requested), do: "px-1.5 py-0.5bg-red-500/20 text-red-400 text-xs"
@@ -123,7 +128,8 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
           <span class="panel-icon">🔀</span>
           <span class="text-panel-label text-accent">Pull Requests</span>
           <%= if @github_prs_loading do %>
-            <span class="status-activity-ring text-accent"></span>
+            <span class="status-activity-ring text-accent" aria-hidden="true"></span>
+            <span class="sr-only">Loading pull requests</span>
           <% else %>
             <span class="text-xs font-mono text-base-content/50"><%= length(@github_prs) %></span>
           <% end %>
@@ -168,7 +174,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                     <div class="flex-1 min-w-0">
                       <a href={pr.url} target="_blank" class="text-white hover:text-accent flex items-center space-x-1">
                         <%= if pr_work_info do %>
-                          <span class="w-2 h-2 bg-success animate-pulse flex-shrink-0" title={"Agent working: #{pr_work_info[:label] || pr_work_info[:slug]}"}></span>
+                          <span class="w-2 h-2 bg-success animate-pulse flex-shrink-0" title={"Agent working: #{pr_work_info[:label] || pr_work_info[:slug]}"} aria-label={"Agent working on this PR: " <> (pr_work_info[:label] || pr_work_info[:slug] || "in progress")} role="status"></span>
                         <% end %>
                         <span class="text-accent font-bold">#<%= pr.number %></span>
                         <span class="truncate"><%= pr.title %></span>
@@ -201,7 +207,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                   <!-- Status Row: CI, Review, and Tickets -->
                   <div class="flex items-center space-x-2 flex-wrap gap-1">
                     <!-- CI Status -->
-                    <span class={pr_ci_badge(pr.ci_status)} title="CI Status">
+                    <span class={pr_ci_badge(pr.ci_status)} title={"CI Status: " <> pr_ci_text(pr.ci_status)} aria-label={"CI Status: " <> pr_ci_text(pr.ci_status)}>
                       <%= pr_ci_icon(pr.ci_status) %> CI
                     </span>
 

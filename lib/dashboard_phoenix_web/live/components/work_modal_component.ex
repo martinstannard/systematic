@@ -84,8 +84,8 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
         <div class="mb-6">
           <div class="text-panel-label text-secondary mb-2">Ticket Details</div>
           <%= if @work_ticket_loading do %>
-            <div class="flex items-center space-x-2 text-base-content/60">
-              <span class="status-activity-ring text-secondary"></span>
+            <div class="flex items-center space-x-2 text-base-content/60" role="status" aria-live="polite">
+              <span class="status-activity-ring text-secondary" aria-hidden="true"></span>
               <span class="text-ui-body">Fetching ticket details...</span>
             </div>
           <% else %>
@@ -102,20 +102,20 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
             <div class="text-panel-label text-primary">Start Working</div>
             <%= if @agent_mode == "round_robin" do %>
               <div class="text-xs font-mono px-3 py-1panel-status bg-warning/20 text-warning">
-                <span class="status-beacon text-current"></span>
+                <span class="status-beacon text-current" aria-hidden="true"></span>
                 <span class="ml-2">🔄 Round Robin → Next: <%= if @last_agent == "claude", do: "OpenCode", else: "Claude" %></span>
               </div>
             <% else %>
               <div class={"text-xs font-mono px-3 py-1panel-status " <> coding_agent_badge_class(@coding_agent_pref)}>
-                <span class="status-beacon text-current"></span>
+                <span class="status-beacon text-current" aria-hidden="true"></span>
                 <span class="ml-2">Using: <%= coding_agent_badge_text(@coding_agent_pref) %></span>
               </div>
             <% end %>
           </div>
           
           <%= if @work_error do %>
-            <div class="panel-status bg-error/15 border-error/30 text-error p-3 text-ui-body mb-3">
-              <span class="status-marker text-error"></span>
+            <div class="panel-status bg-error/15 border-error/30 text-error p-3 text-ui-body mb-3" role="alert">
+              <span class="status-marker text-error" aria-hidden="true"></span>
               <span class="ml-2"><%= @work_error %></span>
             </div>
           <% end %>
@@ -135,13 +135,13 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
             >
               <%= cond do %>
                 <% @work_sent -> %>
-                  <span class="status-marker text-success"></span>
+                  <span class="status-marker text-success" aria-hidden="true"></span>
                   <span class="ml-2">Work Started</span>
                 <% @work_in_progress -> %>
-                  <span class="status-activity-ring text-info"></span>
+                  <span class="status-activity-ring text-info" aria-hidden="true"></span>
                   <span class="ml-2">Starting...</span>
                 <% true -> %>
-                  <span class="text-lg">🚀</span>
+                  <span class="text-lg" aria-hidden="true">🚀</span>
                   <span class="ml-2">Execute Work</span>
               <% end %>
             </button>
