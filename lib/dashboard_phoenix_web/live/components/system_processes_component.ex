@@ -69,12 +69,12 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
 
   def render(assigns) do
     ~H"""
-    <div class="space-y-2">
+    <div class="panel-content-standard">
       <!-- Coding Agents Panel -->
       <%= if @coding_agents != [] do %>
-        <div class="panel-status rounded-lg overflow-hidden">
+        <div class="mb-4">
           <div 
-            class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
+            class="panel-header-standard panel-header-interactive flex items-center justify-between select-none"
             phx-click="toggle_coding_agents_panel"
             phx-target={@myself}
           >
@@ -107,11 +107,11 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
       <% end %>
 
       <!-- System & Relationships Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- System Processes -->
-        <div class="panel-status rounded-lg overflow-hidden">
+        <div>
           <div 
-            class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
+            class="panel-header-standard panel-header-interactive flex items-center justify-between select-none mb-3"
             phx-click="toggle_system_processes_panel"
             phx-target={@myself}
           >
@@ -136,9 +136,9 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
         </div>
 
         <!-- Process Relationships -->
-        <div class="panel-status rounded-lg overflow-hidden">
+        <div>
           <div 
-            class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
+            class="panel-header-standard panel-header-interactive flex items-center justify-between select-none mb-3"
             phx-click="toggle_process_relationships_panel"
             phx-target={@myself}
           >

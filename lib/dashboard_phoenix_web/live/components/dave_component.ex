@@ -38,10 +38,10 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
 
   def render(assigns) do
     ~H"""
-    <div class={"panel-agent rounded-lg overflow-hidden" <> if(@main_agent_session && @main_agent_session.status == "running", do: " agent-active", else: "")} id="dave">
+    <div class="panel-content-standard" id="dave">
       <%= if @main_agent_session do %>
         <div 
-          class="panel-header-interactive flex items-center justify-between px-3 py-2.5 select-none"
+          class="panel-header-standard panel-header-interactive flex items-center justify-between select-none"
           phx-click="toggle_panel"
           phx-target={@myself}
         >

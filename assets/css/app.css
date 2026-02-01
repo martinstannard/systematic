@@ -736,72 +736,88 @@ button:focus-visible, .btn:focus-visible {
    ===================================================== */
 
 /* =====================================================
-   PANEL SIZE CLASSES: Variable sizing based on importance
+   PANEL SIZE CLASSES: Enhanced Variable sizing based on importance
+   More pronounced differences to guide user attention effectively
    ===================================================== */
 
-/* High-priority panels: Large, prominent display */
+/* High-priority panels: Large, commanding presence */
 .panel-priority-high {
-  min-height: 180px;
-  padding: 20px;
-  border-width: 2px;
+  min-height: 220px;
+  padding: 24px;
+  border-width: 3px;
+  font-size: 1.05em;
   box-shadow: 
-    0 8px 32px -4px rgba(0, 0, 0, 0.4),
-    0 4px 16px -2px rgba(139, 92, 246, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 12px 40px -4px rgba(0, 0, 0, 0.5),
+    0 6px 20px -2px rgba(139, 92, 246, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.12),
+    0 0 80px -15px rgba(139, 92, 246, 0.4);
   background: 
-    radial-gradient(ellipse at top, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-    rgba(15, 12, 35, 0.9);
-  backdrop-filter: blur(20px) saturate(1.2);
+    radial-gradient(ellipse at top, rgba(139, 92, 246, 0.18) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom left, rgba(168, 85, 247, 0.12) 0%, transparent 50%),
+    rgba(15, 12, 35, 0.95);
+  backdrop-filter: blur(24px) saturate(1.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1.02);
+  z-index: 10;
 }
 
 .panel-priority-high:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px) scale(1.03);
   box-shadow: 
-    0 12px 48px -4px rgba(0, 0, 0, 0.5),
-    0 8px 24px -2px rgba(139, 92, 246, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 0 60px -15px rgba(139, 92, 246, 0.4);
+    0 16px 60px -4px rgba(0, 0, 0, 0.6),
+    0 10px 32px -2px rgba(139, 92, 246, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+    0 0 100px -15px rgba(139, 92, 246, 0.5);
 }
 
-/* Medium-priority panels: Standard display */
+/* Medium-priority panels: Standard display with clear differentiation */
 .panel-priority-medium {
-  min-height: 120px;
-  padding: 16px;
-  border-width: 1px;
+  min-height: 140px;
+  padding: 18px;
+  border-width: 1.5px;
   box-shadow: 
-    0 4px 16px -4px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  background: rgba(20, 16, 45, 0.8);
-  backdrop-filter: blur(12px);
+    0 6px 20px -4px rgba(0, 0, 0, 0.35),
+    0 2px 8px -2px rgba(168, 85, 247, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: 
+    radial-gradient(ellipse at top right, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+    rgba(20, 16, 45, 0.85);
+  backdrop-filter: blur(14px);
   transition: all 0.25s ease;
+  z-index: 5;
 }
 
 .panel-priority-medium:hover {
   transform: translateY(-2px);
   box-shadow: 
-    0 8px 24px -4px rgba(0, 0, 0, 0.4),
-    0 0 30px -8px rgba(168, 85, 247, 0.2);
+    0 10px 28px -4px rgba(0, 0, 0, 0.45),
+    0 4px 12px -2px rgba(168, 85, 247, 0.25),
+    0 0 40px -8px rgba(168, 85, 247, 0.2);
 }
 
-/* Quick-reference panels: Compact display */
+/* Quick-reference panels: Compact, recessed appearance */
 .panel-priority-compact {
-  min-height: 60px;
-  padding: 12px;
+  min-height: 50px;
+  padding: 10px;
   border-width: 1px;
+  font-size: 0.9em;
+  opacity: 0.92;
   box-shadow: 
-    0 2px 8px -2px rgba(0, 0, 0, 0.2),
-    inset 0 1px 1px rgba(255, 255, 255, 0.03);
-  background: rgba(15, 12, 35, 0.6);
+    0 2px 6px -2px rgba(0, 0, 0, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.03),
+    inset 0 0 0 1px rgba(59, 130, 246, 0.1);
+  background: rgba(15, 12, 35, 0.5);
   backdrop-filter: blur(8px);
   transition: all 0.2s ease;
+  z-index: 1;
 }
 
 .panel-priority-compact:hover {
+  opacity: 1;
   transform: translateY(-1px);
   box-shadow: 
-    0 4px 12px -2px rgba(0, 0, 0, 0.3),
-    0 0 20px -6px rgba(59, 130, 246, 0.15);
+    0 4px 12px -2px rgba(0, 0, 0, 0.35),
+    0 0 24px -6px rgba(59, 130, 246, 0.2);
 }
 
 /* Light mode adjustments */
@@ -829,9 +845,9 @@ button:focus-visible, .btn:focus-visible {
    PANEL ACCENT COLORS & STATUS INDICATORS: Critical panel highlighting
    ===================================================== */
 
-/* Critical work panels - Enhanced visual weight */
+/* Critical work panels - Command-level visual weight */
 .panel-accent-critical {
-  border-color: rgba(139, 92, 246, 0.6);
+  border-color: rgba(139, 92, 246, 0.8);
   position: relative;
 }
 
@@ -841,31 +857,37 @@ button:focus-visible, .btn:focus-visible {
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
+  height: 6px;
   background: linear-gradient(90deg, 
     transparent 0%, 
-    rgba(139, 92, 246, 0.8) 20%, 
-    rgba(168, 85, 247, 1) 50%, 
-    rgba(139, 92, 246, 0.8) 80%, 
+    rgba(139, 92, 246, 0.9) 15%, 
+    rgba(168, 85, 247, 1) 35%,
+    rgba(147, 51, 234, 1) 50%,
+    rgba(168, 85, 247, 1) 65%,
+    rgba(139, 92, 246, 0.9) 85%,
     transparent 100%
   );
   border-radius: 12px 12px 0 0;
-  animation: critical-pulse 3s ease-in-out infinite;
+  animation: critical-pulse 2.5s ease-in-out infinite;
+  z-index: 2;
 }
 
 .panel-accent-critical::after {
   content: "";
   position: absolute;
   left: 0;
-  top: 4px;
+  top: 6px;
   bottom: 0;
-  width: 4px;
+  width: 6px;
   background: linear-gradient(180deg, 
-    rgba(139, 92, 246, 0.8) 0%,
-    rgba(168, 85, 247, 0.6) 50%,
-    rgba(139, 92, 246, 0.8) 100%
+    rgba(139, 92, 246, 0.9) 0%,
+    rgba(168, 85, 247, 0.8) 30%,
+    rgba(147, 51, 234, 0.6) 50%,
+    rgba(168, 85, 247, 0.8) 70%,
+    rgba(139, 92, 246, 0.9) 100%
   );
   border-radius: 0 0 0 12px;
+  z-index: 1;
 }
 
 @keyframes critical-pulse {
@@ -1258,52 +1280,120 @@ button:focus-visible, .btn:focus-visible {
 }
 
 /* =====================================================
-   PANEL HEADER ENHANCEMENTS: Improved visual hierarchy
+   PANEL HEADER ENHANCEMENTS: Enhanced visual hierarchy with size scaling
    ===================================================== */
 
 .panel-header-critical {
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
-  margin-bottom: 16px;
+  letter-spacing: 0.06em;
+  text-shadow: 
+    0 0 16px rgba(139, 92, 246, 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  margin-bottom: 20px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.3);
 }
 
 .panel-header-standard {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
-  margin-bottom: 12px;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  margin-bottom: 14px;
 }
 
 .panel-header-compact {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 500;
   letter-spacing: 0.02em;
   margin-bottom: 8px;
+  opacity: 0.9;
 }
 
-/* Panel content spacing adjustments */
+/* Panel content spacing adjustments with enhanced hierarchy */
 .panel-content-critical > * + * {
-  margin-top: 16px;
+  margin-top: 20px;
+}
+
+.panel-content-critical {
+  line-height: 1.6;
+}
+
+.panel-content-standard {
+  line-height: 1.5;
 }
 
 .panel-content-standard > * + * {
-  margin-top: 12px;
+  margin-top: 14px;
+}
+
+.panel-content-compact {
+  line-height: 1.4;
 }
 
 .panel-content-compact > * + * {
   margin-top: 8px;
 }
 
+/* Enhanced visual separation for different priority levels */
+.panel-content-critical .text-xs {
+  font-size: 0.8rem;
+}
+
+.panel-content-standard .text-xs {
+  font-size: 0.75rem;
+}
+
+.panel-content-compact .text-xs {
+  font-size: 0.7rem;
+}
+
 /* =====================================================
-   PANEL SIZE RESPONSIVE ADJUSTMENTS
+   PANEL SIZE RESPONSIVE ADJUSTMENTS - Enhanced for hierarchy preservation
    ===================================================== */
 
 @media (max-width: 768px) {
   .panel-priority-high {
-    min-height: 140px;
+    min-height: 180px;
+    padding: 20px;
+    font-size: 1em;
+    transform: scale(1.01);
+  }
+  
+  .panel-priority-medium {
+    min-height: 120px;
     padding: 16px;
+  }
+  
+  .panel-priority-compact {
+    min-height: 45px;
+    padding: 8px;
+    font-size: 0.85em;
+  }
+  
+  /* Reduce header sizes on mobile while maintaining hierarchy */
+  .panel-header-critical {
+    font-size: 1rem;
+    margin-bottom: 16px;
+  }
+  
+  .panel-header-standard {
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+  }
+  
+  .panel-header-compact {
+    font-size: 0.75rem;
+    margin-bottom: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .panel-priority-high {
+    min-height: 160px;
+    padding: 16px;
+    transform: scale(1);
   }
   
   .panel-priority-medium {
@@ -1312,8 +1402,8 @@ button:focus-visible, .btn:focus-visible {
   }
   
   .panel-priority-compact {
-    min-height: 50px;
-    padding: 10px;
+    min-height: 40px;
+    padding: 8px;
   }
 }
 
