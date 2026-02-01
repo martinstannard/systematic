@@ -155,6 +155,18 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
             </span>
           <% end %>
         </div>
+        <!-- Agent type legend -->
+        <div class="flex items-center space-x-3 text-xs text-base-content/60">
+          <span class="flex items-center space-x-1">
+            <span>🟣</span><span>Claude</span>
+          </span>
+          <span class="flex items-center space-x-1">
+            <span>🔷</span><span>OpenCode</span>
+          </span>
+          <span class="flex items-center space-x-1">
+            <span>✨</span><span>Gemini</span>
+          </span>
+        </div>
       </div>
 
       <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[800px]")}>

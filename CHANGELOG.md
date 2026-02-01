@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Activity Log: Add merge and restart event tracking (#85)
 - Reliability: Implement state persistence for critical monitors (#78)
 - Reliability: Add comprehensive error handling for file operations (#76)
 - Perf: Reduce external CLI command overhead (#73)
