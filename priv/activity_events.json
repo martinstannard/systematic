@@ -3,6 +3,15 @@
     "details": {
       "version": "1.0"
     },
+    "id": "0c1a2a8fe65f0bcb",
+    "message": "Dashboard started",
+    "timestamp": "2026-02-01T07:41:27.298152Z",
+    "type": "restart_complete"
+  },
+  {
+    "details": {
+      "version": "1.0"
+    },
     "id": "e8c3235c1c9dfba3",
     "message": "Dashboard started",
     "timestamp": "2026-02-01T07:40:47.690380Z",
