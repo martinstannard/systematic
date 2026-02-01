@@ -92,6 +92,104 @@ defmodule DashboardPhoenix.LinearMonitorTest do
     end
   end
 
+  # Ticket #115: Tests for JSON parsing (replaces text parsing)
+  describe "parse_json_issues/1 (JSON parsing logic)" do
+    test "parses standard JSON output from Linear CLI" do
+      json_issues = [
+        %{
+          "id" => "COR-123",
+          "title" => "Fix login bug",
+          "status" => "Todo",
+          "statusType" => "unstarted",
+          "priority" => 2,
+          "project" => "Core",
+          "milestone" => nil,
+          "assignee" => "you",
+          "labels" => ["Bug"]
+        },
+        %{
+          "id" => "COR-124",
+          "title" => "Add feature X",
+          "status" => "In Progress",
+          "statusType" => "started",
+          "priority" => 3,
+          "project" => nil,
+          "milestone" => "Beta",
+          "assignee" => "John",
+          "labels" => []
+        }
+      ]
+
+      result = parse_json_issues(json_issues)
+
+      assert length(result) == 2
+      [first, second] = result
+
+      assert first.id == "COR-123"
+      assert first.title == "Fix login bug"
+      assert first.status == "Todo"
+      assert first.project == "Core"
+      assert first.assignee == "you"
+      assert first.priority == 2
+      assert first.url == "https://linear.app/fresh-clinics/issue/COR-123"
+
+      assert second.id == "COR-124"
+      assert second.title == "Add feature X"
+      assert second.status == "In Progress"
+      assert second.assignee == "John"
+      assert second.priority == 3
+    end
+
+    test "handles empty JSON array" do
+      result = parse_json_issues([])
+      assert result == []
+    end
+
+    test "handles issues with null fields" do
+      json_issues = [
+        %{
+          "id" => "COR-456",
+          "title" => "Some task",
+          "status" => "Backlog",
+          "statusType" => "backlog",
+          "priority" => nil,
+          "project" => nil,
+          "milestone" => nil,
+          "assignee" => nil,
+          "labels" => []
+        }
+      ]
+
+      result = parse_json_issues(json_issues)
+
+      assert length(result) == 1
+      [issue] = result
+
+      assert issue.id == "COR-456"
+      assert issue.title == "Some task"
+      assert issue.status == "Backlog"
+      assert issue.project == nil
+      assert issue.assignee == nil
+      assert issue.priority == nil
+    end
+
+    test "skips malformed issues without required fields" do
+      json_issues = [
+        # Valid issue
+        %{"id" => "COR-123", "title" => "Valid", "status" => "Todo", "priority" => 1},
+        # Missing required fields - should be skipped
+        %{"id" => "COR-456", "title" => "Missing status"},
+        %{"title" => "Missing id", "status" => "Todo"},
+        %{"id" => "COR-789", "status" => "Missing title"}
+      ]
+
+      result = parse_json_issues(json_issues)
+
+      assert length(result) == 1
+      assert hd(result).id == "COR-123"
+    end
+  end
+
   describe "normalize_project/1 logic" do
     test "returns nil for dash" do
       assert normalize_project("-") == nil
@@ -318,4 +416,25 @@ defmodule DashboardPhoenix.LinearMonitorTest do
     # Helper to parse Linear CLI error output
     String.replace(error_output, ~r/\e\[[0-9;]*m/, "")
   end
+
+  # Ticket #115: JSON parsing helpers mirroring the new implementation
+  defp parse_json_issues(issues) when is_list(issues) do
+    issues
+    |> Enum.map(&parse_json_issue/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp parse_json_issue(%{"id" => id, "title" => title, "status" => status} = issue) do
+    %{
+      id: id,
+      title: title,
+      status: status,
+      project: issue["project"],
+      assignee: issue["assignee"],
+      priority: issue["priority"],
+      url: build_issue_url(id),
+      pr_url: nil
+    }
+  end
+  defp parse_json_issue(_), do: nil
 end
