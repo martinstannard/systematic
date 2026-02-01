@@ -57,7 +57,7 @@ defmodule DashboardPhoenix.SessionBridgeTest do
   describe "memory cleanup functionality" do
     test "cleanup constants are properly defined" do
       # Test that our constants are accessible and reasonable
-      module_attrs = SessionBridge.__info__(:attributes)
+      _module_attrs = SessionBridge.__info__(:attributes)
       
       # We can't directly access module attributes from tests, but we can verify
       # the module compiles and the cleanup function exists

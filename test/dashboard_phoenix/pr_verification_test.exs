@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.PRVerificationTest do
 
   setup do
     # Save original verification file path and set test path
-    original_file = PRVerification.verification_file_path()
+    _original_file = PRVerification.verification_file_path()
     
     # Clean up any existing test file
     File.rm(@test_file)

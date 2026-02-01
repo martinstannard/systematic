@@ -111,7 +111,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorRaceTest do
       end)
       
       # This should eventually succeed despite the initial lock
-      activities = AgentActivityMonitor.get_activity()
+      _activities = AgentActivityMonitor.get_activity()
       
       # Give it time to process
       Process.sleep(200)

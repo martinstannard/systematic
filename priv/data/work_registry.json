@@ -1,17 +1,55 @@
 {
-  "work-fa25a99c8e115482": {
-    "id": "work-fa25a99c8e115482",
-    "label": null,
-    "status": "failed",
-    "description": "Test task",
-    "started_at": "2026-02-01T14:26:48.120727Z",
-    "source": "manual",
+  "work-34741250daa3e3c5": {
+    "id": "work-34741250daa3e3c5",
+    "label": "COR-SONNET-TEST-linear-cor-sonnet-test",
+    "status": "running",
+    "description": "Linear: COR-SONNET-TEST",
+    "started_at": "2026-02-01T13:09:18.370786Z",
+    "source": "linear",
     "session_id": null,
-    "updated_at": "2026-02-01T14:26:48.123354Z",
-    "model": null,
-    "agent_type": "claude",
-    "ticket_id": null,
-    "failed_at": "2026-02-01T14:26:48.123342Z",
-    "failure_reason": "[connection_error] Server not reachable"
+    "updated_at": "2026-02-01T13:09:18.370795Z",
+    "model": "gemini-3-pro",
+    "agent_type": "opencode",
+    "ticket_id": "COR-SONNET-TEST"
+  },
+  "work-455b824ff50b383b": {
+    "id": "work-455b824ff50b383b",
+    "label": "COR-TEST-linear-cor-test",
+    "status": "completed",
+    "description": "Linear: COR-TEST",
+    "started_at": "2026-02-01T20:59:21.456080Z",
+    "source": "linear",
+    "session_id": "mock-session-123",
+    "updated_at": "2026-02-01T20:59:21.494107Z",
+    "model": "gemini-2.5-pro",
+    "agent_type": "opencode",
+    "ticket_id": "COR-TEST",
+    "completed_at": "2026-02-01T20:59:21.494102Z"
+  },
+  "work-87e056c1392a3dac": {
+    "id": "work-87e056c1392a3dac",
+    "label": "COR-TEST-123-linear-cor-test-123",
+    "status": "running",
+    "description": "Linear: COR-TEST-123",
+    "started_at": "2026-02-01T20:55:15.121652Z",
+    "source": "linear",
+    "session_id": null,
+    "updated_at": "2026-02-01T20:55:15.121661Z",
+    "model": "gemini-2.5-pro",
+    "agent_type": "opencode",
+    "ticket_id": "COR-TEST-123"
+  },
+  "work-af61f7e220a4e427": {
+    "id": "work-af61f7e220a4e427",
+    "label": null,
+    "status": "running",
+    "description": "Linear: COR-SONNET-TEST",
+    "started_at": "2026-02-01T20:55:14.104390Z",
+    "source": "linear",
+    "session_id": null,
+    "updated_at": "2026-02-01T20:55:14.104394Z",
+    "model": "gemini-2.0-flash",
+    "agent_type": "gemini",
+    "ticket_id": "COR-SONNET-TEST"
   }
 }

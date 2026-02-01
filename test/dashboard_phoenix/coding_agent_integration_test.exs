@@ -231,23 +231,21 @@ defmodule DashboardPhoenix.CodingAgentIntegrationTest do
       client = ClientFactory.openclaw_client()
       
       # This test verifies the conceptual flow:
-      # When coding_agent_pref != :opencode -> OpenClawClient.work_on_ticket should be used
+      # When coding_agent_pref is :claude -> OpenClawClient.work_on_ticket should be used
       
       # Simulate the logic from execute_work_for_ticket  
-      coding_pref = :claude
       claude_model = "anthropic/claude-sonnet-4-20250514"
       ticket_id = "LOGIC-TEST-2"
       ticket_details = "Test Claude logic"
       
-      if coding_pref != :opencode do
-        expect(OpenClawClientMock, :work_on_ticket, fn "LOGIC-TEST-2", "Test Claude logic", [model: "anthropic/claude-sonnet-4-20250514"] ->
-          {:ok, %{ticket_id: "LOGIC-TEST-2", output: "Claude work request sent"}}
-        end)
-        
-        # This would call OpenClawClient.work_on_ticket(ticket_id, ticket_details, model: claude_model)
-        result = client.work_on_ticket(ticket_id, ticket_details, model: claude_model)
-        assert {:ok, %{ticket_id: "LOGIC-TEST-2"}} = result
-      end
+      # Test the non-opencode path (Claude)
+      expect(OpenClawClientMock, :work_on_ticket, fn "LOGIC-TEST-2", "Test Claude logic", [model: "anthropic/claude-sonnet-4-20250514"] ->
+        {:ok, %{ticket_id: "LOGIC-TEST-2", output: "Claude work request sent"}}
+      end)
+      
+      # This would call OpenClawClient.work_on_ticket(ticket_id, ticket_details, model: claude_model)
+      result = client.work_on_ticket(ticket_id, ticket_details, model: claude_model)
+      assert {:ok, %{ticket_id: "LOGIC-TEST-2"}} = result
     end
   end
 
