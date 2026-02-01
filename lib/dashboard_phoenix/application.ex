@@ -28,6 +28,8 @@ defmodule DashboardPhoenix.Application do
       {Phoenix.PubSub, name: DashboardPhoenix.PubSub},
       # Agent preferences for coding agent toggle
       DashboardPhoenix.AgentPreferences,
+      # Activity log for workflow event tracking
+      DashboardPhoenix.ActivityLog,
       # HomeLive memoization cache
       DashboardPhoenixWeb.HomeLiveCache,
     ] ++ session_bridge_child ++ [
