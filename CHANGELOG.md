@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Reliability: Fix race conditions in concurrent operations (#81)
 - Audit and remove unused functions (#36)
 - Work Panel cards - layout and individual expansion (#109)
 - Add PR state persistence file to .gitignore (#38)
