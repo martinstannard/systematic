@@ -56,6 +56,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.WorkRiverComponent
   alias DashboardPhoenixWeb.Live.Components.WorkContextModalComponent
   alias DashboardPhoenixWeb.Live.Components.TestRunnerComponent
+  alias DashboardPhoenixWeb.Live.Components.TabsComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.ActivityLog
   alias DashboardPhoenix.SessionBridge
@@ -133,6 +134,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
         show_completed: true,
         main_activity_count: 0,
         expanded_outputs: MapSet.new(),
+        # Active tab for tabbed UI navigation (Ticket #127)
+        active_tab: Map.get(persisted_state.panels, :active_tab, "work"),
         # Linear tickets - managed by LinearComponent (smart component)
         # Only need collapsed state for panel wrapper
         # Work in progress tracking - computed after data loads
@@ -442,6 +445,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, socket}
   end
 
+  # Handle TabsComponent events (Ticket #127 - tabbed UI navigation)
+  def handle_info({:tabs_component, :switch_tab, tab_id}, socket) do
+    socket = assign(socket, active_tab: tab_id)
+    {:noreply, push_tab_state(socket)}
+  end
+
   # Handle Work Context Modal events
   def handle_info({:work_context_modal, :close}, socket) do
     {:noreply, assign(socket, show_work_context_modal: false, selected_work_item: nil)}
@@ -663,7 +672,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
        test_runner_collapsed: state.panels.test_runner,
        activity_collapsed: state.panels.activity,
        work_panel_collapsed: state.panels.work_panel,
-       work_river_collapsed: Map.get(state.panels, :work_river, false)
+       work_river_collapsed: Map.get(state.panels, :work_river, false),
+       active_tab: Map.get(state.panels, :active_tab, "work")
      )}
   end
 
@@ -2560,13 +2570,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "test_runner" => socket.assigns.test_runner_collapsed,
       "activity" => socket.assigns.activity_collapsed,
       "work_panel" => socket.assigns.work_panel_collapsed,
-      "work_river" => socket.assigns.work_river_collapsed
+      "work_river" => socket.assigns.work_river_collapsed,
+      "active_tab" => socket.assigns.active_tab
     }
 
     # Persist to server (survives restarts)
     DashboardState.set_panels(panels)
     # Also push to JS for localStorage (faster client-side restore)
     push_event(socket, "save_panel_state", %{panels: panels})
+  end
+
+  # Push active tab state to server (Ticket #127)
+  @spec push_tab_state(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  defp push_tab_state(socket) do
+    # Include active_tab in the panels state
+    DashboardState.set_panels(%{"active_tab" => socket.assigns.active_tab})
+    socket
   end
 
   # Push current model selections to JS for localStorage persistence AND persist to server
@@ -2632,6 +2651,23 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Linear filter button styling moved to LinearComponent
   # Template moved to home_live.html.heex for cleaner separation
+
+  # ============================================================================
+  # HELPER FUNCTIONS FOR TEMPLATE (Ticket #127)
+  # ============================================================================
+
+  @doc """
+  Determines the overall agent status for tab badge display.
+  Returns :running if either OpenCode or Gemini is running, :idle otherwise.
+  """
+  @spec agent_status(map(), map()) :: :running | :idle
+  def agent_status(opencode_status, gemini_status) do
+    cond do
+      Map.get(opencode_status, :running, false) -> :running
+      Map.get(gemini_status, :running, false) -> :running
+      true -> :idle
+    end
+  end
 
   # ============================================================================
   # TIMER SCHEDULING FUNCTIONS

@@ -11,7 +11,7 @@
     health_last_check={@health_last_check}
   />
 
-  <!-- Unified Activity Panel - Combines high-level events and live feed -->
+  <!-- Unified Activity Panel - Always visible above tabs -->
   <.live_component
     module={UnifiedActivityComponent}
     id="unified-activity"
@@ -22,7 +22,7 @@
     sessions_loading={@sessions_loading}
   />
 
-  <!-- Work Panel - Unified view of all coding agents -->
+  <!-- Work Panel - Unified view of all coding agents (always visible) -->
   <.live_component
     module={WorkPanelComponent}
     id="work-panel"
@@ -41,7 +41,7 @@
     gemini_loading={@gemini_loading}
   />
 
-  <!-- Work River - Holistic horizontal workflow view (#124) -->
+  <!-- Work River - Holistic horizontal workflow view (always visible) -->
   <.live_component
     module={WorkRiverComponent}
     id="work-river"
@@ -57,245 +57,253 @@
     pr_verifications={@pr_verifications}
   />
 
-  <!-- Main Dashboard Layout -->
-  <div class="flex-1 flex flex-col gap-6 sm:gap-10 overflow-y-auto p-4 sm:p-8" role="region" aria-label="Dashboard panels">
-    
-    <!-- Core Work Panels -->
-    <section class="space-y-6" aria-label="Work items: Linear tickets, Chainlink issues, Pull Requests, and Branches">
-      <!-- Linear Tickets Panel (Smart Component - manages own state) -->
-        <div class={[
-          "panel-priority-high panel-accent-critical p-4 sm:p-6",
-          @linear_collapsed && "panel-collapsed"
-        ]}>
-          <.live_component
-            module={LinearComponent}
-            id={:linear}
-            collapsed={@linear_collapsed}
-            tickets_in_progress={@tickets_in_progress}
-          />
-        </div>
+  <!-- Main Dashboard Layout - Tabbed Interface (Ticket #127) -->
+  <div class="flex-1 flex flex-col overflow-y-auto p-4 sm:p-8" role="region" aria-label="Dashboard panels">
+    <.live_component
+      module={TabsComponent}
+      id="main-tabs"
+      active_tab={@active_tab}
+      tabs={[
+        %{id: "work", label: "Work Items", badge: length(@linear_tickets) + @chainlink_issues_count, urgent: length(@linear_tickets) > 0 || @chainlink_issues_count > 0},
+        %{id: "prs", label: "PRs & Branches", badge: @github_prs_count + @unmerged_branches_count, attention: @github_prs_count > 0},
+        %{id: "agents", label: "Agents", badge: @agent_sessions_count, status: agent_status(@opencode_server_status, @gemini_server_status)},
+        %{id: "system", label: "System", badge: @coding_agents_count}
+      ]}
+    >
+      <%!-- Work Items Tab --%>
+      <:tab_content tab="work">
+        <div class="space-y-6 p-4 sm:p-6">
+          <!-- Linear Tickets Panel -->
+          <div class={[
+            "panel-priority-high panel-accent-critical p-4 sm:p-6",
+            @linear_collapsed && "panel-collapsed"
+          ]}>
+            <.live_component
+              module={LinearComponent}
+              id={:linear}
+              collapsed={@linear_collapsed}
+              tickets_in_progress={@tickets_in_progress}
+            />
+          </div>
 
-        <!-- Chainlink Issues Panel -->
-        <div class={[
-          "panel-priority-high panel-accent-critical p-4 sm:p-6",
-          @chainlink_collapsed && "panel-collapsed",
-          DashboardPhoenix.PanelStatus.status_classes(:chainlink, %{
-            error: @chainlink_error,
-            loading: @chainlink_loading,
-            issues: @chainlink_issues,
-            work_in_progress: @chainlink_work_in_progress
-          })
-        ]}>
-          <.live_component
-            module={ChainlinkComponent}
-            id="chainlink-issues"
-            chainlink_issues={@chainlink_issues}
-            chainlink_issues_count={@chainlink_issues_count}
-            chainlink_loading={@chainlink_loading}
-            chainlink_error={@chainlink_error}
-            chainlink_collapsed={@chainlink_collapsed}
-            chainlink_work_in_progress={@chainlink_work_in_progress}
-          />
+          <!-- Chainlink Issues Panel -->
+          <div class={[
+            "panel-priority-high panel-accent-critical p-4 sm:p-6",
+            @chainlink_collapsed && "panel-collapsed",
+            DashboardPhoenix.PanelStatus.status_classes(:chainlink, %{
+              error: @chainlink_error,
+              loading: @chainlink_loading,
+              issues: @chainlink_issues,
+              work_in_progress: @chainlink_work_in_progress
+            })
+          ]}>
+            <.live_component
+              module={ChainlinkComponent}
+              id="chainlink-issues"
+              chainlink_issues={@chainlink_issues}
+              chainlink_issues_count={@chainlink_issues_count}
+              chainlink_loading={@chainlink_loading}
+              chainlink_error={@chainlink_error}
+              chainlink_collapsed={@chainlink_collapsed}
+              chainlink_work_in_progress={@chainlink_work_in_progress}
+            />
+          </div>
         </div>
+      </:tab_content>
 
-        <!-- GitHub Pull Requests Panel -->
-        <div class={[
-          "panel-priority-high panel-accent-critical p-4 sm:p-6",
-          @prs_collapsed && "panel-collapsed",
-          DashboardPhoenix.PanelStatus.status_classes(:github_prs, %{
-            error: @github_prs_error,
-            loading: @github_prs_loading,
-            prs: @github_prs,
-            verifications: @pr_verifications
-          })
-        ]}>
-          <.live_component
-            module={PRsComponent}
-            id="prs-panel"
-            github_prs={@github_prs}
-            github_prs_count={@github_prs_count}
-            github_prs_loading={@github_prs_loading}
-            github_prs_error={@github_prs_error}
-            github_prs_last_updated={@github_prs_last_updated}
-            prs_collapsed={@prs_collapsed}
-            prs_in_progress={@prs_in_progress}
-            pr_verifications={@pr_verifications}
-            pr_fix_pending={@pr_fix_pending}
-          />
+      <%!-- PRs & Branches Tab --%>
+      <:tab_content tab="prs">
+        <div class="space-y-6 p-4 sm:p-6">
+          <!-- GitHub Pull Requests Panel -->
+          <div class={[
+            "panel-priority-high panel-accent-critical p-4 sm:p-6",
+            @prs_collapsed && "panel-collapsed",
+            DashboardPhoenix.PanelStatus.status_classes(:github_prs, %{
+              error: @github_prs_error,
+              loading: @github_prs_loading,
+              prs: @github_prs,
+              verifications: @pr_verifications
+            })
+          ]}>
+            <.live_component
+              module={PRsComponent}
+              id="prs-panel"
+              github_prs={@github_prs}
+              github_prs_count={@github_prs_count}
+              github_prs_loading={@github_prs_loading}
+              github_prs_error={@github_prs_error}
+              github_prs_last_updated={@github_prs_last_updated}
+              prs_collapsed={@prs_collapsed}
+              prs_in_progress={@prs_in_progress}
+              pr_verifications={@pr_verifications}
+              pr_fix_pending={@pr_fix_pending}
+            />
+          </div>
+
+          <!-- Unmerged Branches Panel -->
+          <div class={[
+            "panel-priority-medium panel-accent-active p-4 sm:p-6",
+            @branches_collapsed && "panel-collapsed",
+            DashboardPhoenix.PanelStatus.status_classes(:branches, %{
+              error: @branches_error,
+              loading: @branches_loading,
+              branches: @unmerged_branches
+            })
+          ]}>
+            <.live_component
+              module={BranchesComponent}
+              id="branches-panel"
+              unmerged_branches={@unmerged_branches}
+              unmerged_branches_count={@unmerged_branches_count}
+              branches_loading={@branches_loading}
+              branches_error={@branches_error}
+              branches_last_updated={@branches_last_updated}
+              branches_collapsed={@branches_collapsed}
+              branch_merge_pending={@branch_merge_pending}
+              branch_delete_pending={@branch_delete_pending}
+            />
+          </div>
         </div>
+      </:tab_content>
 
-        <!-- Unmerged Branches Panel -->
-        <div class={[
-          "panel-priority-medium panel-accent-active p-4 sm:p-6",
-          @branches_collapsed && "panel-collapsed",
-          DashboardPhoenix.PanelStatus.status_classes(:branches, %{
-            error: @branches_error,
-            loading: @branches_loading,
-            branches: @unmerged_branches
-          })
-        ]}>
-          <.live_component
-            module={BranchesComponent}
-            id="branches-panel"
-            unmerged_branches={@unmerged_branches}
-            unmerged_branches_count={@unmerged_branches_count}
-            branches_loading={@branches_loading}
-            branches_error={@branches_error}
-            branches_last_updated={@branches_last_updated}
-            branches_collapsed={@branches_collapsed}
-            branch_merge_pending={@branch_merge_pending}
-            branch_delete_pending={@branch_delete_pending}
-          />
+      <%!-- Agents Tab --%>
+      <:tab_content tab="agents">
+        <div class="space-y-6 p-4 sm:p-6">
+          <!-- Dave Panel -->
+          <div class={["panel-priority-high panel-accent-active p-4 sm:p-6", @dave_collapsed && "panel-collapsed"]}>
+            <.live_component
+              module={DaveComponent}
+              id="dave-panel"
+              agent_sessions={@agent_sessions}
+              dave_collapsed={@dave_collapsed}
+              sessions_loading={@sessions_loading}
+            />
+          </div>
+
+          <!-- Sub-Agents Panel -->
+          <div class={[
+            "panel-priority-medium p-4 sm:p-6",
+            @subagents_collapsed && "panel-collapsed",
+            DashboardPhoenix.PanelStatus.status_classes(:subagents, %{
+              sessions: @agent_sessions
+            })
+          ]}>
+            <.live_component
+              module={SubagentsComponent}
+              id="subagents-panel"
+              agent_sessions={@agent_sessions}
+              subagents_collapsed={@subagents_collapsed}
+              dismissed_sessions={@dismissed_sessions}
+              show_completed={@show_completed}
+              sessions_loading={@sessions_loading}
+            />
+          </div>
+
+          <!-- OpenCode Sessions Panel -->
+          <div class={[
+            "panel-priority-compact panel-accent-reference p-4 sm:p-6",
+            @opencode_collapsed && "panel-collapsed",
+            DashboardPhoenix.PanelStatus.status_classes(:opencode, %{
+              server_status: @opencode_server_status,
+              sessions: @opencode_sessions
+            })
+          ]}>
+            <.live_component
+              module={OpenCodeComponent}
+              id="opencode-panel"
+              opencode_server_status={@opencode_server_status}
+              opencode_sessions={@opencode_sessions}
+              opencode_collapsed={@opencode_collapsed}
+              opencode_loading={@opencode_loading}
+            />
+          </div>
+
+          <!-- Gemini CLI Panel -->
+          <div class={[
+            "panel-priority-medium p-4 sm:p-6",
+            @gemini_collapsed && "panel-collapsed",
+            DashboardPhoenix.PanelStatus.status_classes(:gemini, %{
+              server_status: @gemini_server_status,
+              output: @gemini_output
+            })
+          ]}>
+            <.live_component
+              module={GeminiComponent}
+              id="gemini-panel"
+              gemini_server_status={@gemini_server_status}
+              gemini_output={@gemini_output}
+              gemini_collapsed={@gemini_collapsed}
+              gemini_loading={@gemini_loading}
+            />
+          </div>
         </div>
-      </section>
+      </:tab_content>
 
-    <!-- AGENT STATUS Section -->
-    <section class="section-agent-status p-4 sm:p-8" aria-labelledby="agent-status-heading">
-      <div id="agent-status-header" phx-update="ignore" class="flex flex-wrap items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <div class="w-2 h-2 rounded-full bg-purple-500" aria-hidden="true"></div>
-        <h2 id="agent-status-heading" class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">Agent Status</h2>
-        <span class="hidden sm:inline text-ui-caption ml-3">OpenCode • Gemini • Dave • Subagents</span>
-      </div>
-      <div class="space-y-6">
-        <!-- Dave Panel -->
-        <div class={["panel-priority-high panel-accent-active p-4 sm:p-6", @dave_collapsed && "panel-collapsed"]}>
-          <.live_component
-            module={DaveComponent}
-            id="dave-panel"
-            agent_sessions={@agent_sessions}
-            dave_collapsed={@dave_collapsed}
-            sessions_loading={@sessions_loading}
-          />
+      <%!-- System Tab --%>
+      <:tab_content tab="system">
+        <div class="space-y-6 p-4 sm:p-6">
+          <!-- Config Panel -->
+          <div class={["panel-priority-compact panel-accent-reference p-4 sm:p-6", @config_collapsed && "panel-collapsed"]}>
+            <.live_component
+              module={ConfigComponent}
+              id="config-panel"
+              config_collapsed={@config_collapsed}
+              coding_agent_pref={@coding_agent_pref}
+              agent_mode={@agent_mode}
+              last_agent={@last_agent}
+              claude_model={@claude_model}
+              opencode_model={@opencode_model}
+              opencode_server_status={@opencode_server_status}
+              gemini_server_status={@gemini_server_status}
+            />
+          </div>
+
+          <!-- Test Runner Panel -->
+          <div class={["panel-priority-medium p-4 sm:p-6", @test_runner_collapsed && "panel-collapsed"]}>
+            <.live_component
+              module={TestRunnerComponent}
+              id="test-runner-panel"
+              test_runner_collapsed={@test_runner_collapsed}
+              test_running={@test_running}
+            />
+          </div>
+
+          <!-- System Processes Panel -->
+          <div class={["panel-priority-medium p-4 sm:p-6", @system_processes_collapsed && "panel-collapsed"]}>
+            <.live_component
+              module={SystemProcessesComponent}
+              id="system-processes-panel"
+              coding_agents={@coding_agents}
+              coding_agents_count={@coding_agents_count}
+              coding_agents_collapsed={@coding_agents_collapsed}
+              coding_agents_loading={@coding_agents_loading}
+              recent_processes={@recent_processes}
+              recent_processes_count={@recent_processes_count}
+              processes_loading={@processes_loading}
+              system_processes_collapsed={@system_processes_collapsed}
+              process_relationships_collapsed={@process_relationships_collapsed}
+              graph_data={@graph_data}
+            />
+          </div>
+
+          <!-- Usage Stats -->
+          <div class={[
+            "panel-priority-compact panel-accent-reference p-4 sm:p-6",
+            DashboardPhoenix.PanelStatus.status_classes(:usage_stats, %{
+              opencode: @usage_stats[:opencode] || %{},
+              claude: @usage_stats[:claude] || %{}
+            })
+          ]}>
+            <.live_component
+              module={UsageStatsComponent}
+              id="usage-stats"
+              usage_stats={@usage_stats}
+              stats_loading={@stats_loading}
+            />
+          </div>
         </div>
-
-        <!-- Sub-Agents Panel -->
-        <div class={[
-          "panel-priority-medium p-4 sm:p-6",
-          @subagents_collapsed && "panel-collapsed",
-          DashboardPhoenix.PanelStatus.status_classes(:subagents, %{
-            sessions: @agent_sessions
-          })
-        ]}>
-          <.live_component
-            module={SubagentsComponent}
-            id="subagents-panel"
-            agent_sessions={@agent_sessions}
-            subagents_collapsed={@subagents_collapsed}
-            dismissed_sessions={@dismissed_sessions}
-            show_completed={@show_completed}
-            sessions_loading={@sessions_loading}
-          />
-        </div>
-
-        <!-- OpenCode Sessions Panel -->
-        <div class={[
-          "panel-priority-compact panel-accent-reference p-4 sm:p-6",
-          @opencode_collapsed && "panel-collapsed",
-          DashboardPhoenix.PanelStatus.status_classes(:opencode, %{
-            server_status: @opencode_server_status,
-            sessions: @opencode_sessions
-          })
-        ]}>
-          <.live_component
-            module={OpenCodeComponent}
-            id="opencode-panel"
-            opencode_server_status={@opencode_server_status}
-            opencode_sessions={@opencode_sessions}
-            opencode_collapsed={@opencode_collapsed}
-            opencode_loading={@opencode_loading}
-          />
-        </div>
-
-        <!-- Gemini CLI Panel -->
-        <div class={[
-          "panel-priority-medium p-4 sm:p-6",
-          @gemini_collapsed && "panel-collapsed",
-          DashboardPhoenix.PanelStatus.status_classes(:gemini, %{
-            server_status: @gemini_server_status,
-            output: @gemini_output
-          })
-        ]}>
-          <.live_component
-            module={GeminiComponent}
-            id="gemini-panel"
-            gemini_server_status={@gemini_server_status}
-            gemini_output={@gemini_output}
-            gemini_collapsed={@gemini_collapsed}
-            gemini_loading={@gemini_loading}
-          />
-        </div>
-      </div>
-    </section>
-
-    <!-- SYSTEM CONFIG Section -->
-    <section class="section-system-config p-4 sm:p-8" aria-labelledby="system-config-heading">
-      <div id="system-config-header" phx-update="ignore" class="flex flex-wrap items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <div class="w-2 h-2 rounded-full bg-orange-500" aria-hidden="true"></div>
-        <h2 id="system-config-heading" class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">System Config</h2>
-        <span class="hidden sm:inline text-ui-caption ml-3">Configuration • Processes</span>
-      </div>
-      <div class="space-y-6">
-        <!-- Config Panel -->
-        <div class={["panel-priority-compact panel-accent-reference p-4 sm:p-6", @config_collapsed && "panel-collapsed"]}>
-          <.live_component
-            module={ConfigComponent}
-            id="config-panel"
-            config_collapsed={@config_collapsed}
-            coding_agent_pref={@coding_agent_pref}
-            agent_mode={@agent_mode}
-            last_agent={@last_agent}
-            claude_model={@claude_model}
-            opencode_model={@opencode_model}
-            opencode_server_status={@opencode_server_status}
-            gemini_server_status={@gemini_server_status}
-          />
-        </div>
-
-        <!-- Test Runner Panel -->
-        <div class={["panel-priority-medium p-4 sm:p-6", @test_runner_collapsed && "panel-collapsed"]}>
-          <.live_component
-            module={TestRunnerComponent}
-            id="test-runner-panel"
-            test_runner_collapsed={@test_runner_collapsed}
-            test_running={@test_running}
-          />
-        </div>
-
-        <!-- System Processes Panel -->
-        <div class={["panel-priority-medium p-4 sm:p-6", @system_processes_collapsed && "panel-collapsed"]}>
-          <.live_component
-            module={SystemProcessesComponent}
-            id="system-processes-panel"
-            coding_agents={@coding_agents}
-            coding_agents_count={@coding_agents_count}
-            coding_agents_collapsed={@coding_agents_collapsed}
-            coding_agents_loading={@coding_agents_loading}
-            recent_processes={@recent_processes}
-            recent_processes_count={@recent_processes_count}
-            processes_loading={@processes_loading}
-            system_processes_collapsed={@system_processes_collapsed}
-            process_relationships_collapsed={@process_relationships_collapsed}
-            graph_data={@graph_data}
-          />
-        </div>
-      </div>
-    </section>
-
-    <!-- Usage Stats -->
-    <div class={[
-      "panel-priority-compact panel-accent-reference p-4 sm:p-6",
-      DashboardPhoenix.PanelStatus.status_classes(:usage_stats, %{
-        opencode: @usage_stats[:opencode] || %{},
-        claude: @usage_stats[:claude] || %{}
-      })
-    ]}>
-      <.live_component
-        module={UsageStatsComponent}
-        id="usage-stats"
-        usage_stats={@usage_stats}
-        stats_loading={@stats_loading}
-      />
-    </div>
+      </:tab_content>
+    </.live_component>
   </div>
 
   <!-- Work on Ticket Modal (legacy) -->
