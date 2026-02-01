@@ -997,6 +997,13 @@ button:focus-visible, .btn:focus-visible {
   }
 }
 
+/* Collapsed panels should be compact - override min-height */
+.panel-collapsed.panel-priority-high,
+.panel-collapsed.panel-priority-medium,
+.panel-collapsed.panel-priority-compact {
+  min-height: unset !important;
+}
+
 /* =====================================================
    ORIGINAL PANEL SYSTEM: (preserved for compatibility)
    ===================================================== */
