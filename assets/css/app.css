@@ -145,32 +145,15 @@ body {
    PANEL STATUS INDICATORS - Subtle left border only
    ===================================================== */
 
-.panel-status-error {
-  @apply border-l-2 border-l-red-500;
-}
-
-.panel-status-warning {
-  @apply border-l-2 border-l-yellow-500;
-}
-
-.panel-status-working {
-  @apply border-l-2 border-l-green-500;
-}
-
-.panel-status-loading {
-  @apply border-l-2 border-l-blue-400;
-}
-
-.panel-status-urgent {
-  @apply border-l-2 border-l-orange-500;
-}
-
-.panel-status-success {
-  @apply border-l-2 border-l-green-500;
-}
-
+/* Panel status classes - no colored borders, panels are uniform */
+.panel-status-error,
+.panel-status-warning,
+.panel-status-working,
+.panel-status-loading,
+.panel-status-urgent,
+.panel-status-success,
 .panel-status-idle {
-  /* No special styling for idle */
+  /* Colored left borders removed for cleaner look */
 }
 
 /* =====================================================
