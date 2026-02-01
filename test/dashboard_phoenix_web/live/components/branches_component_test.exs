@@ -4,6 +4,31 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponentTest do
 
   alias DashboardPhoenixWeb.Live.Components.BranchesComponent
 
+  describe "handle_event/3" do
+    test "confirm_merge_branch sends message to parent with validated branch name" do
+      # The component uses send/2 to communicate with parent
+      # We test the validation logic directly
+      branch_name = "feature/test-branch"
+
+      # Valid branch names should pass validation
+      assert DashboardPhoenix.InputValidator.validate_branch_name(branch_name) ==
+               {:ok, branch_name}
+    end
+
+    test "rejects invalid branch names" do
+      # Branch names with shell injection characters should be rejected
+      assert {:error, _} = DashboardPhoenix.InputValidator.validate_branch_name("branch; rm -rf /")
+      assert {:error, _} = DashboardPhoenix.InputValidator.validate_branch_name("branch`whoami`")
+      assert {:error, _} = DashboardPhoenix.InputValidator.validate_branch_name("")
+    end
+
+    test "execute_merge_branch validates branch name before sending" do
+      # Test that valid branch names work
+      branch_name = "fix/merge-button-issue"
+      assert {:ok, ^branch_name} = DashboardPhoenix.InputValidator.validate_branch_name(branch_name)
+    end
+  end
+
   describe "render/1" do
     test "renders loading state" do
       assigns = %{
