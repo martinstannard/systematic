@@ -39,6 +39,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
   alias DashboardPhoenix.PanelStatus
+  alias DashboardPhoenix.HealthCheck
 
   def mount(_params, _session, socket) do
     # Initialize all assigns with empty/loading states first
@@ -136,6 +137,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       # Model selections
       claude_model: "anthropic/claude-opus-4-5",
       opencode_model: "gemini-3-pro",
+      # Health check status
+      health_status: :unknown,
+      health_last_check: nil,
       # Panel collapse states
       config_collapsed: false,
       linear_collapsed: false,
@@ -172,6 +176,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       BranchMonitor.subscribe()
       OpenCodeServer.subscribe()
       GeminiServer.subscribe()
+      HealthCheck.subscribe()
       
       # Schedule periodic updates (after initial data loads)
       Process.send_after(self(), :update_processes, 500)
@@ -192,9 +197,48 @@ defmodule DashboardPhoenixWeb.HomeLive do
       send(self(), :load_chainlink_issues)
       send(self(), :load_github_prs)
       send(self(), :load_branches)
+      send(self(), :load_health_status)
     end
 
     {:ok, socket}
+  end
+
+  # Handle health check updates (from PubSub)
+  def handle_info({:health_update, health_state}, socket) do
+    {:noreply, assign(socket,
+      health_status: health_state.status,
+      health_last_check: health_state.last_check
+    )}
+  end
+
+  # Handle async health status loading (initial mount)
+  def handle_info(:load_health_status, socket) do
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        health_state = HealthCheck.get_status()
+        send(parent, {:health_status_loaded, health_state})
+      rescue
+        e ->
+          require Logger
+          Logger.error("Failed to load health status: #{inspect(e)}")
+          send(parent, {:health_status_loaded, %{status: :unknown, last_check: nil}})
+      catch
+        :exit, reason ->
+          require Logger
+          Logger.error("Health status load exited: #{inspect(reason)}")
+          send(parent, {:health_status_loaded, %{status: :unknown, last_check: nil}})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  # Handle health status loaded result
+  def handle_info({:health_status_loaded, health_state}, socket) do
+    {:noreply, assign(socket,
+      health_status: health_state.status,
+      health_last_check: health_state.last_check
+    )}
   end
 
   # Handle live progress updates (with validation for proper test isolation)

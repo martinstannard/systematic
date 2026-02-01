@@ -52,6 +52,8 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenix.OpenCodeServer,
       # Gemini CLI server manager
       DashboardPhoenix.GeminiServer,
+      # Health check for dashboard self-monitoring
+      DashboardPhoenix.HealthCheck,
       # Start to serve requests, typically the last entry
       DashboardPhoenixWeb.Endpoint
     ]

@@ -2004,6 +2004,79 @@ button:focus-visible, .btn:focus-visible {
   }
 }
 
+/* =====================================================
+   HEALTH BADGE: Dashboard self-monitoring indicator
+   Shows health status next to SYSTEMATIC title
+   ===================================================== */
+
+.health-badge {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Healthy - Green dot with subtle glow */
+.health-badge-healthy {
+  background: rgb(34, 197, 94);
+  box-shadow: 
+    0 0 6px rgba(34, 197, 94, 0.6),
+    0 0 12px rgba(34, 197, 94, 0.3);
+}
+
+/* Unhealthy - Red dot */
+.health-badge-unhealthy {
+  background: rgb(239, 68, 68);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+/* Checking/Restarting - Yellow dot with pulse animation */
+.health-badge-checking {
+  background: rgb(251, 191, 36);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
+  animation: health-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes health-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+/* Unknown - Gray dot */
+.health-badge-unknown {
+  background: rgb(148, 163, 184);
+  opacity: 0.7;
+}
+
+/* Light mode adjustments */
+[data-theme="light"] .health-badge-healthy {
+  background: rgb(22, 163, 74);
+  box-shadow: 
+    0 0 4px rgba(22, 163, 74, 0.5),
+    0 0 8px rgba(22, 163, 74, 0.2);
+}
+
+[data-theme="light"] .health-badge-unhealthy {
+  background: rgb(220, 38, 38);
+  box-shadow: 0 0 4px rgba(220, 38, 38, 0.4);
+}
+
+[data-theme="light"] .health-badge-checking {
+  background: rgb(202, 138, 4);
+  box-shadow: 0 0 4px rgba(202, 138, 4, 0.4);
+}
+
+[data-theme="light"] .health-badge-unknown {
+  background: rgb(100, 116, 139);
+}
+
 /* Subtle pulse animation for PR work indicator */
 .animate-pulse-subtle {
   animation: pulse-subtle 2s ease-in-out infinite;

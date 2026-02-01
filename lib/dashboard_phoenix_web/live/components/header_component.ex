@@ -18,7 +18,10 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
     ~H"""
     <div class="panel-command rounded-lg px-4 py-2.5 flex items-center justify-between mb-3">
       <div class="flex items-center space-x-4">
-        <h1 class="text-system-title text-system-glow text-base-content">SYSTEMATIC</h1>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-system-title text-system-glow text-base-content">SYSTEMATIC</h1>
+          <span class={health_badge_class(@health_status)} title={health_tooltip(@health_status, @health_last_check)}></span>
+        </div>
         <span class="text-system-subtitle text-base-content/70">AGENT CONTROL</span>
         
         <!-- Theme Toggle -->
@@ -79,4 +82,39 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   defp coding_agent_badge_text(:claude), do: "🤖 Claude"
   defp coding_agent_badge_text(:gemini), do: "✨ Gemini"
   defp coding_agent_badge_text(_), do: "❓ Unknown"
+
+  # Helper functions for health badge styling
+  defp health_badge_class(:healthy), do: "health-badge health-badge-healthy"
+  defp health_badge_class(:unhealthy), do: "health-badge health-badge-unhealthy"
+  defp health_badge_class(:checking), do: "health-badge health-badge-checking"
+  defp health_badge_class(_), do: "health-badge health-badge-unknown"
+
+  defp health_tooltip(:healthy, last_check) do
+    time_ago = format_time_ago(last_check)
+    "Healthy - last check #{time_ago}"
+  end
+  defp health_tooltip(:unhealthy, last_check) do
+    time_str = format_time(last_check)
+    "Health check failed at #{time_str}"
+  end
+  defp health_tooltip(:checking, _), do: "Checking..."
+  defp health_tooltip(_, _), do: "No health data"
+
+  defp format_time_ago(nil), do: "never"
+  defp format_time_ago(datetime) do
+    now = DateTime.utc_now()
+    diff_seconds = DateTime.diff(now, datetime)
+    
+    cond do
+      diff_seconds < 60 -> "#{diff_seconds}s ago"
+      diff_seconds < 3600 -> "#{div(diff_seconds, 60)}m ago"
+      diff_seconds < 86400 -> "#{div(diff_seconds, 3600)}h ago"
+      true -> "#{div(diff_seconds, 86400)}d ago"
+    end
+  end
+
+  defp format_time(nil), do: "unknown"
+  defp format_time(datetime) do
+    Calendar.strftime(datetime, "%H:%M:%S")
+  end
 end
