@@ -14,6 +14,7 @@ defmodule DashboardPhoenix.SessionBridge do
 
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
+  alias DashboardPhoenix.ActivityLog
   
   @base_poll_interval 1000   # Start responsive at 1s 
   @max_poll_interval 2000    # Back off to 2s when idle
@@ -72,7 +73,9 @@ defmodule DashboardPhoenix.SessionBridge do
       # Performance caches (Ticket #70)
       sessions_cache: %{parsed: nil, mtime: nil},  # Cached parsed sessions.json
       transcript_details_cache: %{},  # %{session_id => %{mtime: _, size: _, details: _}}
-      directory_scan_cache: %{files: nil, timestamp: 0}  # Cache directory listings
+      directory_scan_cache: %{files: nil, timestamp: 0},  # Cache directory listings
+      # Track previous session statuses to detect completions
+      previous_session_statuses: %{}  # %{session_id => status}
     }}
   end
 
@@ -583,8 +586,38 @@ defmodule DashboardPhoenix.SessionBridge do
             end)
           
           normalized = Enum.reverse(normalized)
+          
+          # Detect session completions (transition from running/idle to completed)
+          new_statuses = normalized
+          |> Enum.filter(fn s -> String.contains?(s.session_key, "subagent") end)
+          |> Enum.map(fn s -> {s.id, s.status} end)
+          |> Map.new()
+          
+          # Log code_complete for sessions that just transitioned to completed
+          Enum.each(new_statuses, fn {session_id, new_status} ->
+            old_status = Map.get(state.previous_session_statuses, session_id)
+            
+            if old_status in ["running", "idle"] && new_status == "completed" do
+              # Find session details for the log message
+              session = Enum.find(normalized, fn s -> s.id == session_id end)
+              label = if session, do: session.label, else: String.slice(session_id, 0, 8)
+              task = if session, do: session.task_summary, else: nil
+              
+              ActivityLog.log_event(:code_complete, "Sub-agent completed: #{label}", %{
+                session_id: session_id,
+                label: label,
+                task: task
+              })
+            end
+          end)
+          
           broadcast_sessions(normalized)
-          %{state | sessions: normalized, last_session_mtime: mtime, transcript_details_cache: new_details_cache}
+          %{state | 
+            sessions: normalized, 
+            last_session_mtime: mtime, 
+            transcript_details_cache: new_details_cache,
+            previous_session_statuses: new_statuses
+          }
         else
           state
         end

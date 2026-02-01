@@ -443,6 +443,14 @@ defmodule DashboardPhoenixWeb.HomeLive do
           work_info = %{label: name, job_id: job_id}
           chainlink_wip = Map.put(socket.assigns.chainlink_work_in_progress, issue_id, work_info)
           
+          # Log task started event
+          ActivityLog.log_event(:task_started, "Work started on Chainlink ##{issue_id}", %{
+            issue_id: issue_id,
+            title: issue.title,
+            priority: issue.priority,
+            agent: "claude"
+          })
+          
           socket = socket
           |> assign(chainlink_work_in_progress: chainlink_wip)
           |> put_flash(:info, "Started work on Chainlink ##{issue_id}")
@@ -1840,6 +1848,23 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Execute work for the ticket (duplicate check already done by component)
   defp execute_work_for_ticket(socket, ticket_id, ticket_details, coding_pref, claude_model, opencode_model) do
+    # Log task started event
+    agent_name = case coding_pref do
+      :opencode -> "opencode"
+      :gemini -> "gemini"
+      _ -> "claude"
+    end
+    model = case coding_pref do
+      :opencode -> opencode_model
+      :gemini -> "gemini"
+      _ -> claude_model
+    end
+    ActivityLog.log_event(:task_started, "Work started on #{ticket_id}", %{
+      ticket_id: ticket_id,
+      agent: agent_name,
+      model: model
+    })
+    
     # Build the prompt from ticket details
     prompt = """
     Work on ticket #{ticket_id}.

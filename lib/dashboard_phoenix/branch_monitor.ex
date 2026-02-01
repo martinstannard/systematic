@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.BranchMonitor do
   use GenServer
   require Logger
 
-  alias DashboardPhoenix.{CLITools, CommandRunner, Paths}
+  alias DashboardPhoenix.{ActivityLog, CLITools, CommandRunner, Paths}
 
   @poll_interval_ms 120_000  # 2 minutes
   @topic "branch_updates"
@@ -341,6 +341,10 @@ defmodule DashboardPhoenix.BranchMonitor do
                cd: repo_path(), timeout: @cli_timeout_ms) do
           {:ok, output} ->
             Logger.info("Successfully merged #{branch_name} to #{base_branch}")
+            ActivityLog.log_event(:merge_complete, "Merged #{branch_name} to #{base_branch}", %{
+              branch: branch_name,
+              target: base_branch
+            })
             {:ok, output}
           
           {:error, {:exit, _code, error}} ->

@@ -63,7 +63,21 @@ defmodule DashboardPhoenix.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: DashboardPhoenix.Supervisor]
-    Supervisor.start_link(children, opts)
+    result = Supervisor.start_link(children, opts)
+    
+    # Log startup event after supervision tree is up
+    case result do
+      {:ok, _pid} ->
+        # Small delay to ensure ActivityLog GenServer is ready
+        spawn(fn ->
+          Process.sleep(1000)
+          DashboardPhoenix.ActivityLog.log_event(:restart_complete, "Dashboard started", %{version: "1.0"})
+        end)
+      _ ->
+        :ok
+    end
+    
+    result
   end
 
   # Tell Phoenix to update the endpoint configuration
@@ -74,9 +88,3 @@ defmodule DashboardPhoenix.Application do
     :ok
   end
 end
-
-# Temporary: Log a startup event (remove later)
-# spawn(fn -> 
-#   Process.sleep(5000)
-#   DashboardPhoenix.ActivityLog.log_event(:task_started, "Dashboard started", %{})
-# end)
