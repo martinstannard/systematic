@@ -104,29 +104,36 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
               </button>
             </div>
             
-            <!-- Output -->
-            <div class="bg-black/40 rounded-lg p-2 mb-2 max-h-[200px] overflow-y-auto font-mono text-[10px] text-base-content/70" id="gemini-output" phx-hook="ScrollBottom">
+            <!-- Output - using data panel for terminal display -->
+            <div class="panel-data rounded-lg p-3 mb-2 max-h-[200px] overflow-y-auto" id="gemini-output" phx-hook="ScrollBottom">
               <%= if @gemini_output == "" do %>
-                <span class="text-base-content/40 italic">Waiting for output...</span>
+                <div class="flex items-center space-x-2 text-base-content/50">
+                  <span class="status-marker text-info opacity-50"></span>
+                  <span class="text-ui-caption italic">Waiting for output...</span>
+                </div>
               <% else %>
-                <pre class="whitespace-pre-wrap"><%= @gemini_output %></pre>
+                <pre class="text-ui-value text-base-content/90 whitespace-pre-wrap font-mono"><%= @gemini_output %></pre>
               <% end %>
             </div>
             
-            <!-- Prompt Input -->
+            <!-- Prompt Input - using status panel styling -->
             <form phx-submit="send_prompt" phx-target={@myself} class="flex items-center space-x-2">
-              <input
-                type="text"
-                name="prompt"
-                placeholder="Send a prompt to Gemini..."
-                class="flex-1 bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs font-mono text-white placeholder-base-content/40 focus:outline-none focus:border-green-500/50"
-                autocomplete="off"
-              />
+              <div class="flex-1 panel-status rounded border border-accent/30 focus-within:border-accent/60 transition-colors">
+                <input
+                  type="text"
+                  name="prompt"
+                  placeholder="Send a prompt to Gemini..."
+                  class="w-full bg-transparent px-3 py-1.5 text-ui-body font-mono text-base-content placeholder-base-content/50 focus:outline-none"
+                  autocomplete="off"
+                />
+              </div>
               <button
                 type="submit"
-                class="px-3 py-1.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/40 text-xs font-mono"
+                class="panel-work px-3 py-1.5 rounded border border-success/40 text-success hover:border-success/60 hover:bg-success/10 text-ui-label font-mono transition-all"
+                aria-label="Send prompt to Gemini"
               >
-                Send
+                <span class="status-hex text-current scale-75 inline-block"></span>
+                <span class="ml-1">Send</span>
               </button>
             </form>
           <% end %>

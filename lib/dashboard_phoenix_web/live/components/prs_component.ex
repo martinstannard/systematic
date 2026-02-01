@@ -162,7 +162,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                 <div class={"px-2 py-2 rounded text-xs font-mono " <>
                   if(pr_work_info,
                     do: "bg-accent/10 border-2 border-accent/50 animate-pulse-subtle",
-                    else: "hover:bg-white/5 border border-white/5 #{status_bg}")}>
+                    else: "panel-status hover:bg-accent/10 border border-accent/20 hover:border-accent/40 transition-all #{status_bg}")}>
                   <!-- PR Title and Number -->
                   <div class="flex items-start justify-between mb-1">
                     <div class="flex-1 min-w-0">

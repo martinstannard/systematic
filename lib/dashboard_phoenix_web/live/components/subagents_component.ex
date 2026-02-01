@@ -181,13 +181,13 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
             <% limited_recent_actions = Map.get(session, :limited_recent_actions, []) %>
             <% start_time = session_start_timestamp(session) %>
             
-            <div class={"rounded-lg border text-xs font-mono " <> 
+            <div class={"rounded-lg border text-xs font-mono transition-all " <> 
               if(status == "running", 
-                do: "bg-warning/5 border-warning/30", 
-                else: if(status == "completed", do: "bg-success/5 border-success/20", else: "bg-white/5 border-white/10"))}>
+                do: "panel-work bg-warning/10 border-warning/40 shadow-lg", 
+                else: if(status == "completed", do: "panel-status bg-success/10 border-success/30", else: "panel-status"))}>
               
               <!-- Header Row: Status, Label, Agent Type, Duration -->
-              <div class="flex flex-wrap items-start justify-between gap-2 px-3 py-2 border-b border-white/5">
+              <div class="flex flex-wrap items-start justify-between gap-2 px-3 py-2 border-b border-accent/20">
                 <div class="flex items-start space-x-2 min-w-0 flex-1">
                   <%= if status == "running" do %>
                     <span class="throbber-small flex-shrink-0 mt-0.5"></span>
@@ -232,9 +232,9 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
               
               <!-- Task Description -->
               <%= if task do %>
-                <div class="px-3 py-2 border-b border-white/5">
-                  <div class="text-[10px] text-base-content/50 mb-0.5">Task</div>
-                  <div class="text-base-content/80 text-[11px] leading-relaxed" title={task}>
+                <div class="px-3 py-2 border-b border-accent/10">
+                  <div class="text-ui-caption text-base-content/60 mb-0.5">Task</div>
+                  <div class="text-ui-body text-base-content/90 leading-relaxed" title={task}>
                     <%= task %>
                   </div>
                 </div>
@@ -278,13 +278,22 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
               
               <!-- Footer: Tokens & Cost (if available) -->
               <%= if (Map.get(session, :tokens_in, 0) > 0 || Map.get(session, :tokens_out, 0) > 0) do %>
-                <div class="px-3 py-1.5 bg-black/20 flex items-center justify-between text-[10px] text-base-content/40">
-                  <div class="flex items-center space-x-3">
-                    <span>↓ <%= format_tokens(session.tokens_in) %></span>
-                    <span>↑ <%= format_tokens(session.tokens_out) %></span>
+                <div class="px-3 py-1.5 panel-data border-t border-accent/10 flex items-center justify-between">
+                  <div class="flex items-center space-x-3 text-ui-micro text-base-content/60">
+                    <div class="flex items-center space-x-1">
+                      <span class="status-marker text-info opacity-60"></span>
+                      <span class="text-tabular">↓ <%= format_tokens(session.tokens_in) %></span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                      <span class="status-marker text-secondary opacity-60"></span>
+                      <span class="text-tabular">↑ <%= format_tokens(session.tokens_out) %></span>
+                    </div>
                   </div>
                   <%= if Map.get(session, :cost, 0) > 0 do %>
-                    <span class="text-success/60">$<%= Float.round(session.cost, 4) %></span>
+                    <div class="flex items-center space-x-1">
+                      <span class="status-marker text-success"></span>
+                      <span class="text-ui-value text-success">$<%= Float.round(session.cost, 4) %></span>
+                    </div>
                   <% end %>
                 </div>
               <% end %>

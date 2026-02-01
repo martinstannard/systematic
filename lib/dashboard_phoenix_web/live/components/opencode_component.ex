@@ -147,7 +147,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
                 <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sessions</div>
               <% end %>
               <%= for session <- @opencode_sessions do %>
-                <div class="px-2 py-2 rounded hover:bg-white/5 text-xs font-mono border border-white/5">
+                <div class="px-2 py-2 rounded panel-status hover:bg-accent/10 text-xs font-mono border border-accent/20 hover:border-accent/40 transition-all">
                   <!-- Session Header -->
                   <div class="flex items-start justify-between mb-1">
                     <div class="flex items-center space-x-2 min-w-0">

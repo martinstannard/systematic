@@ -160,7 +160,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
                 <div class="text-ui-caption text-base-content/60 py-4 text-center">No unmerged branches</div>
               <% end %>
               <%= for branch <- @unmerged_branches do %>
-                <div class="px-2 py-2 rounded hover:bg-white/5 border border-white/5">
+                <div class="px-2 py-2 rounded panel-status hover:bg-accent/10 border border-accent/20 hover:border-accent/40 transition-all">
                   <!-- Branch Name and Actions -->
                   <div class="flex items-start justify-between mb-1">
                     <div class="flex items-center space-x-2 min-w-0">

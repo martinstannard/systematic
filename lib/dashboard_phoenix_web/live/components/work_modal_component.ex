@@ -61,41 +61,57 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class={"fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} phx-click="close_work_modal" phx-target={@myself}>
-      <div class="panel-agent rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto border-2 border-purple-500/40" phx-click-away="close_work_modal" phx-target={@myself}>
-        <!-- Header -->
+    <!-- Modal overlay with solid dark background instead of blur -->
+    <div class={"fixed inset-0 bg-space flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} phx-click="close_work_modal" phx-target={@myself}>
+      <!-- Modal panel using agent panel style for distinctive presence -->
+      <div class="panel-agent agent-active rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" phx-click-away="close_work_modal" phx-target={@myself}>
+        <!-- Header with enhanced styling -->
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center space-x-3">
-            <span class="text-2xl">🎫</span>
-            <h2 class="text-lg font-bold text-white font-mono"><%= @work_ticket_id %></h2>
+            <div class="status-hex text-accent"></div>
+            <h2 class="text-system-title text-accent font-display"><%= @work_ticket_id %></h2>
           </div>
-          <button phx-click="close_work_modal" phx-target={@myself} class="text-base-content/60 hover:text-white text-xl">✕</button>
+          <button 
+            phx-click="close_work_modal" 
+            phx-target={@myself} 
+            class="text-base-content/60 hover:text-accent text-xl transition-colors"
+            aria-label="Close modal"
+          >
+            ✕
+          </button>
         </div>
         
-        <!-- Ticket Details -->
+        <!-- Ticket Details with data panel styling -->
         <div class="mb-6">
-          <div class="text-panel-label text-accent mb-2">Ticket Details</div>
+          <div class="text-panel-label text-secondary mb-2">Ticket Details</div>
           <%= if @work_ticket_loading do %>
             <div class="flex items-center space-x-2 text-base-content/60">
-              <span class="throbber"></span>
-              <span class="text-sm">Fetching ticket details...</span>
+              <span class="status-activity-ring text-secondary"></span>
+              <span class="text-ui-body">Fetching ticket details...</span>
             </div>
           <% else %>
-            <pre class="text-xs font-mono text-base-content/80 bg-black/40 rounded-lg p-4 whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto"><%= @work_ticket_details %></pre>
+            <!-- Data panel for code display instead of transparent background -->
+            <div class="panel-data rounded-lg p-4 max-h-64 overflow-y-auto">
+              <pre class="text-ui-value text-base-content/90 whitespace-pre-wrap overflow-x-auto font-mono"><%= @work_ticket_details %></pre>
+            </div>
           <% end %>
         </div>
         
-        <!-- Execute Work -->
-        <div class="border-t border-white/10 pt-4">
+        <!-- Execute Work section with distinctive separator -->
+        <div class="border-t border-accent/20 pt-4">
           <div class="flex items-center justify-between mb-3">
-            <div class="text-panel-label text-accent">Start Working</div>
-            <div class={"text-[10px] font-mono px-2 py-1 rounded " <> coding_agent_badge_class(@coding_agent_pref)}>
-              Using: <%= coding_agent_badge_text(@coding_agent_pref) %>
+            <div class="text-panel-label text-primary">Start Working</div>
+            <div class={"text-[10px] font-mono px-3 py-1 rounded panel-status " <> coding_agent_badge_class(@coding_agent_pref)}>
+              <span class="status-beacon text-current"></span>
+              <span class="ml-2">Using: <%= coding_agent_badge_text(@coding_agent_pref) %></span>
             </div>
           </div>
           
           <%= if @work_error do %>
-            <div class="bg-error/20 text-error rounded-lg p-3 text-sm font-mono mb-3"><%= @work_error %></div>
+            <div class="panel-status bg-error/15 border-error/30 text-error rounded-lg p-3 text-ui-body mb-3">
+              <span class="status-marker text-error"></span>
+              <span class="ml-2"><%= @work_error %></span>
+            </div>
           <% end %>
           
           <div class="flex items-center space-x-3">
@@ -103,23 +119,31 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
               phx-click="execute_work"
               phx-target={@myself}
               disabled={@work_in_progress or @work_ticket_loading or @work_sent}
-              class={"flex-1 py-3 rounded-lg text-sm font-mono font-bold transition-all " <> 
+              class={"flex-1 py-3 rounded-lg text-ui-label font-bold transition-all border " <> 
                 cond do
-                  @work_sent -> "bg-green-500/30 text-green-300"
-                  @work_in_progress -> "bg-blue-500/30 text-blue-300 cursor-wait"
-                  true -> "bg-accent/20 text-accent hover:bg-accent/40"
+                  @work_sent -> "panel-status bg-success/20 border-success/40 text-success"
+                  @work_in_progress -> "panel-status bg-info/20 border-info/40 text-info cursor-wait"
+                  true -> "panel-work border-accent/30 text-accent hover:border-accent/60 hover:bg-accent/10"
                 end}
+              aria-label="Execute work on ticket"
             >
               <%= cond do %>
-                <% @work_sent -> %>✓ Work Started
-                <% @work_in_progress -> %><span class="inline-block animate-spin mr-2">⟳</span> Starting...
-                <% true -> %>🚀 Execute Work
+                <% @work_sent -> %>
+                  <span class="status-marker text-success"></span>
+                  <span class="ml-2">Work Started</span>
+                <% @work_in_progress -> %>
+                  <span class="status-activity-ring text-info"></span>
+                  <span class="ml-2">Starting...</span>
+                <% true -> %>
+                  <span class="text-lg">🚀</span>
+                  <span class="ml-2">Execute Work</span>
               <% end %>
             </button>
             <a 
               href={"https://linear.app/fresh-clinics/issue/#{@work_ticket_id}"} 
               target="_blank"
-              class="px-4 py-3 rounded-lg bg-base-content/10 text-base-content/70 hover:bg-base-content/20 text-sm font-mono"
+              class="px-4 py-3 rounded-lg panel-status text-base-content/70 hover:text-accent transition-colors text-ui-label border border-base-content/20 hover:border-accent/40"
+              aria-label="Open ticket in Linear"
             >
               Linear ↗
             </a>

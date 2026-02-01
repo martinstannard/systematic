@@ -151,7 +151,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
               <% end %>
               <%= for ticket <- @linear_filtered_tickets do %>
                 <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
-                <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono " <> if(work_info, do: "bg-accent/10", else: "hover:bg-white/5")}>
+                <div class={"flex items-center space-x-2 px-2 py-1.5 rounded text-xs font-mono transition-all " <> if(work_info, do: "panel-work bg-accent/15 border border-accent/30", else: "panel-status hover:bg-accent/10 hover:border-accent/30")}>
                   <%= if work_info do %>
                     <span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
                   <% else %>
