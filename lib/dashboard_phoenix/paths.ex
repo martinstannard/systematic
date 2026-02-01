@@ -21,6 +21,8 @@ defmodule DashboardPhoenix.Paths do
   - `DEFAULT_WORK_DIR` - Default working directory for coding tasks
   - `CLAUDE_STATS_FILE` - Claude stats cache file (default: $HOME/.claude/stats-cache.json)
   - `AGENT_PROGRESS_FILE` - Agent progress JSONL file (default: /tmp/agent-progress.jsonl)
+  - `OPENCODE_STORAGE_DIR` - OpenCode storage directory (default: $HOME/.local/share/opencode/storage)
+  - `SESSION_UPDATE_SCRIPT` - Session update script path (default: scripts/update_sessions.sh)
   """
 
   @doc """
@@ -206,6 +208,26 @@ defmodule DashboardPhoenix.Paths do
   def dashboard_state_file do
     Application.get_env(:dashboard_phoenix, :dashboard_state_file) ||
       Path.join([:code.priv_dir(:dashboard_phoenix), "data", "dashboard_state.json"])
+  end
+
+  @doc """
+  Get the OpenCode storage directory.
+  Default: $HOME/.local/share/opencode/storage
+  """
+  def opencode_storage_dir do
+    System.get_env("OPENCODE_STORAGE_DIR") ||
+      Application.get_env(:dashboard_phoenix, :opencode_storage_dir) ||
+      Path.join([System.user_home!(), ".local", "share", "opencode", "storage"])
+  end
+
+  @doc """
+  Get the session update script path.
+  Default: scripts/update_sessions.sh (relative to app directory)
+  """
+  def session_update_script do
+    System.get_env("SESSION_UPDATE_SCRIPT") ||
+      Application.get_env(:dashboard_phoenix, :session_update_script) ||
+      Path.expand("../../scripts/update_sessions.sh", __DIR__)
   end
 
   # Private helpers

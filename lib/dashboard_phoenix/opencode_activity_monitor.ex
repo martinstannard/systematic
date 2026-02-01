@@ -2,7 +2,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   @moduledoc """
   Monitors OpenCode tool calls and broadcasts them to the Live Feed.
   
-  OpenCode stores its data in ~/.local/share/opencode/storage/:
+  OpenCode stores its data in a configurable storage directory (default: ~/.local/share/opencode/storage/):
   - session/<project-hash>/<session-id>.json - Session metadata
   - part/<message-id>/<part-id>.json - Tool calls and responses
   - message/<session-id>/ - Message directories
@@ -13,6 +13,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   """
   use GenServer
 
+  alias DashboardPhoenix.Paths
   require Logger
 
   @poll_interval 3_000  # Poll every 3 seconds
@@ -21,7 +22,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
 
   # OpenCode storage location
   defp storage_dir do
-    Path.join([System.user_home!(), ".local", "share", "opencode", "storage"])
+    Paths.opencode_storage_dir()
   end
 
   defp parts_dir, do: Path.join(storage_dir(), "part")
