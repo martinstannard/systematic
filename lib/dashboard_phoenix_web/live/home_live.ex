@@ -48,6 +48,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.OpenCodeServer
   alias DashboardPhoenix.GeminiServer
   alias DashboardPhoenix.ClientFactory
+  alias DashboardPhoenix.Status
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
   alias DashboardPhoenix.HealthCheck
@@ -717,7 +718,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:subagents_component, :clear_completed}, socket) do
     # Get all completed session IDs and add them to dismissed
     completed_ids = socket.assigns.agent_sessions
-    |> Enum.filter(fn s -> s.status == "completed" end)
+    |> Enum.filter(fn s -> s.status == Status.completed() end)
     |> Enum.map(fn s -> s.id end)
     
     dismissed = Enum.reduce(completed_ids, socket.assigns.dismissed_sessions, fn id, acc ->
@@ -1924,7 +1925,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_event("clear_completed", _, socket) do
     # Get all completed session IDs and add them to dismissed
     completed_ids = socket.assigns.agent_sessions
-    |> Enum.filter(fn s -> s.status == "completed" end)
+    |> Enum.filter(fn s -> s.status == Status.completed() end)
     |> Enum.map(fn s -> s.id end)
     
     dismissed = Enum.reduce(completed_ids, socket.assigns.dismissed_sessions, fn id, acc ->
@@ -2111,7 +2112,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp build_tickets_in_progress(opencode_sessions, agent_sessions) do
     # Build from OpenCode sessions using pre-extracted ticket IDs
     opencode_work = opencode_sessions
-    |> Enum.filter(fn session -> session.status in ["active", "idle"] end)
+    |> Enum.filter(fn session -> session.status in [Status.active(), Status.idle()] end)
     |> Enum.flat_map(fn session ->
       ticket_ids = Map.get(session, :extracted_tickets, [])
       Enum.map(ticket_ids, fn ticket_id -> 
@@ -2127,7 +2128,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     
     # Build from sub-agent sessions using pre-extracted ticket IDs
     subagent_work = agent_sessions
-    |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
+    |> Enum.filter(fn session -> session.status in [Status.running(), Status.idle()] end)
     |> Enum.flat_map(fn session ->
       ticket_ids = Map.get(session, :extracted_tickets, [])
       Enum.map(ticket_ids, fn ticket_id -> 
@@ -2151,7 +2152,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp build_prs_in_progress(opencode_sessions, agent_sessions) do
     # Build from OpenCode sessions using pre-extracted PR numbers
     opencode_work = opencode_sessions
-    |> Enum.filter(fn session -> session.status in ["active", "idle"] end)
+    |> Enum.filter(fn session -> session.status in [Status.active(), Status.idle()] end)
     |> Enum.flat_map(fn session ->
       pr_numbers = Map.get(session, :extracted_prs, [])
       Enum.map(pr_numbers, fn pr_number -> 
@@ -2167,7 +2168,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     
     # Build from sub-agent sessions using pre-extracted PR numbers
     subagent_work = agent_sessions
-    |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
+    |> Enum.filter(fn session -> session.status in [Status.running(), Status.idle()] end)
     |> Enum.flat_map(fn session ->
       pr_numbers = Map.get(session, :extracted_prs, [])
       Enum.map(pr_numbers, fn pr_number -> 
@@ -2202,7 +2203,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   defp build_chainlink_work_in_progress(agent_sessions, current_work) do
     # Get active session IDs for cleanup
     active_session_ids = agent_sessions
-    |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
+    |> Enum.filter(fn session -> session.status in [Status.running(), Status.idle()] end)
     |> Enum.map(& &1.id)
     
     # Async sync with tracker to clean up stale persisted entries
@@ -2216,7 +2217,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
     
     # Detect work from running sessions
     detected_work = agent_sessions
-    |> Enum.filter(fn session -> session.status in ["running", "idle"] end)
+    |> Enum.filter(fn session -> session.status in [Status.running(), Status.idle()] end)
     |> Enum.filter(fn session -> 
       label = Map.get(session, :label, "")
       String.contains?(label, "ticket-")

@@ -13,7 +13,7 @@ defmodule DashboardPhoenix.ProcessMonitor do
 
   require Logger
 
-  alias DashboardPhoenix.{ProcessParser, Paths}
+  alias DashboardPhoenix.{ProcessParser, Paths, Status}
 
   @interesting_patterns ~w(opencode openclaw-tui openclaw-gateway)
 
@@ -69,9 +69,9 @@ defmodule DashboardPhoenix.ProcessMonitor do
   end
 
   def get_stats(processes) do
-    busy = Enum.count(processes, &(&1.status == "busy"))
-    idle = Enum.count(processes, &(&1.status == "idle"))
-    stopped = Enum.count(processes, &(&1.status in ["stopped", "zombie", "dead"]))
+    busy = Enum.count(processes, &(&1.status == Status.busy()))
+    idle = Enum.count(processes, &(&1.status == Status.idle()))
+    stopped = Enum.count(processes, &(&1.status in Status.inactive_statuses()))
     
     %{
       running: busy + idle,  # Total active

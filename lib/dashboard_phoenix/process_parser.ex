@@ -10,7 +10,7 @@ defmodule DashboardPhoenix.ProcessParser do
 
   require Logger
 
-  alias DashboardPhoenix.{CLITools, CLICache}
+  alias DashboardPhoenix.{CLITools, CLICache, Status}
 
   @cli_timeout_ms 10_000
   @cache_ttl_ms 5_000  # Cache ps output for 5 seconds
@@ -122,13 +122,13 @@ defmodule DashboardPhoenix.ProcessParser do
   """
   def derive_status(stat, cpu \\ 0.0) when is_binary(stat) and is_number(cpu) do
     cond do
-      String.contains?(stat, "Z") -> "zombie"    # Zombie process
-      String.contains?(stat, "T") -> "stopped"   # Stopped by signal
-      String.contains?(stat, "X") -> "dead"      # Dead
-      String.contains?(stat, "R") -> "busy"      # Actually running on CPU
-      String.contains?(stat, ["S", "D"]) and cpu > 5.0 -> "busy"   # Sleeping but recently active
-      String.contains?(stat, ["S", "D"]) -> "idle"  # Sleeping, low CPU = waiting
-      true -> "running"
+      String.contains?(stat, "Z") -> Status.zombie()    # Zombie process
+      String.contains?(stat, "T") -> Status.stopped()   # Stopped by signal
+      String.contains?(stat, "X") -> Status.dead()      # Dead
+      String.contains?(stat, "R") -> Status.busy()      # Actually running on CPU
+      String.contains?(stat, ["S", "D"]) and cpu > 5.0 -> Status.busy()   # Sleeping but recently active
+      String.contains?(stat, ["S", "D"]) -> Status.idle()  # Sleeping, low CPU = waiting
+      true -> Status.running()
     end
   end
 

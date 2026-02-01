@@ -21,6 +21,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.Status
+
   @type agent_type :: :claude | :opencode | :gemini | :openai | :subagent | :unknown
   @type state :: :running | :completed | :failed | :idle
 
@@ -70,16 +72,20 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   @doc """
   Normalizes a status string to a state atom.
   """
-  def normalize_state("running"), do: :running
-  def normalize_state("active"), do: :running
-  def normalize_state("completed"), do: :completed
-  def normalize_state("done"), do: :completed
-  def normalize_state("failed"), do: :failed
-  def normalize_state("error"), do: :failed
-  def normalize_state("idle"), do: :idle
-  def normalize_state("ready"), do: :idle
-  def normalize_state("stopped"), do: :idle
-  def normalize_state(_), do: :idle
+  def normalize_state(status) do
+    cond do
+      status == Status.running() -> :running
+      status == Status.active() -> :running
+      status == Status.completed() -> :completed
+      status == Status.done() -> :completed
+      status == Status.failed() -> :failed
+      status == Status.error() -> :failed
+      status == Status.idle() -> :idle
+      status == "ready" -> :idle
+      status == Status.stopped() -> :idle
+      true -> :idle
+    end
+  end
 
   @impl true
   def update(assigns, socket) do
@@ -89,7 +95,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     {type_atom, type_name, icon} = agent_type_info(agent_type_key)
     
     # Determine state
-    status = Map.get(agent, :status) || Map.get(agent, :state) || "idle"
+    status = Map.get(agent, :status) || Map.get(agent, :state) || Status.idle()
     state = normalize_state(status)
     
     # Get display name
@@ -202,10 +208,10 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   defp state_badge_class(_), do: "bg-gray-500/20 text-gray-400"
 
   # State text
-  defp state_text(:running), do: "running"
-  defp state_text(:completed), do: "completed"
-  defp state_text(:failed), do: "failed"
-  defp state_text(:idle), do: "idle"
+  defp state_text(:running), do: Status.running()
+  defp state_text(:completed), do: Status.completed()
+  defp state_text(:failed), do: Status.failed()
+  defp state_text(:idle), do: Status.idle()
   defp state_text(_), do: "unknown"
 
   # Duration badge styling based on state

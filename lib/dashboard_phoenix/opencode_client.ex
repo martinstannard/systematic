@@ -15,6 +15,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
 
   alias DashboardPhoenix.OpenCodeServer
   alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.Status
 
   @default_timeout 120_000
 
@@ -170,8 +171,8 @@ defmodule DashboardPhoenix.OpenCodeClient do
     # Determine status based on activity
     status = cond do
       session["parentID"] -> "subagent"
-      updated_at && DateTime.diff(DateTime.utc_now(), updated_at, :second) < 60 -> "active"
-      true -> "idle"
+      updated_at && DateTime.diff(DateTime.utc_now(), updated_at, :second) < 60 -> Status.active()
+      true -> Status.idle()
     end
     
     %{

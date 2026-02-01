@@ -8,6 +8,8 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
   
   use GenServer
   
+  alias DashboardPhoenix.Status
+  
   @table_name :home_live_cache
   @max_cache_size 100
   @ttl_ms 30_000  # 30 seconds TTL for cache entries
@@ -201,7 +203,7 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
     
     # Build activity for each running/active session
     sessions
-    |> Enum.filter(fn s -> s.status in ["running", "idle"] end)
+    |> Enum.filter(fn s -> s.status in [Status.running(), Status.idle()] end)
     |> Enum.map(fn session ->
       agent_id = session.label || session.id
       agent_events = Map.get(events_by_agent, agent_id, [])
@@ -222,7 +224,7 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
         type: determine_agent_type(session),
         model: session.model,
         cwd: nil,
-        status: if(session.status == "running", do: "active", else: "idle"),
+        status: if(session.status == Status.running(), do: Status.active(), else: Status.idle()),
         last_action: if(last, do: %{action: last.action, target: last.target}, else: nil),
         files_worked: files,
         last_activity: if(last, do: parse_event_time(last.ts), else: nil),
@@ -253,7 +255,7 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
       id: "main",
       label: "OpenClaw",
       type: "main",
-      status: "running"
+      status: Status.running()
     }
     nodes = [main_node | nodes]
     
@@ -290,7 +292,7 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
           id: "opencode-#{session.id}",
           label: session.slug || session.title || "opencode",
           type: "opencode",
-          status: if(session.status in ["active", "running"], do: "running", else: "idle")
+          status: if(session.status in [Status.active(), Status.running()], do: Status.running(), else: Status.idle())
         }
         link = %{
           source: "main",
@@ -310,7 +312,7 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
         id: "gemini-main",
         label: "Gemini CLI",
         type: "gemini",
-        status: "running"
+        status: Status.running()
       }
       link = %{
         source: "main",
@@ -334,7 +336,7 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
           id: "coding-#{agent.pid}",
           label: "#{agent.type}",
           type: "coding_agent",
-          status: if(agent.status == "running", do: "running", else: "idle")
+          status: if(agent.status == Status.running(), do: Status.running(), else: Status.idle())
         }
         link = %{
           source: "main",
@@ -351,7 +353,7 @@ defmodule DashboardPhoenixWeb.HomeLiveCache do
     # System process nodes (just a few key ones)
     {process_nodes, process_links} =
       processes
-      |> Enum.filter(fn p -> p.status == "busy" end)
+      |> Enum.filter(fn p -> p.status == Status.busy() end)
       |> Enum.take(4)
       |> Enum.map(fn proc ->
         node = %{

@@ -4,6 +4,8 @@ defmodule DashboardPhoenix.CliProcessDetector do
   Scans system processes to find agents started outside the dashboard.
   """
 
+  alias DashboardPhoenix.Status
+
   @doc """
   Detects running OpenCode and Gemini CLI processes.
   Returns a list of process info maps.
@@ -43,7 +45,7 @@ defmodule DashboardPhoenix.CliProcessDetector do
           type: "opencode",
           name: extract_ticket_name(task) || "OpenCode ##{pid}",
           task: String.slice(task, 0, 100),
-          status: "running",
+          status: Status.running(),
           pid: String.to_integer(pid),
           runtime: nil,
           start_time: nil
@@ -61,7 +63,7 @@ defmodule DashboardPhoenix.CliProcessDetector do
           type: "gemini",
           name: extract_ticket_name(task) || "Gemini ##{pid}",
           task: String.slice(task, 0, 100),
-          status: "running",
+          status: Status.running(),
           pid: String.to_integer(pid),
           runtime: nil,
           start_time: nil

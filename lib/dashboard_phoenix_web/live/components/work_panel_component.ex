@@ -16,6 +16,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   """
   use DashboardPhoenixWeb, :live_component
   
+  alias DashboardPhoenix.Status
   alias DashboardPhoenixWeb.Live.Components.AgentCardComponent
 
   @impl true
@@ -25,7 +26,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     
     # Count active agents for header
     active_count = Enum.count(agents, fn a -> 
-      Map.get(a, :status) in ["running", "active", "idle"]
+      Map.get(a, :status) in [Status.running(), Status.active(), Status.idle()]
     end)
     
     # Count by type for summary
@@ -50,12 +51,12 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     # Combine and sort: running first, then by name
     (claude_agents ++ opencode_agents ++ gemini_agent)
     |> Enum.sort_by(fn a -> 
-      status = Map.get(a, :status, "idle")
-      priority = case status do
-        "running" -> 0
-        "active" -> 0
-        "idle" -> 1
-        _ -> 2
+      status = Map.get(a, :status, Status.idle())
+      priority = cond do
+        status == Status.running() -> 0
+        status == Status.active() -> 0
+        status == Status.idle() -> 1
+        true -> 2
       end
       {priority, Map.get(a, :name, "")}
     end)
@@ -67,9 +68,9 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     
     assigns.agent_sessions
     |> Enum.reject(fn s -> Map.get(s, :session_key) == "agent:main:main" end)
-    |> Enum.filter(fn s -> s.status in ["running", "idle", "completed"] end)
+    |> Enum.filter(fn s -> s.status in [Status.running(), Status.idle(), Status.completed()] end)
     |> Enum.reject(fn s -> MapSet.member?(dismissed_sessions, Map.get(s, :id)) end)
-    |> Enum.filter(fn s -> show_completed or s.status != "completed" end)
+    |> Enum.filter(fn s -> show_completed or s.status != Status.completed() end)
     |> Enum.take(10)  # Show more agents now that they're expandable
     |> Enum.map(fn s ->
       # Get recent actions (limit to last 5)
@@ -154,7 +155,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
         model: "gemini-2.0-flash",
         name: "Gemini CLI",
         task: last_activity,
-        status: if(busy, do: "running", else: "idle"),
+        status: if(busy, do: Status.running(), else: Status.idle()),
         runtime: nil,
         start_time: nil,
         # Extended details for expansion

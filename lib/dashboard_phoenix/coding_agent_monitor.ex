@@ -16,7 +16,7 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
 
   require Logger
 
-  alias DashboardPhoenix.CLITools
+  alias DashboardPhoenix.{CLITools, Status}
 
   @agent_patterns ~w(opencode claude-code codex aider)
   @cli_timeout_ms 10_000
@@ -127,11 +127,11 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
 
   defp humanize_status(stat) do
     case String.first(stat || "?") do
-      "R" -> "running"
+      "R" -> Status.running()
       "S" -> "sleeping"
       "D" -> "waiting"
-      "Z" -> "zombie"
-      "T" -> "stopped"
+      "Z" -> Status.zombie()
+      "T" -> Status.stopped()
       _ -> "unknown"
     end
   end

@@ -6,6 +6,8 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
   """
   use DashboardPhoenixWeb, :live_component
 
+  alias DashboardPhoenix.Status
+
   # Required assigns:
   # - agent_sessions: list of agent sessions
   # - dave_collapsed: boolean for panel collapse state
@@ -55,7 +57,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             <span class={"panel-chevron " <> if(@dave_collapsed, do: "collapsed", else: "")} aria-hidden="true">▼</span>
             <span class="panel-icon" aria-hidden="true">🐙</span>
             <span class="text-panel-label text-purple-400">Dave</span>
-            <%= if @main_agent_session.status == "running" do %>
+            <%= if @main_agent_session.status == Status.running() do %>
               <span class="status-beacon text-warning" aria-hidden="true"></span>
               <span class="sr-only">Running</span>
             <% else %>
@@ -78,7 +80,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
             
             <!-- Current Activity -->
             <div class="py-2">
-              <%= if @main_agent_session.status == "running" do %>
+              <%= if @main_agent_session.status == Status.running() do %>
                 <%= if current_action do %>
                   <div class="flex items-center space-x-2 mb-2" role="status" aria-live="polite">
                     <span class="status-activity-ring text-purple-400" aria-hidden="true"></span>
@@ -151,12 +153,16 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
   end
 
   # Status badge styles
-  defp status_badge("running"), do: "bg-warning/20 text-warning"
-  defp status_badge("idle"), do: "bg-info/20 text-info"
-  defp status_badge("completed"), do: "bg-success/20 text-success"
-  defp status_badge("failed"), do: "bg-error/20 text-error"
-  defp status_badge("stopped"), do: "bg-base-content/20 text-base-content/60"
-  defp status_badge(_), do: "bg-base-content/10 text-base-content/60"
+  defp status_badge(status) do
+    cond do
+      status == Status.running() -> "bg-warning/20 text-warning"
+      status == Status.idle() -> "bg-info/20 text-info"
+      status == Status.completed() -> "bg-success/20 text-success"
+      status == Status.failed() -> "bg-error/20 text-error"
+      status == Status.stopped() -> "bg-base-content/20 text-base-content/60"
+      true -> "bg-base-content/10 text-base-content/60"
+    end
+  end
 
   # Token formatting
   defp format_tokens(n) when is_integer(n) and n >= 1_000_000, do: "#{Float.round(n / 1_000_000, 1)}M"

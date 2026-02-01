@@ -4,6 +4,8 @@ defmodule DashboardPhoenix.PanelStatus do
   based on panel data and state.
   """
 
+  alias DashboardPhoenix.Status
+
   @doc """
   Determines the status class for a panel based on its content and state.
   Returns a string with space-separated CSS classes.
@@ -198,7 +200,7 @@ defmodule DashboardPhoenix.PanelStatus do
   defp has_failing_prs?(prs, verifications) when is_list(prs) and is_map(verifications) do
     Enum.any?(prs, fn pr ->
       verification = Map.get(verifications, pr.url, %{})
-      verification[:status] == "failed"
+      verification[:status] == Status.failed()
     end)
   end
 
@@ -211,7 +213,7 @@ defmodule DashboardPhoenix.PanelStatus do
       ci_status = Map.get(pr, :ci_status)
       has_conflicts = Map.get(pr, :has_conflicts, false)
       # Check for conflicts via either mergeable=false or has_conflicts=true
-      has_conflicts or mergeable == false or ci_status in ["failure", "error", :failure, :error]
+      has_conflicts or mergeable == false or ci_status in ["failure", Status.error(), :failure, :error]
     end)
   end
 
@@ -276,7 +278,7 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp has_error_sessions?(sessions) when is_list(sessions) do
     Enum.any?(sessions, fn session ->
-      String.contains?(session.status || "", "error")
+      String.contains?(session.status || "", Status.error())
     end)
   end
 
@@ -284,21 +286,21 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp has_active_sessions?(sessions) when is_list(sessions) do
     Enum.any?(sessions, fn session ->
-      session.status in ["running", "active", "busy"]
+      session.status in Status.active_statuses()
     end)
   end
 
   defp has_active_sessions?(_), do: false
 
   defp has_error_output?(output) when is_binary(output) do
-    String.contains?(String.downcase(output), ["error", "failed", "exception", "crash"])
+    String.contains?(String.downcase(output), [Status.error(), Status.failed(), "exception", "crash"])
   end
 
   defp has_error_output?(_), do: false
 
   defp count_failed_sessions(sessions) when is_list(sessions) do
     Enum.count(sessions, fn session ->
-      session.status in ["failed", "error", "crashed"]
+      session.status in Status.error_statuses()
     end)
   end
 
@@ -306,7 +308,7 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp count_active_sessions(sessions) when is_list(sessions) do
     Enum.count(sessions, fn session ->
-      session.status in ["running", "active", "busy", "spawned"]
+      session.status in [Status.running(), Status.active(), Status.busy(), Status.spawned()]
     end)
   end
 
@@ -314,7 +316,7 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp count_failed_agents(agents) when is_list(agents) do
     Enum.count(agents, fn agent ->
-      agent.status in ["failed", "error", "crashed"]
+      agent.status in Status.error_statuses()
     end)
   end
 

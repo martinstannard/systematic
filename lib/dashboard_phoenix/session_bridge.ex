@@ -21,6 +21,7 @@ defmodule DashboardPhoenix.SessionBridge do
   alias DashboardPhoenix.Paths
   alias DashboardPhoenix.FileUtils
   alias DashboardPhoenix.ActivityLog
+  alias DashboardPhoenix.Status
   
   @base_poll_interval 5000   # Start at 5s 
   @max_poll_interval 10000   # Back off to 10s when idle
@@ -339,7 +340,7 @@ defmodule DashboardPhoenix.SessionBridge do
       agent_type: e["agent_type"] || detect_agent_type(e["agent"]),
       action: e["action"] || "unknown",
       target: e["target"] || "",
-      status: e["status"] || "running",
+      status: e["status"] || Status.running(),
       output: e["output"] || "",
       details: e["details"] || ""
     }
@@ -496,7 +497,7 @@ defmodule DashboardPhoenix.SessionBridge do
               agent_type: agent_type,
               action: tc["name"] || "unknown",
               target: truncate_target(target),
-              status: "running",
+              status: Status.running(),
               output: "",
               output_summary: "",
               details: ""
@@ -588,7 +589,7 @@ defmodule DashboardPhoenix.SessionBridge do
         result ->
           call
           |> Map.merge(%{
-            status: if(result.is_error, do: "error", else: "done"),
+            status: if(result.is_error, do: Status.error(), else: Status.done()),
             output: result.output,
             output_summary: result.output_summary
           })
@@ -703,7 +704,7 @@ defmodule DashboardPhoenix.SessionBridge do
           Enum.each(new_statuses, fn {session_id, new_status} ->
             old_status = Map.get(state.previous_session_statuses, session_id)
             
-            if old_status in ["running", "idle"] && new_status == "completed" do
+            if old_status in [Status.running(), Status.idle()] && new_status == Status.completed() do
               # Find session details for the log message
               session = Enum.find(normalized, fn s -> s.id == session_id end)
               label = if session, do: session.label, else: String.slice(session_id, 0, 8)
@@ -770,9 +771,9 @@ defmodule DashboardPhoenix.SessionBridge do
     age_ms = now - updated_at
     
     status = cond do
-      age_ms < 60_000 -> "running"      # Active in last minute
-      age_ms < 300_000 -> "idle"        # Active in last 5 mins
-      true -> "completed"
+      age_ms < 60_000 -> Status.running()      # Active in last minute
+      age_ms < 300_000 -> Status.idle()        # Active in last 5 mins
+      true -> Status.completed()
     end
 
     session_id = s["sessionId"] || key
@@ -874,7 +875,7 @@ defmodule DashboardPhoenix.SessionBridge do
     end
     
     # Find last assistant text message (result) - only for completed sessions
-    result_snippet = if status == "completed" do
+    result_snippet = if status == Status.completed() do
       parsed
       |> Enum.filter(fn entry ->
         entry["type"] == "message" && 
@@ -908,7 +909,7 @@ defmodule DashboardPhoenix.SessionBridge do
     # For running sessions, calculate elapsed time from start to now
     # For completed sessions, calculate total runtime
     runtime = cond do
-      status in ["running", "idle"] && start_time ->
+      status in [Status.running(), Status.idle()] && start_time ->
         diff_ms = DateTime.diff(DateTime.utc_now(), start_time, :millisecond)
         format_runtime(diff_ms)
       start_time && end_time ->
@@ -920,9 +921,9 @@ defmodule DashboardPhoenix.SessionBridge do
     
     # Time info: for completed = completion time, for running = start time
     time_info = cond do
-      status == "completed" && end_time ->
+      status == Status.completed() && end_time ->
         Calendar.strftime(end_time, "%H:%M:%S")
-      status in ["running", "idle"] && start_time ->
+      status in [Status.running(), Status.idle()] && start_time ->
         Calendar.strftime(start_time, "%H:%M:%S")
       true ->
         nil
@@ -944,7 +945,7 @@ defmodule DashboardPhoenix.SessionBridge do
     end)
     
     # For running sessions, extract current action and recent tool calls
-    {current_action, recent_actions} = if status in ["running", "idle"] do
+    {current_action, recent_actions} = if status in [Status.running(), Status.idle()] do
       extract_running_session_status(parsed)
     else
       {nil, []}

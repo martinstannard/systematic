@@ -13,7 +13,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   """
   use GenServer
 
-  alias DashboardPhoenix.Paths
+  alias DashboardPhoenix.{Paths, Status}
   require Logger
 
   @poll_interval 3_000  # Poll every 3 seconds
@@ -207,10 +207,10 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
     
     # Determine status
     status = case state["status"] do
-      "completed" -> "done"
-      "running" -> "running"
-      "error" -> "error"
-      _ -> "running"
+      "completed" -> Status.done()
+      "running" -> Status.running()
+      "error" -> Status.error()
+      _ -> Status.running()
     end
     
     # Get session title for agent label
@@ -266,7 +266,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   defp build_output_summary(tool_name, state) do
     output = state["output"] || ""
     metadata = state["metadata"] || %{}
-    is_error = state["status"] == "error"
+    is_error = state["status"] == Status.error()
     
     cond do
       is_error -> "❌ Error"
