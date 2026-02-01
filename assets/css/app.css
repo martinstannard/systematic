@@ -102,39 +102,33 @@ body {
 }
 
 /* =====================================================
-   PANEL SYSTEM - Clean, simple panels
+   PANEL SYSTEM - Clean, flat panels (no rounded corners)
    ===================================================== */
 
 /* Base panel styles */
 .panel {
-  @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700;
+  @apply bg-base-200 border border-base-300;
   @apply transition-colors duration-200;
 }
 
-/* Panel priorities - subtle visual weight differences */
+/* Panel priorities - minimal visual weight differences */
 .panel-priority-high {
-  @apply bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700;
+  @apply bg-base-200 border border-base-300;
 }
 
 .panel-priority-medium {
-  @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700;
+  @apply bg-base-200 border border-base-300;
 }
 
 .panel-priority-compact {
-  @apply bg-gray-50 dark:bg-gray-800/80 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700;
+  @apply bg-base-200/80 border border-base-300;
 }
 
-/* Panel accents - colored top border for categorization */
-.panel-accent-critical {
-  @apply border-t-2 border-t-purple-500;
-}
-
-.panel-accent-active {
-  @apply border-t-2 border-t-green-500;
-}
-
+/* Panel accents - disabled by default, keep classes for compatibility */
+.panel-accent-critical,
+.panel-accent-active,
 .panel-accent-reference {
-  @apply border-t-2 border-t-blue-500;
+  /* No colored borders - panels are uniform */
 }
 
 /* Panel collapsed state */
@@ -142,36 +136,41 @@ body {
   min-height: unset !important;
 }
 
+/* Panel data container - for scrollable content areas */
+.panel-data {
+  @apply bg-base-200 border border-base-300;
+}
+
 /* =====================================================
-   PANEL STATUS INDICATORS - Simple colored borders
+   PANEL STATUS INDICATORS - Subtle left border only
    ===================================================== */
 
 .panel-status-error {
-  @apply border-red-500 dark:border-red-500 border-2;
+  @apply border-l-2 border-l-red-500;
 }
 
 .panel-status-warning {
-  @apply border-yellow-500 dark:border-yellow-500 border-2;
+  @apply border-l-2 border-l-yellow-500;
 }
 
 .panel-status-working {
-  @apply border-green-500 dark:border-green-500;
+  @apply border-l-2 border-l-green-500;
 }
 
 .panel-status-loading {
-  @apply border-blue-400 dark:border-blue-400;
+  @apply border-l-2 border-l-blue-400;
 }
 
 .panel-status-urgent {
-  @apply border-orange-500 dark:border-orange-500 border-2;
+  @apply border-l-2 border-l-orange-500;
 }
 
 .panel-status-success {
-  @apply border-green-500 dark:border-green-500;
+  @apply border-l-2 border-l-green-500;
 }
 
 .panel-status-idle {
-  @apply opacity-90;
+  /* No special styling for idle */
 }
 
 /* =====================================================
@@ -293,18 +292,18 @@ body {
    ===================================================== */
 
 .glass-panel {
-  @apply bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm;
-  @apply border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm;
+  @apply bg-base-100/90 backdrop-blur-sm;
+  @apply border border-base-300;
 }
 
 .glass-morphism {
-  @apply bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm;
-  @apply border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm;
+  @apply bg-base-100/95 backdrop-blur-sm;
+  @apply border border-base-300;
 }
 
 .glass-header {
-  @apply bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm;
-  @apply border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50;
+  @apply bg-base-100/95 backdrop-blur-sm;
+  @apply border-b border-base-300 sticky top-0 z-50;
 }
 
 /* =====================================================
@@ -397,13 +396,12 @@ body {
 
 .agent-card {
   @apply flex flex-col min-h-[100px] p-4;
-  @apply bg-white dark:bg-gray-800 rounded-lg;
-  @apply border border-gray-200 dark:border-gray-700;
-  @apply transition-shadow duration-200;
+  @apply bg-base-200 border border-base-300;
+  @apply transition-colors duration-200;
 }
 
 .agent-card:hover {
-  @apply shadow-md;
+  @apply bg-base-300/50;
 }
 
 .agent-card-header {
@@ -456,20 +454,14 @@ body {
 .section-core-work,
 .section-agent-status,
 .section-system-config {
-  @apply bg-white dark:bg-gray-800/50 rounded-xl;
-  @apply border border-gray-200 dark:border-gray-700;
+  @apply bg-base-200/50 border border-base-300;
 }
 
-.section-core-work {
-  @apply border-l-4 border-l-green-500;
-}
-
-.section-agent-status {
-  @apply border-l-4 border-l-purple-500;
-}
-
+/* No colored left borders - sections are uniform */
+.section-core-work,
+.section-agent-status,
 .section-system-config {
-  @apply border-l-4 border-l-orange-500;
+  /* Keep classes for compatibility but no special styling */
 }
 
 /* =====================================================
@@ -477,7 +469,7 @@ body {
    ===================================================== */
 
 .skeleton {
-  @apply bg-gray-200 dark:bg-gray-700 rounded;
+  @apply bg-base-300;
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 
