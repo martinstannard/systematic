@@ -613,6 +613,46 @@ defmodule DashboardPhoenixWeb.HomeLive do
                put_flash(socket, :error, "Failed to start OpenCode work: #{inspect(reason)}")}
           end
 
+        :gemini ->
+          # Spawn via Gemini CLI
+          if GeminiServer.running?() do
+            case GeminiServer.send_prompt(prompt) do
+              :ok ->
+                work_info = %{
+                  label: "chainlink-#{issue_id}",
+                  agent_type: "gemini",
+                  model: "gemini-2.0-flash",
+                  started_at: DateTime.utc_now() |> DateTime.to_iso8601()
+                }
+
+                ChainlinkWorkTracker.start_work(issue_id, work_info)
+
+                chainlink_wip =
+                  Map.put(socket.assigns.chainlink_work_in_progress, issue_id, work_info)
+
+                ActivityLog.log_event(:task_started, "Work started on Chainlink ##{issue_id}", %{
+                  issue_id: issue_id,
+                  title: issue.title,
+                  priority: issue.priority,
+                  agent: "gemini",
+                  model: "gemini-2.0-flash"
+                })
+
+                socket =
+                  socket
+                  |> assign(chainlink_work_in_progress: chainlink_wip)
+                  |> put_flash(:info, "Started work on Chainlink ##{issue_id} with Gemini")
+
+                {:noreply, socket}
+
+              {:error, reason} ->
+                {:noreply,
+                 put_flash(socket, :error, "Failed to send to Gemini: #{inspect(reason)}")}
+            end
+          else
+            {:noreply, put_flash(socket, :error, "Gemini server not running")}
+          end
+
         _ ->
           # Default: spawn Claude sub-agent
           claude_model = socket.assigns.claude_model
