@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 ### Changed
+- Add graceful error handling for missing CLI tools (#39)
+- Add graceful error handling for missing CLI tools (#39)
+- Fix inefficient build_tickets_in_progress iteration (#37)
+- Reliability: Add external process supervision and health monitoring (#80)
+- Perf: Optimize SessionBridge file I/O and polling (#70)
+- Perf: Async LiveView mount to prevent UI blocking (#69)
+- Reliability: Replace bare Task.start with supervised tasks (#74)
 - UI: Develop cohesive brand identity and distinctive character (#68)
 - UI: Establish distinctive typography system to avoid generic aesthetics (#63)
 - UI: Replace generic glass panels with distinctive visual identity (#64)
