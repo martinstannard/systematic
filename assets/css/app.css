@@ -324,3 +324,85 @@
     border-color: rgba(232, 121, 249, 0.3);
   }
 }
+
+/* =====================================================
+   ACCESSIBILITY: Visible Focus States
+   Keyboard navigation focus indicators for all interactive elements.
+   Uses :focus-visible to only show on keyboard navigation, not mouse clicks.
+   ===================================================== */
+
+/* Global focus-visible styles for buttons */
+button:focus-visible {
+  outline: 2px solid oklch(75% 0.2 200); /* Cyan glow color */
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.3), 0 0 12px rgba(34, 211, 238, 0.4);
+  border-radius: 4px;
+}
+
+/* Links focus state */
+a:focus-visible {
+  outline: 2px solid oklch(75% 0.2 200);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.3), 0 0 12px rgba(34, 211, 238, 0.4);
+  border-radius: 2px;
+}
+
+/* Clickable divs with role="button" (panel toggles) */
+[role="button"]:focus-visible {
+  outline: 2px solid oklch(75% 0.2 200);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.3), 0 0 12px rgba(34, 211, 238, 0.4);
+}
+
+/* Form inputs focus state (if any exist) */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid oklch(75% 0.2 200);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.3), 0 0 12px rgba(34, 211, 238, 0.4);
+}
+
+/* Light mode focus states - adjust for visibility on light backgrounds */
+[data-theme="light"] button:focus-visible,
+[data-theme="light"] a:focus-visible,
+[data-theme="light"] [role="button"]:focus-visible,
+[data-theme="light"] input:focus-visible,
+[data-theme="light"] select:focus-visible,
+[data-theme="light"] textarea:focus-visible {
+  outline-color: oklch(50% 0.25 280); /* Purple for light mode */
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.25), 0 0 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Ensure focus states work well with existing button styles */
+.glass-panel button:focus-visible {
+  position: relative;
+  z-index: 1; /* Ensure focus ring is visible above panel */
+}
+
+/* Skip link for keyboard users (hidden until focused) */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.skip-link:focus {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  width: auto;
+  height: auto;
+  padding: 8px 16px;
+  background: oklch(25% 0.05 265);
+  color: oklch(75% 0.2 200);
+  border: 2px solid oklch(75% 0.2 200);
+  border-radius: 4px;
+  z-index: 9999;
+  font-size: 14px;
+  font-weight: bold;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
+}

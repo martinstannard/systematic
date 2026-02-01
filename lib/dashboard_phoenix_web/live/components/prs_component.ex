@@ -182,6 +182,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                       phx-value-repo={pr.repo}
                       class="ml-2 px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 text-[10px] whitespace-nowrap"
                       title="Request Super Review"
+                      aria-label={"Request super review for PR #" <> to_string(pr.number)}
                     >
                       🔍 Review
                     </button>
@@ -238,6 +239,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                           "phx-click-loading:bg-warning/30 phx-click-loading:text-warning phx-click-loading:animate-pulse"
                         ]}
                         title={if is_work_in_progress, do: "Agent already working on this PR", else: "Send to coding agent to fix issues"}
+                        aria-label={"Fix issues for PR #" <> to_string(pr.number)}
                       >
                         <%= cond do %>
                           <% is_fix_pending -> %>
@@ -266,6 +268,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                           phx-value-url={pr.url}
                           class="ml-0.5 text-green-400/60 hover:text-red-400"
                           title="Clear verification"
+                          aria-label={"Clear verification for PR #" <> to_string(pr.number)}
                         >✗</button>
                       </span>
                     <% else %>
@@ -277,6 +280,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                         phx-value-repo={pr.repo}
                         class="px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/40 hover:bg-green-500/20 hover:text-green-400 text-[10px]"
                         title="Mark as verified"
+                        aria-label={"Mark PR #" <> to_string(pr.number) <> " as verified"}
                       >
                         ○ Verify
                       </button>
@@ -294,6 +298,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
                         target="_blank"
                         class="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 hover:bg-orange-500/40 text-[10px]"
                         title="View in Linear"
+                        aria-label={"View ticket " <> ticket_id <> " in Linear (opens in new tab)"}
                       >
                         <%= ticket_id %>
                       </a>
