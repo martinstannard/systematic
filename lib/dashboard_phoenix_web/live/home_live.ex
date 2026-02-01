@@ -65,7 +65,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.StatsMonitor
   alias DashboardPhoenix.InputValidator
   alias DashboardPhoenix.ResourceTracker
-  alias DashboardPhoenix.AgentActivityMonitor
+  # AgentActivityMonitor subscription removed - activity is rebuilt from sessions+progress
+  # which are already updated by SessionBridge subscription (Ticket #119)
   alias DashboardPhoenix.CodingAgentMonitor
   alias DashboardPhoenix.LinearMonitor
   alias DashboardPhoenix.ChainlinkMonitor
@@ -231,7 +232,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
       StatsMonitor.subscribe()
       ResourceTracker.subscribe()
-      AgentActivityMonitor.subscribe()
+      # AgentActivityMonitor.subscribe() removed - redundant, activity rebuilt from sessions+progress
       AgentPreferences.subscribe()
       LinearMonitor.subscribe()
       ChainlinkMonitor.subscribe()
@@ -450,17 +451,10 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, resource_history: history)}
   end
 
-  # Handle agent activity updates - rebuild from sessions + progress
-  def handle_info({:agent_activity, _activities}, socket) do
-    # Rebuild activity from current data
-    activity =
-      DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(
-        socket.assigns.agent_sessions,
-        socket.assigns.agent_progress
-      )
-
-    {:noreply, assign(socket, agent_activity: activity)}
-  end
+  # AgentActivityMonitor subscription removed (Ticket #119)
+  # The {:agent_activity, _} handler was redundant - it ignored the incoming data
+  # and rebuilt activity from sessions+progress, which are already updated by
+  # the {:sessions, _} and {:progress, _} handlers from SessionBridge.
 
   # Handle agent preferences updates
   def handle_info({:preferences_updated, prefs}, socket) do
