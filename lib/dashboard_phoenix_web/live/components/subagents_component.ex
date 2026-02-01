@@ -26,7 +26,9 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
       Map.put(session, :limited_recent_actions, recent_actions)
     end)
 
-    running_count = Enum.count(sub_agent_sessions, fn s -> s.status == "running" end)
+    # Count both "running" (< 1 min) and "idle" (1-5 mins) as active
+    # since "idle" just means a brief pause, not that the agent completed
+    running_count = Enum.count(sub_agent_sessions, fn s -> s.status in ["running", "idle"] end)
     completed_count = Enum.count(visible_sessions, fn s -> s.status == "completed" end)
     sub_agent_sessions_count = length(sub_agent_sessions)
 
