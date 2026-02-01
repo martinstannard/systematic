@@ -35,3 +35,4 @@ dashboard_phoenix-*.tar
 npm-debug.log
 /assets/node_modules/
 
+priv/activity_events.json

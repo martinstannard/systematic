@@ -424,6 +424,12 @@ defmodule DashboardPhoenix.BranchMonitor do
   defp do_merge_branch(branch_name) do
     base_branch = get_base_branch()
 
+    # Log merge started
+    ActivityLog.log_event(:merge_started, "Merging #{branch_name} to #{base_branch}", %{
+      branch: branch_name,
+      target: base_branch
+    })
+
     # First, checkout main/master
     case CommandRunner.run("git", ["checkout", base_branch],
            cd: repo_path(),
