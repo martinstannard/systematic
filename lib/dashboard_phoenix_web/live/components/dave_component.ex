@@ -145,7 +145,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
   end
 
   # Status badge styles
-  defp status_badge("running"), do: "bg-warning/20 text-warning animate-pulse"
+  defp status_badge("running"), do: "bg-warning/20 text-warning"
   defp status_badge("idle"), do: "bg-info/20 text-info"
   defp status_badge("completed"), do: "bg-success/20 text-success"
   defp status_badge("failed"), do: "bg-error/20 text-error"

@@ -140,7 +140,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                 <div class={"flex items-center space-x-2 px-2 py-1.5" <> priority_row_class(issue.priority) <> " " <> wip_row_class(work_info)}>
                   <%= if work_info do %>
                     <div class="flex items-center space-x-1" title={"Work in progress: #{work_info[:label]}"} role="status">
-                      <span class="w-1.5 h-1.5 bg-success animate-pulse" aria-hidden="true"></span>
+                      <span class="w-1.5 h-1.5 bg-success" aria-hidden="true"></span>
                       <span class="text-ui-caption text-success/70 truncate max-w-[60px]"><%= work_info[:label] || "Working" %></span>
                     </div>
                   <% else %>

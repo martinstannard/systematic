@@ -181,7 +181,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
               </div>
               <%= if @gemini_running do %>
                 <%= if @gemini_busy do %>
-                  <span class="px-1.5 py-0.5 text-xs bg-warning/20 text-warning animate-pulse">running</span>
+                  <span class="px-1.5 py-0.5 text-xs bg-warning/20 text-warning">running</span>
                 <% else %>
                   <span class="px-1.5 py-0.5 text-xs bg-green-500/20 text-green-400">ready</span>
                 <% end %>

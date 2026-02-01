@@ -57,7 +57,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
   # Helper functions
 
   # Session status badges
-  defp status_badge("running"), do: "bg-warning/20 text-warning animate-pulse"
+  defp status_badge("running"), do: "bg-warning/20 text-warning"
   defp status_badge("idle"), do: "bg-info/20 text-info"
   defp status_badge("completed"), do: "bg-success/20 text-success/60"
   defp status_badge("done"), do: "bg-success/20 text-success"
@@ -248,7 +248,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                   <%= if current_action do %>
                     <div class="flex items-center space-x-2 mb-1">
                       <span class="text-xs text-warning/70">▶ Now:</span>
-                      <span class="text-warning text-xs truncate animate-pulse" title={current_action}>
+                      <span class="text-warning text-xs truncate" title={current_action}>
                         <%= current_action %>
                       </span>
                     </div>

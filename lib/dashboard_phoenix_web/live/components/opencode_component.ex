@@ -67,7 +67,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
 
   # Helper functions
 
-  defp opencode_status_badge("active"), do: "px-1.5 py-0.5bg-green-500/20 text-green-400 text-xs animate-pulse"
+  defp opencode_status_badge("active"), do: "px-1.5 py-0.5bg-green-500/20 text-green-400 text-xs"
   defp opencode_status_badge("subagent"), do: "px-1.5 py-0.5bg-purple-500/20 text-purple-400 text-xs"
   defp opencode_status_badge("idle"), do: "px-1.5 py-0.5bg-blue-500/20 text-blue-400 text-xs"
   defp opencode_status_badge(_), do: "px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs"
@@ -138,7 +138,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
             <!-- Server Controls -->
             <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
               <div class="flex items-center space-x-2 text-xs font-mono">
-                <span class="w-2 h-2 bg-success animate-pulse" aria-label="Server running"></span>
+                <span class="w-2 h-2 bg-success" aria-label="Server running"></span>
                 <span class="text-success">Running on :<%= @opencode_server_status.port %></span>
               </div>
               <button

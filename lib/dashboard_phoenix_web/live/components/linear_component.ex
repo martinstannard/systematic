@@ -154,7 +154,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                 <% work_info = Map.get(@tickets_in_progress, ticket.id) %>
                 <div class={"flex items-center space-x-2 px-2 py-1.5text-xs font-mono transition-all " <> if(work_info, do: "panel-work bg-accent/15 border border-accent/30", else: "panel-status hover:bg-accent/10 hover:border-accent/30")}>
                   <%= if work_info do %>
-                    <span class="w-1.5 h-1.5 bg-success animate-pulse" aria-hidden="true"></span>
+                    <span class="w-1.5 h-1.5 bg-success" aria-hidden="true"></span>
                     <span class="sr-only">Work in progress</span>
                   <% else %>
                     <button

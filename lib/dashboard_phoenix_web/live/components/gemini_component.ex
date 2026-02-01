@@ -92,7 +92,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
               <div class="flex items-center space-x-2">
                 <span class="text-base-content/50">Status:</span>
                 <%= if @gemini_server_status[:busy] do %>
-                  <span class="text-warning animate-pulse">Running...</span>
+                  <span class="text-warning">Running...</span>
                 <% else %>
                   <span class="text-green-400">Ready</span>
                 <% end %>

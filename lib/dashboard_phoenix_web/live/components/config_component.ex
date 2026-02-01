@@ -261,7 +261,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
                     <span class="text-base-content/50">Gemini CLI:</span>
                     <%= if @gemini_server_status.running do %>
                       <%= if @gemini_server_status[:busy] do %>
-                        <span class="text-warning animate-pulse">Running prompt...</span>
+                        <span class="text-warning">Running prompt...</span>
                       <% else %>
                         <span class="text-success">Ready</span>
                       <% end %>
