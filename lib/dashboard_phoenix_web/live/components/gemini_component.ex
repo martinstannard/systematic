@@ -66,7 +66,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
         <div class="flex items-center space-x-2">
           <span class={"panel-chevron " <> if(@gemini_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">✨</span>
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">Gemini CLI</span>
+          <span class="text-panel-label text-accent">Gemini CLI</span>
           <%= if @gemini_server_status.running do %>
             <span class="status-beacon text-success"></span>
           <% end %>

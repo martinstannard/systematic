@@ -121,7 +121,7 @@ defmodule DashboardPhoenixWeb.Live.Components.PRsComponent do
         <div class="flex items-center space-x-2">
           <span class={"panel-chevron " <> if(@prs_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">🔀</span>
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">Pull Requests</span>
+          <span class="text-panel-label text-accent">Pull Requests</span>
           <%= if @github_prs_loading do %>
             <span class="status-activity-ring text-accent"></span>
           <% else %>

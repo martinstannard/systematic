@@ -62,7 +62,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LiveProgressComponent do
         >
           <span class={"panel-chevron " <> if(@live_progress_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">📡</span>
-          <span class="text-xs font-mono text-secondary uppercase tracking-wider">Live Feed</span>
+          <span class="text-panel-label text-secondary">Live Feed</span>
           <span class="text-[10px] font-mono text-base-content/50 text-tabular"><%= @agent_progress_count %></span>
         </div>
         <button phx-click="clear_progress" phx-target={@myself} class="text-[10px] text-base-content/40 hover:text-secondary px-2 py-1">Clear</button>

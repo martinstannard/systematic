@@ -79,7 +79,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         <div class="flex items-center space-x-2">
           <span class={"panel-chevron " <> if(@chainlink_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">🔗</span>
-          <span class="text-ui-label text-accent uppercase tracking-wider">Chainlink</span>
+          <span class="text-panel-label text-accent">Chainlink</span>
           <%= if @chainlink_loading do %>
             <span class="status-activity-ring text-accent"></span>
           <% else %>

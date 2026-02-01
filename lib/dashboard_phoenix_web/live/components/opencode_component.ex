@@ -90,7 +90,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
         <div class="flex items-center space-x-2">
           <span class={"panel-chevron " <> if(@opencode_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">💻</span>
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">OpenCode</span>
+          <span class="text-panel-label text-accent">OpenCode</span>
           <%= if @opencode_server_status.running do %>
             <span class="status-beacon text-success"></span>
             <span class="text-[10px] font-mono text-base-content/50"><%= length(@opencode_sessions) %></span>

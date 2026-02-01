@@ -74,7 +74,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
         
         <!-- Ticket Details -->
         <div class="mb-6">
-          <div class="text-xs font-mono text-accent uppercase tracking-wider mb-2">Ticket Details</div>
+          <div class="text-panel-label text-accent mb-2">Ticket Details</div>
           <%= if @work_ticket_loading do %>
             <div class="flex items-center space-x-2 text-base-content/60">
               <span class="throbber"></span>
@@ -88,7 +88,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
         <!-- Execute Work -->
         <div class="border-t border-white/10 pt-4">
           <div class="flex items-center justify-between mb-3">
-            <div class="text-xs font-mono text-accent uppercase tracking-wider">Start Working</div>
+            <div class="text-panel-label text-accent">Start Working</div>
             <div class={"text-[10px] font-mono px-2 py-1 rounded " <> coding_agent_badge_class(@coding_agent_pref)}>
               Using: <%= coding_agent_badge_text(@coding_agent_pref) %>
             </div>

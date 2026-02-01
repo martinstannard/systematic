@@ -145,7 +145,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
         <div class="flex items-center space-x-2">
           <span class={"panel-chevron " <> if(@subagents_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">🤖</span>
-          <span class="text-xs font-mono text-accent uppercase tracking-wider">Sub-Agents</span>
+          <span class="text-panel-label text-accent">Sub-Agents</span>
           <span class="text-[10px] font-mono text-base-content/50"><%= @sub_agent_sessions_count %></span>
           <%= if @running_count > 0 do %>
             <span class="status-beacon text-warning"></span>

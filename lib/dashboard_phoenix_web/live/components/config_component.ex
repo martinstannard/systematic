@@ -95,7 +95,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ConfigComponent do
         <div class="flex items-center space-x-2">
           <span class={"panel-chevron " <> if(@config_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon opacity-60">⚙️</span>
-          <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">Config</span>
+          <span class="text-panel-label text-base-content/60">Config</span>
         </div>
         <div class="flex items-center space-x-2 text-[10px] font-mono text-base-content/40">
           <span><%= if @coding_agent_pref == :opencode, do: "OpenCode + #{@opencode_model}", else: "Claude + #{String.replace(@claude_model, "anthropic/claude-", "")}" %></span>

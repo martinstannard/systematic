@@ -125,7 +125,7 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponent do
         <div class="flex items-center space-x-2">
           <span class={"panel-chevron " <> if(@branches_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">🌿</span>
-          <span class="text-ui-label text-accent uppercase tracking-wider">Unmerged Branches</span>
+          <span class="text-panel-label text-accent">Unmerged Branches</span>
           <%= if @branches_loading do %>
             <span class="status-activity-ring text-accent"></span>
           <% else %>

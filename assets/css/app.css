@@ -1,9 +1,13 @@
 /* See the Tailwind configuration guide for advanced usage
    https://tailwindcss.com/docs/configuration */
 
-/* Typography: Distinctive font imports for agent control interface */
+/* Typography: Distinctive font imports for agent control interface
+   - Space Mono: Distinctive display font for SYSTEMATIC title (mechanical, terminal aesthetic)
+   - Space Grotesk: Refined geometric sans for UI body text (technical but readable)
+   - JetBrains Mono: Premium monospace for code/data displays
+*/
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap');
 
 @import "tailwindcss" source(none);
@@ -112,11 +116,23 @@
    Avoids generic system fonts and creates commanding presence
    ===================================================== */
 
-/* Font family definitions */
+/* Font family definitions
+   - display: Space Mono for commanding titles (SYSTEMATIC)
+   - ui: Space Grotesk for readable interface text
+   - mono: JetBrains Mono for data, stats, code displays
+*/
 :root {
-  --font-display: 'JetBrains Mono', 'Berkeley Mono', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  --font-ui: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  --font-display: 'Space Mono', 'JetBrains Mono', 'SF Mono', monospace;
+  --font-ui: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
+  
+  /* Typography scale */
+  --text-title: 1.75rem;      /* 28px - commanding title */
+  --text-section: 1rem;       /* 16px - section headers */
+  --text-panel: 0.6875rem;    /* 11px - panel labels */
+  --text-body: 0.875rem;      /* 14px - body text */
+  --text-small: 0.75rem;      /* 12px - labels, values */
+  --text-micro: 0.625rem;     /* 10px - captions, hints */
 }
 
 /* Base typography classes */
@@ -144,77 +160,118 @@ body {
   font-feature-settings: 'kern' 1, 'liga' 0, 'calt' 1, 'zero' 1;
 }
 
-/* Typographic hierarchy */
+/* =============================================================
+   TYPOGRAPHIC HIERARCHY
+   Distinctive typography for agent control interface
+   ============================================================= */
+
+/* SYSTEMATIC title - commanding presence, terminal aesthetic */
 .text-system-title {
   font-family: var(--font-display);
-  font-size: 1.125rem; /* 18px */
-  font-weight: 800;
-  letter-spacing: 0.15em;
+  font-size: var(--text-title);
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  font-feature-settings: 'kern' 1, 'liga' 0, 'calt' 1, 'zero' 1;
+  font-feature-settings: 'kern' 1, 'liga' 0, 'zero' 1;
+  /* Subtle text shadow for depth */
+  text-shadow: 
+    0 1px 0 rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* Subtitle - supporting text beside title */
 .text-system-subtitle {
+  font-family: var(--font-display);
+  font-size: var(--text-panel);
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* Section headers - Monitoring, Task Management, etc. */
+.text-section-header {
+  font-family: var(--font-ui);
+  font-size: var(--text-section);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Panel labels - Linear, Dave, OpenCode panel titles */
+.text-panel-label {
   font-family: var(--font-mono);
-  font-size: 0.6875rem; /* 11px */
+  font-size: var(--text-panel);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
+/* UI labels - form labels, stat labels */
 .text-ui-label {
   font-family: var(--font-ui);
-  font-size: 0.75rem; /* 12px */
+  font-size: var(--text-small);
   font-weight: 500;
-  letter-spacing: 0.025em;
+  letter-spacing: 0.02em;
 }
 
+/* Data values - numbers, stats, tokens */
 .text-ui-value {
   font-family: var(--font-mono);
-  font-size: 0.75rem; /* 12px */
+  font-size: var(--text-small);
   font-weight: 600;
   font-feature-settings: 'kern' 1, 'liga' 0, 'zero' 1, 'tnum' 1;
 }
 
+/* Body text - descriptions, content */
 .text-ui-body {
   font-family: var(--font-ui);
-  font-size: 0.875rem; /* 14px */
+  font-size: var(--text-body);
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
+/* Captions and hints */
 .text-ui-caption {
   font-family: var(--font-ui);
-  font-size: 0.6875rem; /* 11px */
+  font-size: var(--text-micro);
   font-weight: 500;
-  letter-spacing: 0.025em;
+  letter-spacing: 0.02em;
 }
 
-/* Enhanced text glow effect for the main title */
+/* Micro text - timestamps, secondary info */
+.text-ui-micro {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+/* Enhanced text glow effect for the main title - more dramatic for larger type */
 .text-system-glow {
   text-shadow: 
-    0 0 10px rgba(139, 92, 246, 0.5),
-    0 0 20px rgba(139, 92, 246, 0.3),
-    0 0 40px rgba(139, 92, 246, 0.15),
-    0 0 60px rgba(139, 92, 246, 0.08);
-  animation: glow-pulse 3s ease-in-out infinite alternate;
+    0 0 8px rgba(139, 92, 246, 0.6),
+    0 0 16px rgba(139, 92, 246, 0.4),
+    0 0 32px rgba(139, 92, 246, 0.25),
+    0 0 48px rgba(139, 92, 246, 0.15),
+    0 0 72px rgba(139, 92, 246, 0.08);
+  animation: glow-pulse 4s ease-in-out infinite alternate;
 }
 
 @keyframes glow-pulse {
   from {
-    filter: brightness(100%);
+    filter: brightness(100%) drop-shadow(0 0 2px rgba(139, 92, 246, 0.3));
   }
   to {
-    filter: brightness(110%);
+    filter: brightness(115%) drop-shadow(0 0 6px rgba(139, 92, 246, 0.5));
   }
 }
 
-/* Light mode adjustments for text glow */
+/* Light mode adjustments for text glow - subtle but visible */
 [data-theme="light"] .text-system-glow {
   text-shadow: 
-    0 0 8px rgba(109, 40, 217, 0.3),
-    0 0 16px rgba(109, 40, 217, 0.15),
-    0 0 24px rgba(109, 40, 217, 0.08);
+    0 0 6px rgba(109, 40, 217, 0.35),
+    0 0 12px rgba(109, 40, 217, 0.2),
+    0 0 24px rgba(109, 40, 217, 0.1);
 }
 
 /* Tabular numbers for consistent spacing in stats */

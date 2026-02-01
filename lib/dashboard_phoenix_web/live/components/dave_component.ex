@@ -48,7 +48,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
           <div class="flex items-center space-x-2">
             <span class={"panel-chevron " <> if(@dave_collapsed, do: "collapsed", else: "")}>▼</span>
             <span class="panel-icon">🐙</span>
-            <span class="text-xs font-mono text-purple-400 uppercase tracking-wider">Dave</span>
+            <span class="text-panel-label text-purple-400">Dave</span>
             <%= if @main_agent_session.status == "running" do %>
               <span class="status-beacon text-warning"></span>
             <% else %>
@@ -122,7 +122,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
         <div class="flex items-center justify-between px-3 py-2 bg-base-content/5">
           <div class="flex items-center space-x-2">
             <span class="text-xs">▼</span>
-            <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">🐙 Dave</span>
+            <span class="text-panel-label text-base-content/60">🐙 Dave</span>
             <span class="px-1.5 py-0.5 rounded text-[10px] bg-base-content/20 text-base-content/60">
               offline
             </span>

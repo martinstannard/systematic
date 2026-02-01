@@ -81,7 +81,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
             <div class="flex items-center space-x-2">
               <span class={"panel-chevron " <> if(@coding_agents_collapsed, do: "collapsed", else: "")}>▼</span>
               <span class="panel-icon opacity-60">💻</span>
-              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">Coding Agents</span>
+              <span class="text-panel-label text-base-content/60">Coding Agents</span>
               <span class="text-[10px] font-mono text-base-content/50"><%= @coding_agents_count %></span>
             </div>
           </div>
@@ -118,7 +118,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
             <div class="flex items-center space-x-2">
               <span class={"panel-chevron " <> if(@system_processes_collapsed, do: "collapsed", else: "")}>▼</span>
               <span class="panel-icon opacity-60">⚙️</span>
-              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">System</span>
+              <span class="text-panel-label text-base-content/60">System</span>
               <span class="text-[10px] font-mono text-base-content/50"><%= @recent_processes_count %></span>
             </div>
           </div>
@@ -145,7 +145,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
             <div class="flex items-center space-x-2">
               <span class={"panel-chevron " <> if(@process_relationships_collapsed, do: "collapsed", else: "")}>▼</span>
               <span class="panel-icon opacity-60">🔗</span>
-              <span class="text-xs font-mono text-base-content/60 uppercase tracking-wider">Relationships</span>
+              <span class="text-panel-label text-base-content/60">Relationships</span>
             </div>
           </div>
           
