@@ -2,67 +2,119 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   @moduledoc """
   Unified Work Panel showing all coding agents in a single view.
   
-  Displays:
-  - Claude sub-agents (active count + recent tasks)
-  - OpenCode sessions (session count + recent sessions)
-  - Gemini CLI (running status + last activity)
+  Uses AgentCardComponent for consistent display of:
+  - Claude sub-agents (🟣)
+  - OpenCode sessions (🔷)
+  - Gemini CLI (✨)
+  
+  Each card shows:
+  - Agent icon
+  - Task/session name
+  - Duration (real-time for running agents)
+  - Color-coded state (running=green, completed=blue, failed=red, idle=gray)
   """
   use DashboardPhoenixWeb, :live_component
+  
+  alias DashboardPhoenixWeb.Live.Components.AgentCardComponent
 
   @impl true
   def update(assigns, socket) do
-    # Pre-calculate Claude sub-agent data
-    sub_agent_sessions = Enum.reject(assigns.agent_sessions, fn s ->
-      Map.get(s, :session_key) == "agent:main:main"
+    # Build unified agent list for cards
+    agents = build_agent_list(assigns)
+    
+    # Count active agents for header
+    active_count = Enum.count(agents, fn a -> 
+      Map.get(a, :status) in ["running", "active", "idle"]
     end)
     
-    claude_active = Enum.count(sub_agent_sessions, fn s -> s.status in ["running", "idle"] end)
-    claude_recent = sub_agent_sessions
-    |> Enum.filter(fn s -> s.status in ["running", "idle"] end)
-    |> Enum.take(3)
-    |> Enum.map(fn s ->
-      %{
-        label: Map.get(s, :label) || String.slice(Map.get(s, :id, ""), 0, 8),
-        status: s.status,
-        task: Map.get(s, :task_summary)
-      }
-    end)
-    
-    # Pre-calculate OpenCode data
-    opencode_active = length(assigns.opencode_sessions)
-    opencode_recent = assigns.opencode_sessions
-    |> Enum.take(3)
-    |> Enum.map(fn s ->
-      %{
-        slug: s.slug,
-        status: s.status,
-        title: s.title
-      }
-    end)
-    
-    # Pre-calculate Gemini data
-    gemini_running = assigns.gemini_server_status.running
-    gemini_busy = Map.get(assigns.gemini_server_status, :busy, false)
-    gemini_last_activity = if assigns.gemini_output != "" do
-      assigns.gemini_output
-      |> String.split("\n")
-      |> Enum.take(-3)
-      |> Enum.join("\n")
-      |> String.slice(0, 150)
-    else
-      nil
-    end
-
     updated_assigns = assigns
-    |> Map.put(:claude_active, claude_active)
-    |> Map.put(:claude_recent, claude_recent)
-    |> Map.put(:opencode_active, opencode_active)
-    |> Map.put(:opencode_recent, opencode_recent)
-    |> Map.put(:gemini_running, gemini_running)
-    |> Map.put(:gemini_busy, gemini_busy)
-    |> Map.put(:gemini_last_activity, gemini_last_activity)
+    |> Map.put(:agents, agents)
+    |> Map.put(:active_count, active_count)
 
     {:ok, assign(socket, updated_assigns)}
+  end
+
+  defp build_agent_list(assigns) do
+    claude_agents = build_claude_agents(assigns)
+    opencode_agents = build_opencode_agents(assigns)
+    gemini_agent = build_gemini_agent(assigns)
+    
+    # Combine and sort: running first, then by name
+    (claude_agents ++ opencode_agents ++ gemini_agent)
+    |> Enum.sort_by(fn a -> 
+      status = Map.get(a, :status, "idle")
+      priority = case status do
+        "running" -> 0
+        "active" -> 0
+        "idle" -> 1
+        _ -> 2
+      end
+      {priority, Map.get(a, :name, "")}
+    end)
+  end
+
+  defp build_claude_agents(assigns) do
+    assigns.agent_sessions
+    |> Enum.reject(fn s -> Map.get(s, :session_key) == "agent:main:main" end)
+    |> Enum.filter(fn s -> s.status in ["running", "idle", "completed"] end)
+    |> Enum.take(5)
+    |> Enum.map(fn s ->
+      %{
+        id: Map.get(s, :id, "claude-#{:erlang.phash2(s)}"),
+        type: "claude",
+        model: Map.get(s, :model),
+        name: Map.get(s, :label) || String.slice(Map.get(s, :id, ""), 0, 12),
+        task: Map.get(s, :task_summary),
+        status: s.status,
+        runtime: Map.get(s, :runtime),
+        updated_at: Map.get(s, :updated_at),
+        created_at: Map.get(s, :created_at)
+      }
+    end)
+  end
+
+  defp build_opencode_agents(assigns) do
+    assigns.opencode_sessions
+    |> Enum.take(5)
+    |> Enum.map(fn s ->
+      %{
+        id: Map.get(s, :id, "opencode-#{s.slug}"),
+        type: "opencode",
+        name: s.slug,
+        task: s.title,
+        status: s.status,
+        runtime: nil,
+        start_time: nil
+      }
+    end)
+  end
+
+  defp build_gemini_agent(assigns) do
+    status = assigns.gemini_server_status
+    if status.running do
+      busy = Map.get(status, :busy, false)
+      last_activity = if assigns.gemini_output != "" do
+        assigns.gemini_output
+        |> String.split("\n")
+        |> Enum.take(-1)
+        |> Enum.join()
+        |> String.slice(0, 50)
+      else
+        nil
+      end
+      
+      [%{
+        id: "gemini-cli",
+        type: "gemini",
+        name: "Gemini CLI",
+        task: last_activity,
+        status: if(busy, do: "running", else: "idle"),
+        runtime: nil,
+        start_time: nil
+      }]
+    else
+      []
+    end
   end
 
   @impl true
@@ -70,12 +122,6 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     send(self(), {:work_panel_component, :toggle_panel})
     {:noreply, socket}
   end
-
-  # Status badge styling
-  defp status_class("running"), do: "bg-warning/20 text-warning"
-  defp status_class("active"), do: "bg-green-500/20 text-green-400"
-  defp status_class("idle"), do: "bg-info/20 text-info"
-  defp status_class(_), do: "bg-base-content/10 text-base-content/60"
 
   @impl true
   def render(assigns) do
@@ -96,109 +142,32 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
           <span class={"panel-chevron " <> if(@work_panel_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">⚡</span>
           <span class="text-panel-label text-accent">Work</span>
-          <%= if @claude_active > 0 || @opencode_active > 0 || @gemini_running do %>
+          <span class="text-xs font-mono text-base-content/50"><%= length(@agents) %></span>
+          <%= if @active_count > 0 do %>
             <span class="status-beacon text-success"></span>
+            <span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs">
+              <%= @active_count %> active
+            </span>
           <% end %>
         </div>
       </div>
 
       <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[600px]")}>
         <div class="px-3 pb-3 space-y-2">
-          <!-- Claude Sub-Agents Card -->
-          <div class="panel-status border border-accent/20 p-2">
-            <div class="flex items-center justify-between mb-1.5">
-              <div class="flex items-center space-x-2">
-                <span class="text-sm">🤖</span>
-                <span class="text-xs font-medium text-white">Claude</span>
-              </div>
-              <span class={"px-1.5 py-0.5 text-xs " <> if(@claude_active > 0, do: "bg-warning/20 text-warning", else: "bg-base-content/10 text-base-content/50")}>
-                <%= @claude_active %> active
-              </span>
+          <%= if @agents == [] do %>
+            <div class="text-xs text-base-content/40 py-4 text-center font-mono">
+              No active agents
             </div>
-            <%= if @claude_recent != [] do %>
-              <div class="space-y-1">
-                <%= for session <- @claude_recent do %>
-                  <div class="flex items-center space-x-2 text-xs">
-                    <%= if session.status == "running" do %>
-                      <span class="throbber-small flex-shrink-0"></span>
-                    <% else %>
-                      <span class="text-info">○</span>
-                    <% end %>
-                    <span class="text-base-content/70 truncate flex-1" title={session.task || session.label}>
-                      <%= session.label %>
-                    </span>
-                    <span class={status_class(session.status) <> " px-1 py-0.5 text-xs"}>
-                      <%= session.status %>
-                    </span>
-                  </div>
-                <% end %>
-              </div>
-            <% else %>
-              <div class="text-xs text-base-content/40 italic">No active sub-agents</div>
+          <% else %>
+            <%= for agent <- @agents do %>
+              <.live_component 
+                module={AgentCardComponent}
+                id={"agent-card-#{agent.id}"}
+                agent={agent}
+                type={Map.get(agent, :type)}
+              />
             <% end %>
-          </div>
-
-          <!-- OpenCode Card -->
-          <div class="panel-status border border-accent/20 p-2">
-            <div class="flex items-center justify-between mb-1.5">
-              <div class="flex items-center space-x-2">
-                <span class="text-sm">💻</span>
-                <span class="text-xs font-medium text-white">OpenCode</span>
-              </div>
-              <span class={"px-1.5 py-0.5 text-xs " <> if(@opencode_active > 0, do: "bg-blue-500/20 text-blue-400", else: "bg-base-content/10 text-base-content/50")}>
-                <%= @opencode_active %> sessions
-              </span>
-            </div>
-            <%= if @opencode_recent != [] do %>
-              <div class="space-y-1">
-                <%= for session <- @opencode_recent do %>
-                  <div class="flex items-center space-x-2 text-xs">
-                    <%= if session.status == "active" do %>
-                      <span class="throbber-small flex-shrink-0"></span>
-                    <% else %>
-                      <span class="text-blue-400">○</span>
-                    <% end %>
-                    <span class="text-base-content/70 truncate flex-1" title={session.title || session.slug}>
-                      <%= session.slug %>
-                    </span>
-                    <span class={status_class(session.status) <> " px-1 py-0.5 text-xs"}>
-                      <%= session.status %>
-                    </span>
-                  </div>
-                <% end %>
-              </div>
-            <% else %>
-              <div class="text-xs text-base-content/40 italic">No active sessions</div>
-            <% end %>
-          </div>
-
-          <!-- Gemini Card -->
-          <div class="panel-status border border-accent/20 p-2">
-            <div class="flex items-center justify-between mb-1.5">
-              <div class="flex items-center space-x-2">
-                <span class="text-sm">✨</span>
-                <span class="text-xs font-medium text-white">Gemini</span>
-              </div>
-              <%= if @gemini_running do %>
-                <%= if @gemini_busy do %>
-                  <span class="px-1.5 py-0.5 text-xs bg-warning/20 text-warning">running</span>
-                <% else %>
-                  <span class="px-1.5 py-0.5 text-xs bg-green-500/20 text-green-400">ready</span>
-                <% end %>
-              <% else %>
-                <span class="px-1.5 py-0.5 text-xs bg-base-content/10 text-base-content/50">stopped</span>
-              <% end %>
-            </div>
-            <%= if @gemini_last_activity do %>
-              <div class="text-xs text-base-content/60 truncate font-mono" title={@gemini_last_activity}>
-                <%= @gemini_last_activity %>
-              </div>
-            <% else %>
-              <div class="text-xs text-base-content/40 italic">
-                <%= if @gemini_running, do: "No recent activity", else: "Not running" %>
-              </div>
-            <% end %>
-          </div>
+          <% end %>
         </div>
       </div>
     </div>
