@@ -21,6 +21,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.WorkModalComponent
   alias DashboardPhoenixWeb.Live.Components.ActivityPanelComponent
   alias DashboardPhoenixWeb.Live.Components.WorkPanelComponent
+  alias DashboardPhoenixWeb.Live.Components.TestRunnerComponent
   alias DashboardPhoenix.ProcessMonitor
   alias DashboardPhoenix.ActivityLog
   alias DashboardPhoenix.SessionBridge
@@ -45,6 +46,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenix.PanelStatus
   alias DashboardPhoenix.HealthCheck
   alias DashboardPhoenix.DashboardState
+  alias DashboardPhoenix.TestRunner
 
   def mount(_params, _session, socket) do
     # Load persisted UI state (panels, dismissed sessions, models)
@@ -169,11 +171,14 @@ defmodule DashboardPhoenixWeb.HomeLive do
       system_processes_collapsed: persisted_state.panels.system_processes,
       process_relationships_collapsed: persisted_state.panels.process_relationships,
       chat_collapsed: persisted_state.panels.chat,
+      test_runner_collapsed: persisted_state.panels.test_runner,
       # Activity panel state
       activity_events: [],
       activity_collapsed: persisted_state.panels.activity,
       # Work panel state
-      work_panel_collapsed: persisted_state.panels.work_panel
+      work_panel_collapsed: persisted_state.panels.work_panel,
+      # Test runner state
+      test_running: false
     )
     
     # Initialize empty progress stream
@@ -393,6 +398,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       system_processes_collapsed: state.panels.system_processes,
       process_relationships_collapsed: state.panels.process_relationships,
       chat_collapsed: state.panels.chat,
+      test_runner_collapsed: state.panels.test_runner,
       activity_collapsed: state.panels.activity,
       work_panel_collapsed: state.panels.work_panel
     )}
@@ -1442,6 +1448,40 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, push_panel_state(socket)}
   end
 
+  def handle_info({:test_runner_component, :toggle_panel, "test_runner"}, socket) do
+    socket = assign(socket, test_runner_collapsed: !socket.assigns.test_runner_collapsed)
+    {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:test_runner_component, :run_tests, test_files}, socket) do
+    Task.start(fn ->
+      case TestRunner.run_tests(test_files) do
+        {:ok, _output} -> 
+          send(self(), {:test_runner_complete, :success})
+        {:error, _reason} ->
+          send(self(), {:test_runner_complete, :error})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  def handle_info({:test_runner_component, :run_test_pattern, pattern}, socket) do
+    Task.start(fn ->
+      case TestRunner.run_tests_for(pattern) do
+        {:ok, _output} -> 
+          send(self(), {:test_runner_complete, :success})
+        {:error, _reason} ->
+          send(self(), {:test_runner_complete, :error})
+      end
+    end)
+    {:noreply, socket}
+  end
+
+  def handle_info({:test_runner_complete, _result}, socket) do
+    socket = assign(socket, test_running: false)
+    {:noreply, socket}
+  end
+
   def handle_info({:system_processes_component, :kill_process, pid}, socket) do
     case DashboardPhoenix.CodingAgentMonitor.kill_agent(pid) do
       :ok ->
@@ -2034,6 +2074,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "system_processes" => socket.assigns.system_processes_collapsed,
       "process_relationships" => socket.assigns.process_relationships_collapsed,
       "chat" => socket.assigns.chat_collapsed,
+      "test_runner" => socket.assigns.test_runner_collapsed,
       "activity" => socket.assigns.activity_collapsed,
       "work_panel" => socket.assigns.work_panel_collapsed
     }

@@ -254,6 +254,16 @@
           />
         </div>
 
+        <!-- Test Runner Panel -->
+        <div class={["panel-priority-medium p-4", @test_runner_collapsed && "panel-collapsed"]}>
+          <.live_component
+            module={TestRunnerComponent}
+            id="test-runner-panel"
+            test_runner_collapsed={@test_runner_collapsed}
+            test_running={@test_running}
+          />
+        </div>
+
         <!-- System Processes Panel -->
         <div class={["panel-priority-medium p-4", @system_processes_collapsed && "panel-collapsed"]}>
           <.live_component

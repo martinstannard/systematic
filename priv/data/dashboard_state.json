@@ -1,27 +1,27 @@
 {
   "dismissed_sessions": [],
   "models": {
-    "claude_model": "anthropic/claude-opus-4-5",
+    "claude_model": "anthropic/claude-sonnet-4-20250514",
     "opencode_model": "gemini-3-pro"
   },
   "panels": {
-    "activity": true,
+    "activity": false,
     "agent_activity": false,
-    "branches": true,
-    "chainlink": true,
+    "branches": false,
+    "chainlink": false,
     "chat": true,
     "coding_agents": false,
     "config": false,
     "dave": false,
     "gemini": false,
-    "linear": true,
+    "linear": false,
     "live_progress": false,
     "opencode": false,
     "process_relationships": false,
-    "prs": true,
+    "prs": false,
     "subagents": false,
     "system_processes": false,
     "work_panel": false
   },
-  "updated_at": "2026-02-01T10:27:45.530927Z"
+  "updated_at": "2026-02-01T10:35:51.219839Z"
 }

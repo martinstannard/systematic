@@ -36,6 +36,7 @@ defmodule DashboardPhoenix.DashboardState do
       system_processes: false,
       process_relationships: false,
       chat: true,
+      test_runner: false,
       activity: false,
       work_panel: false
     },
