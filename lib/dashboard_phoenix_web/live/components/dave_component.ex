@@ -75,7 +75,7 @@ defmodule DashboardPhoenixWeb.Live.Components.DaveComponent do
         </div>
         
         <div id="dave-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@dave_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-          <div class="px-3 pb-3">
+          <div class="px-4 pb-4 pt-2">
             <% current_action = Map.get(@main_agent_session, :current_action) %>
             
             <!-- Current Activity -->

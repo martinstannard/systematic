@@ -52,7 +52,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
 
   def render(assigns) do
     ~H"""
-    <div class="space-y-3" role="region" aria-label="Test Runner">
+    <div class="space-y-4" role="region" aria-label="Test Runner">
       <button 
         phx-click="toggle_test_runner_panel"
         phx-target={@myself}
@@ -76,7 +76,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
         </div>
       </button>
 
-      <div id="test-runner-content" class={["space-y-3", @test_runner_collapsed && "hidden"]}>
+      <div id="test-runner-content" class={["space-y-4", @test_runner_collapsed && "hidden"]}>
         <!-- Test Controls -->
         <div class="flex gap-2 flex-wrap" role="group" aria-label="Test controls">
           <button 
@@ -125,7 +125,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
 
         <!-- Recent Test Results -->
         <%= if length(@recent_test_events) > 0 do %>
-          <div class="space-y-2" role="region" aria-label="Recent test results">
+          <div class="space-y-3" role="region" aria-label="Recent test results">
             <h4 class="text-ui-secondary text-sm" id="recent-tests-heading">Recent Test Results</h4>
             <div class="space-y-1 max-h-32 overflow-y-auto" role="list" aria-labelledby="recent-tests-heading" aria-live="polite">
               <%= for event <- @recent_test_events do %>

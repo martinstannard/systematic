@@ -69,7 +69,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
       </div>
 
       <div id="activity-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[600px]")}>
-        <div class="px-3 pb-3 overflow-y-auto max-h-[580px] space-y-1" id="activity-panel-events" role="log" aria-live="polite" aria-label="Recent activity events">
+        <div class="px-4 pb-4 pt-2 overflow-y-auto max-h-[580px] space-y-2" id="activity-panel-events" role="log" aria-live="polite" aria-label="Recent activity events">
           <%= if @events == [] do %>
             <div class="text-xs text-base-content/40 py-2 text-center italic">
               No recent activity

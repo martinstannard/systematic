@@ -162,6 +162,7 @@ body {
 
 .panel-header-interactive {
   @apply cursor-pointer transition-colors duration-150;
+  @apply py-3 px-4; /* Consistent header padding */
 }
 
 .panel-header-interactive:hover {
@@ -683,6 +684,7 @@ body {
 .section-agent-status,
 .section-system-config {
   @apply bg-base-200/50 border border-base-300;
+  @apply rounded-lg;
 }
 
 /* No colored left borders - sections are uniform */
@@ -690,6 +692,13 @@ body {
 .section-agent-status,
 .section-system-config {
   /* Keep classes for compatibility but no special styling */
+}
+
+/* Section internal spacing enhancement */
+.section-core-work > .space-y-5,
+.section-agent-status > .space-y-5,
+.section-system-config > .space-y-5 {
+  @apply mt-2;
 }
 
 /* =====================================================

@@ -340,15 +340,15 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       </div>
 
       <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[1000px]")}>
-        <div class="px-4 pb-4">
+        <div class="px-5 pb-5 pt-2">
           <!-- Failed Spawns Section -->
           <%= if length(@failed_spawns) > 0 do %>
-            <div class="mb-4">
-              <div class="flex items-center gap-2 mb-2">
+            <div class="mb-5">
+              <div class="flex items-center gap-2 mb-3">
                 <span class="text-red-400 text-sm">⚠️</span>
                 <span class="text-xs font-medium text-red-400">Recent Failures (<%= length(@failed_spawns) %>)</span>
               </div>
-              <div class="space-y-2">
+              <div class="space-y-3">
                 <%= for failure <- @failed_spawns do %>
                   <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
                     <div class="flex items-start justify-between gap-2">

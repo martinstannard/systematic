@@ -176,7 +176,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
       </div>
       
       <div id="subagents-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}>
-        <div class="px-4 pb-4 space-y-3 max-h-[450px] overflow-y-auto" role="region" aria-live="polite" aria-label="Sub-agent sessions list">
+        <div class="px-5 pb-5 pt-2 space-y-4 max-h-[450px] overflow-y-auto" role="region" aria-live="polite" aria-label="Sub-agent sessions list">
           <%= if @visible_sessions == [] do %>
             <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sub-agents</div>
           <% end %>

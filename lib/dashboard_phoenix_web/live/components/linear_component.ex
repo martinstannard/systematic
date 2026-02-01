@@ -269,9 +269,9 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
         id="linear-panel-content"
         class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[400px]")}
       >
-        <div class="px-4 pb-4">
+        <div class="px-5 pb-5 pt-2">
           <!-- Status Filter -->
-          <div class="flex items-center flex-wrap gap-2 mb-3">
+          <div class="flex items-center flex-wrap gap-2 mb-4">
             <%= for status <- Status.linear_states() do %>
               <% count = Map.get(@counts, status, 0) %>
               <button
@@ -294,7 +294,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
 
           <!-- Ticket List -->
           <div
-            class="space-y-2 max-h-[300px] overflow-y-auto"
+            class="space-y-3 max-h-[300px] overflow-y-auto"
             role="region"
             aria-live="polite"
             aria-label="Linear ticket list"

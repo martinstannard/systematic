@@ -133,7 +133,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
       </div>
 
       <div id="opencode-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@opencode_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
-        <div class="px-4 pb-4">
+        <div class="px-5 pb-5 pt-2">
           <%= if not @opencode_server_status.running do %>
             <!-- Server Not Running -->
             <div class="text-center py-4">
@@ -165,7 +165,7 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponent do
             </div>
 
             <!-- Sessions List -->
-            <div class="space-y-3 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="OpenCode sessions list">
+            <div class="space-y-4 max-h-[300px] overflow-y-auto" role="region" aria-live="polite" aria-label="OpenCode sessions list">
               <%= if @opencode_sessions == [] do %>
                 <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sessions</div>
               <% end %>
