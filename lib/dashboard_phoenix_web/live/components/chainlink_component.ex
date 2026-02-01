@@ -110,24 +110,21 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   defp status_text(_), do: "Status: Unknown"
 
   # Format agent label for display - extracts meaningful name from label like "ticket-109-description"
+  # CSS handles truncation via overflow-hidden/text-ellipsis - no Elixir truncation needed
   defp format_agent_label(nil), do: "Working"
   defp format_agent_label(label) when is_binary(label) do
     # Try to extract a meaningful suffix after "ticket-NNN-"
     case Regex.run(~r/ticket-\d+-(.+)$/, label) do
       [_, suffix] -> 
-        # Clean up and format the suffix (e.g., "chainlink-ux" -> "chainlink-ux")
+        # Clean up and format the suffix (e.g., "chainlink-ux" -> "chainlink ux")
         suffix
         |> String.replace("-", " ")
         |> String.split()
         |> Enum.take(3)
         |> Enum.join(" ")
       _ ->
-        # Fallback: just use the label, truncated
-        if String.length(label) > 20 do
-          String.slice(label, 0, 17) <> "..."
-        else
-          label
-        end
+        # Return the full label - CSS will handle truncation
+        label
     end
   end
   defp format_agent_label(_), do: "Working"
@@ -205,9 +202,9 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                   <div class="flex items-center gap-2 sm:gap-3">
                     <%= if work_info do %>
                       <!-- Work in progress indicator - replaces Work button -->
-                      <div class="flex items-center space-x-1.5 min-w-[70px]" role="status" aria-label={"Work in progress by " <> (work_info[:label] || "agent")}>
-                        <span class="status-activity-ring text-success" aria-hidden="true"></span>
-                        <span class="text-ui-caption text-success font-medium" title={work_info[:label] || "Working"}>
+                      <div class="flex items-center space-x-1.5 min-w-[70px] max-w-[120px]" role="status" aria-label={"Work in progress by " <> (work_info[:label] || "agent")}>
+                        <span class="status-activity-ring text-success flex-shrink-0" aria-hidden="true"></span>
+                        <span class="text-ui-caption text-success font-medium truncate" title={work_info[:label] || "Working"}>
                           <%= format_agent_label(work_info[:label]) %>
                         </span>
                       </div>
