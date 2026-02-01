@@ -11,6 +11,15 @@ config :dashboard_phoenix,
   ecto_repos: [DashboardPhoenix.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Path configuration - defaults are set in Paths module, can be overridden by environment variables
+# Setting these to nil keeps the defaults from the Paths module
+# Uncomment and set values to override specific paths
+# config :dashboard_phoenix,
+#   openclaw_home: "/custom/openclaw/path",
+#   openclaw_sessions_dir: "/custom/sessions/path", 
+#   opencode_storage_dir: "/custom/opencode/storage",
+#   session_update_script: "/custom/scripts/update_sessions.sh"
+
 # Configures the endpoint
 config :dashboard_phoenix, DashboardPhoenixWeb.Endpoint,
   url: [host: "localhost"],

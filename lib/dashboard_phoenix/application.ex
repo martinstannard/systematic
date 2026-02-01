@@ -41,7 +41,7 @@ defmodule DashboardPhoenix.Application do
       DashboardPhoenixWeb.HomeLiveCache,
     ] ++ session_bridge_child ++ [
       # Session bridge for live agent updates (tails progress files) - conditional
-      # OpenCode activity monitor for Live Feed (polls ~/.local/share/opencode/storage/)
+      # OpenCode activity monitor for Live Feed (polls configurable OpenCode storage directory)
       DashboardPhoenix.OpenCodeActivityMonitor,
       # Stats monitor for OpenCode/Claude usage
       DashboardPhoenix.StatsMonitor,

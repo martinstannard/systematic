@@ -4,11 +4,10 @@ defmodule DashboardPhoenix.SessionUpdater do
   """
   use GenServer
   
-  alias DashboardPhoenix.CommandRunner
+  alias DashboardPhoenix.{CommandRunner, Paths}
   require Logger
   
   @update_interval 1_000  # 1 second
-  @script_path Path.expand("../../scripts/update_sessions.sh", __DIR__)
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -32,8 +31,9 @@ defmodule DashboardPhoenix.SessionUpdater do
   end
 
   defp run_update do
+    script_path = Paths.session_update_script()
     # Short timeout for the update script since it runs every second
-    case CommandRunner.run("bash", [@script_path], timeout: 5_000, stderr_to_stdout: true) do
+    case CommandRunner.run("bash", [script_path], timeout: 5_000, stderr_to_stdout: true) do
       {:ok, _output} -> :ok
       {:error, :timeout} -> 
         Logger.warning("[SessionUpdater] Update script timed out after 5s")
