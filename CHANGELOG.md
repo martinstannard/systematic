@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Replace :timer.send_interval with recursive Process.send_after (#10)
 - Make hardcoded paths configurable (#8)
 - Remove Core Work section wrapper (#110)
 - Add mobile responsive design (#35)

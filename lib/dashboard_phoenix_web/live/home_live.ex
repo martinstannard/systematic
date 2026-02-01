@@ -87,6 +87,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       coding_agent_pref: :opencode,  # Default value
       # Agent distribution mode and round-robin state
       agent_mode: "single",           # "single" or "round_robin"
+      # Work registry - tracks all agent work with metadata
+      work_registry_counts: %{claude: 0, opencode: 0, gemini: 0},
+      work_registry_entries: [],
       last_agent: "claude",           # Last agent used in round_robin mode
       # Graph data - computed after data loads
       graph_data: %{nodes: [], links: []},
@@ -343,6 +346,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   # Handle session updates (with validation for proper test isolation)
   def handle_info({:sessions, raw_sessions}, socket) when is_list(raw_sessions) do
+    alias DashboardPhoenix.WorkRegistry
+    
     # Enrich sessions with extracted ticket/PR data once (O(n) instead of O(n*m))
     sessions = Enum.map(raw_sessions, &enrich_agent_session/1)
     activity = DashboardPhoenixWeb.HomeLiveCache.get_agent_activity(sessions, socket.assigns.agent_progress)
@@ -350,7 +355,27 @@ defmodule DashboardPhoenixWeb.HomeLive do
     prs_in_progress = build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
     chainlink_work_in_progress = build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
     agent_sessions_count = length(sessions)
-    {:noreply, assign(socket, agent_sessions: sessions, agent_sessions_count: agent_sessions_count, agent_activity: activity, tickets_in_progress: tickets_in_progress, prs_in_progress: prs_in_progress, chainlink_work_in_progress: chainlink_work_in_progress)}
+    
+    # Sync WorkRegistry with active sessions
+    active_session_ids = sessions
+    |> Enum.filter(fn s -> s.status in ["running", "idle"] end)
+    |> Enum.map(& &1.id)
+    WorkRegistry.sync_with_sessions(active_session_ids)
+    
+    # Get work registry counts for display
+    work_registry_counts = WorkRegistry.count_by_agent_type()
+    work_registry_entries = WorkRegistry.running()
+    
+    {:noreply, assign(socket, 
+      agent_sessions: sessions, 
+      agent_sessions_count: agent_sessions_count, 
+      agent_activity: activity, 
+      tickets_in_progress: tickets_in_progress, 
+      prs_in_progress: prs_in_progress, 
+      chainlink_work_in_progress: chainlink_work_in_progress,
+      work_registry_counts: work_registry_counts,
+      work_registry_entries: work_registry_entries
+    )}
   end
 
   # Handle malformed session data gracefully (test isolation)
