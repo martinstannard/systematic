@@ -191,9 +191,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
       ActivityLog.subscribe()
       
       # Schedule periodic updates (after initial data loads)
-      Process.send_after(self(), :update_processes, 500)
-      :timer.send_interval(2_000, :update_processes)
-      :timer.send_interval(5_000, :refresh_opencode_sessions)
+      Process.send_after(self(), :update_processes, 1_000)
+      :timer.send_interval(10_000, :update_processes)
+      :timer.send_interval(15_000, :refresh_opencode_sessions)
       
       # Trigger all async loads - UI renders immediately with loading states
       send(self(), :load_processes)
