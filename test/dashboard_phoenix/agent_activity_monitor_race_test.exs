@@ -6,7 +6,8 @@ defmodule DashboardPhoenix.AgentActivityMonitorRaceTest do
   use ExUnit.Case, async: false  # Not async due to ETS table usage
   import ExUnit.CaptureLog
   
-  alias DashboardPhoenix.AgentActivityMonitor.{Config, Server}
+  # Use the portable Config module directly
+  alias AgentActivityMonitor.{Config, Server}
   
   # Test config that doesn't require TaskSupervisor
   # Creates a unique name and sessions_dir for each test to avoid collisions
@@ -167,6 +168,10 @@ defmodule DashboardPhoenix.AgentActivityMonitorRaceTest do
       config = test_config()
       {:ok, pid} = Server.start_link(config: config)
       
+      # Get the cache table from state
+      state = :sys.get_state(pid)
+      cache_table = state.cache_table
+      
       # Create many files to trigger cache cleanup
       for i <- 1..50 do
         file_path = Path.join(config.sessions_dir, "session_#{i}.jsonl")
@@ -187,7 +192,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorRaceTest do
       Process.sleep(100)
       
       # Cache should still exist but be manageable size
-      cache_size = :ets.info(:transcript_cache, :size)
+      cache_size = :ets.info(cache_table, :size)
       assert is_integer(cache_size)
       assert cache_size >= 0
       

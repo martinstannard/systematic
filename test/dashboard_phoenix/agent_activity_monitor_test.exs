@@ -1,7 +1,6 @@
 defmodule DashboardPhoenix.AgentActivityMonitorTest do
   use ExUnit.Case, async: true
 
-  alias DashboardPhoenix.AgentActivityMonitor
   alias DashboardPhoenix.Status
 
   describe "parse_timestamp/1 logic" do
@@ -221,12 +220,23 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
   end
 
   describe "GenServer behavior" do
-    alias DashboardPhoenix.AgentActivityMonitor.{Config, Server}
+    alias AgentActivityMonitor.{Config, Server}
 
-    test "module exports expected client API functions" do
+    test "portable module exports expected client API functions" do
+      # Ensure module is loaded before checking exports
+      Code.ensure_loaded!(AgentActivityMonitor)
+      
+      # Test the portable AgentActivityMonitor module
       assert function_exported?(AgentActivityMonitor, :start_link, 1)
-      assert function_exported?(AgentActivityMonitor, :get_activity, 0)
-      assert function_exported?(AgentActivityMonitor, :subscribe, 0)
+      assert function_exported?(AgentActivityMonitor, :minimal_config, 1)
+      assert function_exported?(AgentActivityMonitor, :new_config, 2)
+    end
+
+    test "dashboard wrapper exports expected client API functions" do
+      # Test the DashboardPhoenix wrapper module
+      assert function_exported?(DashboardPhoenix.AgentActivityMonitor, :get_activity, 0)
+      assert function_exported?(DashboardPhoenix.AgentActivityMonitor, :subscribe, 0)
+      assert function_exported?(DashboardPhoenix.AgentActivityMonitor, :dashboard_config, 0)
     end
 
     test "Server.init returns expected state structure" do
@@ -241,7 +251,10 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
       assert state.session_offsets == %{}
       assert state.last_poll == nil
       assert state.config == config
+      assert is_atom(state.cache_table)
       
+      # Cleanup ETS table
+      :ets.delete(state.cache_table)
       File.rm_rf!(sessions_dir)
     end
 
@@ -258,13 +271,16 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
       }
       
       config = Config.minimal(sessions_dir)
+      cache_table = :ets.new(:test_cache, [:set, :public])
+      
       state = %{
         config: config,
         agents: agents, 
         session_offsets: %{}, 
         last_poll: nil,
         polling: false,
-        last_cache_cleanup: System.system_time(:millisecond)
+        last_cache_cleanup: System.system_time(:millisecond),
+        cache_table: cache_table
       }
 
       {:reply, activities, _new_state} = Server.handle_call(:get_activity, self(), state)
@@ -273,6 +289,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
       assert length(activities) == 2
       assert hd(activities).id == "agent-2"  # More recent first
       
+      :ets.delete(cache_table)
       File.rm_rf!(sessions_dir)
     end
   end
