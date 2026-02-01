@@ -12,6 +12,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: [],
+        chainlink_issues_count: 0,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -26,6 +27,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: [],
+        chainlink_issues_count: 0,
         chainlink_loading: true,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -40,6 +42,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: [],
+        chainlink_issues_count: 0,
         chainlink_loading: false,
         chainlink_error: "Failed to load issues",
         chainlink_collapsed: false,
@@ -58,6 +61,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: issues,
+        chainlink_issues_count: 2,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -70,7 +74,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       assert html =~ "#2"
       # Work buttons should be present
       assert html =~ "▶"
-      assert html =~ "work_on_chainlink"
+      assert html =~ "show_work_confirm"
     end
 
     test "renders priority badges correctly" do
@@ -83,6 +87,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: issues,
+        chainlink_issues_count: 3,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -108,6 +113,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: issues,
+        chainlink_issues_count: 2,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -135,6 +141,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: issues,
+        chainlink_issues_count: 1,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -160,6 +167,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: issues,
+        chainlink_issues_count: 2,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -178,6 +186,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: issues,
+        chainlink_issues_count: 1,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: true,
@@ -200,6 +209,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: issues,
+        chainlink_issues_count: 3,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -219,6 +229,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: issues,
+        chainlink_issues_count: 2,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -243,6 +254,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       html = render_component(ChainlinkComponent,
         id: "test-chainlink",
         chainlink_issues: issues,
+        chainlink_issues_count: 1,
         chainlink_loading: false,
         chainlink_error: nil,
         chainlink_collapsed: false,
@@ -251,6 +263,138 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
 
       # Should show default "Working" label
       assert html =~ "Working"
+    end
+  end
+
+  describe "confirmation modal" do
+    test "renders modal when confirm_issue is set" do
+      issues = [
+        %{id: 42, title: "Test Modal Issue", status: "open", priority: :high}
+      ]
+
+      html = render_component(ChainlinkComponent,
+        id: "test-chainlink",
+        chainlink_issues: issues,
+        chainlink_issues_count: 1,
+        chainlink_loading: false,
+        chainlink_error: nil,
+        chainlink_collapsed: false,
+        chainlink_work_in_progress: %{},
+        confirm_issue: %{id: 42, title: "Test Modal Issue", priority: :high}
+      )
+
+      # Modal should be visible
+      assert html =~ "Start Work?"
+      assert html =~ "#42"
+      assert html =~ "Test Modal Issue"
+      # Buttons should be present
+      assert html =~ "Cancel"
+      assert html =~ "confirm_work"
+      assert html =~ "cancel_confirm"
+    end
+
+    test "does not render modal when confirm_issue is nil" do
+      issues = [
+        %{id: 1, title: "Test Issue", status: "open", priority: :high}
+      ]
+
+      html = render_component(ChainlinkComponent,
+        id: "test-chainlink",
+        chainlink_issues: issues,
+        chainlink_issues_count: 1,
+        chainlink_loading: false,
+        chainlink_error: nil,
+        chainlink_collapsed: false,
+        chainlink_work_in_progress: %{},
+        confirm_issue: nil
+      )
+
+      # Modal should NOT be visible
+      refute html =~ "Start Work?"
+      refute html =~ "confirm_work"
+    end
+
+    test "modal shows correct priority badge" do
+      issues = [
+        %{id: 99, title: "Low Priority Issue", status: "open", priority: :low}
+      ]
+
+      html = render_component(ChainlinkComponent,
+        id: "test-chainlink",
+        chainlink_issues: issues,
+        chainlink_issues_count: 1,
+        chainlink_loading: false,
+        chainlink_error: nil,
+        chainlink_collapsed: false,
+        chainlink_work_in_progress: %{},
+        confirm_issue: %{id: 99, title: "Low Priority Issue", priority: :low}
+      )
+
+      # Should show low priority styling
+      assert html =~ "bg-blue-500/20"
+      assert html =~ "▼ LOW"
+    end
+  end
+
+  describe "event validation" do
+    alias DashboardPhoenix.InputValidator
+
+    test "validates chainlink issue IDs correctly" do
+      # Valid IDs
+      assert {:ok, 1} = InputValidator.validate_chainlink_issue_id("1")
+      assert {:ok, 42} = InputValidator.validate_chainlink_issue_id("42")
+      assert {:ok, 999} = InputValidator.validate_chainlink_issue_id("999")
+
+      # Invalid IDs
+      assert {:error, _} = InputValidator.validate_chainlink_issue_id("0")
+      assert {:error, _} = InputValidator.validate_chainlink_issue_id("-1")
+      assert {:error, _} = InputValidator.validate_chainlink_issue_id("abc")
+      assert {:error, _} = InputValidator.validate_chainlink_issue_id("")
+      assert {:error, _} = InputValidator.validate_chainlink_issue_id("1; rm -rf /")
+    end
+
+    test "work button has correct phx-click and phx-value attributes" do
+      issues = [
+        %{id: 42, title: "Test Issue", status: "open", priority: :high}
+      ]
+
+      html = render_component(ChainlinkComponent,
+        id: "test-chainlink",
+        chainlink_issues: issues,
+        chainlink_issues_count: 1,
+        chainlink_loading: false,
+        chainlink_error: nil,
+        chainlink_collapsed: false,
+        chainlink_work_in_progress: %{}
+      )
+
+      # Button should have proper event binding
+      assert html =~ ~r/phx-click="show_work_confirm"/
+      assert html =~ ~r/phx-value-id="42"/
+      assert html =~ ~r/phx-target="-1"/
+    end
+
+    test "modal buttons have correct event bindings" do
+      issues = [
+        %{id: 1, title: "Test Issue", status: "open", priority: :high}
+      ]
+
+      html = render_component(ChainlinkComponent,
+        id: "test-chainlink",
+        chainlink_issues: issues,
+        chainlink_issues_count: 1,
+        chainlink_loading: false,
+        chainlink_error: nil,
+        chainlink_collapsed: false,
+        chainlink_work_in_progress: %{},
+        confirm_issue: %{id: 1, title: "Test Issue", priority: :high}
+      )
+
+      # Modal should have confirm and cancel buttons with proper bindings
+      assert html =~ ~r/phx-click="confirm_work"/
+      assert html =~ ~r/phx-click="cancel_confirm"/
+      # Modal should have escape key handler
+      assert html =~ ~r/phx-key="Escape"/
     end
   end
 end
