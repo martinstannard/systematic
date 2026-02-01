@@ -228,19 +228,20 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
           <% end %>
         </div>
         
-        <!-- Agent type legend -->
+        <!-- Agent load from WorkRegistry -->
         <div class="flex items-center gap-3 text-xs">
-          <span class={"flex items-center gap-1 " <> if(Map.get(@type_counts, "claude", 0) > 0, do: "text-purple-400", else: "text-base-content/40")}>
-            <span>🟣</span><span>Claude</span>
-            <%= if Map.get(@type_counts, "claude", 0) > 0 do %><span class="font-mono">(<%= @type_counts["claude"] %>)</span><% end %>
+          <% reg = Map.get(assigns, :work_registry_counts, %{claude: 0, opencode: 0, gemini: 0}) %>
+          <span class={"flex items-center gap-1 " <> if(Map.get(reg, :claude, 0) > 0, do: "text-purple-400", else: "text-base-content/40")}>
+            <span>🟣</span>
+            <span class="font-mono"><%= Map.get(reg, :claude, 0) %></span>
           </span>
-          <span class={"flex items-center gap-1 " <> if(Map.get(@type_counts, "opencode", 0) > 0, do: "text-blue-400", else: "text-base-content/40")}>
-            <span>🔷</span><span>OpenCode</span>
-            <%= if Map.get(@type_counts, "opencode", 0) > 0 do %><span class="font-mono">(<%= @type_counts["opencode"] %>)</span><% end %>
+          <span class={"flex items-center gap-1 " <> if(Map.get(reg, :opencode, 0) > 0, do: "text-blue-400", else: "text-base-content/40")}>
+            <span>🔷</span>
+            <span class="font-mono"><%= Map.get(reg, :opencode, 0) %></span>
           </span>
-          <span class={"flex items-center gap-1 " <> if(Map.get(@type_counts, "gemini", 0) > 0, do: "text-amber-400", else: "text-base-content/40")}>
-            <span>✨</span><span>Gemini</span>
-            <%= if Map.get(@type_counts, "gemini", 0) > 0 do %><span class="font-mono">(<%= @type_counts["gemini"] %>)</span><% end %>
+          <span class={"flex items-center gap-1 " <> if(Map.get(reg, :gemini, 0) > 0, do: "text-amber-400", else: "text-base-content/40")}>
+            <span>✨</span>
+            <span class="font-mono"><%= Map.get(reg, :gemini, 0) %></span>
           </span>
         </div>
       </div>
