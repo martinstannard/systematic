@@ -10,6 +10,8 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   Extracted from HomeLive to improve code organization and maintainability.
   """
   use DashboardPhoenixWeb, :live_component
+  
+  import Phoenix.LiveView.JS
 
   @impl true
   def update(assigns, socket) do
@@ -69,13 +71,12 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
       aria-describedby="work-modal-description"
       phx-window-keydown="close_work_modal"
       phx-key="Escape"
+      phx-target={@myself}
     >
       <!-- Modal panel -->
       <div 
         class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" 
-        phx-click-away="close_work_modal" 
-        phx-target={@myself}
-        onclick="event.stopPropagation()"
+        phx-click={JS.exec("event.stopPropagation()")}
       >
         <!-- Header -->
         <div class="flex items-center justify-between mb-4">
