@@ -49,21 +49,10 @@
         %{id: "system", label: "System", badge: @coding_agents_count}
       ]}
     >
-      <%!-- Overview Tab (Activity, Work Panel, Work River) --%>
+      <%!-- Overview Tab (Work Panel, Work River, Activity) --%>
       <:tab_content tab="overview">
         <div class="flex flex-col gap-6">
-          <!-- Unified Activity Panel -->
-          <.live_component
-            module={UnifiedActivityComponent}
-            id="unified-activity"
-            activity_events={@activity_events}
-            progress_events={@streams.progress_events}
-            agent_progress_count={@agent_progress_count}
-            collapsed={@activity_collapsed}
-            sessions_loading={@sessions_loading}
-          />
-          
-<!-- Work Panel -->
+          <!-- Work Panel -->
           <.live_component
             module={WorkPanelComponent}
             id="work-panel"
@@ -98,6 +87,17 @@
             work_registry_entries={@work_registry_entries}
             github_prs={@github_prs}
             pr_verifications={@pr_verifications}
+          />
+          
+<!-- Unified Activity Panel -->
+          <.live_component
+            module={UnifiedActivityComponent}
+            id="unified-activity"
+            activity_events={@activity_events}
+            progress_events={@streams.progress_events}
+            agent_progress_count={@agent_progress_count}
+            collapsed={@activity_collapsed}
+            sessions_loading={@sessions_loading}
           />
         </div>
       </:tab_content>
