@@ -210,8 +210,18 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   end
 
   @impl true
+  def handle_event("reset_form", _, socket) do
+    {:noreply, assign(socket, show_create_form: false, form_errors: %{}, form_submitting: false)}
+  end
+
+  @impl true
   def handle_event("toggle_create_form", _, socket) do
-    {:noreply, assign(socket, show_create_form: !socket.assigns.show_create_form)}
+    new_show_state = !socket.assigns.show_create_form
+    socket = assign(socket, 
+      show_create_form: new_show_state,
+      form_errors: %{}  # Clear any existing errors when toggling
+    )
+    {:noreply, socket}
   end
 
   @impl true
@@ -254,18 +264,25 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
       cond do
         String.length(title) == 0 ->
           Map.put(errors, :title, "Title is required")
+        String.length(title) < 5 ->
+          Map.put(errors, :title, "Title should be at least 5 characters")
         String.length(title) > 200 ->
           Map.put(errors, :title, "Title must be 200 characters or less")
+        String.match?(title, ~r/^\s*$/) ->
+          Map.put(errors, :title, "Title cannot be only whitespace")
         true ->
           errors
       end
     
     # Validate description
     errors = 
-      if String.length(description) > 1000 do
-        Map.put(errors, :description, "Description must be 1000 characters or less")
-      else
-        errors
+      cond do
+        String.length(description) > 1000 ->
+          Map.put(errors, :description, "Description must be 1000 characters or less")
+        description != "" and String.length(description) < 10 ->
+          Map.put(errors, :description, "If provided, description should be at least 10 characters")
+        true ->
+          errors
       end
     
     # Validate priority
@@ -418,25 +435,36 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
             <button
               phx-click="toggle_create_form"
               phx-target={@myself}
-              class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 transition-all w-full py-2"
+              class="btn-interactive-primary bg-gradient-to-r from-accent to-accent/80 text-white hover:from-accent/90 hover:to-accent/70 transition-all duration-200 w-full py-3 font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
               aria-label="Toggle create new issue form"
             >
               <%= if @show_create_form do %>
-                <span aria-hidden="true">▼</span>
+                <span aria-hidden="true" class="text-lg">▼</span>
                 <span>Hide Create Form</span>
               <% else %>
-                <span aria-hidden="true">+</span>
-                <span>Create New Issue</span>
+                <span aria-hidden="true" class="text-lg font-bold">+</span>
+                <span>Create New Chainlink Issue</span>
               <% end %>
             </button>
 
             <%= if @show_create_form do %>
-              <div class="mt-3 p-4 bg-base-100 border border-base-300 rounded-lg">
-                <form phx-submit="create_chainlink_issue" phx-target={@myself} id="create-issue-form">
+              <div class="mt-3 p-5 bg-gradient-to-br from-base-100 to-base-200/50 border border-base-300 rounded-xl shadow-lg">
+                <div class="flex items-center gap-2 mb-4">
+                  <span class="text-2xl">🔗</span>
+                  <h3 class="text-lg font-semibold text-base-content">Create New Chainlink Issue</h3>
+                </div>
+                
+                <form 
+                  phx-submit="create_chainlink_issue" 
+                  phx-target={@myself} 
+                  id="create-issue-form" 
+                  class="space-y-4"
+                  phx-hook="ChainlinkCreateForm"
+                >
                   <!-- Title Field -->
-                  <div class="mb-4">
-                    <label for="issue-title" class="block text-ui-label text-base-content mb-1">
-                      Title <span class="text-error">*</span>
+                  <div>
+                    <label for="issue-title" class="block text-ui-label text-base-content mb-2 font-medium">
+                      Issue Title <span class="text-error font-bold">*</span>
                     </label>
                     <input
                       type="text"
@@ -444,68 +472,91 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       name="title"
                       maxlength="200"
                       required
-                      class={"input input-bordered w-full text-ui-body " <> if Map.get(@form_errors, :title), do: "input-error", else: ""}
-                      placeholder="Enter issue title"
+                      autofocus={@show_create_form and not @form_submitting}
+                      class={"input input-bordered w-full text-ui-body focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors " <> if Map.get(@form_errors, :title), do: "input-error border-error", else: ""}
+                      placeholder="Describe what needs to be done..."
                       disabled={@form_submitting}
                     />
                     <%= if error = Map.get(@form_errors, :title) do %>
-                      <p class="text-error text-ui-caption mt-1">{error}</p>
+                      <p class="text-error text-ui-caption mt-1 flex items-center gap-1">
+                        <span aria-hidden="true">⚠</span>
+                        {error}
+                      </p>
                     <% end %>
                   </div>
 
                   <!-- Description Field -->
-                  <div class="mb-4">
-                    <label for="issue-description" class="block text-ui-label text-base-content mb-1">
+                  <div>
+                    <label for="issue-description" class="block text-ui-label text-base-content mb-2 font-medium">
                       Description
+                      <span class="text-base-content/60 font-normal">(optional)</span>
                     </label>
                     <textarea
                       id="issue-description"
                       name="description"
                       maxlength="1000"
                       rows="3"
-                      class={"textarea textarea-bordered w-full text-ui-body resize-none " <> if Map.get(@form_errors, :description), do: "textarea-error", else: ""}
-                      placeholder="Enter issue description (optional)"
+                      class={"textarea textarea-bordered w-full text-ui-body resize-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors " <> if Map.get(@form_errors, :description), do: "textarea-error border-error", else: ""}
+                      placeholder="Provide additional context, requirements, or notes..."
                       disabled={@form_submitting}
                     ></textarea>
                     <%= if error = Map.get(@form_errors, :description) do %>
-                      <p class="text-error text-ui-caption mt-1">{error}</p>
+                      <p class="text-error text-ui-caption mt-1 flex items-center gap-1">
+                        <span aria-hidden="true">⚠</span>
+                        {error}
+                      </p>
                     <% end %>
                   </div>
 
                   <!-- Priority Field -->
-                  <div class="mb-4">
-                    <label for="issue-priority" class="block text-ui-label text-base-content mb-1">
-                      Priority
+                  <div>
+                    <label for="issue-priority" class="block text-ui-label text-base-content mb-2 font-medium">
+                      Priority Level
                     </label>
                     <select
                       id="issue-priority"
                       name="priority"
-                      class={"select select-bordered w-full text-ui-body " <> if Map.get(@form_errors, :priority), do: "select-error", else: ""}
+                      class={"select select-bordered w-full text-ui-body focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors " <> if Map.get(@form_errors, :priority), do: "select-error border-error", else: ""}
                       disabled={@form_submitting}
                     >
-                      <option value="low" selected>Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
+                      <option value="low" selected>🔵 Low - Nice to have improvement</option>
+                      <option value="medium">🟡 Medium - Should be addressed soon</option>
+                      <option value="high">🔴 High - Needs immediate attention</option>
                     </select>
                     <%= if error = Map.get(@form_errors, :priority) do %>
-                      <p class="text-error text-ui-caption mt-1">{error}</p>
+                      <p class="text-error text-ui-caption mt-1 flex items-center gap-1">
+                        <span aria-hidden="true">⚠</span>
+                        {error}
+                      </p>
                     <% end %>
                   </div>
 
                   <!-- Submit Button -->
-                  <button
-                    type="submit"
-                    class="btn btn-accent w-full"
-                    disabled={@form_submitting}
-                  >
-                    <%= if @form_submitting do %>
-                      <span class="loading loading-spinner loading-sm"></span>
-                      Creating Issue...
-                    <% else %>
-                      <span aria-hidden="true">+</span>
-                      Create Issue
-                    <% end %>
-                  </button>
+                  <div class="pt-2">
+                    <button
+                      type="submit"
+                      class={"btn w-full py-3 font-semibold text-white transition-all duration-200 shadow-lg hover:shadow-xl transform " <> if @form_submitting, do: "btn-disabled bg-accent/50 cursor-wait", else: "btn-accent bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent/70 hover:scale-[1.02] active:scale-[0.98]"}
+                      disabled={@form_submitting}
+                    >
+                      <%= if @form_submitting do %>
+                        <span class="loading loading-spinner loading-sm"></span>
+                        <span>Creating Issue...</span>
+                      <% else %>
+                        <span aria-hidden="true" class="text-lg font-bold">✨</span>
+                        <span>Create Issue</span>
+                      <% end %>
+                    </button>
+                  </div>
+                  
+                  <!-- Success/Error Messages -->
+                  <%= if @form_submitting do %>
+                    <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
+                      <div class="flex items-center gap-2">
+                        <span class="loading loading-spinner loading-sm text-blue-600"></span>
+                        <span>Processing your request...</span>
+                      </div>
+                    </div>
+                  <% end %>
                 </form>
               </div>
             <% end %>
