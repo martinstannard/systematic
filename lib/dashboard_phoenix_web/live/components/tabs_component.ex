@@ -81,7 +81,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TabsComponent do
       </div>
       
     <!-- Tab Panels -->
-      <div class="tab-content bg-base-100 rounded-b-box">
+      <div class="tabs-panels bg-base-100 rounded-b-box">
         <%= for {slot, _idx} <- Enum.with_index(@tab_content) do %>
           <div
             :if={@active_tab == slot.tab}
