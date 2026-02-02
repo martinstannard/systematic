@@ -2504,6 +2504,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  # Handle tab switching events from tabbed UI (Ticket #127)
+  def handle_event("switch_tab", %{"tab" => tab}, socket) do
+    {:noreply, assign(socket, active_tab: tab)}
+  end
+
   @spec handle_super_review_request(String.t(), Phoenix.LiveView.Socket.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
   defp handle_super_review_request(ticket_id, socket) do
     review_prompt = """
