@@ -1116,4 +1116,148 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
       assert Process.alive?(view.pid)
     end
   end
+
+  describe "chainlink work functionality" do
+    test "chainlink work_on_issue message is handled", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # Send the chainlink_component work_on_issue message
+      send(view.pid, {:chainlink_component, :work_on_issue, 123})
+
+      # Give it a moment to process
+      :timer.sleep(50)
+
+      # Should not crash
+      assert Process.alive?(view.pid)
+    end
+
+    test "chainlink toggle_panel message is handled", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # Send toggle panel message
+      send(view.pid, {:chainlink_component, :toggle_panel})
+
+      # Give it a moment to process
+      :timer.sleep(50)
+
+      # Should not crash
+      assert Process.alive?(view.pid)
+    end
+
+    test "chainlink create_issue message is handled", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # Send create issue message with form data
+      send(view.pid, {:chainlink_component, :create_issue, %{
+        title: "Test Issue",
+        description: "Test description",
+        priority: "high"
+      }})
+
+      # Give it a moment to process
+      :timer.sleep(50)
+
+      # Should not crash
+      assert Process.alive?(view.pid)
+    end
+
+    test "chainlink work_in_progress state can be updated", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # View should render without crashing when chainlink work_in_progress is empty
+      html = render(view)
+      assert is_binary(html)
+
+      # Should not crash when rendering with work_in_progress state
+      assert Process.alive?(view.pid)
+    end
+
+    test "chainlink creation_complete success message is handled", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # Send creation complete success message
+      send(view.pid, {:chainlink_creation_complete, :success, "Issue #456 created"})
+
+      # Give it a moment to process
+      :timer.sleep(50)
+
+      # Should not crash and show success state
+      assert Process.alive?(view.pid)
+    end
+
+    test "chainlink creation_complete error message is handled", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # Send creation complete error message
+      send(view.pid, {:chainlink_creation_complete, :error, "Failed to create issue"})
+
+      # Give it a moment to process
+      :timer.sleep(50)
+
+      # Should not crash
+      assert Process.alive?(view.pid)
+    end
+
+    test "chainlink component receives work_in_progress updates", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # Navigate to work tab where chainlink is visible
+      switch_to_tab(view, "work")
+
+      # Render should include the chainlink component
+      html = render(view)
+      assert html =~ "Chainlink" or html =~ "chainlink"
+    end
+  end
+
+  describe "chainlink work spawning integration" do
+    import Mox
+
+    test "chainlink work spawns with claude preference", %{conn: conn} do
+      # Set coding agent preference to claude
+      DashboardPhoenix.AgentPreferences.set_coding_agent("claude")
+
+      {:ok, view, _html} = live(conn, "/")
+
+      # Mock the spawn_subagent call
+      expect(DashboardPhoenix.Mocks.OpenClawClientMock, :spawn_subagent, fn _prompt, opts ->
+        assert opts[:name] =~ "chainlink-"
+        assert opts[:thinking] == "low"
+        assert opts[:post_mode] == "summary"
+        {:ok, %{job_id: "test-job", name: "chainlink-test"}}
+      end)
+
+      # Send work on issue message
+      send(view.pid, {:chainlink_component, :work_on_issue, 999})
+
+      # Give it time to process
+      :timer.sleep(100)
+
+      # Should not crash
+      assert Process.alive?(view.pid)
+    end
+
+    test "chainlink work spawns with opencode preference", %{conn: conn} do
+      # Set coding agent preference to opencode
+      DashboardPhoenix.AgentPreferences.set_coding_agent("opencode")
+
+      {:ok, view, _html} = live(conn, "/")
+
+      # Mock the send_task call
+      expect(DashboardPhoenix.Mocks.OpenCodeClientMock, :send_task, fn prompt, opts ->
+        assert prompt =~ "Chainlink issue"
+        assert is_list(opts)
+        {:ok, %{session_id: "opencode-test", slug: "chainlink-work", port: 9100}}
+      end)
+
+      # Send work on issue message
+      send(view.pid, {:chainlink_component, :work_on_issue, 888})
+
+      # Give it time to process
+      :timer.sleep(100)
+
+      # Should not crash
+      assert Process.alive?(view.pid)
+    end
+  end
 end
