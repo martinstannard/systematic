@@ -11,57 +11,9 @@
     health_last_check={@health_last_check}
   />
   
-<!-- Unified Activity Panel - Always visible above tabs -->
-  <.live_component
-    module={UnifiedActivityComponent}
-    id="unified-activity"
-    activity_events={@activity_events}
-    progress_events={@streams.progress_events}
-    agent_progress_count={@agent_progress_count}
-    collapsed={@activity_collapsed}
-    sessions_loading={@sessions_loading}
-  />
-  
-<!-- Work Panel - Unified view of all coding agents (always visible) -->
-  <.live_component
-    module={WorkPanelComponent}
-    id="work-panel"
-    agent_sessions={@agent_sessions}
-    opencode_sessions={@opencode_sessions}
-    gemini_server_status={@gemini_server_status}
-    gemini_output={@gemini_output}
-    work_panel_collapsed={@work_panel_collapsed}
-    show_completed={@show_completed}
-    dismissed_sessions={@dismissed_sessions}
-    chainlink_work_in_progress={@chainlink_work_in_progress}
-    work_registry_counts={@work_registry_counts}
-    work_registry_entries={@work_registry_entries}
-    sessions_loading={@sessions_loading}
-    opencode_loading={@opencode_loading}
-    gemini_loading={@gemini_loading}
-  />
-  
-<!-- Work River - Holistic horizontal workflow view (always visible) -->
-  <.live_component
-    module={WorkRiverComponent}
-    id="work-river"
-    work_river_collapsed={@work_river_collapsed}
-    linear_tickets={@linear_tickets}
-    chainlink_issues={@chainlink_issues}
-    tickets_in_progress={@tickets_in_progress}
-    chainlink_work_in_progress={@chainlink_work_in_progress}
-    agent_sessions={@agent_sessions}
-    opencode_sessions={@opencode_sessions}
-    show_completed={@show_completed}
-    dismissed_sessions={@dismissed_sessions}
-    work_registry_entries={@work_registry_entries}
-    github_prs={@github_prs}
-    pr_verifications={@pr_verifications}
-  />
-  
 <!-- Main Dashboard Layout - Tabbed Interface (Ticket #127) -->
   <div
-    class="flex-1 flex flex-col overflow-y-auto p-4 sm:p-8"
+    class="flex-1 flex flex-col overflow-y-auto px-4 sm:px-8 py-4"
     role="region"
     aria-label="Dashboard panels"
   >
@@ -70,6 +22,12 @@
       id="main-tabs"
       active_tab={@active_tab}
       tabs={[
+        %{
+          id: "overview",
+          label: "Overview",
+          badge: @agent_progress_count,
+          urgent: @agent_progress_count > 0
+        },
         %{
           id: "work",
           label: "Work Items",
@@ -91,6 +49,59 @@
         %{id: "system", label: "System", badge: @coding_agents_count}
       ]}
     >
+      <%!-- Overview Tab (Activity, Work Panel, Work River) --%>
+      <:tab_content tab="overview">
+        <div class="flex flex-col gap-6">
+          <!-- Unified Activity Panel -->
+          <.live_component
+            module={UnifiedActivityComponent}
+            id="unified-activity"
+            activity_events={@activity_events}
+            progress_events={@streams.progress_events}
+            agent_progress_count={@agent_progress_count}
+            collapsed={@activity_collapsed}
+            sessions_loading={@sessions_loading}
+          />
+          
+<!-- Work Panel -->
+          <.live_component
+            module={WorkPanelComponent}
+            id="work-panel"
+            agent_sessions={@agent_sessions}
+            opencode_sessions={@opencode_sessions}
+            gemini_server_status={@gemini_server_status}
+            gemini_output={@gemini_output}
+            work_panel_collapsed={@work_panel_collapsed}
+            show_completed={@show_completed}
+            dismissed_sessions={@dismissed_sessions}
+            chainlink_work_in_progress={@chainlink_work_in_progress}
+            work_registry_counts={@work_registry_counts}
+            work_registry_entries={@work_registry_entries}
+            sessions_loading={@sessions_loading}
+            opencode_loading={@opencode_loading}
+            gemini_loading={@gemini_loading}
+          />
+          
+<!-- Work River -->
+          <.live_component
+            module={WorkRiverComponent}
+            id="work-river"
+            work_river_collapsed={@work_river_collapsed}
+            linear_tickets={@linear_tickets}
+            chainlink_issues={@chainlink_issues}
+            tickets_in_progress={@tickets_in_progress}
+            chainlink_work_in_progress={@chainlink_work_in_progress}
+            agent_sessions={@agent_sessions}
+            opencode_sessions={@opencode_sessions}
+            show_completed={@show_completed}
+            dismissed_sessions={@dismissed_sessions}
+            work_registry_entries={@work_registry_entries}
+            github_prs={@github_prs}
+            pr_verifications={@pr_verifications}
+          />
+        </div>
+      </:tab_content>
+
       <%!-- Work Items Tab --%>
       <:tab_content tab="work">
         <div class="space-y-6 p-4 sm:p-6">
@@ -339,7 +350,7 @@
     </.live_component>
   </div>
   
-<!-- Work on Ticket Modal (legacy) -->
+<!-- Modals (Always available) -->
   <.live_component
     module={WorkModalComponent}
     id="work-modal"
