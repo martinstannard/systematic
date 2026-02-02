@@ -172,10 +172,7 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
   end
 
   defp get_working_dir(pid) do
-    case File.read_link("/proc/#{pid}/cwd") do
-      {:ok, path} -> path
-      _ -> nil
-    end
+    DashboardPhoenix.ProcessCwd.get!(pid)
   end
 
   defp extract_project_name(nil), do: nil

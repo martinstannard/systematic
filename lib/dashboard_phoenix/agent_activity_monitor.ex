@@ -181,12 +181,6 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   end
 
   defp get_process_cwd(pid) do
-    proc_path = "/proc/#{pid}/cwd"
-    case File.read_link(proc_path) do
-      {:ok, cwd} -> cwd
-      {:error, _} -> nil
-    end
-  rescue
-    _ -> nil
+    DashboardPhoenix.ProcessCwd.get!(pid)
   end
 end
