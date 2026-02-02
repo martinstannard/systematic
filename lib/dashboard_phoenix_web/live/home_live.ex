@@ -874,6 +874,66 @@ defmodule DashboardPhoenixWeb.HomeLive do
     end
   end
 
+  def handle_info({:chainlink_component, :create_issue, form_data}, socket) do
+    %{title: title, description: description, priority: priority} = form_data
+
+    # Build the chainlink create command
+    cmd = "chainlink create \"#{title}\" -p #{priority}"
+    cmd = if description != "", do: cmd <> " -d \"#{description}\"", else: cmd
+    
+    # Execute the command asynchronously
+    parent = self()
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        case System.cmd("chainlink", ["create", title, "-p", priority] ++ 
+          if(description != "", do: ["-d", description], else: []),
+          stderr_to_stdout: true) do
+          {output, 0} ->
+            send(parent, {:chainlink_creation_complete, :success, output})
+            ChainlinkMonitor.refresh()  # Refresh the issues list
+          {output, _exit_code} ->
+            send(parent, {:chainlink_creation_complete, :error, output})
+        end
+      rescue
+        e ->
+          send(parent, {:chainlink_creation_complete, :error, "Failed to execute chainlink command: #{inspect(e)}"})
+      end
+    end)
+    
+    {:noreply, socket}
+  end
+
+  def handle_info({:chainlink_creation_complete, result, output}, socket) do
+    case result do
+      :success ->
+        # Notify the component that creation succeeded
+        send_update(ChainlinkComponent, 
+          id: "chainlink-issues", 
+          creation_complete: %{success: true})
+        
+        # Extract issue ID from output if possible
+        issue_id = case Regex.run(~r/Issue #(\d+) created/, output) do
+          [_, id] -> id
+          _ -> "new issue"
+        end
+        
+        ActivityLog.log_event(:issue_created, "Chainlink issue #{issue_id} created", %{
+          issue_id: issue_id,
+          output: output
+        })
+        
+        {:noreply, put_flash(socket, :info, "Issue #{issue_id} created successfully")}
+        
+      :error ->
+        # Notify the component that creation failed
+        send_update(ChainlinkComponent, 
+          id: "chainlink-issues", 
+          creation_complete: %{success: false})
+        
+        {:noreply, put_flash(socket, :error, "Failed to create issue: #{output}")}
+    end
+  end
+
   # Handle Chainlink issue updates (from PubSub) - forward to smart component and store for Work River
   def handle_info({:chainlink_update, data} = msg, socket) do
     ChainlinkComponent.handle_pubsub(msg, socket)

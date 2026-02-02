@@ -85,7 +85,11 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
        last_updated: nil,
        error: nil,
        loading: true,
-       confirm_issue: nil
+       confirm_issue: nil,
+       # Form state for creating new issues
+       show_create_form: false,
+       form_submitting: false,
+       form_errors: %{}
      )}
   end
 
@@ -100,6 +104,20 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
         Map.get(assigns, :work_in_progress, socket.assigns[:work_in_progress] || %{})
       )
       |> assign(:id, assigns.id)
+
+    # Handle creation complete notification
+    socket =
+      case Map.get(assigns, :creation_complete) do
+        %{success: success} ->
+          socket = assign(socket, form_submitting: false)
+          if success do
+            assign(socket, show_create_form: false, form_errors: %{})
+          else
+            socket
+          end
+        nil ->
+          socket
+      end
 
     # Then handle chainlink_data if present (PubSub update)
     socket =
@@ -191,9 +209,75 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
     {:noreply, socket}
   end
 
+  @impl true
+  def handle_event("toggle_create_form", _, socket) do
+    {:noreply, assign(socket, show_create_form: !socket.assigns.show_create_form)}
+  end
+
+  @impl true
+  def handle_event("create_chainlink_issue", params, socket) do
+    # Extract form data with defaults
+    title = String.trim(params["title"] || "")
+    description = String.trim(params["description"] || "")
+    priority = params["priority"] || "low"
+
+    # Validate form data
+    errors = validate_form_data(title, description, priority)
+
+    if map_size(errors) == 0 do
+      # Set submitting state
+      socket = assign(socket, form_submitting: true, form_errors: %{})
+      
+      # Send form data to parent to handle CLI execution
+      send(self(), {:chainlink_component, :create_issue, %{
+        title: title,
+        description: description, 
+        priority: priority
+      }})
+      
+      {:noreply, socket}
+    else
+      {:noreply, assign(socket, form_errors: errors)}
+    end
+  end
+
   # ============================================================================
   # Private Helpers
   # ============================================================================
+
+  # Form validation for creating new issues
+  defp validate_form_data(title, description, priority) do
+    errors = %{}
+    
+    # Validate title
+    errors = 
+      cond do
+        String.length(title) == 0 ->
+          Map.put(errors, :title, "Title is required")
+        String.length(title) > 200 ->
+          Map.put(errors, :title, "Title must be 200 characters or less")
+        true ->
+          errors
+      end
+    
+    # Validate description
+    errors = 
+      if String.length(description) > 1000 do
+        Map.put(errors, :description, "Description must be 1000 characters or less")
+      else
+        errors
+      end
+    
+    # Validate priority
+    errors = 
+      if priority not in ["low", "medium", "high"] do
+        Map.put(errors, :priority, "Priority must be low, medium, or high")
+      else
+        errors
+      end
+    
+    errors
+  end
 
   defp priority_badge(:high),
     do: "px-1.5 py-0.5 bg-red-500/20 text-red-400 dark:text-red-400 text-ui-caption rounded"
@@ -327,6 +411,104 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
               </span>
               <span class="flex items-center gap-1"><span class="text-success">●</span> Closed</span>
             </div>
+          </div>
+          
+          <!-- Create New Issue Section -->
+          <div class="mb-4">
+            <button
+              phx-click="toggle_create_form"
+              phx-target={@myself}
+              class="btn-interactive-sm bg-accent/20 text-accent hover:bg-accent/40 transition-all w-full py-2"
+              aria-label="Toggle create new issue form"
+            >
+              <%= if @show_create_form do %>
+                <span aria-hidden="true">▼</span>
+                <span>Hide Create Form</span>
+              <% else %>
+                <span aria-hidden="true">+</span>
+                <span>Create New Issue</span>
+              <% end %>
+            </button>
+
+            <%= if @show_create_form do %>
+              <div class="mt-3 p-4 bg-base-100 border border-base-300 rounded-lg">
+                <form phx-submit="create_chainlink_issue" phx-target={@myself} id="create-issue-form">
+                  <!-- Title Field -->
+                  <div class="mb-4">
+                    <label for="issue-title" class="block text-ui-label text-base-content mb-1">
+                      Title <span class="text-error">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="issue-title"
+                      name="title"
+                      maxlength="200"
+                      required
+                      class={"input input-bordered w-full text-ui-body " <> if Map.get(@form_errors, :title), do: "input-error", else: ""}
+                      placeholder="Enter issue title"
+                      disabled={@form_submitting}
+                    />
+                    <%= if error = Map.get(@form_errors, :title) do %>
+                      <p class="text-error text-ui-caption mt-1">{error}</p>
+                    <% end %>
+                  </div>
+
+                  <!-- Description Field -->
+                  <div class="mb-4">
+                    <label for="issue-description" class="block text-ui-label text-base-content mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      id="issue-description"
+                      name="description"
+                      maxlength="1000"
+                      rows="3"
+                      class={"textarea textarea-bordered w-full text-ui-body resize-none " <> if Map.get(@form_errors, :description), do: "textarea-error", else: ""}
+                      placeholder="Enter issue description (optional)"
+                      disabled={@form_submitting}
+                    ></textarea>
+                    <%= if error = Map.get(@form_errors, :description) do %>
+                      <p class="text-error text-ui-caption mt-1">{error}</p>
+                    <% end %>
+                  </div>
+
+                  <!-- Priority Field -->
+                  <div class="mb-4">
+                    <label for="issue-priority" class="block text-ui-label text-base-content mb-1">
+                      Priority
+                    </label>
+                    <select
+                      id="issue-priority"
+                      name="priority"
+                      class={"select select-bordered w-full text-ui-body " <> if Map.get(@form_errors, :priority), do: "select-error", else: ""}
+                      disabled={@form_submitting}
+                    >
+                      <option value="low" selected>Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                    <%= if error = Map.get(@form_errors, :priority) do %>
+                      <p class="text-error text-ui-caption mt-1">{error}</p>
+                    <% end %>
+                  </div>
+
+                  <!-- Submit Button -->
+                  <button
+                    type="submit"
+                    class="btn btn-accent w-full"
+                    disabled={@form_submitting}
+                  >
+                    <%= if @form_submitting do %>
+                      <span class="loading loading-spinner loading-sm"></span>
+                      Creating Issue...
+                    <% else %>
+                      <span aria-hidden="true">+</span>
+                      Create Issue
+                    <% end %>
+                  </button>
+                </form>
+              </div>
+            <% end %>
           </div>
           
     <!-- Issue List -->
