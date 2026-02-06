@@ -1,6 +1,6 @@
 defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   @moduledoc """
-  Unified Work Panel showing all coding agents in a single view.
+  Agents Panel showing all coding agents in a single view.
   
   Uses AgentCardComponent for consistent display of:
   - Claude sub-agents (🟣)
@@ -312,13 +312,13 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
         tabindex="0"
         aria-expanded={if(@work_panel_collapsed, do: "false", else: "true")}
         aria-controls="work-panel-content"
-        aria-label="Toggle Work panel"
+        aria-label="Toggle Agents panel"
         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
           <span class={"panel-chevron " <> if(@work_panel_collapsed, do: "collapsed", else: "")}>▼</span>
           <span class="panel-icon">⚡</span>
-          <span class="text-panel-label text-accent">Work</span>
+          <span class="text-panel-label text-accent">Agents</span>
           <%= if @any_loading do %>
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading agents</span>
