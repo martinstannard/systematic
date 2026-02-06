@@ -163,7 +163,13 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   defp find_stored_work_info(_, _), do: %{}
 
   defp build_opencode_agents(assigns) do
+    show_completed = Map.get(assigns, :show_completed, false)
+    
     assigns.opencode_sessions
+    |> Enum.filter(fn s -> 
+      # Filter out stale (completed) sessions unless show_completed is true
+      show_completed or s.status != Status.completed()
+    end)
     |> Enum.take(10)  # Show more agents now that they're expandable
     |> Enum.map(fn s ->
       # OpenCode sessions may have different field names
@@ -193,6 +199,8 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
 
   defp build_gemini_agent(assigns) do
     status = assigns.gemini_server_status
+    show_completed = Map.get(assigns, :show_completed, false)
+    
     if status.running do
       busy = Map.get(status, :busy, false)
       
@@ -206,29 +214,35 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
         []
       end
       
-      last_activity = if recent_output != [] do
-        List.last(recent_output) |> String.slice(0, 100)
+      # Don't show Gemini if it's idle and has no recent output (stale)
+      # unless show_completed is true
+      if not busy and recent_output == [] and not show_completed do
+        []
       else
-        nil
+        last_activity = if recent_output != [] do
+          List.last(recent_output) |> String.slice(0, 100)
+        else
+          nil
+        end
+        
+        [%{
+          id: "gemini-cli",
+          type: "gemini",
+          model: Models.gemini_2_flash(),
+          name: "Gemini CLI",
+          task: last_activity,
+          status: if(busy, do: Status.running(), else: Status.idle()),
+          runtime: nil,
+          start_time: nil,
+          # Extended details for expansion
+          tokens_in: 0,
+          tokens_out: 0,
+          cost: 0,
+          current_action: if(busy, do: last_activity, else: nil),
+          recent_actions: recent_output,
+          result_snippet: nil
+        }]
       end
-      
-      [%{
-        id: "gemini-cli",
-        type: "gemini",
-        model: Models.gemini_2_flash(),
-        name: "Gemini CLI",
-        task: last_activity,
-        status: if(busy, do: Status.running(), else: Status.idle()),
-        runtime: nil,
-        start_time: nil,
-        # Extended details for expansion
-        tokens_in: 0,
-        tokens_out: 0,
-        cost: 0,
-        current_action: if(busy, do: last_activity, else: nil),
-        recent_actions: recent_output,
-        result_snippet: nil
-      }]
     else
       []
     end

@@ -197,10 +197,14 @@ defmodule DashboardPhoenix.OpenCodeClient do
     end
     
     # Determine status based on activity
+    age_seconds = if updated_at, do: DateTime.diff(DateTime.utc_now(), updated_at, :second), else: 0
+    
     status = cond do
       session["parentID"] -> "subagent"
-      updated_at && DateTime.diff(DateTime.utc_now(), updated_at, :second) < 60 -> Status.active()
-      true -> Status.idle()
+      age_seconds < 60 -> Status.active()           # Active in last minute
+      age_seconds < 300 -> Status.running()         # Active in last 5 mins = running
+      age_seconds < 3600 -> Status.idle()           # 5 mins - 1 hour = idle
+      true -> Status.completed()                    # > 1 hour = completed (stale)
     end
     
     # Get configured OpenCode model from dashboard state, or use default
