@@ -825,10 +825,16 @@ defmodule DashboardPhoenix.SessionBridge do
     now = System.system_time(:millisecond)
     age_ms = now - updated_at
     
+    # Determine status based on recent activity and session state
+    # Note: Agents waiting for API responses may not update their transcript
+    # for several minutes, so we use a longer window for "running"
+    aborted = s["abortedLastRun"] == true
+    
     status = cond do
-      age_ms < 60_000 -> Status.running()      # Active in last minute
-      age_ms < 300_000 -> Status.idle()        # Active in last 5 mins
-      true -> Status.completed()
+      aborted -> Status.completed()           # Explicitly aborted
+      age_ms < 300_000 -> Status.running()    # Active in last 5 mins = running
+      age_ms < 600_000 -> Status.idle()       # 5-10 mins = idle (may still be working)
+      true -> Status.completed()              # > 10 mins = completed
     end
 
     session_id = s["sessionId"] || key

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Rename WORK panel to AGENTS (#130)
 - Feat: AgentActivityMonitor portability (#117)
 - Test: Fix Mock Warnings (#121)
 - Refactor: Reduce PubSub in HomeLive (#119)

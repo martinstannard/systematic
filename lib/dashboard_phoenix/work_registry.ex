@@ -21,7 +21,7 @@ defmodule DashboardPhoenix.WorkRegistry do
 
   @persistence_file "work_registry.json"
   @cleanup_interval_ms 60_000  # 1 minute
-  @stale_threshold_hours 24
+  @stale_threshold_hours 1  # Remove inactive agents after 1 hour
 
   # Client API
 
