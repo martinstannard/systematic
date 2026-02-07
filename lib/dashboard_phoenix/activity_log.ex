@@ -175,34 +175,47 @@ defmodule DashboardPhoenix.ActivityLog do
   defp load_events_from_file do
     case File.read(@events_file) do
       {:ok, content} ->
-        try do
-          content
-          |> Jason.decode!()
-          |> Enum.map(&decode_event/1)
-          |> Enum.take(@max_events)
-        rescue
-          e in Jason.DecodeError ->
-            Logger.warning("ActivityLog: Failed to decode events JSON: #{Exception.message(e)}")
+        case Jason.decode(content) do
+          {:ok, events} when is_list(events) ->
+            events
+            |> Enum.map(&decode_event_safe/1)
+            |> Enum.reject(&is_nil/1)
+            |> Enum.take(@max_events)
+          
+          {:ok, _} ->
+            Logger.warning("[ActivityLog] Events file contains non-list data, returning empty")
             []
-          e ->
-            Logger.warning("ActivityLog: Exception decoding events: #{inspect(e)}")
+          
+          {:error, decode_error} ->
+            Logger.warning("[ActivityLog] Failed to decode events file: #{inspect(decode_error)}")
             []
         end
 
       {:error, :enoent} ->
         Logger.debug("ActivityLog: Events file #{@events_file} does not exist, starting with empty log")
         []
+      
       {:error, :eacces} ->
         Logger.warning("ActivityLog: Permission denied reading events file #{@events_file}")
         []
+        
       {:error, reason} ->
-        Logger.warning("ActivityLog: Failed to read events file #{@events_file}: #{inspect(reason)}")
+        Logger.warning("[ActivityLog] Failed to read events file: #{inspect(reason)}")
         []
     end
   rescue
     e ->
-      Logger.error("ActivityLog: Exception loading events from file: #{inspect(e)}")
+      Logger.error("[ActivityLog] Exception loading events: #{Exception.message(e)}")
       []
+  end
+
+  # Safe version of decode_event that returns nil on failure
+  defp decode_event_safe(data) do
+    decode_event(data)
+  rescue
+    e ->
+      Logger.warning("[ActivityLog] Failed to decode event: #{inspect(e)}, data: #{inspect(data)}")
+      nil
   end
 
   defp save_events_to_file(events) do

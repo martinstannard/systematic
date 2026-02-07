@@ -167,6 +167,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
       String.contains?(cmd_lower, "claude") -> :claude_code
       String.contains?(cmd_lower, "opencode") -> :opencode
       String.contains?(cmd_lower, "codex") -> :codex
+      String.contains?(cmd_lower, "gemini") -> :gemini
       true -> :unknown
     end
   end

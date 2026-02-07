@@ -433,20 +433,23 @@ defmodule AgentActivityMonitor.Server do
     # Merge agent info - prefer session data
     merged = Map.merge(process_agents, openclaw_agents)
     
+    # Apply cleanup logic to remove stale agents
+    cleaned_agents = cleanup_stale_agents(merged, config)
+    
     # Update state with new offsets
     updated_state = %{state | 
-      agents: merged, 
+      agents: cleaned_agents, 
       session_offsets: new_offsets,
       last_poll: System.system_time(:millisecond)
     }
     
     # Broadcast and persist if there are changes
-    if merged != state.agents do
+    if cleaned_agents != state.agents do
       # Save state asynchronously if configured
       maybe_save_state(config, updated_state)
       
       # Broadcast if configured
-      maybe_broadcast(config, merged)
+      maybe_broadcast(config, cleaned_agents)
     end
     
     updated_state
@@ -633,6 +636,54 @@ defmodule AgentActivityMonitor.Server do
     rescue
       e ->
         Logger.warning("AgentActivityMonitor: Failed to cache result for #{path}: #{inspect(e)}")
+    end
+  end
+
+  # Cleanup stale agents based on configurable policies
+  defp cleanup_stale_agents(agents, config) do
+    now = DateTime.utc_now()
+    
+    agents
+    |> Enum.reject(fn {_id, agent} ->
+      should_remove_agent?(agent, now, config)
+    end)
+    |> Map.new()
+  end
+  
+  # Determine if an agent should be removed based on type and activity
+  defp should_remove_agent?(agent, now, _config) do
+    last_activity = agent.last_activity || now
+    
+    case agent.type do
+      :gemini ->
+        # Remove Gemini agents after 1 hour of inactivity
+        inactive_hours = DateTime.diff(now, last_activity, :hour)
+        inactive_hours >= 1
+        
+      :opencode ->
+        # Remove completed OpenCode sessions after 5 minutes
+        cond do
+          agent.status in ["completed", "stopped", "done"] ->
+            inactive_minutes = DateTime.diff(now, last_activity, :minute)
+            inactive_minutes >= 5
+          agent.status == "error" ->
+            # Remove errored sessions after 10 minutes
+            inactive_minutes = DateTime.diff(now, last_activity, :minute)
+            inactive_minutes >= 10
+          true ->
+            false
+        end
+        
+      :codex ->
+        # Remove dead Codex processes promptly (15 minutes of inactivity)
+        inactive_minutes = DateTime.diff(now, last_activity, :minute)
+        inactive_minutes >= 15
+        
+      _ ->
+        # For other agent types, use a conservative cleanup policy
+        # Remove if inactive for 2 hours
+        inactive_hours = DateTime.diff(now, last_activity, :hour)
+        inactive_hours >= 2
     end
   end
 end

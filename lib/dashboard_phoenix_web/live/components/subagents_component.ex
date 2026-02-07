@@ -41,6 +41,8 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
     |> Map.put(:completed_count, completed_count)
     |> Map.put(:sub_agent_sessions_count, sub_agent_sessions_count)
     |> Map.put_new(:sessions_loading, false)
+    |> Map.put_new(:show_running, true)
+    |> Map.put_new(:show_idle, true)
 
     {:ok, assign(socket, updated_assigns)}
   end
@@ -179,6 +181,41 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
             Clear Completed (<%= @completed_count %>)
           </button>
         <% end %>
+      </div>
+      
+      <!-- Agent State Toggle Filters -->
+      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-12")}>
+        <div class="px-3 py-2 border-b border-accent/10 bg-base-100/5">
+          <div class="flex items-center space-x-1 text-xs"
+               id="agent-toggle-container"
+               phx-hook="AgentToggleState">
+            <span class="text-base-content/60 mr-2">Show:</span>
+            <button 
+              class={"btn btn-xs " <> if(@show_running, do: "btn-warning", else: "btn-outline")}
+              phx-click="toggle_agent_state"
+              phx-value-state="running"
+              {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
+            >
+              ⚡ Running
+            </button>
+            <button 
+              class={"btn btn-xs " <> if(@show_idle, do: "btn-info", else: "btn-outline")}
+              phx-click="toggle_agent_state"
+              phx-value-state="idle"
+              {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
+            >
+              ⏸ Idle
+            </button>
+            <button 
+              class={"btn btn-xs " <> if(@show_completed, do: "btn-success", else: "btn-outline")}
+              phx-click="toggle_agent_state"
+              phx-value-state="completed"
+              {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
+            >
+              ✅ Completed
+            </button>
+          </div>
+        </div>
       </div>
       
       <div id="subagents-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}>
