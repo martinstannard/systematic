@@ -1,13 +1,13 @@
 defmodule DashboardPhoenix.InputValidatorTest do
   use ExUnit.Case, async: true
-  
+
   alias DashboardPhoenix.InputValidator
 
   describe "validate_pid/1" do
     test "accepts valid positive integer PIDs as strings" do
       assert {:ok, 1234} = InputValidator.validate_pid("1234")
       assert {:ok, 1} = InputValidator.validate_pid("1")
-      assert {:ok, 999999} = InputValidator.validate_pid("999999")
+      assert {:ok, 999_999} = InputValidator.validate_pid("999999")
     end
 
     test "rejects negative PIDs" do
@@ -22,7 +22,9 @@ defmodule DashboardPhoenix.InputValidatorTest do
     test "rejects non-numeric strings" do
       assert {:error, "PID must be a positive integer"} = InputValidator.validate_pid("abc")
       assert {:error, "PID must be a positive integer"} = InputValidator.validate_pid("123abc")
-      assert {:error, "PID must be a positive integer"} = InputValidator.validate_pid("123; rm -rf /")
+
+      assert {:error, "PID must be a positive integer"} =
+               InputValidator.validate_pid("123; rm -rf /")
     end
 
     test "rejects empty strings" do
@@ -41,16 +43,29 @@ defmodule DashboardPhoenix.InputValidatorTest do
       assert {:ok, "feature/my-branch"} = InputValidator.validate_branch_name("feature/my-branch")
       assert {:ok, "hotfix/bug_123"} = InputValidator.validate_branch_name("hotfix/bug_123")
       assert {:ok, "release/v1.2.3"} = InputValidator.validate_branch_name("release/v1.2.3")
-      assert {:ok, "user/john-doe/feature"} = InputValidator.validate_branch_name("user/john-doe/feature")
+
+      assert {:ok, "user/john-doe/feature"} =
+               InputValidator.validate_branch_name("user/john-doe/feature")
     end
 
     test "rejects branch names with shell metacharacters" do
-      assert {:error, "Branch name contains invalid characters"} = InputValidator.validate_branch_name("feature; rm -rf /")
-      assert {:error, "Branch name contains invalid characters"} = InputValidator.validate_branch_name("feature && echo pwned")
-      assert {:error, "Branch name contains invalid characters"} = InputValidator.validate_branch_name("feature | cat /etc/passwd")
-      assert {:error, "Branch name contains invalid characters"} = InputValidator.validate_branch_name("feature`whoami`")
-      assert {:error, "Branch name contains invalid characters"} = InputValidator.validate_branch_name("feature$(whoami)")
-      assert {:error, "Branch name contains invalid characters"} = InputValidator.validate_branch_name("feature\nrm -rf /")
+      assert {:error, "Branch name contains invalid characters"} =
+               InputValidator.validate_branch_name("feature; rm -rf /")
+
+      assert {:error, "Branch name contains invalid characters"} =
+               InputValidator.validate_branch_name("feature && echo pwned")
+
+      assert {:error, "Branch name contains invalid characters"} =
+               InputValidator.validate_branch_name("feature | cat /etc/passwd")
+
+      assert {:error, "Branch name contains invalid characters"} =
+               InputValidator.validate_branch_name("feature`whoami`")
+
+      assert {:error, "Branch name contains invalid characters"} =
+               InputValidator.validate_branch_name("feature$(whoami)")
+
+      assert {:error, "Branch name contains invalid characters"} =
+               InputValidator.validate_branch_name("feature\nrm -rf /")
     end
 
     test "rejects empty branch names" do
@@ -77,16 +92,28 @@ defmodule DashboardPhoenix.InputValidatorTest do
     end
 
     test "rejects invalid Linear ticket ID formats" do
-      assert {:error, "Invalid ticket ID format"} = InputValidator.validate_linear_ticket_id("eng-123")
-      assert {:error, "Invalid ticket ID format"} = InputValidator.validate_linear_ticket_id("ENG123")
-      assert {:error, "Invalid ticket ID format"} = InputValidator.validate_linear_ticket_id("123-ENG")
-      assert {:error, "Invalid ticket ID format"} = InputValidator.validate_linear_ticket_id("ENG-")
-      assert {:error, "Invalid ticket ID format"} = InputValidator.validate_linear_ticket_id("-123")
+      assert {:error, "Invalid ticket ID format"} =
+               InputValidator.validate_linear_ticket_id("eng-123")
+
+      assert {:error, "Invalid ticket ID format"} =
+               InputValidator.validate_linear_ticket_id("ENG123")
+
+      assert {:error, "Invalid ticket ID format"} =
+               InputValidator.validate_linear_ticket_id("123-ENG")
+
+      assert {:error, "Invalid ticket ID format"} =
+               InputValidator.validate_linear_ticket_id("ENG-")
+
+      assert {:error, "Invalid ticket ID format"} =
+               InputValidator.validate_linear_ticket_id("-123")
     end
 
     test "rejects malicious input" do
-      assert {:error, "Invalid ticket ID format"} = InputValidator.validate_linear_ticket_id("'; DROP TABLE tickets; --")
-      assert {:error, "Invalid ticket ID format"} = InputValidator.validate_linear_ticket_id("ENG-123; rm -rf /")
+      assert {:error, "Invalid ticket ID format"} =
+               InputValidator.validate_linear_ticket_id("'; DROP TABLE tickets; --")
+
+      assert {:error, "Invalid ticket ID format"} =
+               InputValidator.validate_linear_ticket_id("ENG-123; rm -rf /")
     end
 
     test "rejects empty strings" do
@@ -99,8 +126,11 @@ defmodule DashboardPhoenix.InputValidatorTest do
     end
 
     test "rejects non-string inputs" do
-      assert {:error, "Ticket ID must be a string"} = InputValidator.validate_linear_ticket_id(123)
-      assert {:error, "Ticket ID must be a string"} = InputValidator.validate_linear_ticket_id(nil)
+      assert {:error, "Ticket ID must be a string"} =
+               InputValidator.validate_linear_ticket_id(123)
+
+      assert {:error, "Ticket ID must be a string"} =
+               InputValidator.validate_linear_ticket_id(nil)
     end
   end
 
@@ -108,27 +138,39 @@ defmodule DashboardPhoenix.InputValidatorTest do
     test "accepts valid positive integer issue IDs" do
       assert {:ok, 1} = InputValidator.validate_chainlink_issue_id("1")
       assert {:ok, 123} = InputValidator.validate_chainlink_issue_id("123")
-      assert {:ok, 999999} = InputValidator.validate_chainlink_issue_id("999999")
+      assert {:ok, 999_999} = InputValidator.validate_chainlink_issue_id("999999")
     end
 
     test "rejects zero and negative issue IDs" do
-      assert {:error, "Issue ID must be a positive integer"} = InputValidator.validate_chainlink_issue_id("0")
-      assert {:error, "Issue ID must be a positive integer"} = InputValidator.validate_chainlink_issue_id("-123")
+      assert {:error, "Issue ID must be a positive integer"} =
+               InputValidator.validate_chainlink_issue_id("0")
+
+      assert {:error, "Issue ID must be a positive integer"} =
+               InputValidator.validate_chainlink_issue_id("-123")
     end
 
     test "rejects non-numeric strings" do
-      assert {:error, "Issue ID must be a positive integer"} = InputValidator.validate_chainlink_issue_id("abc")
-      assert {:error, "Issue ID must be a positive integer"} = InputValidator.validate_chainlink_issue_id("123abc")
-      assert {:error, "Issue ID must be a positive integer"} = InputValidator.validate_chainlink_issue_id("123; rm -rf /")
+      assert {:error, "Issue ID must be a positive integer"} =
+               InputValidator.validate_chainlink_issue_id("abc")
+
+      assert {:error, "Issue ID must be a positive integer"} =
+               InputValidator.validate_chainlink_issue_id("123abc")
+
+      assert {:error, "Issue ID must be a positive integer"} =
+               InputValidator.validate_chainlink_issue_id("123; rm -rf /")
     end
 
     test "rejects empty strings" do
-      assert {:error, "Issue ID must be a positive integer"} = InputValidator.validate_chainlink_issue_id("")
+      assert {:error, "Issue ID must be a positive integer"} =
+               InputValidator.validate_chainlink_issue_id("")
     end
 
     test "rejects non-string inputs" do
-      assert {:error, "Issue ID must be a string"} = InputValidator.validate_chainlink_issue_id(123)
-      assert {:error, "Issue ID must be a string"} = InputValidator.validate_chainlink_issue_id(nil)
+      assert {:error, "Issue ID must be a string"} =
+               InputValidator.validate_chainlink_issue_id(123)
+
+      assert {:error, "Issue ID must be a string"} =
+               InputValidator.validate_chainlink_issue_id(nil)
     end
   end
 
@@ -140,9 +182,14 @@ defmodule DashboardPhoenix.InputValidatorTest do
     end
 
     test "rejects session IDs with dangerous characters" do
-      assert {:error, "Session ID contains invalid characters"} = InputValidator.validate_session_id("session; rm -rf /")
-      assert {:error, "Session ID contains invalid characters"} = InputValidator.validate_session_id("session && echo pwned")
-      assert {:error, "Session ID contains invalid characters"} = InputValidator.validate_session_id("session|cat")
+      assert {:error, "Session ID contains invalid characters"} =
+               InputValidator.validate_session_id("session; rm -rf /")
+
+      assert {:error, "Session ID contains invalid characters"} =
+               InputValidator.validate_session_id("session && echo pwned")
+
+      assert {:error, "Session ID contains invalid characters"} =
+               InputValidator.validate_session_id("session|cat")
     end
 
     test "rejects empty session IDs" do
@@ -163,7 +210,10 @@ defmodule DashboardPhoenix.InputValidatorTest do
   describe "validate_prompt/1" do
     test "accepts valid prompts" do
       assert {:ok, "Hello, how are you?"} = InputValidator.validate_prompt("Hello, how are you?")
-      assert {:ok, "Write some code for me"} = InputValidator.validate_prompt("Write some code for me")
+
+      assert {:ok, "Write some code for me"} =
+               InputValidator.validate_prompt("Write some code for me")
+
       assert {:ok, "Multi\nline\nprompt"} = InputValidator.validate_prompt("Multi\nline\nprompt")
     end
 
@@ -189,16 +239,23 @@ defmodule DashboardPhoenix.InputValidatorTest do
 
   describe "validate_model_name/1" do
     test "accepts valid model names" do
-      assert {:ok, "claude-3-5-sonnet-20241022"} = InputValidator.validate_model_name("claude-3-5-sonnet-20241022")
+      assert {:ok, "claude-3-5-sonnet-20241022"} =
+               InputValidator.validate_model_name("claude-3-5-sonnet-20241022")
+
       assert {:ok, "gpt-4"} = InputValidator.validate_model_name("gpt-4")
       assert {:ok, "model_v1.2"} = InputValidator.validate_model_name("model_v1.2")
       assert {:ok, "org/model"} = InputValidator.validate_model_name("org/model")
     end
 
     test "rejects model names with dangerous characters" do
-      assert {:error, "Model name contains invalid characters"} = InputValidator.validate_model_name("model; rm -rf /")
-      assert {:error, "Model name contains invalid characters"} = InputValidator.validate_model_name("model && echo pwned")
-      assert {:error, "Model name contains invalid characters"} = InputValidator.validate_model_name("model|cat")
+      assert {:error, "Model name contains invalid characters"} =
+               InputValidator.validate_model_name("model; rm -rf /")
+
+      assert {:error, "Model name contains invalid characters"} =
+               InputValidator.validate_model_name("model && echo pwned")
+
+      assert {:error, "Model name contains invalid characters"} =
+               InputValidator.validate_model_name("model|cat")
     end
 
     test "rejects empty model names" do
@@ -225,8 +282,11 @@ defmodule DashboardPhoenix.InputValidatorTest do
     end
 
     test "rejects filter strings with dangerous characters" do
-      assert {:error, "Filter contains invalid characters"} = InputValidator.validate_filter_string("filter; rm -rf /")
-      assert {:error, "Filter contains invalid characters"} = InputValidator.validate_filter_string("filter && echo pwned")
+      assert {:error, "Filter contains invalid characters"} =
+               InputValidator.validate_filter_string("filter; rm -rf /")
+
+      assert {:error, "Filter contains invalid characters"} =
+               InputValidator.validate_filter_string("filter && echo pwned")
     end
 
     test "rejects empty filter strings" do
@@ -252,8 +312,11 @@ defmodule DashboardPhoenix.InputValidatorTest do
     end
 
     test "rejects timestamp strings with dangerous characters" do
-      assert {:error, "Timestamp contains invalid characters"} = InputValidator.validate_timestamp_string("timestamp; rm -rf /")
-      assert {:error, "Timestamp contains invalid characters"} = InputValidator.validate_timestamp_string("123abc")
+      assert {:error, "Timestamp contains invalid characters"} =
+               InputValidator.validate_timestamp_string("timestamp; rm -rf /")
+
+      assert {:error, "Timestamp contains invalid characters"} =
+               InputValidator.validate_timestamp_string("123abc")
     end
 
     test "rejects empty timestamp strings" do
@@ -266,8 +329,11 @@ defmodule DashboardPhoenix.InputValidatorTest do
     end
 
     test "rejects non-string inputs" do
-      assert {:error, "Timestamp must be a string"} = InputValidator.validate_timestamp_string(123)
-      assert {:error, "Timestamp must be a string"} = InputValidator.validate_timestamp_string(nil)
+      assert {:error, "Timestamp must be a string"} =
+               InputValidator.validate_timestamp_string(123)
+
+      assert {:error, "Timestamp must be a string"} =
+               InputValidator.validate_timestamp_string(nil)
     end
   end
 
@@ -280,8 +346,11 @@ defmodule DashboardPhoenix.InputValidatorTest do
     end
 
     test "rejects IDs with dangerous characters" do
-      assert {:error, "ID contains invalid characters"} = InputValidator.validate_general_id("id; rm -rf /")
-      assert {:error, "ID contains invalid characters"} = InputValidator.validate_general_id("id && echo pwned")
+      assert {:error, "ID contains invalid characters"} =
+               InputValidator.validate_general_id("id; rm -rf /")
+
+      assert {:error, "ID contains invalid characters"} =
+               InputValidator.validate_general_id("id && echo pwned")
     end
 
     test "rejects empty IDs" do
@@ -307,9 +376,14 @@ defmodule DashboardPhoenix.InputValidatorTest do
     end
 
     test "rejects panel names with dangerous characters" do
-      assert {:error, "Panel name contains invalid characters"} = InputValidator.validate_panel_name("panel; rm -rf /")
-      assert {:error, "Panel name contains invalid characters"} = InputValidator.validate_panel_name("panel-name")
-      assert {:error, "Panel name contains invalid characters"} = InputValidator.validate_panel_name("panel.name")
+      assert {:error, "Panel name contains invalid characters"} =
+               InputValidator.validate_panel_name("panel; rm -rf /")
+
+      assert {:error, "Panel name contains invalid characters"} =
+               InputValidator.validate_panel_name("panel-name")
+
+      assert {:error, "Panel name contains invalid characters"} =
+               InputValidator.validate_panel_name("panel.name")
     end
 
     test "rejects empty panel names" do
@@ -335,8 +409,11 @@ defmodule DashboardPhoenix.InputValidatorTest do
     end
 
     test "rejects agent names with dangerous characters" do
-      assert {:error, "Agent name contains invalid characters"} = InputValidator.validate_agent_name("agent; rm -rf /")
-      assert {:error, "Agent name contains invalid characters"} = InputValidator.validate_agent_name("agent && echo pwned")
+      assert {:error, "Agent name contains invalid characters"} =
+               InputValidator.validate_agent_name("agent; rm -rf /")
+
+      assert {:error, "Agent name contains invalid characters"} =
+               InputValidator.validate_agent_name("agent && echo pwned")
     end
 
     test "rejects empty agent names" do

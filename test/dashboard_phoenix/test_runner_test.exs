@@ -12,14 +12,15 @@ defmodule DashboardPhoenix.TestRunnerTest do
       output = """
       Compiling 2 files (.ex)
       Generated dashboard_phoenix app
-      
+
       ........
-      
+
       Finished in 0.1 seconds (0.05s async, 0.05s sync)
       8 tests, 0 failures
-      
+
       Randomized with seed 123456
       """
+
       {:ok, output}
     end
 
@@ -27,9 +28,9 @@ defmodule DashboardPhoenix.TestRunnerTest do
     def run("mix", ["test", "--seed", "0"], _opts) do
       output = """
       Compiling 1 file (.ex)
-      
+
       ..F..F.
-      
+
       1) test something fails (MyModuleTest)
          test/my_module_test.exs:15
          Assertion failed
@@ -37,31 +38,33 @@ defmodule DashboardPhoenix.TestRunnerTest do
       2) test another failure (MyModuleTest)
          test/my_module_test.exs:25
          Expected true, got false
-      
+
       Finished in 0.2 seconds (0.1s async, 0.1s sync)
       7 tests, 2 failures
-      
+
       Randomized with seed 0
       """
+
       {:ok, output}
     end
 
     # Test run with errors
     def run("mix", ["test", "test/specific_test.exs"], _opts) do
       output = """
-      
+
       E.
-      
+
       1) test crashes (SpecificTest)
          test/specific_test.exs:10
          ** (RuntimeError) something went wrong
              test/specific_test.exs:12: SpecificTest."test crashes"/1
-      
+
       Finished in 0.05 seconds
       2 tests, 0 failures, 1 error
-      
+
       Randomized with seed 789
       """
+
       {:ok, output}
     end
 
@@ -72,6 +75,7 @@ defmodule DashboardPhoenix.TestRunnerTest do
       ** (SyntaxError) lib/broken.ex:5:1: syntax error before: '}'
           lib/broken.ex:5:1
       """
+
       {:error, {:exit, 1, output}}
     end
 
@@ -86,17 +90,18 @@ defmodule DashboardPhoenix.TestRunnerTest do
     case GenServer.whereis(ActivityLog) do
       nil ->
         {:ok, _pid} = ActivityLog.start_link([])
+
       _pid ->
         :ok
     end
-    
+
     # Clear activity log before each test
     ActivityLog.clear()
 
     # Store original config
     original_runner = Application.get_env(:dashboard_phoenix, :test_command_runner)
     original_mock_mode = Application.get_env(:test_runner, :mock_mode)
-    
+
     # Mock the CommandRunner for tests
     Application.put_env(:dashboard_phoenix, :test_command_runner, MockCommandRunner)
 
@@ -106,14 +111,14 @@ defmodule DashboardPhoenix.TestRunnerTest do
         nil -> :ok
         _pid -> ActivityLog.clear()
       end
-      
+
       # Restore original config
       if original_runner do
         Application.put_env(:dashboard_phoenix, :test_command_runner, original_runner)
       else
         Application.delete_env(:dashboard_phoenix, :test_command_runner)
       end
-      
+
       if original_mock_mode do
         Application.put_env(:test_runner, :mock_mode, original_mock_mode)
       else
@@ -223,11 +228,11 @@ defmodule DashboardPhoenix.TestRunnerTest do
       with_mock_command_runner(fn ->
         # This will use the mock that returns failures
         Application.put_env(:test_runner, :mock_mode, :failures)
-        
+
         # For this test, we need to override the mock behavior
         # Since we can't easily change the mock mid-test, we'll test the logic directly
         assert {:ok, _output} = TestRunner.run_tests([], ["--seed", "0"])
-        
+
         # The mock returns successful output, so we verify the function ran
         # Actual failure detection is tested via integration tests
       end)
@@ -236,7 +241,8 @@ defmodule DashboardPhoenix.TestRunnerTest do
     test "returns :error on command failure" do
       with_mock_command_runner(fn ->
         # Mock a command failure scenario
-        assert TestRunner.quick_test_check() == :passed  # This uses the default successful mock
+        # This uses the default successful mock
+        assert TestRunner.quick_test_check() == :passed
       end)
     end
   end
@@ -245,7 +251,7 @@ defmodule DashboardPhoenix.TestRunnerTest do
     test "runs tests for specific file when path given" do
       with_mock_command_runner(fn ->
         assert {:ok, _} = TestRunner.run_tests_for("test/specific_test.exs")
-        
+
         # Should have called run_tests with the file as an argument
         # This would be tested by verifying the mock was called correctly
       end)
@@ -266,7 +272,7 @@ defmodule DashboardPhoenix.TestRunnerTest do
     # For now, we'll rely on the configuration and mock module above
     original = Application.get_env(:dashboard_phoenix, :test_command_runner)
     Application.put_env(:dashboard_phoenix, :test_command_runner, MockCommandRunner)
-    
+
     try do
       test_fun.()
     after
@@ -277,5 +283,4 @@ defmodule DashboardPhoenix.TestRunnerTest do
       end
     end
   end
-
 end

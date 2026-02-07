@@ -1,7 +1,7 @@
 defmodule DashboardPhoenix.AgentActivityMonitor.Server do
   @moduledoc """
   Deprecated: Use `AgentActivityMonitor.Server` directly.
-  
+
   This module exists only for backward compatibility. All functionality
   has been moved to the portable `AgentActivityMonitor.Server` module.
   """

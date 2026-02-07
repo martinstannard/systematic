@@ -153,11 +153,12 @@ defmodule DashboardPhoenix.ActivityLogTest do
 
   describe "subagent lifecycle events" do
     test "logs subagent_started with details" do
-      {:ok, event} = ActivityLog.log_event(:subagent_started, "Sub-agent spawned: ticket-84", %{
-        session_id: "abc123",
-        label: "ticket-84",
-        task: "Implement feature X"
-      })
+      {:ok, event} =
+        ActivityLog.log_event(:subagent_started, "Sub-agent spawned: ticket-84", %{
+          session_id: "abc123",
+          label: "ticket-84",
+          task: "Implement feature X"
+        })
 
       assert event.type == :subagent_started
       assert event.message == "Sub-agent spawned: ticket-84"
@@ -167,14 +168,15 @@ defmodule DashboardPhoenix.ActivityLogTest do
     end
 
     test "logs subagent_completed with duration" do
-      {:ok, event} = ActivityLog.log_event(:subagent_completed, "Sub-agent completed: ticket-84", %{
-        session_id: "abc123",
-        label: "ticket-84",
-        task: "Implement feature X",
-        result: "Feature implemented successfully",
-        duration: "5m 30s",
-        duration_ms: 330_000
-      })
+      {:ok, event} =
+        ActivityLog.log_event(:subagent_completed, "Sub-agent completed: ticket-84", %{
+          session_id: "abc123",
+          label: "ticket-84",
+          task: "Implement feature X",
+          result: "Feature implemented successfully",
+          duration: "5m 30s",
+          duration_ms: 330_000
+        })
 
       assert event.type == :subagent_completed
       assert event.details.duration == "5m 30s"
@@ -183,14 +185,15 @@ defmodule DashboardPhoenix.ActivityLogTest do
     end
 
     test "logs subagent_failed with error details" do
-      {:ok, event} = ActivityLog.log_event(:subagent_failed, "Sub-agent failed: ticket-84", %{
-        session_id: "abc123",
-        label: "ticket-84",
-        task: "Fix bug Y",
-        result: "Test failed: expected true, got false",
-        duration: "2m 15s",
-        duration_ms: 135_000
-      })
+      {:ok, event} =
+        ActivityLog.log_event(:subagent_failed, "Sub-agent failed: ticket-84", %{
+          session_id: "abc123",
+          label: "ticket-84",
+          task: "Fix bug Y",
+          result: "Test failed: expected true, got false",
+          duration: "2m 15s",
+          duration_ms: 135_000
+        })
 
       assert event.type == :subagent_failed
       assert event.details.result =~ "Test failed"

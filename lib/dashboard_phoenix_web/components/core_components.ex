@@ -66,20 +66,34 @@ defmodule DashboardPhoenixWeb.CoreComponents do
         @kind == :info && "alert-info",
         @kind == :error && "alert-error"
       ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" aria-hidden="true" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" aria-hidden="true" />
+        <.icon
+          :if={@kind == :info}
+          name="hero-information-circle"
+          class="size-5 shrink-0"
+          aria-hidden="true"
+        />
+        <.icon
+          :if={@kind == :error}
+          name="hero-exclamation-circle"
+          class="size-5 shrink-0"
+          aria-hidden="true"
+        />
         <div>
           <span class="sr-only">{if @kind == :error, do: "Error: ", else: "Info: "}</span>
           <p :if={@title} class="font-semibold">{@title}</p>
           <p>{msg}</p>
         </div>
         <div class="flex-1" />
-        <button 
-          type="button" 
-          class="group self-start cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center" 
+        <button
+          type="button"
+          class="group self-start cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label={gettext("Dismiss this notification")}
         >
-          <.icon name="hero-x-mark" class="size-5 opacity-60 group-hover:opacity-100" aria-hidden="true" />
+          <.icon
+            name="hero-x-mark"
+            class="size-5 opacity-60 group-hover:opacity-100"
+            aria-hidden="true"
+          />
         </button>
       </div>
     </div>

@@ -319,7 +319,8 @@ defmodule DashboardPhoenixWeb.Live.Components.OpenCodeComponentTest do
       # When title == slug, the separate title div should NOT be rendered
       # The slug appears in the span text and as title attribute, but the
       # separate title section should not be shown
-      refute html =~ ~r/<div class="text-\[10px\] text-base-content\/50 truncate mb-1"[^>]*>.*same-name.*<\/div>/s
+      refute html =~
+               ~r/<div class="text-\[10px\] text-base-content\/50 truncate mb-1"[^>]*>.*same-name.*<\/div>/s
     end
 
     test "renders different port numbers" do

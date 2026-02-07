@@ -1,22 +1,22 @@
 defmodule AgentActivityMonitor.SessionParser do
   @moduledoc """
   Parses OpenClaw/Claude session JSONL files to extract agent activity.
-  
+
   This module is stateless and portable - it can be used independently of the
   AgentActivityMonitor GenServer for testing or batch processing.
-  
+
   ## Session File Format
-  
+
   OpenClaw sessions are stored as JSONL files with events like:
   - `{"type": "session", "id": "...", "cwd": "..."}`
   - `{"type": "model_change", "modelId": "claude-opus"}`
   - `{"type": "message", "message": {"role": "assistant", "content": [...]}}`
-  
+
   Tool calls are embedded in message content as:
   - `{"type": "toolCall", "name": "Read", "arguments": {"path": "..."}}`
-  
+
   ## Usage
-  
+
       # Parse a file
       {:ok, activity} = SessionParser.parse_file("/path/to/session.jsonl")
       
@@ -53,25 +53,25 @@ defmodule AgentActivityMonitor.SessionParser do
 
   @doc """
   Parses a session file and returns agent activity.
-  
+
   ## Options
   - `:max_actions` - Maximum recent actions to keep (default: 10)
-  
+
   ## Example
-  
+
       {:ok, activity} = SessionParser.parse_file("/path/to/session.jsonl")
       IO.puts("Model: \#{activity.model}, Status: \#{activity.status}")
   """
   @spec parse_file(String.t(), keyword()) :: {:ok, agent_activity()} | {:error, term()}
   def parse_file(path, opts \\ []) do
     max_actions = Keyword.get(opts, :max_actions, @max_recent_actions)
-    
+
     case File.read(path) do
       {:ok, content} ->
         filename = Path.basename(path)
         activity = parse_content(content, filename, max_actions: max_actions)
         {:ok, activity}
-        
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -79,43 +79,48 @@ defmodule AgentActivityMonitor.SessionParser do
 
   @doc """
   Parses session content (JSONL string) and returns agent activity.
-  
+
   This is the core parsing function - useful for testing or when content
   is already in memory.
-  
+
   ## Example
-  
+
       content = File.read!("session.jsonl")
       activity = SessionParser.parse_content(content, "session.jsonl")
   """
   @spec parse_content(String.t(), String.t(), keyword()) :: agent_activity()
   def parse_content(content, filename, opts \\ []) do
     max_actions = Keyword.get(opts, :max_actions, @max_recent_actions)
-    
+
     lines = String.split(content, "\n", trim: true)
-    events = lines
-    |> Enum.map(&parse_jsonl_line/1)
-    |> Enum.reject(&is_nil/1)
-    
+
+    events =
+      lines
+      |> Enum.map(&parse_jsonl_line/1)
+      |> Enum.reject(&is_nil/1)
+
     extract_agent_activity(events, filename, max_actions)
   end
 
   @doc """
   Parses a single JSONL line into a map.
   Returns nil on parse failure.
-  
+
   ## Example
-  
+
       event = SessionParser.parse_jsonl_line(~s|{"type": "session", "id": "abc123"}|)
       # => %{"type" => "session", "id" => "abc123"}
   """
   @spec parse_jsonl_line(String.t()) :: map() | nil
   def parse_jsonl_line(line) do
     case Jason.decode(line) do
-      {:ok, data} -> data
+      {:ok, data} ->
+        data
+
       {:error, %Jason.DecodeError{} = e} ->
         Logger.debug("SessionParser: Failed to decode JSON line: #{Exception.message(e)}")
         nil
+
       {:error, reason} ->
         Logger.debug("SessionParser: JSON decode error: #{inspect(reason)}")
         nil
@@ -132,43 +137,51 @@ defmodule AgentActivityMonitor.SessionParser do
   @spec extract_agent_activity(list(map()), String.t(), pos_integer()) :: agent_activity()
   def extract_agent_activity(events, filename, max_actions \\ @max_recent_actions) do
     # Find session info
-    session_event = Enum.find(events, & &1["type"] == "session")
-    session_id = if session_event, do: session_event["id"], else: String.replace(filename, ".jsonl", "")
+    session_event = Enum.find(events, &(&1["type"] == "session"))
+
+    session_id =
+      if session_event, do: session_event["id"], else: String.replace(filename, ".jsonl", "")
+
     cwd = if session_event, do: session_event["cwd"], else: nil
-    
+
     # Find model info
-    model_event = Enum.find(events, & &1["type"] == "model_change")
+    model_event = Enum.find(events, &(&1["type"] == "model_change"))
     model = if model_event, do: model_event["modelId"], else: "unknown"
-    
+
     # Extract recent tool calls
     tool_calls = extract_tool_calls(events, max_actions)
-    
+
     # Get last action
     last_action = List.last(tool_calls)
-    
+
     # Extract files being worked on from tool calls
-    files_worked = tool_calls
-    |> Enum.flat_map(&extract_files_from_tool_call/1)
-    |> Enum.uniq()
-    |> Enum.take(-10)
-    
+    files_worked =
+      tool_calls
+      |> Enum.flat_map(&extract_files_from_tool_call/1)
+      |> Enum.uniq()
+      |> Enum.take(-10)
+
     # Determine status
-    last_message = events
-    |> Enum.filter(& &1["type"] == "message")
-    |> List.last()
-    
+    last_message =
+      events
+      |> Enum.filter(&(&1["type"] == "message"))
+      |> List.last()
+
     status = determine_status(last_message, tool_calls)
-    
+
     # Get the last activity timestamp
-    last_activity = cond do
-      last_action && last_action.timestamp ->
-        last_action.timestamp
-      last_message && last_message["timestamp"] ->
-        parse_timestamp(last_message["timestamp"])
-      true ->
-        DateTime.utc_now()
-    end
-    
+    last_activity =
+      cond do
+        last_action && last_action.timestamp ->
+          last_action.timestamp
+
+        last_message && last_message["timestamp"] ->
+          parse_timestamp(last_message["timestamp"])
+
+        true ->
+          DateTime.utc_now()
+      end
+
     %{
       id: "openclaw-#{session_id}",
       session_id: session_id,
@@ -190,14 +203,14 @@ defmodule AgentActivityMonitor.SessionParser do
   @spec extract_tool_calls(list(map()), pos_integer()) :: list(map())
   def extract_tool_calls(events, max_actions \\ @max_recent_actions) do
     events
-    |> Enum.filter(fn e -> 
-      e["type"] == "message" and 
-      e["message"]["role"] == "assistant" and
-      is_list(e["message"]["content"])
+    |> Enum.filter(fn e ->
+      e["type"] == "message" and
+        e["message"]["role"] == "assistant" and
+        is_list(e["message"]["content"])
     end)
     |> Enum.flat_map(fn e ->
       e["message"]["content"]
-      |> Enum.filter(& is_map(&1) and &1["type"] == "toolCall")
+      |> Enum.filter(&(is_map(&1) and &1["type"] == "toolCall"))
       |> Enum.map(fn tc ->
         %{
           name: tc["name"],
@@ -222,6 +235,7 @@ defmodule AgentActivityMonitor.SessionParser do
       true -> []
     end
   end
+
   def extract_files_from_tool_call(_), do: []
 
   @doc """
@@ -233,6 +247,7 @@ defmodule AgentActivityMonitor.SessionParser do
     |> Enum.map(fn [_, path] -> path end)
     |> Enum.take(5)
   end
+
   def extract_files_from_command(_), do: []
 
   @doc """
@@ -241,13 +256,24 @@ defmodule AgentActivityMonitor.SessionParser do
   @spec determine_status(map() | nil, list(map())) :: String.t()
   def determine_status(last_message, tool_calls) do
     cond do
-      is_nil(last_message) -> "idle"
-      last_message["message"]["role"] == "assistant" and 
-        has_pending_tool_calls?(last_message) -> "executing"
-      last_message["message"]["role"] == "toolResult" -> "thinking"
-      last_message["message"]["role"] == "user" -> "processing"
-      length(tool_calls) == 0 -> "idle"
-      true -> "active"
+      is_nil(last_message) ->
+        "idle"
+
+      last_message["message"]["role"] == "assistant" and
+          has_pending_tool_calls?(last_message) ->
+        "executing"
+
+      last_message["message"]["role"] == "toolResult" ->
+        "thinking"
+
+      last_message["message"]["role"] == "user" ->
+        "processing"
+
+      length(tool_calls) == 0 ->
+        "idle"
+
+      true ->
+        "active"
     end
   end
 
@@ -257,7 +283,7 @@ defmodule AgentActivityMonitor.SessionParser do
   @spec has_pending_tool_calls?(map()) :: boolean()
   def has_pending_tool_calls?(message) do
     content = message["message"]["content"] || []
-    Enum.any?(content, & is_map(&1) and &1["type"] == "toolCall")
+    Enum.any?(content, &(is_map(&1) and &1["type"] == "toolCall"))
   end
 
   @doc """
@@ -265,14 +291,16 @@ defmodule AgentActivityMonitor.SessionParser do
   """
   @spec format_action(map() | nil) :: action() | nil
   def format_action(nil), do: nil
+
   def format_action(%{name: name, arguments: args, timestamp: ts}) do
-    target = cond do
-      is_map(args) and args["path"] -> truncate(args["path"], 50)
-      is_map(args) and args["file_path"] -> truncate(args["file_path"], 50)
-      is_map(args) and args["command"] -> truncate(args["command"], 50)
-      true -> nil
-    end
-    
+    target =
+      cond do
+        is_map(args) and args["path"] -> truncate(args["path"], 50)
+        is_map(args) and args["file_path"] -> truncate(args["file_path"], 50)
+        is_map(args) and args["command"] -> truncate(args["command"], 50)
+        true -> nil
+      end
+
     %{
       action: name,
       target: target,
@@ -285,15 +313,18 @@ defmodule AgentActivityMonitor.SessionParser do
   """
   @spec parse_timestamp(term()) :: DateTime.t()
   def parse_timestamp(nil), do: DateTime.utc_now()
+
   def parse_timestamp(ts) when is_binary(ts) do
     case DateTime.from_iso8601(ts) do
       {:ok, dt, _} -> dt
       _ -> DateTime.utc_now()
     end
   end
+
   def parse_timestamp(ts) when is_integer(ts) do
     DateTime.from_unix!(ts, :millisecond)
   end
+
   def parse_timestamp(%DateTime{} = dt), do: dt
   def parse_timestamp(_), do: DateTime.utc_now()
 
@@ -308,5 +339,6 @@ defmodule AgentActivityMonitor.SessionParser do
       str
     end
   end
+
   def truncate(_, _), do: ""
 end

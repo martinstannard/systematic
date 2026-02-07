@@ -62,20 +62,39 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
           aria-label="Toggle Activity panel"
           onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
         >
-          <span class={"panel-chevron " <> if(@collapsed, do: "collapsed", else: "")} aria-hidden="true">▼</span>
+          <span
+            class={"panel-chevron " <> if(@collapsed, do: "collapsed", else: "")}
+            aria-hidden="true"
+          >
+            ▼
+          </span>
           <span class="panel-icon" aria-hidden="true">📋</span>
           <span class="text-panel-label text-secondary">Activity</span>
           <%= if @loading do %>
             <span class="status-activity-ring text-secondary" aria-hidden="true"></span>
             <span class="sr-only">Loading activity events</span>
           <% else %>
-            <span class="text-xs font-mono text-base-content/50 text-tabular" aria-label={"#{length(@events)} events"}><%= length(@events) %></span>
+            <span
+              class="text-xs font-mono text-base-content/50 text-tabular"
+              aria-label={"#{length(@events)} events"}
+            >
+              {length(@events)}
+            </span>
           <% end %>
         </div>
       </div>
 
-      <div id="activity-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[600px]")}>
-        <div class="px-3 pb-3 overflow-y-auto max-h-[580px] space-y-1" id="activity-panel-events" role="log" aria-live="polite" aria-label="Recent activity events">
+      <div
+        id="activity-panel-content"
+        class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[600px]")}
+      >
+        <div
+          class="px-3 pb-3 overflow-y-auto max-h-[580px] space-y-1"
+          id="activity-panel-events"
+          role="log"
+          aria-live="polite"
+          aria-label="Recent activity events"
+        >
           <%= if @loading do %>
             <div class="flex items-center justify-center py-4 space-x-2">
               <span class="throbber-small"></span>
@@ -87,44 +106,44 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
                 No recent activity
               </div>
             <% else %>
-            <%= for event <- Enum.take(@events, 50) do %>
-              <div
-                class={"py-1.5 px-2 cursor-pointer transition-colors " <> event_bg_class(event.type)}
-                phx-click="toggle_expand"
-                phx-value-id={event.id}
-                phx-target={@myself}
-                role="button"
-                tabindex="0"
-                aria-expanded={if(@expanded_event == event.id, do: "true", else: "false")}
-                aria-label={"#{event_type_label(event.type)}: #{event.message}. Press Enter to #{if @expanded_event == event.id, do: "collapse", else: "expand"} details."}
-                onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
-              >
-                <div class="flex items-center space-x-2 text-xs">
-                  <span class={event_icon_class(event.type)}><%= event_icon(event.type) %></span>
-                  <span class="text-cyan-400/70 w-14 flex-shrink-0 font-mono">
-                    <%= format_time(event.timestamp) %>
-                  </span>
-                  <span class={event_type_class(event.type) <> " font-semibold w-36 flex-shrink-0"}>
-                    <%= event_type_label(event.type) %>
-                  </span>
-                  <span class="text-base-content/90 truncate flex-1">
-                    <%= event.message %>
-                  </span>
-                </div>
-
-                <%= if @expanded_event == event.id and event.details != %{} do %>
-                  <div class="mt-2 pl-8 text-xs text-base-content/60 font-mono bg-base-content/5 p-2">
-                    <%= for {key, value} <- event.details do %>
-                      <div class="flex space-x-2">
-                        <span class="text-base-content/40"><%= key %>:</span>
-                        <span class="text-base-content/70"><%= format_value(value) %></span>
-                      </div>
-                    <% end %>
+              <%= for event <- Enum.take(@events, 50) do %>
+                <div
+                  class={"py-1.5 px-2 cursor-pointer transition-colors " <> event_bg_class(event.type)}
+                  phx-click="toggle_expand"
+                  phx-value-id={event.id}
+                  phx-target={@myself}
+                  role="button"
+                  tabindex="0"
+                  aria-expanded={if(@expanded_event == event.id, do: "true", else: "false")}
+                  aria-label={"#{event_type_label(event.type)}: #{event.message}. Press Enter to #{if @expanded_event == event.id, do: "collapse", else: "expand"} details."}
+                  onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
+                >
+                  <div class="flex items-center space-x-2 text-xs">
+                    <span class={event_icon_class(event.type)}>{event_icon(event.type)}</span>
+                    <span class="text-cyan-400/70 w-14 flex-shrink-0 font-mono">
+                      {format_time(event.timestamp)}
+                    </span>
+                    <span class={event_type_class(event.type) <> " font-semibold w-36 flex-shrink-0"}>
+                      {event_type_label(event.type)}
+                    </span>
+                    <span class="text-base-content/90 truncate flex-1">
+                      {event.message}
+                    </span>
                   </div>
-                <% end %>
-              </div>
+
+                  <%= if @expanded_event == event.id and event.details != %{} do %>
+                    <div class="mt-2 pl-8 text-xs text-base-content/60 font-mono bg-base-content/5 p-2">
+                      <%= for {key, value} <- event.details do %>
+                        <div class="flex space-x-2">
+                          <span class="text-base-content/40">{key}:</span>
+                          <span class="text-base-content/70">{format_value(value)}</span>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
             <% end %>
-          <% end %>
           <% end %>
         </div>
       </div>
@@ -221,16 +240,20 @@ defmodule DashboardPhoenixWeb.Live.Components.ActivityPanelComponent do
   defp event_type_label(:subagent_failed), do: "Sub-agent Failed"
   defp event_type_label(:git_commit), do: "Git Commit"
   defp event_type_label(:git_merge), do: "Git Merge"
-  defp event_type_label(type), do: type |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
+
+  defp event_type_label(type),
+    do: type |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
 
   # Format timestamp in Sydney time (UTC+11)
   defp format_time(nil), do: ""
+
   defp format_time(%DateTime{} = dt) do
     # Add 11 hours for AEDT (Sydney summer time)
     dt
     |> DateTime.add(11 * 3600, :second)
     |> Calendar.strftime("%H:%M:%S")
   end
+
   defp format_time(_), do: ""
 
   # Format detail values

@@ -90,7 +90,8 @@ defmodule DashboardPhoenix.DashboardStateTest do
     test "set_panel updates a panel to collapsed" do
       state = @default_state
 
-      {:reply, :ok, new_state} = DashboardState.handle_call({:set_panel, :linear, true}, self(), state)
+      {:reply, :ok, new_state} =
+        DashboardState.handle_call({:set_panel, :linear, true}, self(), state)
 
       assert new_state.panels.linear == true
       assert new_state.updated_at != nil
@@ -99,7 +100,8 @@ defmodule DashboardPhoenix.DashboardStateTest do
     test "set_panel updates a panel to expanded" do
       state = put_in(@default_state.panels.linear, true)
 
-      {:reply, :ok, new_state} = DashboardState.handle_call({:set_panel, :linear, false}, self(), state)
+      {:reply, :ok, new_state} =
+        DashboardState.handle_call({:set_panel, :linear, false}, self(), state)
 
       assert new_state.panels.linear == false
     end
@@ -122,7 +124,8 @@ defmodule DashboardPhoenix.DashboardStateTest do
     test "dismiss_session adds a session to the list" do
       state = @default_state
 
-      {:reply, :ok, new_state} = DashboardState.handle_call({:dismiss_session, "session-123"}, self(), state)
+      {:reply, :ok, new_state} =
+        DashboardState.handle_call({:dismiss_session, "session-123"}, self(), state)
 
       assert "session-123" in new_state.dismissed_sessions
       assert new_state.updated_at != nil
@@ -131,7 +134,8 @@ defmodule DashboardPhoenix.DashboardStateTest do
     test "dismiss_session is idempotent" do
       state = put_in(@default_state.dismissed_sessions, ["session-123"])
 
-      {:reply, :ok, new_state} = DashboardState.handle_call({:dismiss_session, "session-123"}, self(), state)
+      {:reply, :ok, new_state} =
+        DashboardState.handle_call({:dismiss_session, "session-123"}, self(), state)
 
       # Should still only have one entry
       assert Enum.count(new_state.dismissed_sessions, &(&1 == "session-123")) == 1
@@ -141,7 +145,8 @@ defmodule DashboardPhoenix.DashboardStateTest do
       state = @default_state
       session_ids = ["session-1", "session-2", "session-3"]
 
-      {:reply, :ok, new_state} = DashboardState.handle_call({:dismiss_sessions, session_ids}, self(), state)
+      {:reply, :ok, new_state} =
+        DashboardState.handle_call({:dismiss_sessions, session_ids}, self(), state)
 
       assert "session-1" in new_state.dismissed_sessions
       assert "session-2" in new_state.dismissed_sessions
@@ -151,7 +156,8 @@ defmodule DashboardPhoenix.DashboardStateTest do
     test "clear_dismissed_sessions removes all dismissed sessions" do
       state = put_in(@default_state.dismissed_sessions, ["session-1", "session-2", "session-3"])
 
-      {:reply, :ok, new_state} = DashboardState.handle_call(:clear_dismissed_sessions, self(), state)
+      {:reply, :ok, new_state} =
+        DashboardState.handle_call(:clear_dismissed_sessions, self(), state)
 
       assert new_state.dismissed_sessions == []
     end
@@ -161,7 +167,12 @@ defmodule DashboardPhoenix.DashboardStateTest do
     test "set_model updates claude_model" do
       state = @default_state
 
-      {:reply, :ok, new_state} = DashboardState.handle_call({:set_model, :claude_model, "anthropic/claude-sonnet-4-20250514"}, self(), state)
+      {:reply, :ok, new_state} =
+        DashboardState.handle_call(
+          {:set_model, :claude_model, "anthropic/claude-sonnet-4-20250514"},
+          self(),
+          state
+        )
 
       assert new_state.models.claude_model == "anthropic/claude-sonnet-4-20250514"
       assert new_state.updated_at != nil
@@ -170,7 +181,8 @@ defmodule DashboardPhoenix.DashboardStateTest do
     test "set_model updates opencode_model" do
       state = @default_state
 
-      {:reply, :ok, new_state} = DashboardState.handle_call({:set_model, :opencode_model, "gemini-2.5-pro"}, self(), state)
+      {:reply, :ok, new_state} =
+        DashboardState.handle_call({:set_model, :opencode_model, "gemini-2.5-pro"}, self(), state)
 
       assert new_state.models.opencode_model == "gemini-2.5-pro"
     end
@@ -212,15 +224,28 @@ defmodule DashboardPhoenix.DashboardStateTest do
       {:ok, state} = DashboardState.init([])
 
       expected_panels = [
-        :config, :linear, :chainlink, :prs, :branches,
-        :opencode, :gemini, :coding_agents, :subagents, :dave,
-        :live_progress, :agent_activity, :system_processes,
-        :process_relationships, :chat, :activity, :work_panel
+        :config,
+        :linear,
+        :chainlink,
+        :prs,
+        :branches,
+        :opencode,
+        :gemini,
+        :coding_agents,
+        :subagents,
+        :dave,
+        :live_progress,
+        :agent_activity,
+        :system_processes,
+        :process_relationships,
+        :chat,
+        :activity,
+        :work_panel
       ]
 
       for panel <- expected_panels do
         assert Map.has_key?(state.panels, panel),
-          "Expected panel :#{panel} to be present in state.panels"
+               "Expected panel :#{panel} to be present in state.panels"
       end
     end
 
@@ -276,7 +301,8 @@ defmodule DashboardPhoenix.DashboardStateTest do
     test "state changes schedule a persist timer" do
       state = @default_state
 
-      {:reply, :ok, new_state} = DashboardState.handle_call({:set_panel, :linear, true}, self(), state)
+      {:reply, :ok, new_state} =
+        DashboardState.handle_call({:set_panel, :linear, true}, self(), state)
 
       # Timer should be set
       assert new_state.persist_timer != nil
@@ -290,12 +316,16 @@ defmodule DashboardPhoenix.DashboardStateTest do
       state = @default_state
 
       # First change - sets timer
-      {:reply, :ok, state1} = DashboardState.handle_call({:set_panel, :linear, true}, self(), state)
+      {:reply, :ok, state1} =
+        DashboardState.handle_call({:set_panel, :linear, true}, self(), state)
+
       timer1 = state1.persist_timer
       assert timer1 != nil
 
       # Second change - should cancel old timer and set new one
-      {:reply, :ok, state2} = DashboardState.handle_call({:set_panel, :config, true}, self(), state1)
+      {:reply, :ok, state2} =
+        DashboardState.handle_call({:set_panel, :config, true}, self(), state1)
+
       timer2 = state2.persist_timer
       assert timer2 != nil
       assert timer2 != timer1

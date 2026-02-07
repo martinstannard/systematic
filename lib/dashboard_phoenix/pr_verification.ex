@@ -1,16 +1,16 @@
 defmodule DashboardPhoenix.PRVerification do
   @moduledoc """
   Manages PR verification status for the dashboard.
-  
+
   Stores which PRs have been verified by an agent, including when and by whom.
   This allows the dashboard to show a "Verified" badge for PRs that have been
   checked by an agent and found to be clean.
-  
+
   ## Storage Format
-  
+
   The verification data is stored in a JSON file (configurable via `Paths.pr_verification_file/0`,
   default: `$OPENCLAW_HOME/pr-verified.json`):
-  
+
       {
         "verified": {
           "https://github.com/org/repo/pull/123": {
@@ -22,13 +22,13 @@ defmodule DashboardPhoenix.PRVerification do
           }
         }
       }
-  
+
   ## Usage
-  
+
   External agents can mark PRs as verified by calling:
-  
+
       DashboardPhoenix.PRVerification.mark_verified(pr_url, agent_name, opts)
-  
+
   The dashboard displays verification status in the PR panel with a ✓ badge.
   """
 
@@ -45,7 +45,7 @@ defmodule DashboardPhoenix.PRVerification do
 
   @doc """
   Get verification status for a PR by URL.
-  
+
   Returns `nil` if not verified, or a map with verification details.
   """
   def get_verification(pr_url) do
@@ -55,12 +55,12 @@ defmodule DashboardPhoenix.PRVerification do
 
   @doc """
   Get verification status for a PR by number.
-  
+
   Returns `nil` if not verified, or a map with verification details.
   """
   def get_verification_by_number(pr_number) when is_integer(pr_number) do
     verifications = load_verifications()
-    
+
     Enum.find_value(verifications, fn {_url, data} ->
       if data["pr_number"] == pr_number, do: data, else: nil
     end)
@@ -75,7 +75,7 @@ defmodule DashboardPhoenix.PRVerification do
 
   @doc """
   Mark a PR as verified by an agent.
-  
+
   Options:
   - :pr_number - The PR number (integer)
   - :repo - The repository (e.g., "Fresh-Clinics/core-platform")
@@ -84,7 +84,7 @@ defmodule DashboardPhoenix.PRVerification do
   """
   def mark_verified(pr_url, agent_name, opts \\ []) do
     verifications = load_verifications()
-    
+
     verification_data = %{
       "verified_at" => DateTime.utc_now() |> DateTime.to_iso8601(),
       "verified_by" => agent_name,
@@ -93,19 +93,19 @@ defmodule DashboardPhoenix.PRVerification do
       "status" => Keyword.get(opts, :status, "clean"),
       "notes" => Keyword.get(opts, :notes)
     }
-    
+
     updated = Map.put(verifications, pr_url, verification_data)
     save_verifications(updated)
-    
+
     # Broadcast update to subscribers
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
       @topic,
       {:pr_verification_update, updated}
     )
-    
+
     Logger.info("[PRVerification] Marked PR verified: #{pr_url} by #{agent_name}")
-    
+
     {:ok, verification_data}
   end
 
@@ -116,16 +116,16 @@ defmodule DashboardPhoenix.PRVerification do
     verifications = load_verifications()
     updated = Map.delete(verifications, pr_url)
     save_verifications(updated)
-    
+
     # Broadcast update
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
       @topic,
       {:pr_verification_update, updated}
     )
-    
+
     Logger.info("[PRVerification] Cleared verification for: #{pr_url}")
-    
+
     :ok
   end
 
@@ -134,13 +134,13 @@ defmodule DashboardPhoenix.PRVerification do
   """
   def clear_all do
     save_verifications(%{})
-    
+
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
       @topic,
       {:pr_verification_update, %{}}
     )
-    
+
     :ok
   end
 
@@ -173,19 +173,24 @@ defmodule DashboardPhoenix.PRVerification do
 
   defp load_verifications do
     file = verification_file()
+
     case File.read(file) do
       {:ok, content} ->
         case Jason.decode(content) do
           {:ok, %{"verified" => verifications}} when is_map(verifications) ->
             verifications
+
           {:ok, _} ->
             %{}
+
           {:error, _} ->
             Logger.warning("[PRVerification] Failed to parse verification file, starting fresh")
             %{}
         end
+
       {:error, :enoent} ->
         %{}
+
       {:error, reason} ->
         Logger.warning("[PRVerification] Failed to read verification file: #{inspect(reason)}")
         %{}
@@ -195,13 +200,14 @@ defmodule DashboardPhoenix.PRVerification do
   defp save_verifications(verifications) do
     content = Jason.encode!(%{"verified" => verifications}, pretty: true)
     file = verification_file()
-    
+
     # Ensure directory exists
     File.mkdir_p!(Path.dirname(file))
-    
+
     case FileUtils.atomic_write(file, content) do
       :ok ->
         :ok
+
       {:error, reason} ->
         Logger.error("[PRVerification] Failed to save verifications: #{inspect(reason)}")
         {:error, reason}

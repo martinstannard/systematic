@@ -1,22 +1,22 @@
 defmodule DashboardPhoenix.AgentActivityMonitor do
   @moduledoc """
   Dashboard-specific wrapper for AgentActivityMonitor.
-  
+
   This module provides backward compatibility with the existing DashboardPhoenix
   integration by wrapping the portable `AgentActivityMonitor` core with
   dashboard-specific defaults.
-  
+
   ## Usage
-  
+
   For typical DashboardPhoenix use, just add to your supervision tree:
-  
+
       children = [
         # ... other children
         DashboardPhoenix.AgentActivityMonitor
       ]
-  
+
   For custom configuration, use the portable core directly:
-  
+
       config = AgentActivityMonitor.Config.new(sessions_dir,
         pubsub: {DashboardPhoenix.PubSub, "agent_activity"},
         name: MyApp.CustomMonitor
@@ -25,17 +25,17 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
       children = [
         {AgentActivityMonitor, config: config}
       ]
-  
+
   ## PubSub Integration
-  
+
   The monitor broadcasts activity updates to the "agent_activity" topic:
-  
+
       Phoenix.PubSub.subscribe(DashboardPhoenix.PubSub, "agent_activity")
       
       # Receives {:agent_activity, [%{id: _, status: _, ...}, ...]}
-  
+
   Or use the convenience function:
-  
+
       DashboardPhoenix.AgentActivityMonitor.subscribe()
   """
 
@@ -55,7 +55,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   @doc """
   Subscribe to agent activity updates via PubSub.
-  
+
   When subscribed, you'll receive messages of the form:
   `{:agent_activity, [%{id: _, status: _, ...}, ...]}`
   """
@@ -74,7 +74,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   @doc """
   Creates the dashboard-specific configuration.
-  
+
   This configuration includes:
   - Sessions directory from DashboardPhoenix.Paths
   - PubSub broadcasting to agent_activity topic
@@ -86,7 +86,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   @spec dashboard_config() :: AgentActivityMonitor.Config.t()
   def dashboard_config do
     alias DashboardPhoenix.PubSub.Topics
-    
+
     %AgentActivityMonitor.Config{
       sessions_dir: DashboardPhoenix.Paths.openclaw_sessions_dir(),
       pubsub: {DashboardPhoenix.PubSub, Topics.agent_activity()},
@@ -103,10 +103,10 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   # Child spec for supervision tree - uses dashboard defaults
   def child_spec(opts) do
     config = Keyword.get_lazy(opts, :config, &dashboard_config/0)
-    
+
     # Ensure name is set for backward compatibility
     config = %{config | name: __MODULE__}
-    
+
     %{
       id: __MODULE__,
       start: {AgentActivityMonitor.Server, :start_link, [[config: config]]},
@@ -134,15 +134,16 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
   defp coding_agent_process?(line) do
     patterns = ~w(claude opencode codex)
     line_lower = String.downcase(line)
+
     Enum.any?(patterns, &String.contains?(line_lower, &1)) and
-    not String.contains?(line_lower, "grep") and
-    not String.contains?(line_lower, "ps aux")
+      not String.contains?(line_lower, "grep") and
+      not String.contains?(line_lower, "ps aux")
   end
 
   defp transform_process_to_agent(%{pid: pid, cpu: cpu, mem: mem, start: start, command: command}) do
     type = detect_agent_type(command)
     cwd = get_process_cwd(pid)
-    
+
     %{
       id: "process-#{pid}",
       session_id: pid,
@@ -163,6 +164,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor do
 
   defp detect_agent_type(command) do
     cmd_lower = String.downcase(command)
+
     cond do
       String.contains?(cmd_lower, "claude") -> :claude_code
       String.contains?(cmd_lower, "opencode") -> :opencode

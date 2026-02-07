@@ -2,9 +2,9 @@ defmodule DashboardPhoenix.ProcessParser do
   @moduledoc """
   Shared module for parsing `ps aux` output into structured process data.
   Consolidates duplicated process parsing logic used across multiple modules.
-  
+
   ## Performance Optimizations (Ticket #73)
-  
+
   - CLI result caching to avoid redundant `ps` calls
   """
 
@@ -13,7 +13,8 @@ defmodule DashboardPhoenix.ProcessParser do
   alias DashboardPhoenix.{CLITools, CLICache, Status}
 
   @cli_timeout_ms 10_000
-  @cache_ttl_ms 5_000  # Cache ps output for 5 seconds
+  # Cache ps output for 5 seconds
+  @cache_ttl_ms 5_000
 
   @doc """
   Execute `ps aux` and return parsed process list.
@@ -40,15 +41,18 @@ defmodule DashboardPhoenix.ProcessParser do
 
     # Use CLI cache for the raw ps output (Ticket #73)
     cache_key = "ps:aux:#{sort_option}"
-    
+
     case CLICache.get_or_fetch(cache_key, @cache_ttl_ms, fn ->
-      CLITools.run_if_available("ps", ["aux", "--sort=#{sort_option}"], 
-        timeout: timeout, friendly_name: "ps command")
-    end) do
+           CLITools.run_if_available("ps", ["aux", "--sort=#{sort_option}"],
+             timeout: timeout,
+             friendly_name: "ps command"
+           )
+         end) do
       {:ok, output} ->
         output
         |> String.split("\n")
-        |> Enum.drop(1)  # Skip header line
+        # Skip header line
+        |> Enum.drop(1)
         |> Enum.filter(filter_fn)
         |> maybe_limit(limit)
         |> Enum.map(&parse_process_line/1)
@@ -84,7 +88,7 @@ defmodule DashboardPhoenix.ProcessParser do
   """
   def parse_process_line(line) when is_binary(line) do
     parts = String.split(line, ~r/\s+/, parts: 11)
-    
+
     case parts do
       [user, pid, cpu, mem, vsz, rss, tty, stat, start, time, command | _] ->
         %{
@@ -100,10 +104,12 @@ defmodule DashboardPhoenix.ProcessParser do
           time: time,
           command: command
         }
+
       _ ->
         nil
     end
   end
+
   def parse_process_line(_), do: nil
 
   @doc """
@@ -122,12 +128,18 @@ defmodule DashboardPhoenix.ProcessParser do
   """
   def derive_status(stat, cpu \\ 0.0) when is_binary(stat) and is_number(cpu) do
     cond do
-      String.contains?(stat, "Z") -> Status.zombie()    # Zombie process
-      String.contains?(stat, "T") -> Status.stopped()   # Stopped by signal
-      String.contains?(stat, "X") -> Status.dead()      # Dead
-      String.contains?(stat, "R") -> Status.busy()      # Actually running on CPU
-      String.contains?(stat, ["S", "D"]) and cpu > 5.0 -> Status.busy()   # Sleeping but recently active
-      String.contains?(stat, ["S", "D"]) -> Status.idle()  # Sleeping, low CPU = waiting
+      # Zombie process
+      String.contains?(stat, "Z") -> Status.zombie()
+      # Stopped by signal
+      String.contains?(stat, "T") -> Status.stopped()
+      # Dead
+      String.contains?(stat, "X") -> Status.dead()
+      # Actually running on CPU
+      String.contains?(stat, "R") -> Status.busy()
+      # Sleeping but recently active
+      String.contains?(stat, ["S", "D"]) and cpu > 5.0 -> Status.busy()
+      # Sleeping, low CPU = waiting
+      String.contains?(stat, ["S", "D"]) -> Status.idle()
       true -> Status.running()
     end
   end
@@ -149,6 +161,7 @@ defmodule DashboardPhoenix.ProcessParser do
       :error -> 0.0
     end
   end
+
   def parse_float(_), do: 0.0
 
   @doc """
@@ -170,6 +183,7 @@ defmodule DashboardPhoenix.ProcessParser do
       :error -> "N/A"
     end
   end
+
   def format_memory(_), do: "N/A"
 
   @doc """
@@ -183,29 +197,34 @@ defmodule DashboardPhoenix.ProcessParser do
   def generate_name(pid) when is_binary(pid) do
     adjectives = ~w(swift calm bold keen warm cool soft loud fast slow wild mild dark pale deep)
     nouns = ~w(beam node code wave pulse spark flame storm cloud river stone forge)
-    
+
     case Integer.parse(pid) do
       {pid_int, _} ->
         adj = Enum.at(adjectives, rem(pid_int, length(adjectives)))
         noun = Enum.at(nouns, rem(div(pid_int, 100), length(nouns)))
         "#{adj}-#{noun}"
+
       _ ->
         "unknown-process"
     end
   end
+
   def generate_name(_), do: "unknown-process"
 
   @doc """
   Truncate command string and remove long flags for readability.
   """
   def truncate_command(command, max_length \\ 80)
+
   def truncate_command(command, max_length) when is_binary(command) do
     command
     |> String.slice(0, max_length)
-    |> String.replace(~r/--[a-zA-Z-]+=\S+/, "")  # Remove long flags
+    # Remove long flags
+    |> String.replace(~r/--[a-zA-Z-]+=\S+/, "")
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
   end
+
   def truncate_command(_, _), do: ""
 
   @doc """
@@ -223,6 +242,7 @@ defmodule DashboardPhoenix.ProcessParser do
     line_lower = String.downcase(line)
     Enum.any?(patterns, &String.contains?(line_lower, &1))
   end
+
   def contains_patterns?(_, _), do: false
 
   @doc """
@@ -239,9 +259,11 @@ defmodule DashboardPhoenix.ProcessParser do
   def interesting?(line, patterns) when is_binary(line) do
     contains_patterns?(line, patterns)
   end
+
   def interesting?(%{command: command}, patterns) when is_binary(command) do
     contains_patterns?(command, patterns)
   end
+
   def interesting?(_, _), do: false
 
   # Private helpers

@@ -1,12 +1,12 @@
 defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   @moduledoc """
   Monitors OpenCode tool calls and broadcasts them to the Live Feed.
-  
+
   OpenCode stores its data in a configurable storage directory (default: ~/.local/share/opencode/storage/):
   - session/<project-hash>/<session-id>.json - Session metadata
   - part/<message-id>/<part-id>.json - Tool calls and responses
   - message/<session-id>/ - Message directories
-  
+
   This GenServer polls the part/ directory for recent tool calls and broadcasts
   them as progress events to the "agent_updates" PubSub topic, making them appear
   in the Live Feed alongside OpenClaw sub-agent activity.
@@ -17,9 +17,12 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   alias DashboardPhoenix.PubSub.Topics
   require Logger
 
-  @poll_interval 3_000  # Poll every 3 seconds
-  @lookback_seconds 300  # Look at parts from last 5 minutes
-  @max_events 50  # Keep last 50 events to avoid memory bloat
+  # Poll every 3 seconds
+  @poll_interval 3_000
+  # Look at parts from last 5 minutes
+  @lookback_seconds 300
+  # Keep last 50 events to avoid memory bloat
+  @max_events 50
 
   # OpenCode storage location
   defp storage_dir do
@@ -40,11 +43,14 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   @impl true
   def init(_) do
     schedule_poll()
-    {:ok, %{
-      progress: [],
-      seen_part_ids: MapSet.new(),
-      session_titles: %{}  # Cache session titles: %{session_id => title}
-    }}
+
+    {:ok,
+     %{
+       progress: [],
+       seen_part_ids: MapSet.new(),
+       # Cache session titles: %{session_id => title}
+       session_titles: %{}
+     }}
   end
 
   @impl true
@@ -69,75 +75,109 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
       case File.ls(parts_dir()) do
         {:ok, message_dirs} ->
           cutoff = System.system_time(:second) - @lookback_seconds
-          
+
           # Find recent part files across all message directories
-          {new_events, seen_ids} = message_dirs
-          |> Enum.flat_map(fn msg_dir ->
-            msg_path = Path.join(parts_dir(), msg_dir)
-            case File.ls(msg_path) do
-              {:ok, part_files} ->
-                part_files
-                |> Enum.filter(&String.ends_with?(&1, ".json"))
-                |> Enum.map(fn file -> Path.join(msg_path, file) end)
-              {:error, :enoent} ->
-                Logger.debug("OpenCodeActivityMonitor: Message directory #{msg_path} no longer exists")
-                []
-              {:error, :eacces} ->
-                Logger.warning("OpenCodeActivityMonitor: Permission denied accessing #{msg_path}")
-                []
-              {:error, reason} ->
-                Logger.debug("OpenCodeActivityMonitor: Failed to list files in #{msg_path}: #{inspect(reason)}")
-                []
-            end
-          end)
-          |> Enum.filter(fn path ->
-            case File.stat(path) do
-              {:ok, %{mtime: mtime}} ->
-                epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-                epoch > cutoff
-              {:error, :enoent} ->
-                Logger.debug("OpenCodeActivityMonitor: Part file #{path} no longer exists")
-                false
-              {:error, reason} ->
-                Logger.debug("OpenCodeActivityMonitor: Failed to stat part file #{path}: #{inspect(reason)}")
-                false
-            end
-          end)
-          |> Enum.reduce({[], state.seen_part_ids}, fn path, {events_acc, seen_acc} ->
-            case parse_part_file(path, seen_acc, state.session_titles) do
-              {:ok, event, part_id} ->
-                {[event | events_acc], MapSet.put(seen_acc, part_id)}
-              :skip ->
-                {events_acc, seen_acc}
-            end
-          end)
-          
+          {new_events, seen_ids} =
+            message_dirs
+            |> Enum.flat_map(fn msg_dir ->
+              msg_path = Path.join(parts_dir(), msg_dir)
+
+              case File.ls(msg_path) do
+                {:ok, part_files} ->
+                  part_files
+                  |> Enum.filter(&String.ends_with?(&1, ".json"))
+                  |> Enum.map(fn file -> Path.join(msg_path, file) end)
+
+                {:error, :enoent} ->
+                  Logger.debug(
+                    "OpenCodeActivityMonitor: Message directory #{msg_path} no longer exists"
+                  )
+
+                  []
+
+                {:error, :eacces} ->
+                  Logger.warning(
+                    "OpenCodeActivityMonitor: Permission denied accessing #{msg_path}"
+                  )
+
+                  []
+
+                {:error, reason} ->
+                  Logger.debug(
+                    "OpenCodeActivityMonitor: Failed to list files in #{msg_path}: #{inspect(reason)}"
+                  )
+
+                  []
+              end
+            end)
+            |> Enum.filter(fn path ->
+              case File.stat(path) do
+                {:ok, %{mtime: mtime}} ->
+                  epoch =
+                    mtime
+                    |> NaiveDateTime.from_erl!()
+                    |> DateTime.from_naive!("Etc/UTC")
+                    |> DateTime.to_unix()
+
+                  epoch > cutoff
+
+                {:error, :enoent} ->
+                  Logger.debug("OpenCodeActivityMonitor: Part file #{path} no longer exists")
+                  false
+
+                {:error, reason} ->
+                  Logger.debug(
+                    "OpenCodeActivityMonitor: Failed to stat part file #{path}: #{inspect(reason)}"
+                  )
+
+                  false
+              end
+            end)
+            |> Enum.reduce({[], state.seen_part_ids}, fn path, {events_acc, seen_acc} ->
+              case parse_part_file(path, seen_acc, state.session_titles) do
+                {:ok, event, part_id} ->
+                  {[event | events_acc], MapSet.put(seen_acc, part_id)}
+
+                :skip ->
+                  {events_acc, seen_acc}
+              end
+            end)
+
           if new_events != [] do
             # Sort by timestamp, newest last
             sorted_events = Enum.sort_by(new_events, & &1.ts)
-            
+
             # Merge with existing progress, keep last N events
-            updated_progress = (state.progress ++ sorted_events)
-            |> Enum.uniq_by(& &1.ts)
-            |> Enum.sort_by(& &1.ts)
-            |> Enum.take(-@max_events)
-            
+            updated_progress =
+              (state.progress ++ sorted_events)
+              |> Enum.uniq_by(& &1.ts)
+              |> Enum.sort_by(& &1.ts)
+              |> Enum.take(-@max_events)
+
             # Broadcast to PubSub
             broadcast_progress(sorted_events)
-            
+
             %{state | progress: updated_progress, seen_part_ids: seen_ids}
           else
             %{state | seen_part_ids: seen_ids}
           end
-          
+
         {:error, :enoent} ->
           Logger.debug("OpenCodeActivityMonitor: Parts directory #{parts_dir()} does not exist")
           state
+
         {:error, :eacces} ->
-          Logger.warning("OpenCodeActivityMonitor: Permission denied accessing parts directory #{parts_dir()}")
+          Logger.warning(
+            "OpenCodeActivityMonitor: Permission denied accessing parts directory #{parts_dir()}"
+          )
+
           state
+
         {:error, reason} ->
-          Logger.warning("OpenCodeActivityMonitor: Failed to read parts directory #{parts_dir()}: #{inspect(reason)}")
+          Logger.warning(
+            "OpenCodeActivityMonitor: Failed to read parts directory #{parts_dir()}: #{inspect(reason)}"
+          )
+
           state
       end
     rescue
@@ -155,37 +195,56 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
           case Jason.decode(content) do
             {:ok, data} ->
               part_id = data["id"]
-              
+
               # Skip if already seen or not a tool call
               cond do
                 MapSet.member?(seen_ids, part_id) ->
                   :skip
+
                 data["type"] != "tool" ->
                   :skip
+
                 true ->
                   event = build_progress_event(data, session_titles)
                   {:ok, event, part_id}
               end
+
             {:error, %Jason.DecodeError{} = e} ->
-              Logger.debug("OpenCodeActivityMonitor: Failed to decode JSON from #{path}: #{Exception.message(e)}")
+              Logger.debug(
+                "OpenCodeActivityMonitor: Failed to decode JSON from #{path}: #{Exception.message(e)}"
+              )
+
               :skip
+
             {:error, reason} ->
-              Logger.debug("OpenCodeActivityMonitor: JSON decode error for #{path}: #{inspect(reason)}")
+              Logger.debug(
+                "OpenCodeActivityMonitor: JSON decode error for #{path}: #{inspect(reason)}"
+              )
+
               :skip
           end
+
         {:error, :enoent} ->
           Logger.debug("OpenCodeActivityMonitor: Part file #{path} no longer exists")
           :skip
+
         {:error, :eacces} ->
           Logger.debug("OpenCodeActivityMonitor: Permission denied reading part file #{path}")
           :skip
+
         {:error, reason} ->
-          Logger.debug("OpenCodeActivityMonitor: Failed to read part file #{path}: #{inspect(reason)}")
+          Logger.debug(
+            "OpenCodeActivityMonitor: Failed to read part file #{path}: #{inspect(reason)}"
+          )
+
           :skip
       end
     rescue
       e ->
-        Logger.debug("OpenCodeActivityMonitor: Exception parsing part file #{path}: #{inspect(e)}")
+        Logger.debug(
+          "OpenCodeActivityMonitor: Exception parsing part file #{path}: #{inspect(e)}"
+        )
+
         :skip
     end
   end
@@ -195,32 +254,35 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
     state = data["state"] || %{}
     input = state["input"] || %{}
     time = state["time"] || %{}
-    
+
     # Get timestamp - prefer start time, fallback to current time
     ts = time["start"] || System.system_time(:millisecond)
-    
+
     # Map OpenCode tool names to display names
     tool_name = data["tool"] || "unknown"
     action = normalize_tool_name(tool_name)
-    
+
     # Extract target based on tool type
     target = extract_target(tool_name, input)
-    
+
     # Determine status
-    status = case state["status"] do
-      "completed" -> Status.done()
-      "running" -> Status.running()
-      "error" -> Status.error()
-      _ -> Status.running()
-    end
-    
+    status =
+      case state["status"] do
+        "completed" -> Status.done()
+        "running" -> Status.running()
+        "error" -> Status.error()
+        _ -> Status.running()
+      end
+
     # Get session title for agent label
     session_id = data["sessionID"]
-    agent_label = Map.get(session_titles, session_id) || get_session_title(session_id) || "OpenCode"
-    
+
+    agent_label =
+      Map.get(session_titles, session_id) || get_session_title(session_id) || "OpenCode"
+
     # Build output summary
     output_summary = build_output_summary(tool_name, state)
-    
+
     %{
       ts: ts,
       agent: agent_label,
@@ -258,6 +320,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   defp extract_target("grep", %{"pattern" => pattern}), do: pattern
   defp extract_target("find", %{"pattern" => pattern}), do: pattern
   defp extract_target("webFetch", %{"url" => url}), do: url
+
   defp extract_target(_, input) do
     # Try common field names
     input["path"] || input["file"] || input["command"] || input["query"] || input["pattern"] || ""
@@ -268,25 +331,38 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
     output = state["output"] || ""
     metadata = state["metadata"] || %{}
     is_error = state["status"] == Status.error()
-    
+
     cond do
-      is_error -> "❌ Error"
+      is_error ->
+        "❌ Error"
+
       tool_name == "bash" ->
         lines = output |> String.split("\n") |> length()
         "✓ #{lines} lines"
+
       tool_name == "read" ->
         if metadata["truncated"], do: "📄 truncated", else: "📄 read"
-      tool_name == "write" -> "✓ written"
-      tool_name == "edit" -> "✓ edited"
-      tool_name == "patch" -> "✓ patched"
+
+      tool_name == "write" ->
+        "✓ written"
+
+      tool_name == "edit" ->
+        "✓ edited"
+
+      tool_name == "patch" ->
+        "✓ patched"
+
       tool_name == "glob" ->
-        count = metadata["count"] || (output |> String.split("\n", trim: true) |> length())
+        count = metadata["count"] || output |> String.split("\n", trim: true) |> length()
         "#{count} files"
+
       tool_name == "grep" ->
         lines = output |> String.split("\n", trim: true) |> length()
         "#{lines} matches"
+
       String.length(output) > 0 ->
         "✓ #{String.length(output)} chars"
+
       true ->
         "✓ done"
     end
@@ -294,6 +370,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
 
   # Get session title from session file (with caching potential)
   defp get_session_title(nil), do: nil
+
   defp get_session_title(session_id) do
     try do
       # Find session file - it's stored under project dirs
@@ -302,41 +379,74 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
           project_dirs
           |> Enum.find_value(fn project_dir ->
             session_path = Path.join([sessions_dir(), project_dir, "#{session_id}.json"])
+
             case File.read(session_path) do
               {:ok, content} ->
                 case Jason.decode(content) do
                   {:ok, %{"title" => title}} when title != "" and not is_nil(title) ->
                     # Return truncated title or slug
                     truncate_title(title)
+
                   {:ok, %{"slug" => slug}} when slug != "" and not is_nil(slug) ->
                     slug
-                  {:ok, _} -> nil
-                  {:error, %Jason.DecodeError{}} ->
-                    Logger.debug("OpenCodeActivityMonitor: Failed to decode session JSON for #{session_path}")
+
+                  {:ok, _} ->
                     nil
+
+                  {:error, %Jason.DecodeError{}} ->
+                    Logger.debug(
+                      "OpenCodeActivityMonitor: Failed to decode session JSON for #{session_path}"
+                    )
+
+                    nil
+
                   {:error, reason} ->
-                    Logger.debug("OpenCodeActivityMonitor: JSON decode error for session #{session_path}: #{inspect(reason)}")
+                    Logger.debug(
+                      "OpenCodeActivityMonitor: JSON decode error for session #{session_path}: #{inspect(reason)}"
+                    )
+
                     nil
                 end
-              {:error, :enoent} -> nil
-              {:error, :eacces} ->
-                Logger.debug("OpenCodeActivityMonitor: Permission denied reading session #{session_path}")
+
+              {:error, :enoent} ->
                 nil
+
+              {:error, :eacces} ->
+                Logger.debug(
+                  "OpenCodeActivityMonitor: Permission denied reading session #{session_path}"
+                )
+
+                nil
+
               {:error, reason} ->
-                Logger.debug("OpenCodeActivityMonitor: Failed to read session #{session_path}: #{inspect(reason)}")
+                Logger.debug(
+                  "OpenCodeActivityMonitor: Failed to read session #{session_path}: #{inspect(reason)}"
+                )
+
                 nil
             end
           end)
+
         {:error, :enoent} ->
-          Logger.debug("OpenCodeActivityMonitor: Sessions directory #{sessions_dir()} does not exist")
+          Logger.debug(
+            "OpenCodeActivityMonitor: Sessions directory #{sessions_dir()} does not exist"
+          )
+
           nil
+
         {:error, reason} ->
-          Logger.debug("OpenCodeActivityMonitor: Failed to list sessions directory: #{inspect(reason)}")
+          Logger.debug(
+            "OpenCodeActivityMonitor: Failed to list sessions directory: #{inspect(reason)}"
+          )
+
           nil
       end
     rescue
       e ->
-        Logger.debug("OpenCodeActivityMonitor: Exception getting session title for #{session_id}: #{inspect(e)}")
+        Logger.debug(
+          "OpenCodeActivityMonitor: Exception getting session title for #{session_id}: #{inspect(e)}"
+        )
+
         nil
     end
   end
@@ -344,6 +454,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
   defp truncate_title(title) when byte_size(title) > 30 do
     String.slice(title, 0, 27) <> "..."
   end
+
   defp truncate_title(title), do: title
 
   defp truncate_target(target) when is_binary(target) do
@@ -353,6 +464,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
       target
     end
   end
+
   defp truncate_target(_), do: ""
 
   defp truncate_output(output) when is_binary(output) do
@@ -362,6 +474,7 @@ defmodule DashboardPhoenix.OpenCodeActivityMonitor do
       output
     end
   end
+
   defp truncate_output(_), do: ""
 
   defp broadcast_progress(events) do

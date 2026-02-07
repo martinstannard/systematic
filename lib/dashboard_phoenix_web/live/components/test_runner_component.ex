@@ -1,7 +1,7 @@
 defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
   @moduledoc """
   LiveComponent for running tests and viewing results.
-  
+
   Provides:
   - Run all tests button
   - Run specific test pattern
@@ -9,19 +9,20 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
   - Recent test results from ActivityLog
   """
   use DashboardPhoenixWeb, :live_component
-  
+
   alias DashboardPhoenix.ActivityLog
 
   def update(assigns, socket) do
     # Get recent test events from ActivityLog
     recent_test_events = get_recent_test_events()
-    
-    socket = assign(socket,
-      test_runner_collapsed: assigns.test_runner_collapsed,
-      test_running: assigns[:test_running] || false,
-      recent_test_events: recent_test_events
-    )
-    
+
+    socket =
+      assign(socket,
+        test_runner_collapsed: assigns.test_runner_collapsed,
+        test_running: assigns[:test_running] || false,
+        recent_test_events: recent_test_events
+      )
+
     {:ok, socket}
   end
 
@@ -53,7 +54,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
   def render(assigns) do
     ~H"""
     <div class="space-y-4" role="region" aria-label="Test Runner">
-      <button 
+      <button
         phx-click="toggle_test_runner_panel"
         phx-target={@myself}
         class="panel-header-button w-full"
@@ -67,11 +68,11 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
             <div class="w-2 h-2 rounded-full bg-blue-500" aria-hidden="true"></div>
             <span class="text-panel-header font-medium">Test Runner</span>
             <span class="text-ui-caption" aria-live="polite">
-              <%= if @test_running, do: "Running...", else: get_test_status(@recent_test_events) %>
+              {if @test_running, do: "Running...", else: get_test_status(@recent_test_events)}
             </span>
           </div>
           <div class="text-ui-secondary" aria-hidden="true">
-            <%= if @test_runner_collapsed, do: "▼", else: "▲" %>
+            {if @test_runner_collapsed, do: "▼", else: "▲"}
           </div>
         </div>
       </button>
@@ -79,7 +80,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
       <div id="test-runner-content" class={["space-y-4", @test_runner_collapsed && "hidden"]}>
         <!-- Test Controls -->
         <div class="flex gap-2 flex-wrap" role="group" aria-label="Test controls">
-          <button 
+          <button
             phx-click="run_all_tests"
             phx-target={@myself}
             disabled={@test_running}
@@ -91,13 +92,13 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
             aria-label={if @test_running, do: "Tests running, please wait", else: "Run all tests"}
             aria-busy={if @test_running, do: "true", else: "false"}
           >
-            <%= if @test_running, do: "Running...", else: "Run All Tests" %>
+            {if @test_running, do: "Running...", else: "Run All Tests"}
           </button>
-          
+
           <div class="flex gap-1">
             <label for="test-pattern-input" class="sr-only">Test pattern filter</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Test pattern..."
               class="input-field px-2 py-1 text-sm w-32"
               id="test-pattern-input"
@@ -108,7 +109,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
               disabled={@test_running}
               aria-label="Enter test pattern to filter tests"
             />
-            <button 
+            <button
               phx-click="run_test_pattern"
               phx-target={@myself}
               phx-value-pattern=""
@@ -122,14 +123,19 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
             </button>
           </div>
         </div>
-
-        <!-- Recent Test Results -->
+        
+    <!-- Recent Test Results -->
         <%= if length(@recent_test_events) > 0 do %>
           <div class="space-y-3" role="region" aria-label="Recent test results">
             <h4 class="text-ui-secondary text-sm" id="recent-tests-heading">Recent Test Results</h4>
-            <div class="space-y-1 max-h-32 overflow-y-auto" role="list" aria-labelledby="recent-tests-heading" aria-live="polite">
+            <div
+              class="space-y-1 max-h-32 overflow-y-auto"
+              role="list"
+              aria-labelledby="recent-tests-heading"
+              aria-live="polite"
+            >
               <%= for event <- @recent_test_events do %>
-                <div 
+                <div
                   class={[
                     "flex items-start gap-2 text-xs p-2 rounded",
                     event.type == :test_passed && "bg-green-50 text-green-800",
@@ -146,11 +152,14 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
                     <% end %>
                   </div>
                   <div class="flex-1 min-w-0">
-                    <div class="font-medium truncate"><%= event.message %></div>
+                    <div class="font-medium truncate">{event.message}</div>
                     <div class="text-ui-caption">
-                      <span class="sr-only">Time: </span><%= Calendar.strftime(event.timestamp, "%H:%M:%S") %>
+                      <span class="sr-only">Time: </span>{Calendar.strftime(
+                        event.timestamp,
+                        "%H:%M:%S"
+                      )}
                       <%= if event.details[:total] do %>
-                        • <span class="sr-only">Results: </span><%= event.details.passed %>/<%=event.details.total%> passed
+                        • <span class="sr-only">Results: </span>{event.details.passed}/{event.details.total} passed
                       <% end %>
                     </div>
                   </div>
@@ -173,7 +182,7 @@ defmodule DashboardPhoenixWeb.Live.Components.TestRunnerComponent do
   end
 
   defp get_test_status([]), do: "No recent runs"
-  
+
   defp get_test_status([latest | _]) do
     case latest.type do
       :test_passed -> "✓ Last run passed"

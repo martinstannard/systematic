@@ -10,9 +10,9 @@ defmodule DashboardPhoenix.SessionBridgeTest do
         {:ok, _pid} -> :ok
         {:error, {:already_started, _pid}} -> :ok
       end
-      
+
       metrics = SessionBridge.get_state_metrics()
-      
+
       assert is_map(metrics)
       assert Map.has_key?(metrics, :sessions_count)
       assert Map.has_key?(metrics, :progress_events)
@@ -21,7 +21,7 @@ defmodule DashboardPhoenix.SessionBridgeTest do
       assert Map.has_key?(metrics, :progress_offset)
       assert Map.has_key?(metrics, :current_poll_interval)
       assert Map.has_key?(metrics, :memory_usage_mb)
-      
+
       assert is_integer(metrics.sessions_count)
       assert is_integer(metrics.progress_events)
       assert is_integer(metrics.transcript_offsets_count)
@@ -36,7 +36,7 @@ defmodule DashboardPhoenix.SessionBridgeTest do
         {:ok, _pid} -> :ok
         {:error, {:already_started, _pid}} -> :ok
       end
-      
+
       initial_metrics = SessionBridge.get_state_metrics()
       assert initial_metrics.transcript_offsets_count >= 0
     end
@@ -46,9 +46,9 @@ defmodule DashboardPhoenix.SessionBridgeTest do
         {:ok, _pid} -> :ok
         {:error, {:already_started, _pid}} -> :ok
       end
-      
+
       metrics = SessionBridge.get_state_metrics()
-      
+
       # Progress events should be within the max limit
       assert metrics.progress_events <= 100
     end
@@ -58,7 +58,7 @@ defmodule DashboardPhoenix.SessionBridgeTest do
     test "cleanup constants are properly defined" do
       # Test that our constants are accessible and reasonable
       _module_attrs = SessionBridge.__info__(:attributes)
-      
+
       # We can't directly access module attributes from tests, but we can verify
       # the module compiles and the cleanup function exists
       assert function_exported?(SessionBridge, :get_state_metrics, 0)
@@ -69,16 +69,17 @@ defmodule DashboardPhoenix.SessionBridgeTest do
         {:ok, _pid} -> :ok
         {:error, {:already_started, _pid}} -> :ok
       end
-      
+
       metrics = SessionBridge.get_state_metrics()
-      
+
       # last_cleanup should be a recent timestamp
       assert is_integer(metrics.last_cleanup)
       assert metrics.last_cleanup > 0
-      
+
       # Should be within the last few seconds (allowing for test execution time)
       now = System.system_time(:millisecond)
-      assert now - metrics.last_cleanup < 10_000  # 10 seconds
+      # 10 seconds
+      assert now - metrics.last_cleanup < 10_000
     end
   end
 end

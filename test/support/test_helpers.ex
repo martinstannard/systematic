@@ -48,7 +48,9 @@ defmodule DashboardPhoenix.TestHelpers do
 
     # OpenClaw client mock setup
     OpenClawClientMock
-    |> stub(:work_on_ticket, fn _ticket_id, _details, _opts -> {:ok, %{ticket_id: "mock-ticket"}} end)
+    |> stub(:work_on_ticket, fn _ticket_id, _details, _opts ->
+      {:ok, %{ticket_id: "mock-ticket"}}
+    end)
     |> stub(:send_message, fn _message, _opts -> {:ok, :sent} end)
     |> stub(:spawn_subagent, fn _prompt, _opts -> {:ok, %{job_id: "mock-job-123"}} end)
 

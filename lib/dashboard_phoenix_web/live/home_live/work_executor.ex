@@ -135,7 +135,8 @@ defmodule DashboardPhoenixWeb.HomeLive.WorkExecutor do
     issues = if has_conflicts, do: ["merge conflicts" | issues], else: issues
     issues_text = Enum.join(issues, " and ")
 
-    prompt = build_pr_fix_prompt(pr_url, pr_number, repo, branch, has_conflicts, ci_failing, issues_text)
+    prompt =
+      build_pr_fix_prompt(pr_url, pr_number, repo, branch, has_conflicts, ci_failing, issues_text)
 
     ClientFactory.openclaw_client().spawn_subagent(prompt,
       name: "pr-fix-#{pr_number}",
@@ -349,7 +350,15 @@ defmodule DashboardPhoenixWeb.HomeLive.WorkExecutor do
     """
   end
 
-  defp build_pr_fix_prompt(pr_url, pr_number, repo, branch, has_conflicts, ci_failing, issues_text) do
+  defp build_pr_fix_prompt(
+         pr_url,
+         pr_number,
+         repo,
+         branch,
+         has_conflicts,
+         ci_failing,
+         issues_text
+       ) do
     alias DashboardPhoenix.Paths
 
     """

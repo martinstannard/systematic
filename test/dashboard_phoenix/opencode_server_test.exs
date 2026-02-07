@@ -8,26 +8,27 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
       {:ok, state} = OpenCodeServer.init([])
 
       # Basic state
-      assert state.port == 9101  # Default port
+      # Default port
+      assert state.port == 9101
       assert state.running == false
       assert state.os_pid == nil
       assert state.port_ref == nil
       assert state.cwd == nil
       assert state.started_at == nil
       assert state.output_buffer == ""
-      
+
       # Health monitoring
       assert state.health_status == :unknown
       assert state.last_health_check == nil
       assert state.health_check_timer == nil
-      
+
       # Restart management
       assert state.restart_count == 0
       assert state.restart_times == []
       assert state.consecutive_failures == 0
       assert state.restart_timer == nil
       assert state.auto_restart == true
-      
+
       # Circuit breaker
       assert state.circuit_state == :closed
       assert state.circuit_opened_at == nil
@@ -95,22 +96,25 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
     test "start_server when already running returns ok with port" do
       state = build_running_state()
 
-      {:reply, {:ok, port}, new_state} = 
+      {:reply, {:ok, port}, new_state} =
         OpenCodeServer.handle_call({:start_server, "/new/path"}, self(), state)
 
       assert port == 9101
       assert new_state.running == true
-      assert new_state.cwd == "/existing"  # Not changed
+      # Not changed
+      assert new_state.cwd == "/existing"
     end
 
     test "start_server blocked when circuit breaker is open" do
       state = build_initial_state()
-      state = %{state | 
-        circuit_state: :open,
-        circuit_opened_at: System.monotonic_time(:millisecond)
+
+      state = %{
+        state
+        | circuit_state: :open,
+          circuit_opened_at: System.monotonic_time(:millisecond)
       }
 
-      {:reply, {:error, :circuit_breaker_open}, new_state} = 
+      {:reply, {:error, :circuit_breaker_open}, new_state} =
         OpenCodeServer.handle_call({:start_server, "/new/path"}, self(), state)
 
       assert new_state.circuit_state == :open
@@ -130,12 +134,14 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
   describe "GenServer behavior - handle_call :reset_circuit_breaker" do
     test "reset_circuit_breaker clears circuit state" do
       state = build_initial_state()
-      state = %{state |
-        circuit_state: :open,
-        circuit_opened_at: System.monotonic_time(:millisecond),
-        consecutive_failures: 5,
-        restart_times: [1, 2, 3, 4, 5],
-        next_restart_delay_ms: 30_000
+
+      state = %{
+        state
+        | circuit_state: :open,
+          circuit_opened_at: System.monotonic_time(:millisecond),
+          consecutive_failures: 5,
+          restart_times: [1, 2, 3, 4, 5],
+          next_restart_delay_ms: 30_000
       }
 
       {:reply, :ok, new_state} = OpenCodeServer.handle_call(:reset_circuit_breaker, self(), state)
@@ -144,13 +150,15 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
       assert new_state.circuit_opened_at == nil
       assert new_state.consecutive_failures == 0
       assert new_state.restart_times == []
-      assert new_state.next_restart_delay_ms == 1000  # Reset to initial delay
+      # Reset to initial delay
+      assert new_state.next_restart_delay_ms == 1000
     end
   end
 
   describe "GenServer behavior - handle_info for output" do
     test "handles port data message and buffers output" do
-      port_ref = make_ref()  # Fake port ref for testing
+      # Fake port ref for testing
+      port_ref = make_ref()
       state = build_running_state()
       _state = %{state | port_ref: port_ref, output_buffer: "existing "}
 
@@ -182,7 +190,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
     test "output buffer is limited in size" do
       # Test the private function behavior through state observation
       # The buffer should be rotated when it exceeds max size
-      
+
       # Create a large buffer that would trigger rotation
       # In the real implementation, this happens in handle_info for port data
       assert function_exported?(OpenCodeServer, :handle_info, 2)
@@ -194,7 +202,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
       # Circuit starts closed
       {:ok, state} = OpenCodeServer.init([])
       assert state.circuit_state == :closed
-      
+
       # Circuit opens after too many failures (tested via state manipulation)
       # Circuit moves to half-open after cooldown
       # Circuit closes again after successful start
@@ -236,7 +244,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
       health_timer = Process.send_after(self(), :test_health, 100_000)
       restart_timer = Process.send_after(self(), :test_restart, 100_000)
       cleanup_timer = Process.send_after(self(), :test_cleanup, 100_000)
-      
+
       state = %{
         port_ref: nil,
         os_pid: nil,
@@ -248,7 +256,7 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
 
       result = OpenCodeServer.terminate(:normal, state)
       assert result == :ok
-      
+
       # Timers should be cancelled
       assert Process.read_timer(health_timer) == false
       assert Process.read_timer(restart_timer) == false
@@ -259,7 +267,8 @@ defmodule DashboardPhoenix.OpenCodeServerTest do
   describe "restart backoff" do
     test "initial restart delay is configurable via module attribute" do
       {:ok, state} = OpenCodeServer.init([])
-      assert state.next_restart_delay_ms == 1000  # 1 second initial delay
+      # 1 second initial delay
+      assert state.next_restart_delay_ms == 1000
     end
   end
 

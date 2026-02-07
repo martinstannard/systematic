@@ -2,9 +2,9 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   @moduledoc """
   Monitors Chainlink issues by polling the chainlink CLI.
   Fetches open issues and tracks them for work assignment.
-  
+
   ## Performance Optimizations (Ticket #71)
-  
+
   - Uses ETS for fast data reads (no GenServer.call blocking)
   - GenServer only manages lifecycle and periodic polling
   - All public getters read directly from ETS
@@ -15,10 +15,11 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
 
   alias DashboardPhoenix.{CLITools, Paths}
 
-  @poll_interval_ms 60_000  # 60 seconds (chainlink issues change less frequently)
+  # 60 seconds (chainlink issues change less frequently)
+  @poll_interval_ms 60_000
   @topic "chainlink_updates"
   @cli_timeout_ms 30_000
-  
+
   # ETS table name for fast reads
   @ets_table :chainlink_monitor_data
 
@@ -54,7 +55,8 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
     case CLITools.run_if_available(Paths.chainlink_bin(), ["show", to_string(issue_id)],
            cd: repo_path(),
            timeout: @cli_timeout_ms,
-           friendly_name: "Chainlink CLI") do
+           friendly_name: "Chainlink CLI"
+         ) do
       {:ok, output} ->
         {:ok, output}
 
@@ -82,25 +84,27 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   def init(_opts) do
     # Create ETS table for fast reads (Ticket #71)
     :ets.new(@ets_table, [:named_table, :public, :set, read_concurrency: true])
-    
+
     # Initialize ETS with empty data
     :ets.insert(@ets_table, {:issues, %{issues: [], last_updated: nil, error: nil}})
-    
+
     # Check tool availability on startup
-    tools_status = CLITools.check_tools([
-      {Paths.chainlink_bin(), "Chainlink CLI"}
-    ])
-    
-    initial_error = if tools_status.all_available? do
-      nil
-    else
-      CLITools.format_status_message(tools_status)
-    end
-    
+    tools_status =
+      CLITools.check_tools([
+        {Paths.chainlink_bin(), "Chainlink CLI"}
+      ])
+
+    initial_error =
+      if tools_status.all_available? do
+        nil
+      else
+        CLITools.format_status_message(tools_status)
+      end
+
     if initial_error do
       Logger.warning("ChainlinkMonitor starting with missing tools: #{initial_error}")
     end
-    
+
     # Start polling after a short delay
     Process.send_after(self(), :poll, 1_000)
     {:ok, %{issues: [], last_updated: nil, error: initial_error}}
@@ -116,30 +120,37 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   def handle_info(:poll, state) do
     # Fetch async to avoid blocking GenServer calls
     parent = self()
+
     Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       new_state = fetch_issues(state)
       send(parent, {:poll_complete, new_state})
     end)
+
     {:noreply, state}
   end
 
   def handle_info({:poll_complete, new_state}, _state) do
     # Update ETS (Ticket #71)
-    :ets.insert(@ets_table, {:issues, %{
-      issues: new_state.issues,
-      last_updated: new_state.last_updated,
-      error: new_state.error
-    }})
-    
+    :ets.insert(
+      @ets_table,
+      {:issues,
+       %{
+         issues: new_state.issues,
+         last_updated: new_state.last_updated,
+         error: new_state.error
+       }}
+    )
+
     # Broadcast update to subscribers
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
       @topic,
-      {:chainlink_update, %{
-        issues: new_state.issues,
-        last_updated: new_state.last_updated,
-        error: new_state.error
-      }}
+      {:chainlink_update,
+       %{
+         issues: new_state.issues,
+         last_updated: new_state.last_updated,
+         error: new_state.error
+       }}
     )
 
     # Schedule next poll
@@ -153,7 +164,7 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
   @doc false
   def parse_chainlink_output_for_test(output), do: parse_chainlink_output(output)
 
-  @doc false  
+  @doc false
   def parse_issue_line_for_test(line), do: parse_issue_line(line)
 
   @doc false
@@ -163,14 +174,11 @@ defmodule DashboardPhoenix.ChainlinkMonitor do
     case CLITools.run_if_available(Paths.chainlink_bin(), ["list"],
            cd: repo_path(),
            timeout: @cli_timeout_ms,
-           friendly_name: "Chainlink CLI") do
+           friendly_name: "Chainlink CLI"
+         ) do
       {:ok, output} ->
         issues = parse_chainlink_output(output)
-        %{state |
-          issues: issues,
-          last_updated: DateTime.utc_now(),
-          error: nil
-        }
+        %{state | issues: issues, last_updated: DateTime.utc_now(), error: nil}
 
       {:error, {:tool_not_available, message}} ->
         Logger.info("Chainlink CLI not available: #{message}")

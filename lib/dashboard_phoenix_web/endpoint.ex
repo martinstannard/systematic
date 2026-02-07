@@ -1,7 +1,7 @@
 defmodule DashboardPhoenixWeb.Endpoint do
   @moduledoc """
   Phoenix endpoint for the dashboard web application.
-  
+
   Configures HTTP request handling, static asset serving, session management,
   and WebSocket connections for LiveView functionality.
   """

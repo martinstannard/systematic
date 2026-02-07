@@ -1,12 +1,12 @@
 defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   @moduledoc """
   LiveComponent for the work modal that handles ticket work execution.
-  
+
   This component manages the modal for working on tickets, including:
   - Displaying ticket details
   - Executing work via different coding agents (OpenCode, Claude, Gemini)
   - Handling work state and progress
-  
+
   Extracted from HomeLive to improve code organization and maintainability.
   """
   use DashboardPhoenixWeb, :live_component
@@ -30,16 +30,25 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
     claude_model = socket.assigns.claude_model
     opencode_model = socket.assigns.opencode_model
     tickets_in_progress = socket.assigns.tickets_in_progress
-    
+
     # Check if work already exists for this ticket
     if Map.has_key?(tickets_in_progress, ticket_id) do
       work_info = Map.get(tickets_in_progress, ticket_id)
       agent_type = if work_info.type == :opencode, do: "OpenCode", else: "sub-agent"
-      
-      send(self(), {:work_modal_component, :work_already_exists, {ticket_id, agent_type, work_info}})
+
+      send(
+        self(),
+        {:work_modal_component, :work_already_exists, {ticket_id, agent_type, work_info}}
+      )
+
       {:noreply, socket}
     else
-      send(self(), {:work_modal_component, :execute_work, {ticket_id, ticket_details, coding_pref, claude_model, opencode_model}})
+      send(
+        self(),
+        {:work_modal_component, :execute_work,
+         {ticket_id, ticket_details, coding_pref, claude_model, opencode_model}}
+      )
+
       {:noreply, socket}
     end
   end
@@ -47,7 +56,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   # Helper functions
 
   defp coding_agent_badge_class(:opencode), do: "bg-blue-500/20 text-blue-400"
-  defp coding_agent_badge_class(:claude), do: "bg-purple-500/20 text-purple-400"  
+  defp coding_agent_badge_class(:claude), do: "bg-purple-500/20 text-purple-400"
   defp coding_agent_badge_class(:gemini), do: "bg-green-500/20 text-green-400"
   defp coding_agent_badge_class(_), do: "bg-base-content/10 text-base-content/60"
 
@@ -59,9 +68,9 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div 
-      class={"fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")} 
-      phx-click="close_work_modal" 
+    <div
+      class={"fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 flex items-center justify-center z-50 " <> if(@show_work_modal, do: "", else: "hidden")}
+      phx-click="close_work_modal"
       phx-target={@myself}
       role="dialog"
       aria-modal="true"
@@ -72,19 +81,21 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
       phx-target={@myself}
     >
       <!-- Modal panel -->
-      <div 
-        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto" 
+      <div
+        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto"
         phx-click={Phoenix.LiveView.JS.exec("event.stopPropagation()")}
       >
         <!-- Header -->
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center space-x-3">
             <div class="w-3 h-3 rounded-full bg-purple-500" aria-hidden="true"></div>
-            <h2 id="work-modal-title" class="text-xl font-bold text-gray-900 dark:text-gray-100">Work on Ticket: <%= @work_ticket_id %></h2>
+            <h2 id="work-modal-title" class="text-xl font-bold text-gray-900 dark:text-gray-100">
+              Work on Ticket: {@work_ticket_id}
+            </h2>
           </div>
-          <button 
-            phx-click="close_work_modal" 
-            phx-target={@myself} 
+          <button
+            phx-click="close_work_modal"
+            phx-target={@myself}
             class="btn-interactive-close text-base-content/60 hover:text-error hover:bg-error/10 transition-all"
             aria-label="Close modal"
             title="Close"
@@ -94,11 +105,15 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
           </button>
         </div>
         
-        <!-- Ticket Details with data panel styling -->
+    <!-- Ticket Details with data panel styling -->
         <div class="mb-6" id="work-modal-description">
           <div class="text-panel-label text-secondary mb-2">Ticket Details</div>
           <%= if @work_ticket_loading do %>
-            <div class="flex items-center space-x-2 text-base-content/60" role="status" aria-live="polite">
+            <div
+              class="flex items-center space-x-2 text-base-content/60"
+              role="status"
+              aria-live="polite"
+            >
               <span class="status-activity-ring text-secondary" aria-hidden="true"></span>
               <span class="text-ui-body">Fetching ticket details...</span>
             </div>
@@ -110,30 +125,35 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
           <% end %>
         </div>
         
-        <!-- Execute Work section with distinctive separator -->
+    <!-- Execute Work section with distinctive separator -->
         <div class="border-t border-accent/20 pt-4">
           <div class="flex items-center justify-between mb-3">
             <div class="text-panel-label text-primary">Start Working</div>
             <%= if @agent_mode == "round_robin" do %>
               <div class="text-xs font-mono px-3 py-1panel-status bg-warning/20 text-warning">
                 <span class="status-beacon text-current" aria-hidden="true"></span>
-                <span class="ml-2">🔄 Round Robin → Next: <%= if @last_agent == "claude", do: "OpenCode", else: "Claude" %></span>
+                <span class="ml-2">
+                  🔄 Round Robin → Next: {if @last_agent == "claude", do: "OpenCode", else: "Claude"}
+                </span>
               </div>
             <% else %>
               <div class={"text-xs font-mono px-3 py-1panel-status " <> coding_agent_badge_class(@coding_agent_pref)}>
                 <span class="status-beacon text-current" aria-hidden="true"></span>
-                <span class="ml-2">Using: <%= coding_agent_badge_text(@coding_agent_pref) %></span>
+                <span class="ml-2">Using: {coding_agent_badge_text(@coding_agent_pref)}</span>
               </div>
             <% end %>
           </div>
-          
+
           <%= if @work_error do %>
-            <div class="panel-status bg-error/15 border-error/30 text-error p-3 text-ui-body mb-3" role="alert">
+            <div
+              class="panel-status bg-error/15 border-error/30 text-error p-3 text-ui-body mb-3"
+              role="alert"
+            >
               <span class="status-marker text-error" aria-hidden="true"></span>
-              <span class="ml-2"><%= @work_error %></span>
+              <span class="ml-2">{@work_error}</span>
             </div>
           <% end %>
-          
+
           <div class="flex items-center space-x-3">
             <button
               phx-click="execute_work"
@@ -159,8 +179,8 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkModalComponent do
                   <span class="ml-2">Execute Work</span>
               <% end %>
             </button>
-            <a 
-              href={"https://linear.app/fresh-clinics/issue/#{@work_ticket_id}"} 
+            <a
+              href={"https://linear.app/fresh-clinics/issue/#{@work_ticket_id}"}
               target="_blank"
               class="px-4 py-3 panel-status text-base-content/70 hover:text-accent transition-colors text-ui-label border border-base-content/20 hover:border-accent/40"
               aria-label="Open ticket in Linear"

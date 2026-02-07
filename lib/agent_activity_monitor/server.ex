@@ -1,28 +1,28 @@
 defmodule AgentActivityMonitor.Server do
   @moduledoc """
   Portable GenServer for monitoring coding agent activity.
-  
+
   This is the configurable core of AgentActivityMonitor. It can be used:
   - Standalone with minimal config for testing or simple use cases
   - Embedded in other applications with custom persistence/broadcasting
   - With framework-specific wrappers (e.g., Phoenix/LiveView integration)
-  
+
   ## Usage
-  
+
   ### Minimal (testing/standalone)
-  
+
       config = AgentActivityMonitor.Config.minimal("/path/to/sessions")
       {:ok, pid} = Server.start_link(config: config)
       activities = Server.get_activity(pid)
-  
+
   ### Named server
-  
+
       config = AgentActivityMonitor.Config.new("/path/to/sessions", name: MyApp.AgentMonitor)
       {:ok, _pid} = Server.start_link(config: config)
       activities = Server.get_activity(MyApp.AgentMonitor)
-  
+
   ### With PubSub broadcasting
-  
+
       config = AgentActivityMonitor.Config.new("/path/to/sessions",
         pubsub: {MyApp.PubSub, "agent_activity"},
         name: MyApp.AgentMonitor
@@ -31,9 +31,9 @@ defmodule AgentActivityMonitor.Server do
       
       # Subscribe to updates
       Server.subscribe(MyApp.AgentMonitor)
-  
+
   ### Full configuration
-  
+
       config = %AgentActivityMonitor.Config{
         sessions_dir: "/custom/sessions",
         pubsub: {MyApp.PubSub, "agents"},
@@ -46,9 +46,9 @@ defmodule AgentActivityMonitor.Server do
         name: MyApp.AgentMonitor
       }
       {:ok, _pid} = Server.start_link(config: config)
-  
+
   ## Architecture
-  
+
   The server:
   - Polls session files at configurable intervals
   - Caches parsed transcripts in ETS to minimize re-parsing
@@ -79,13 +79,13 @@ defmodule AgentActivityMonitor.Server do
 
   @doc """
   Starts the AgentActivityMonitor server.
-  
+
   ## Options
   - `:config` - A Config struct (required)
   - `:name` - GenServer name (overrides config.name)
-  
+
   ## Examples
-  
+
       # With minimal config
       config = AgentActivityMonitor.Config.minimal("/tmp/sessions")
       {:ok, pid} = Server.start_link(config: config)
@@ -98,12 +98,12 @@ defmodule AgentActivityMonitor.Server do
   def start_link(opts) do
     config = Keyword.fetch!(opts, :config)
     name = Keyword.get(opts, :name, config.name)
-    
+
     case Config.validate(config) do
       {:ok, valid_config} ->
         gen_opts = if name, do: [name: name], else: []
         GenServer.start_link(__MODULE__, valid_config, gen_opts ++ [hibernate_after: 15_000])
-        
+
       {:error, reason} ->
         {:error, {:invalid_config, reason}}
     end
@@ -111,11 +111,11 @@ defmodule AgentActivityMonitor.Server do
 
   @doc """
   Get current activity for all monitored agents.
-  
+
   Returns a list of agent activity maps sorted by last_activity (most recent first).
-  
+
   ## Examples
-  
+
       # With a pid
       activities = Server.get_activity(pid)
       
@@ -129,14 +129,14 @@ defmodule AgentActivityMonitor.Server do
 
   @doc """
   Subscribe to agent activity updates via PubSub.
-  
+
   Only works if the server was configured with a pubsub option.
-  
+
   When subscribed, you'll receive messages of the form:
   `{:agent_activity, [%{id: _, status: _, ...}, ...]}`
-  
+
   ## Example
-  
+
       :ok = Server.subscribe(MyApp.AgentMonitor)
       
       # In handle_info:
@@ -148,8 +148,9 @@ defmodule AgentActivityMonitor.Server do
   def subscribe(server) do
     GenServer.call(server, :get_pubsub_config, 1_000)
     |> case do
-      nil -> 
+      nil ->
         {:error, :no_pubsub_configured}
+
       {pubsub_module, topic} ->
         Phoenix.PubSub.subscribe(pubsub_module, topic)
     end
@@ -180,11 +181,11 @@ defmodule AgentActivityMonitor.Server do
   def init(%Config{} = config) do
     # Create unique ETS table for this server instance
     cache_table = create_cache_table(config.name)
-    
+
     schedule_poll(config.poll_interval_ms)
     schedule_cache_cleanup(config.cache_cleanup_interval_ms)
     schedule_gc(config.gc_interval_ms)
-    
+
     default_state = %{
       config: config,
       agents: %{},
@@ -194,43 +195,44 @@ defmodule AgentActivityMonitor.Server do
       last_cache_cleanup: System.system_time(:millisecond),
       cache_table: cache_table
     }
-    
+
     # Load persisted state if a load function is configured
-    state = if config.load_state do
-      try do
-        default_agent = %{
-          id: "",
-          session_id: "",
-          type: :openclaw,
-          model: "",
-          cwd: "",
-          status: "",
-          last_action: %{action: "", target: "", timestamp: nil},
-          recent_actions: [%{action: "", target: "", timestamp: nil}],
-          files_worked: [],
-          last_activity: nil,
-          tool_call_count: 0
-        }
-        
-        default_for_load = %{
-          agents: %{__template__: default_agent},
-          session_offsets: %{},
-          last_poll: nil,
-          polling: false,
-          last_cache_cleanup: System.system_time(:millisecond)
-        }
-        
-        loaded = config.load_state.(config.persistence_file, default_for_load)
-        fix_loaded_state(loaded, config, cache_table)
-      rescue
-        e ->
-          Logger.warning("AgentActivityMonitor: Failed to load persisted state: #{inspect(e)}")
-          default_state
+    state =
+      if config.load_state do
+        try do
+          default_agent = %{
+            id: "",
+            session_id: "",
+            type: :openclaw,
+            model: "",
+            cwd: "",
+            status: "",
+            last_action: %{action: "", target: "", timestamp: nil},
+            recent_actions: [%{action: "", target: "", timestamp: nil}],
+            files_worked: [],
+            last_activity: nil,
+            tool_call_count: 0
+          }
+
+          default_for_load = %{
+            agents: %{__template__: default_agent},
+            session_offsets: %{},
+            last_poll: nil,
+            polling: false,
+            last_cache_cleanup: System.system_time(:millisecond)
+          }
+
+          loaded = config.load_state.(config.persistence_file, default_for_load)
+          fix_loaded_state(loaded, config, cache_table)
+        rescue
+          e ->
+            Logger.warning("AgentActivityMonitor: Failed to load persisted state: #{inspect(e)}")
+            default_state
+        end
+      else
+        default_state
       end
-    else
-      default_state
-    end
-    
+
     {:ok, state}
   end
 
@@ -242,15 +244,17 @@ defmodule AgentActivityMonitor.Server do
     rescue
       _ -> :ok
     end
+
     :ok
   end
 
   @impl true
   def handle_call(:get_activity, _from, state) do
-    activities = state.agents
-    |> Map.values()
-    |> Enum.sort_by(& &1.last_activity, {:desc, DateTime})
-    
+    activities =
+      state.agents
+      |> Map.values()
+      |> Enum.sort_by(& &1.last_activity, {:desc, DateTime})
+
     {:reply, activities, state}
   end
 
@@ -277,7 +281,7 @@ defmodule AgentActivityMonitor.Server do
     state = %{state | polling: true}
     parent = self()
     config = state.config
-    
+
     poll_fn = fn ->
       try do
         new_state = poll_agent_activity(state)
@@ -288,24 +292,24 @@ defmodule AgentActivityMonitor.Server do
           send(parent, {:poll_error, e})
       end
     end
-    
+
     # Use TaskSupervisor if configured, otherwise spawn directly
     if config.task_supervisor do
       Task.Supervisor.start_child(config.task_supervisor, poll_fn)
     else
       spawn(poll_fn)
     end
-    
+
     {:noreply, state}
   end
 
-  @impl true  
+  @impl true
   def handle_info({:poll_complete, updated_state}, _state) do
     final_state = %{updated_state | polling: false}
     schedule_poll(final_state.config.poll_interval_ms)
     {:noreply, final_state}
   end
-  
+
   @impl true
   def handle_info({:poll_error, _error}, state) do
     state = %{state | polling: false}
@@ -327,6 +331,7 @@ defmodule AgentActivityMonitor.Server do
       nil -> :erlang.garbage_collect()
       gc_fn when is_function(gc_fn, 1) -> gc_fn.(__MODULE__)
     end
+
     schedule_gc(state.config.gc_interval_ms)
     {:noreply, state}
   end
@@ -350,6 +355,7 @@ defmodule AgentActivityMonitor.Server do
     rescue
       _ -> :ok
     end
+
     :ets.new(table_name, [:named_table, :set, :public])
     table_name
   end
@@ -370,17 +376,17 @@ defmodule AgentActivityMonitor.Server do
     try do
       all_entries = :ets.tab2list(cache_table)
       entry_count = length(all_entries)
-      
+
       if entry_count > max_entries do
         Logger.info("AgentActivityMonitor: Cleaning cache, #{entry_count} entries")
-        
+
         sorted_entries = Enum.sort_by(all_entries, fn {_path, mtime, _agent} -> mtime end)
         entries_to_remove = Enum.take(sorted_entries, entry_count - max_entries)
-        
+
         for {path, _mtime, _agent} <- entries_to_remove do
           :ets.delete(cache_table, path)
         end
-        
+
         Logger.info("AgentActivityMonitor: Removed #{length(entries_to_remove)} cache entries")
       end
     rescue
@@ -394,18 +400,20 @@ defmodule AgentActivityMonitor.Server do
     agents = Map.delete(loaded.agents || %{}, :__template__)
 
     # Convert string timestamps back to DateTime
-    fixed_agents = for {id, agent} <- agents, into: %{} do
-      fixed_agent = agent
-      |> Map.update(:last_activity, DateTime.utc_now(), &SessionParser.parse_timestamp/1)
-      |> Map.update(:recent_actions, [], fn actions ->
-        Enum.map(actions, fn action ->
-          Map.update(action, :timestamp, DateTime.utc_now(), &SessionParser.parse_timestamp/1)
-        end)
-      end)
-      
-      {id, fixed_agent}
-    end
-    
+    fixed_agents =
+      for {id, agent} <- agents, into: %{} do
+        fixed_agent =
+          agent
+          |> Map.update(:last_activity, DateTime.utc_now(), &SessionParser.parse_timestamp/1)
+          |> Map.update(:recent_actions, [], fn actions ->
+            Enum.map(actions, fn action ->
+              Map.update(action, :timestamp, DateTime.utc_now(), &SessionParser.parse_timestamp/1)
+            end)
+          end)
+
+        {id, fixed_agent}
+      end
+
     %{
       config: config,
       agents: fixed_agents,
@@ -419,48 +427,52 @@ defmodule AgentActivityMonitor.Server do
 
   defp poll_agent_activity(state) do
     config = state.config
-    
+
     # Parse OpenClaw sessions
     {openclaw_agents, new_offsets} = parse_openclaw_sessions(state)
-    
+
     # Optionally get process-based agents
-    process_agents = if config.monitor_processes? && config.find_processes do
-      config.find_processes.(config.cli_timeout_ms)
-    else
-      %{}
-    end
-    
+    process_agents =
+      if config.monitor_processes? && config.find_processes do
+        config.find_processes.(config.cli_timeout_ms)
+      else
+        %{}
+      end
+
     # Merge agent info - prefer session data
     merged = Map.merge(process_agents, openclaw_agents)
-    
+
     # Apply cleanup logic to remove stale agents
     cleaned_agents = cleanup_stale_agents(merged, config)
-    
+
     # Update state with new offsets
-    updated_state = %{state | 
-      agents: cleaned_agents, 
-      session_offsets: new_offsets,
-      last_poll: System.system_time(:millisecond)
+    updated_state = %{
+      state
+      | agents: cleaned_agents,
+        session_offsets: new_offsets,
+        last_poll: System.system_time(:millisecond)
     }
-    
+
     # Broadcast and persist if there are changes
     if cleaned_agents != state.agents do
       # Save state asynchronously if configured
       maybe_save_state(config, updated_state)
-      
+
       # Broadcast if configured
       maybe_broadcast(config, cleaned_agents)
     end
-    
+
     updated_state
   end
 
   defp maybe_save_state(%{save_state: nil}, _state), do: :ok
+
   defp maybe_save_state(%{save_state: save_fn, task_supervisor: nil} = config, state) do
-    spawn(fn -> 
-      save_fn.(config.persistence_file, state) 
+    spawn(fn ->
+      save_fn.(config.persistence_file, state)
     end)
   end
+
   defp maybe_save_state(%{save_state: save_fn, task_supervisor: supervisor} = config, state) do
     Task.Supervisor.start_child(supervisor, fn ->
       save_fn.(config.persistence_file, state)
@@ -468,6 +480,7 @@ defmodule AgentActivityMonitor.Server do
   end
 
   defp maybe_broadcast(%{pubsub: nil}, _agents), do: :ok
+
   defp maybe_broadcast(%{pubsub: {pubsub_module, topic}}, agents) do
     activities = agents |> Map.values() |> Enum.sort_by(& &1.last_activity, {:desc, DateTime})
     Phoenix.PubSub.broadcast(pubsub_module, topic, {:agent_activity, activities})
@@ -476,51 +489,65 @@ defmodule AgentActivityMonitor.Server do
   defp parse_openclaw_sessions(state) do
     config = state.config
     sessions_dir = config.sessions_dir
-    
+
     case File.ls(sessions_dir) do
       {:ok, files} ->
         cutoff = System.system_time(:second) - 30 * 60
-        
-        results = files
-        |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
-        |> Enum.map(fn file ->
-          path = Path.join(sessions_dir, file)
-          case File.stat(path) do
-            {:ok, %{mtime: mtime}} ->
-              epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-              if epoch > cutoff, do: {path, file, mtime}, else: nil
-            {:error, _} ->
-              nil
-          end
-        end)
-        |> Enum.reject(&is_nil/1)
-        |> Enum.sort_by(fn {_, _, mtime} -> mtime end, :desc)
-        |> Enum.take(5)
-        |> Enum.map(fn {path, file, mtime} -> 
-          {parse_session_file(path, file, mtime, state), path}
-        end)
-        |> Enum.reject(fn {agent, _path} -> is_nil(agent) end)
 
-        agents = results
-        |> Enum.map(fn {agent, _path} -> {agent.id, agent} end)
-        |> Map.new()
+        results =
+          files
+          |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
+          |> Enum.map(fn file ->
+            path = Path.join(sessions_dir, file)
 
-        new_offsets = results
-        |> Enum.reduce(state.session_offsets, fn {agent, path}, offsets ->
-          if agent && Map.has_key?(agent, :file_offset) do
-            Map.put(offsets, path, agent.file_offset)
-          else
-            offsets
-          end
-        end)
+            case File.stat(path) do
+              {:ok, %{mtime: mtime}} ->
+                epoch =
+                  mtime
+                  |> NaiveDateTime.from_erl!()
+                  |> DateTime.from_naive!("Etc/UTC")
+                  |> DateTime.to_unix()
+
+                if epoch > cutoff, do: {path, file, mtime}, else: nil
+
+              {:error, _} ->
+                nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.sort_by(fn {_, _, mtime} -> mtime end, :desc)
+          |> Enum.take(5)
+          |> Enum.map(fn {path, file, mtime} ->
+            {parse_session_file(path, file, mtime, state), path}
+          end)
+          |> Enum.reject(fn {agent, _path} -> is_nil(agent) end)
+
+        agents =
+          results
+          |> Enum.map(fn {agent, _path} -> {agent.id, agent} end)
+          |> Map.new()
+
+        new_offsets =
+          results
+          |> Enum.reduce(state.session_offsets, fn {agent, path}, offsets ->
+            if agent && Map.has_key?(agent, :file_offset) do
+              Map.put(offsets, path, agent.file_offset)
+            else
+              offsets
+            end
+          end)
 
         {agents, new_offsets}
-        
+
       {:error, :enoent} ->
         Logger.debug("AgentActivityMonitor: Sessions directory #{sessions_dir} does not exist")
         {%{}, state.session_offsets}
+
       {:error, reason} ->
-        Logger.warning("AgentActivityMonitor: Failed to read sessions directory #{sessions_dir}: #{inspect(reason)}")
+        Logger.warning(
+          "AgentActivityMonitor: Failed to read sessions directory #{sessions_dir}: #{inspect(reason)}"
+        )
+
         {%{}, state.session_offsets}
     end
   rescue
@@ -533,7 +560,7 @@ defmodule AgentActivityMonitor.Server do
     case safe_cache_lookup(state.cache_table, path, mtime) do
       {:hit, cached_agent} ->
         cached_agent
-        
+
       {:miss, _reason} ->
         parse_and_cache_session(path, filename, mtime, state)
     end
@@ -544,8 +571,10 @@ defmodule AgentActivityMonitor.Server do
       case :ets.lookup(cache_table, path) do
         [{^path, ^expected_mtime, cached_agent}] ->
           {:hit, cached_agent}
+
         [{^path, _different_mtime, _agent}] ->
-          {:miss, :mtime_changed} 
+          {:miss, :mtime_changed}
+
         [] ->
           {:miss, :not_found}
       end
@@ -559,20 +588,20 @@ defmodule AgentActivityMonitor.Server do
   defp parse_and_cache_session(path, filename, mtime, state) do
     config = state.config
     offset = Map.get(state.session_offsets, path, 0)
-    
+
     case read_file_with_retry(path, offset, config) do
       {:ok, content, new_offset} ->
-        activity = SessionParser.parse_content(content, filename, 
-          max_actions: config.max_recent_actions)
-        
+        activity =
+          SessionParser.parse_content(content, filename, max_actions: config.max_recent_actions)
+
         # Add offset info for incremental reads
         agent = Map.put(activity, :file_offset, new_offset)
-        
+
         # Cache the result
         safe_cache_insert(state.cache_table, path, mtime, agent)
-        
+
         agent
-        
+
       {:error, _reason} ->
         nil
     end
@@ -584,7 +613,7 @@ defmodule AgentActivityMonitor.Server do
 
   defp read_file_with_retry(path, offset, config, attempts_left \\ nil) do
     attempts_left = attempts_left || config.file_retry_attempts
-    
+
     try do
       case File.open(path, [:read, :binary]) do
         {:ok, file} ->
@@ -595,10 +624,11 @@ defmodule AgentActivityMonitor.Server do
                 {:error, _reason} -> :file.position(file, 0)
               end
             end
-            
+
             case IO.read(file, :eof) do
-              {:error, reason} -> 
+              {:error, reason} ->
                 {:error, reason}
+
               content when is_binary(content) ->
                 new_offset = offset + byte_size(content)
                 {:ok, content, new_offset}
@@ -606,12 +636,14 @@ defmodule AgentActivityMonitor.Server do
           after
             File.close(file)
           end
-          
-        {:error, :enoent} -> 
+
+        {:error, :enoent} ->
           {:error, :enoent}
-        {:error, :eacces} -> 
+
+        {:error, :eacces} ->
           {:error, :eacces}
-        {:error, reason} -> 
+
+        {:error, reason} ->
           if attempts_left > 1 do
             Process.sleep(config.file_retry_delay_ms)
             read_file_with_retry(path, offset, config, attempts_left - 1)
@@ -642,27 +674,27 @@ defmodule AgentActivityMonitor.Server do
   # Cleanup stale agents based on configurable policies
   defp cleanup_stale_agents(agents, config) do
     now = DateTime.utc_now()
-    
+
     agents
     |> Enum.reject(fn {_id, agent} ->
       should_remove_agent?(agent, now, config)
     end)
     |> Map.new()
   end
-  
+
   # Determine if an agent should be removed based on type and activity
   defp should_remove_agent?(agent, now, _config) do
     last_activity = agent.last_activity || now
-    
+
     case agent.type do
       :claude_code ->
         # Never auto-remove Claude agents - they should stay visible
         false
-        
+
       :openclaw ->
         # Never auto-remove OpenClaw agents - they should stay visible
         false
-        
+
       _ ->
         # For all non-Claude agents (Gemini, OpenCode, Codex, etc.)
         # Remove if idle for 30+ minutes

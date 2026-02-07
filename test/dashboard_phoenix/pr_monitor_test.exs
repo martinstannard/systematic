@@ -38,7 +38,8 @@ defmodule DashboardPhoenix.PRMonitorTest do
     test "returns :pending when any check is in progress" do
       checks = [
         %{"conclusion" => "SUCCESS"},
-        %{"conclusion" => nil},  # nil means in progress
+        # nil means in progress
+        %{"conclusion" => nil},
         %{"conclusion" => "SUCCESS"}
       ]
 
@@ -102,7 +103,8 @@ defmodule DashboardPhoenix.PRMonitorTest do
     test "uses latest review per author" do
       reviews = [
         %{"state" => "CHANGES_REQUESTED", "author" => %{"login" => "reviewer1"}},
-        %{"state" => "APPROVED", "author" => %{"login" => "reviewer1"}}  # Same author, approved later
+        # Same author, approved later
+        %{"state" => "APPROVED", "author" => %{"login" => "reviewer1"}}
       ]
 
       # Latest review from reviewer1 is APPROVED
@@ -277,16 +279,18 @@ defmodule DashboardPhoenix.PRMonitorTest do
   # Implementations mirroring the private function logic
   defp parse_ci_status(nil), do: :unknown
   defp parse_ci_status([]), do: :unknown
+
   defp parse_ci_status(checks) when is_list(checks) do
-    statuses = Enum.map(checks, fn check ->
-      case Map.get(check, "conclusion") do
-        "SUCCESS" -> :success
-        "FAILURE" -> :failure
-        "NEUTRAL" -> :neutral
-        nil -> :pending
-        _ -> :unknown
-      end
-    end)
+    statuses =
+      Enum.map(checks, fn check ->
+        case Map.get(check, "conclusion") do
+          "SUCCESS" -> :success
+          "FAILURE" -> :failure
+          "NEUTRAL" -> :neutral
+          nil -> :pending
+          _ -> :unknown
+        end
+      end)
 
     cond do
       Enum.any?(statuses, &(&1 == :failure)) -> :failure
@@ -295,10 +299,12 @@ defmodule DashboardPhoenix.PRMonitorTest do
       true -> :unknown
     end
   end
+
   defp parse_ci_status(_), do: :unknown
 
   defp parse_review_status(nil), do: :pending
   defp parse_review_status([]), do: :pending
+
   defp parse_review_status(reviews) when is_list(reviews) do
     latest_by_author =
       reviews
@@ -313,6 +319,7 @@ defmodule DashboardPhoenix.PRMonitorTest do
       true -> :pending
     end
   end
+
   defp parse_review_status(_), do: :pending
 
   defp extract_ticket_ids(text) do
@@ -323,12 +330,14 @@ defmodule DashboardPhoenix.PRMonitorTest do
   end
 
   defp parse_datetime(nil), do: nil
+
   defp parse_datetime(datetime_str) when is_binary(datetime_str) do
     case DateTime.from_iso8601(datetime_str) do
       {:ok, dt, _offset} -> dt
       _ -> nil
     end
   end
+
   defp parse_datetime(_), do: nil
 
   defp parse_pr(pr_data, repo) do

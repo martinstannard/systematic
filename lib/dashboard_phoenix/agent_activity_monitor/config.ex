@@ -1,7 +1,7 @@
 defmodule DashboardPhoenix.AgentActivityMonitor.Config do
   @moduledoc """
   Deprecated: Use `AgentActivityMonitor.Config` directly.
-  
+
   This module exists only for backward compatibility. All functionality
   has been moved to the portable `AgentActivityMonitor.Config` module.
   """
@@ -9,7 +9,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor.Config do
   @deprecated "Use AgentActivityMonitor.Config instead"
   defdelegate minimal(sessions_dir), to: AgentActivityMonitor.Config
 
-  @deprecated "Use AgentActivityMonitor.Config instead"  
+  @deprecated "Use AgentActivityMonitor.Config instead"
   defdelegate new(sessions_dir, opts \\ []), to: AgentActivityMonitor.Config
 
   @deprecated "Use AgentActivityMonitor.Config instead"
@@ -17,7 +17,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor.Config do
 
   @doc """
   Creates a Config with DashboardPhoenix defaults.
-  
+
   Use `DashboardPhoenix.AgentActivityMonitor.dashboard_config/0` instead.
   """
   @deprecated "Use DashboardPhoenix.AgentActivityMonitor.dashboard_config/0 instead"

@@ -20,7 +20,8 @@ defmodule DashboardPhoenix.TestRunner do
   require Logger
   alias DashboardPhoenix.{ActivityLog, CommandRunner, Paths}
 
-  @cli_timeout_ms 300_000  # 5 minutes for test runs
+  # 5 minutes for test runs
+  @cli_timeout_ms 300_000
   @test_file_pattern ~r/(\d+) tests?, (\d+) failures?/
   @error_pattern ~r/(\d+) tests?, (\d+) failures?, (\d+) errors?/
 
@@ -42,9 +43,9 @@ defmodule DashboardPhoenix.TestRunner do
   @spec run_tests(list(String.t()), list(String.t())) :: {:ok, String.t()} | {:error, term()}
   def run_tests(test_files \\ [], extra_args \\ []) do
     Logger.info("TestRunner: Starting test run...")
-    
+
     args = build_test_args(test_files, extra_args)
-    
+
     case CommandRunner.run("mix", ["test" | args],
            cd: repo_path(),
            timeout: @cli_timeout_ms,
@@ -59,10 +60,10 @@ defmodule DashboardPhoenix.TestRunner do
       {:error, {:exit, exit_code, output}} ->
         # Non-zero exit usually means compilation errors or test crashes
         Logger.warning("TestRunner: Tests failed with exit code #{exit_code}")
-        
+
         # Try to parse any test results from the output
         {passed, failed, errors} = parse_test_output(output)
-        
+
         if passed + failed > 0 do
           # Got some test results before crash
           log_test_result(passed, failed, errors, output)
@@ -73,14 +74,16 @@ defmodule DashboardPhoenix.TestRunner do
             output_preview: String.slice(output, 0, 500)
           })
         end
-        
+
         {:ok, output}
 
       {:error, reason} ->
         Logger.error("TestRunner: Failed to run tests: #{inspect(reason)}")
+
         ActivityLog.log_event(:test_failed, "Tests failed to run (command error)", %{
           reason: inspect(reason)
         })
+
         {:error, reason}
     end
   end
@@ -102,9 +105,9 @@ defmodule DashboardPhoenix.TestRunner do
 
   @doc """
   Run tests for a specific module or pattern.
-  
+
   ## Examples
-  
+
       TestRunner.run_tests_for("ActivityLog")
       TestRunner.run_tests_for("lib/dashboard_phoenix/activity_log.ex")
   """
@@ -130,7 +133,7 @@ defmodule DashboardPhoenix.TestRunner do
     # "5 tests, 0 failures"
     # "3 tests, 1 failure, 2 errors"
     # "Finished in 0.1 seconds (0.05s async, 0.05s sync)"
-    
+
     cond do
       # Pattern with errors
       match = Regex.run(@error_pattern, output) ->
@@ -151,13 +154,14 @@ defmodule DashboardPhoenix.TestRunner do
 
       true ->
         # No recognizable pattern found
-        {0, 0, 1}  # Assume error
+        # Assume error
+        {0, 0, 1}
     end
   end
 
   defp log_test_result(passed, failed, errors, output) do
     total_issues = failed + errors
-    
+
     if total_issues == 0 do
       ActivityLog.log_event(:test_passed, "All tests passed (#{passed} tests)", %{
         passed: passed,
@@ -167,10 +171,10 @@ defmodule DashboardPhoenix.TestRunner do
       })
     else
       message = format_failure_message(passed, failed, errors)
-      
+
       # Include a preview of failures in details
       failure_preview = extract_failure_preview(output)
-      
+
       ActivityLog.log_event(:test_failed, message, %{
         passed: passed,
         failed: failed,
@@ -184,14 +188,17 @@ defmodule DashboardPhoenix.TestRunner do
   defp format_failure_message(passed, failed, errors) do
     total = passed + failed + errors
     issues = failed + errors
-    
+
     cond do
       failed > 0 and errors > 0 ->
         "Tests failed: #{failed} failures, #{errors} errors (#{passed}/#{total} passed)"
+
       failed > 0 ->
         "Tests failed: #{failed} failures (#{passed}/#{total} passed)"
+
       errors > 0 ->
         "Tests failed: #{errors} errors (#{passed}/#{total} passed)"
+
       true ->
         "Tests failed: #{issues} issues (#{passed}/#{total} passed)"
     end
@@ -200,18 +207,19 @@ defmodule DashboardPhoenix.TestRunner do
   defp extract_failure_preview(output) do
     # Find lines around failure indicators
     lines = String.split(output, "\n")
-    
-    failure_lines = 
+
+    failure_lines =
       lines
       |> Enum.with_index()
-      |> Enum.filter(fn {line, _} -> 
-        String.contains?(line, "FAIL") or 
-        String.contains?(line, "Error") or
-        String.contains?(line, "** (") 
+      |> Enum.filter(fn {line, _} ->
+        String.contains?(line, "FAIL") or
+          String.contains?(line, "Error") or
+          String.contains?(line, "** (")
       end)
-      |> Enum.take(3)  # Max 3 failure examples
+      # Max 3 failure examples
+      |> Enum.take(3)
       |> Enum.map(fn {line, _} -> String.slice(line, 0, 150) end)
-    
+
     if failure_lines == [] do
       "No specific failure details found"
     else

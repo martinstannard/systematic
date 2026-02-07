@@ -21,7 +21,9 @@ defmodule DashboardPhoenix.CliProcessDetector do
         |> String.split("\n", trim: true)
         |> Enum.map(&parse_opencode_process/1)
         |> Enum.reject(&is_nil/1)
-      _ -> []
+
+      _ ->
+        []
     end
   end
 
@@ -32,7 +34,9 @@ defmodule DashboardPhoenix.CliProcessDetector do
         |> String.split("\n", trim: true)
         |> Enum.map(&parse_gemini_process/1)
         |> Enum.reject(&is_nil/1)
-      _ -> []
+
+      _ ->
+        []
     end
   end
 
@@ -50,7 +54,9 @@ defmodule DashboardPhoenix.CliProcessDetector do
           runtime: nil,
           start_time: nil
         }
-      _ -> nil
+
+      _ ->
+        nil
     end
   end
 
@@ -68,7 +74,9 @@ defmodule DashboardPhoenix.CliProcessDetector do
           runtime: nil,
           start_time: nil
         }
-      _ -> nil
+
+      _ ->
+        nil
     end
   end
 

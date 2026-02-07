@@ -122,7 +122,7 @@ defmodule DashboardPhoenix.ActivityLog do
   end
 
   @impl true
-  @spec handle_call({:log_event, atom(), binary(), map()}, GenServer.from(), map()) :: 
+  @spec handle_call({:log_event, atom(), binary(), map()}, GenServer.from(), map()) ::
           {:reply, {:ok, map()} | {:error, :invalid_type}, map()}
   def handle_call({:log_event, type, message, details}, _from, state) do
     if type in @valid_event_types do
@@ -153,7 +153,8 @@ defmodule DashboardPhoenix.ActivityLog do
     end
   end
 
-  @spec handle_call({:get_events, pos_integer()}, GenServer.from(), map()) :: {:reply, [map()], map()}
+  @spec handle_call({:get_events, pos_integer()}, GenServer.from(), map()) ::
+          {:reply, [map()], map()}
   def handle_call({:get_events, limit}, _from, state) do
     events = Enum.take(state.events, limit)
     {:reply, events, state}
@@ -181,24 +182,27 @@ defmodule DashboardPhoenix.ActivityLog do
             |> Enum.map(&decode_event_safe/1)
             |> Enum.reject(&is_nil/1)
             |> Enum.take(@max_events)
-          
+
           {:ok, _} ->
             Logger.warning("[ActivityLog] Events file contains non-list data, returning empty")
             []
-          
+
           {:error, decode_error} ->
             Logger.warning("[ActivityLog] Failed to decode events file: #{inspect(decode_error)}")
             []
         end
 
       {:error, :enoent} ->
-        Logger.debug("ActivityLog: Events file #{@events_file} does not exist, starting with empty log")
+        Logger.debug(
+          "ActivityLog: Events file #{@events_file} does not exist, starting with empty log"
+        )
+
         []
-      
+
       {:error, :eacces} ->
         Logger.warning("ActivityLog: Permission denied reading events file #{@events_file}")
         []
-        
+
       {:error, reason} ->
         Logger.warning("[ActivityLog] Failed to read events file: #{inspect(reason)}")
         []
@@ -214,7 +218,10 @@ defmodule DashboardPhoenix.ActivityLog do
     decode_event(data)
   rescue
     e ->
-      Logger.warning("[ActivityLog] Failed to decode event: #{inspect(e)}, data: #{inspect(data)}")
+      Logger.warning(
+        "[ActivityLog] Failed to decode event: #{inspect(e)}, data: #{inspect(data)}"
+      )
+
       nil
   end
 
@@ -229,13 +236,16 @@ defmodule DashboardPhoenix.ActivityLog do
             :ok ->
               Logger.debug("ActivityLog: Successfully saved #{length(events)} events")
               :ok
+
             {:error, reason} ->
               Logger.error("ActivityLog: Failed to save events file: #{inspect(reason)}")
               {:error, reason}
           end
+
         {:error, %Jason.EncodeError{} = e} ->
           Logger.error("ActivityLog: Failed to encode events as JSON: #{Exception.message(e)}")
           {:error, {:json_encode, e}}
+
         {:error, reason} ->
           Logger.error("ActivityLog: JSON encode error for events: #{inspect(reason)}")
           {:error, {:json_encode, reason}}

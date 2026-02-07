@@ -8,7 +8,8 @@ defmodule DashboardPhoenix.GeminiServerTest do
       {:ok, state} = GeminiServer.init([])
 
       assert state.running == false
-      assert state.cwd != nil  # Uses default cwd
+      # Uses default cwd
+      assert state.cwd != nil
       assert state.started_at == nil
       assert state.busy == false
       assert state.gemini_path == nil
@@ -64,11 +65,12 @@ defmodule DashboardPhoenix.GeminiServerTest do
         gemini_path: "/path/to/gemini"
       }
 
-      {:reply, {:ok, :already_running}, new_state} = 
+      {:reply, {:ok, :already_running}, new_state} =
         GeminiServer.handle_call({:start_server, "/new/path"}, self(), state)
 
       assert new_state.running == true
-      assert new_state.cwd == "/existing"  # Not changed
+      # Not changed
+      assert new_state.cwd == "/existing"
     end
   end
 
@@ -99,7 +101,7 @@ defmodule DashboardPhoenix.GeminiServerTest do
         gemini_path: nil
       }
 
-      {:reply, {:error, :not_running}, new_state} = 
+      {:reply, {:error, :not_running}, new_state} =
         GeminiServer.handle_call({:send_prompt, "hello"}, self(), state)
 
       assert new_state == state
@@ -114,7 +116,7 @@ defmodule DashboardPhoenix.GeminiServerTest do
         gemini_path: "/path/to/gemini"
       }
 
-      {:reply, {:error, :busy}, new_state} = 
+      {:reply, {:error, :busy}, new_state} =
         GeminiServer.handle_call({:send_prompt, "hello"}, self(), state)
 
       assert new_state == state
@@ -129,7 +131,7 @@ defmodule DashboardPhoenix.GeminiServerTest do
         gemini_path: "/path/to/gemini"
       }
 
-      {:reply, :ok, new_state} = 
+      {:reply, :ok, new_state} =
         GeminiServer.handle_call({:send_prompt, "test prompt"}, self(), state)
 
       assert new_state.busy == true
@@ -146,7 +148,7 @@ defmodule DashboardPhoenix.GeminiServerTest do
         gemini_path: "/path/to/gemini"
       }
 
-      {:noreply, new_state} = 
+      {:noreply, new_state} =
         GeminiServer.handle_info({:prompt_complete, {:ok, "response text"}}, state)
 
       assert new_state.busy == false
@@ -161,7 +163,7 @@ defmodule DashboardPhoenix.GeminiServerTest do
         gemini_path: "/path/to/gemini"
       }
 
-      {:noreply, new_state} = 
+      {:noreply, new_state} =
         GeminiServer.handle_info({:prompt_complete, {:error, "some error"}}, state)
 
       assert new_state.busy == false

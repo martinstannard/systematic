@@ -110,11 +110,13 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
       case Map.get(assigns, :creation_complete) do
         %{success: success} ->
           socket = assign(socket, form_submitting: false)
+
           if success do
             assign(socket, show_create_form: false, form_errors: %{})
           else
             socket
           end
+
         nil ->
           socket
       end
@@ -217,10 +219,14 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   @impl true
   def handle_event("toggle_create_form", _, socket) do
     new_show_state = !socket.assigns.show_create_form
-    socket = assign(socket, 
-      show_create_form: new_show_state,
-      form_errors: %{}  # Clear any existing errors when toggling
-    )
+
+    socket =
+      assign(socket,
+        show_create_form: new_show_state,
+        # Clear any existing errors when toggling
+        form_errors: %{}
+      )
+
     {:noreply, socket}
   end
 
@@ -237,14 +243,18 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
     if map_size(errors) == 0 do
       # Set submitting state
       socket = assign(socket, form_submitting: true, form_errors: %{})
-      
+
       # Send form data to parent to handle CLI execution
-      send(self(), {:chainlink_component, :create_issue, %{
-        title: title,
-        description: description, 
-        priority: priority
-      }})
-      
+      send(
+        self(),
+        {:chainlink_component, :create_issue,
+         %{
+           title: title,
+           description: description,
+           priority: priority
+         }}
+      )
+
       {:noreply, socket}
     else
       {:noreply, assign(socket, form_errors: errors)}
@@ -258,41 +268,51 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
   # Form validation for creating new issues
   defp validate_form_data(title, description, priority) do
     errors = %{}
-    
+
     # Validate title
-    errors = 
+    errors =
       cond do
         String.length(title) == 0 ->
           Map.put(errors, :title, "Title is required")
+
         String.length(title) < 5 ->
           Map.put(errors, :title, "Title should be at least 5 characters")
+
         String.length(title) > 200 ->
           Map.put(errors, :title, "Title must be 200 characters or less")
+
         String.match?(title, ~r/^\s*$/) ->
           Map.put(errors, :title, "Title cannot be only whitespace")
+
         true ->
           errors
       end
-    
+
     # Validate description
-    errors = 
+    errors =
       cond do
         String.length(description) > 1000 ->
           Map.put(errors, :description, "Description must be 1000 characters or less")
+
         description != "" and String.length(description) < 10 ->
-          Map.put(errors, :description, "If provided, description should be at least 10 characters")
+          Map.put(
+            errors,
+            :description,
+            "If provided, description should be at least 10 characters"
+          )
+
         true ->
           errors
       end
-    
+
     # Validate priority
-    errors = 
+    errors =
       if priority not in ["low", "medium", "high"] do
         Map.put(errors, :priority, "Priority must be low, medium, or high")
       else
         errors
       end
-    
+
     errors
   end
 
@@ -430,7 +450,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
             </div>
           </div>
           
-          <!-- Create New Issue Section -->
+    <!-- Create New Issue Section -->
           <div class="mb-4">
             <button
               phx-click="toggle_create_form"
@@ -453,17 +473,20 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                   <span class="text-2xl">🔗</span>
                   <h3 class="text-lg font-semibold text-base-content">Create New Chainlink Issue</h3>
                 </div>
-                
-                <form 
-                  phx-submit="create_chainlink_issue" 
-                  phx-target={@myself} 
-                  id="create-issue-form" 
+
+                <form
+                  phx-submit="create_chainlink_issue"
+                  phx-target={@myself}
+                  id="create-issue-form"
                   class="space-y-4"
                   phx-hook="ChainlinkCreateForm"
                 >
                   <!-- Title Field -->
                   <div>
-                    <label for="issue-title" class="block text-ui-label text-base-content mb-2 font-medium">
+                    <label
+                      for="issue-title"
+                      class="block text-ui-label text-base-content mb-2 font-medium"
+                    >
                       Issue Title <span class="text-error font-bold">*</span>
                     </label>
                     <input
@@ -484,12 +507,14 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       </p>
                     <% end %>
                   </div>
-
-                  <!-- Description Field -->
+                  
+    <!-- Description Field -->
                   <div>
-                    <label for="issue-description" class="block text-ui-label text-base-content mb-2 font-medium">
-                      Description
-                      <span class="text-base-content/60 font-normal">(optional)</span>
+                    <label
+                      for="issue-description"
+                      class="block text-ui-label text-base-content mb-2 font-medium"
+                    >
+                      Description <span class="text-base-content/60 font-normal">(optional)</span>
                     </label>
                     <textarea
                       id="issue-description"
@@ -507,10 +532,13 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       </p>
                     <% end %>
                   </div>
-
-                  <!-- Priority Field -->
+                  
+    <!-- Priority Field -->
                   <div>
-                    <label for="issue-priority" class="block text-ui-label text-base-content mb-2 font-medium">
+                    <label
+                      for="issue-priority"
+                      class="block text-ui-label text-base-content mb-2 font-medium"
+                    >
                       Priority Level
                     </label>
                     <select
@@ -530,8 +558,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                       </p>
                     <% end %>
                   </div>
-
-                  <!-- Submit Button -->
+                  
+    <!-- Submit Button -->
                   <div class="pt-2">
                     <button
                       type="submit"
@@ -548,7 +576,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponent do
                     </button>
                   </div>
                   
-                  <!-- Success/Error Messages -->
+    <!-- Success/Error Messages -->
                   <%= if @form_submitting do %>
                     <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
                       <div class="flex items-center gap-2">

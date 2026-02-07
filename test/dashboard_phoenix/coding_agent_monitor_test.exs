@@ -5,7 +5,8 @@ defmodule DashboardPhoenix.CodingAgentMonitorTest do
 
   describe "parse_process_line/1 logic" do
     test "parses standard ps aux output line" do
-      line = "martins  12345  5.2  2.1 1234567 98765 pts/0    S    09:15   0:01 opencode --model sonnet"
+      line =
+        "martins  12345  5.2  2.1 1234567 98765 pts/0    S    09:15   0:01 opencode --model sonnet"
 
       result = parse_process_line(line)
 
@@ -20,7 +21,8 @@ defmodule DashboardPhoenix.CodingAgentMonitorTest do
     end
 
     test "parses line with multi-word command" do
-      line = "root     99999  0.0  0.5 123456 54321 ?        Sl   Jan01   1:23 /usr/bin/claude code --task 'fix bug'"
+      line =
+        "root     99999  0.0  0.5 123456 54321 ?        Sl   Jan01   1:23 /usr/bin/claude code --task 'fix bug'"
 
       result = parse_process_line(line)
 
@@ -214,12 +216,14 @@ defmodule DashboardPhoenix.CodingAgentMonitorTest do
           time: time,
           command: Enum.join(cmd_parts, " ")
         }
+
       _ ->
         nil
     end
   end
 
   defp is_coding_agent?(nil), do: false
+
   defp is_coding_agent?(%{command: cmd}) do
     cmd_lower = String.downcase(cmd)
     Enum.any?(@agent_patterns, &String.contains?(cmd_lower, &1))
@@ -227,6 +231,7 @@ defmodule DashboardPhoenix.CodingAgentMonitorTest do
 
   defp detect_agent_type(cmd) do
     cmd_lower = String.downcase(cmd)
+
     cond do
       String.contains?(cmd_lower, "opencode") -> "OpenCode"
       String.contains?(cmd_lower, "claude") -> "Claude Code"

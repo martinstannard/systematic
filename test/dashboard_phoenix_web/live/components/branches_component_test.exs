@@ -17,7 +17,9 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponentTest do
 
     test "rejects invalid branch names" do
       # Branch names with shell injection characters should be rejected
-      assert {:error, _} = DashboardPhoenix.InputValidator.validate_branch_name("branch; rm -rf /")
+      assert {:error, _} =
+               DashboardPhoenix.InputValidator.validate_branch_name("branch; rm -rf /")
+
       assert {:error, _} = DashboardPhoenix.InputValidator.validate_branch_name("branch`whoami`")
       assert {:error, _} = DashboardPhoenix.InputValidator.validate_branch_name("")
     end
@@ -25,7 +27,9 @@ defmodule DashboardPhoenixWeb.Live.Components.BranchesComponentTest do
     test "execute_merge_branch validates branch name before sending" do
       # Test that valid branch names work
       branch_name = "fix/merge-button-issue"
-      assert {:ok, ^branch_name} = DashboardPhoenix.InputValidator.validate_branch_name(branch_name)
+
+      assert {:ok, ^branch_name} =
+               DashboardPhoenix.InputValidator.validate_branch_name(branch_name)
     end
   end
 

@@ -54,33 +54,37 @@ defmodule DashboardPhoenix.DeployManagerTest do
     case GenServer.whereis(ActivityLog) do
       nil ->
         {:ok, _pid} = ActivityLog.start_link([])
+
       _pid ->
         :ok
     end
-    
+
     # Ensure DeployManager is started (may not be in test env)
     case GenServer.whereis(DeployManager) do
       nil ->
         {:ok, _pid} = DeployManager.start_link([])
+
       _pid ->
         :ok
     end
-    
+
     # Reset DeployManager state before each test
     DeployManager.reset()
     ActivityLog.clear()
-    
+
     on_exit(fn ->
       # Clear activity log
       case GenServer.whereis(ActivityLog) do
         nil -> :ok
         _pid -> ActivityLog.clear()
       end
-      
+
       # Stop the DeployManager
       case GenServer.whereis(DeployManager) do
-        nil -> :ok
-        pid -> 
+        nil ->
+          :ok
+
+        pid ->
           try do
             GenServer.stop(pid, :normal, 1000)
           catch
@@ -88,7 +92,7 @@ defmodule DashboardPhoenix.DeployManagerTest do
           end
       end
     end)
-    
+
     :ok
   end
 

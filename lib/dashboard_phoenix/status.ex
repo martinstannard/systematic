@@ -120,7 +120,10 @@ defmodule DashboardPhoenix.Status do
 
   # Guards for pattern matching
   defguard is_active_status(status) when status in [@running, @active, @busy]
-  defguard is_in_progress_status(status) when status in [@running, @idle, @active, @busy, @spawned]
+
+  defguard is_in_progress_status(status)
+           when status in [@running, @idle, @active, @busy, @spawned]
+
   defguard is_error_status(status) when status in [@error, @failed, @crashed, @failure]
   defguard is_inactive_status(status) when status in [@stopped, @zombie, @dead]
   defguard is_linear_status(status) when status in [@triage, @backlog, @todo, @in_review]

@@ -1148,11 +1148,15 @@ defmodule DashboardPhoenixWeb.HomeLiveTest do
       {:ok, view, _html} = live(conn, "/")
 
       # Send create issue message with form data
-      send(view.pid, {:chainlink_component, :create_issue, %{
-        title: "Test Issue",
-        description: "Test description",
-        priority: "high"
-      }})
+      send(
+        view.pid,
+        {:chainlink_component, :create_issue,
+         %{
+           title: "Test Issue",
+           description: "Test description",
+           priority: "high"
+         }}
+      )
 
       # Give it a moment to process
       :timer.sleep(50)

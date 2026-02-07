@@ -1,12 +1,12 @@
 defmodule DashboardPhoenix.OpenCodeClient do
   @moduledoc """
   Client for communicating with the OpenCode ACP server.
-  
+
   The ACP server exposes a REST API:
   - GET /session - list sessions
   - POST /session - create a new session
   - POST /session/{id}/message - send a message to a session
-  
+
   Messages use the format: {"parts": [{"type": "text", "text": "..."}]}
   """
   require Logger
@@ -34,7 +34,11 @@ defmodule DashboardPhoenix.OpenCodeClient do
           directory: String.t() | nil,
           created_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil,
-          file_changes: %{additions: non_neg_integer(), deletions: non_neg_integer(), files: non_neg_integer()},
+          file_changes: %{
+            additions: non_neg_integer(),
+            deletions: non_neg_integer(),
+            files: non_neg_integer()
+          },
           parent_id: String.t() | nil
         }
 
@@ -42,13 +46,13 @@ defmodule DashboardPhoenix.OpenCodeClient do
 
   @doc """
   Send a task/prompt to the OpenCode ACP server.
-  
+
   This will:
   1. Ensure the server is running
   2. Create a new session
   3. Send the prompt
   4. Return immediately (task runs async in OpenCode)
-  
+
   Options:
   - :cwd - working directory for the task (default: core-platform)
   - :model - model to request from OpenCode (currently not used, OpenCode uses its own model config)
@@ -59,21 +63,21 @@ defmodule DashboardPhoenix.OpenCodeClient do
     cwd = Keyword.get(opts, :cwd) || Paths.default_work_dir()
     model = Keyword.get(opts, :model, nil)
     timeout = Keyword.get(opts, :timeout, @default_timeout)
-    
+
     Logger.info("[OpenCodeClient] Sending task with model: #{model || "default"}")
-    
+
     # Ensure server is running
     case ensure_server_running(cwd) do
       {:ok, port} ->
         base_url = "http://127.0.0.1:#{port}"
-        
+
         # Note: OpenCode model selection is not currently supported via API
         # The model parameter is accepted for interface consistency but not used
         with {:ok, session} <- create_session(base_url, timeout),
              {:ok, _} <- send_message(base_url, session["id"], prompt, timeout) do
           {:ok, %{session_id: session["id"], slug: session["slug"], port: port}}
         end
-        
+
       {:error, reason} ->
         {:error, "Failed to start OpenCode server: #{format_error(reason)}"}
     end
@@ -87,12 +91,14 @@ defmodule DashboardPhoenix.OpenCodeClient do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
         base_url = "http://127.0.0.1:#{port}"
+
         case Req.get("#{base_url}/session", receive_timeout: 5000) do
           {:ok, %{status: 200}} -> :ok
           {:ok, %{status: code}} -> {:error, "HTTP #{code}: unexpected status"}
           {:error, %{reason: reason}} -> {:error, "Connection failed: #{reason}"}
           {:error, reason} -> {:error, "Connection failed: #{format_error(reason)}"}
         end
+
       _ ->
         {:error, :not_running}
     end
@@ -106,19 +112,24 @@ defmodule DashboardPhoenix.OpenCodeClient do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
         base_url = "http://127.0.0.1:#{port}"
+
         case Req.get("#{base_url}/session", receive_timeout: 5000) do
-          {:ok, %{status: 200, body: body}} when is_list(body) -> 
+          {:ok, %{status: 200, body: body}} when is_list(body) ->
             {:ok, body}
-          {:ok, %{status: 200, body: body}} when is_binary(body) -> 
+
+          {:ok, %{status: 200, body: body}} when is_binary(body) ->
             case Jason.decode(body) do
               {:ok, data} -> {:ok, data}
               {:error, _} -> {:error, "Invalid JSON response from server"}
             end
+
           {:ok, %{status: code}} ->
             {:error, "HTTP #{code}: failed to list sessions"}
-          {:error, reason} -> 
+
+          {:error, reason} ->
             {:error, "Connection failed: #{format_error(reason)}"}
         end
+
       _ ->
         {:error, :not_running}
     end
@@ -128,18 +139,21 @@ defmodule DashboardPhoenix.OpenCodeClient do
   List sessions formatted for dashboard display.
   Returns a list of maps with: id, slug, title, status, created_at, file_changes
   """
-  @spec list_sessions_formatted() :: {:ok, list(formatted_session())} | {:error, String.t() | :not_running}
+  @spec list_sessions_formatted() ::
+          {:ok, list(formatted_session())} | {:error, String.t() | :not_running}
   def list_sessions_formatted do
     case list_sessions() do
       {:ok, sessions} when is_list(sessions) ->
-        formatted = sessions
-        |> Enum.map(&format_session/1)
-        |> Enum.sort_by(& &1.created_at, {:desc, DateTime})
+        formatted =
+          sessions
+          |> Enum.map(&format_session/1)
+          |> Enum.sort_by(& &1.created_at, {:desc, DateTime})
+
         {:ok, formatted}
-      
+
       {:error, :not_running} ->
         {:error, :not_running}
-      
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -147,7 +161,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
 
   @doc """
   Send a message to an existing session.
-  
+
   This is fire-and-forget - the task runs async in OpenCode.
   Returns {:ok, :sent} immediately or {:error, reason}.
   """
@@ -157,6 +171,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
       %{running: true, port: port} ->
         base_url = "http://127.0.0.1:#{port}"
         send_message_to_session(base_url, session_id, prompt)
+
       _ ->
         {:error, :not_running}
     end
@@ -170,12 +185,14 @@ defmodule DashboardPhoenix.OpenCodeClient do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
         base_url = "http://127.0.0.1:#{port}"
+
         case Req.delete("#{base_url}/session/#{session_id}", receive_timeout: 5000) do
           {:ok, %{status: code}} when code in [200, 204] -> :ok
           {:ok, %{status: 404}} -> {:error, "Session not found"}
           {:ok, %{status: code}} -> {:error, "HTTP #{code}: failed to delete session"}
           {:error, reason} -> {:error, "Connection failed: #{format_error(reason)}"}
         end
+
       _ ->
         {:error, "Server not running"}
     end
@@ -185,32 +202,40 @@ defmodule DashboardPhoenix.OpenCodeClient do
   defp format_session(session) do
     time = session["time"] || %{}
     summary = session["summary"] || %{}
-    
-    created_at = case time["created"] do
-      ts when is_integer(ts) -> DateTime.from_unix!(ts, :millisecond)
-      _ -> nil
-    end
-    
-    updated_at = case time["updated"] do
-      ts when is_integer(ts) -> DateTime.from_unix!(ts, :millisecond)
-      _ -> nil
-    end
-    
+
+    created_at =
+      case time["created"] do
+        ts when is_integer(ts) -> DateTime.from_unix!(ts, :millisecond)
+        _ -> nil
+      end
+
+    updated_at =
+      case time["updated"] do
+        ts when is_integer(ts) -> DateTime.from_unix!(ts, :millisecond)
+        _ -> nil
+      end
+
     # Determine status based on activity
-    age_seconds = if updated_at, do: DateTime.diff(DateTime.utc_now(), updated_at, :second), else: 0
-    
-    status = cond do
-      session["parentID"] -> "subagent"
-      age_seconds < 60 -> Status.active()           # Active in last minute
-      age_seconds < 300 -> Status.running()         # Active in last 5 mins = running
-      age_seconds < 3600 -> Status.idle()           # 5 mins - 1 hour = idle
-      true -> Status.completed()                    # > 1 hour = completed (stale)
-    end
-    
+    age_seconds =
+      if updated_at, do: DateTime.diff(DateTime.utc_now(), updated_at, :second), else: 0
+
+    status =
+      cond do
+        session["parentID"] -> "subagent"
+        # Active in last minute
+        age_seconds < 60 -> Status.active()
+        # Active in last 5 mins = running
+        age_seconds < 300 -> Status.running()
+        # 5 mins - 1 hour = idle
+        age_seconds < 3600 -> Status.idle()
+        # > 1 hour = completed (stale)
+        true -> Status.completed()
+      end
+
     # Get configured OpenCode model from dashboard state, or use default
     # OpenCode uses Gemini as its LLM backend
     model = get_opencode_model()
-    
+
     %{
       id: session["id"],
       slug: session["slug"],
@@ -236,6 +261,7 @@ defmodule DashboardPhoenix.OpenCodeClient do
     case OpenCodeServer.status() do
       %{running: true, port: port} ->
         {:ok, port}
+
       _ ->
         OpenCodeServer.start_server(cwd)
     end
@@ -244,25 +270,25 @@ defmodule DashboardPhoenix.OpenCodeClient do
   @spec create_session(String.t(), pos_integer()) :: {:ok, map()} | {:error, String.t() | term()}
   defp create_session(base_url, timeout) do
     Logger.info("[OpenCodeClient] Creating new session...")
-    
-    case Req.post("#{base_url}/session", 
-      json: %{},
-      receive_timeout: timeout
-    ) do
+
+    case Req.post("#{base_url}/session",
+           json: %{},
+           receive_timeout: timeout
+         ) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         Logger.info("[OpenCodeClient] Created session: #{body["id"]} (#{body["slug"]})")
         {:ok, body}
-        
+
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
         case Jason.decode(body) do
           {:ok, session} -> {:ok, session}
           {:error, _} -> {:error, "Invalid JSON response"}
         end
-        
+
       {:ok, %{status: code, body: body}} ->
         Logger.error("[OpenCodeClient] Failed to create session: #{code} - #{inspect(body)}")
         {:error, "Failed to create session: #{code}"}
-        
+
       {:error, reason} ->
         Logger.error("[OpenCodeClient] Request failed: #{inspect(reason)}")
         {:error, reason}
@@ -272,36 +298,41 @@ defmodule DashboardPhoenix.OpenCodeClient do
   @spec send_message(String.t(), String.t(), String.t(), pos_integer()) :: {:ok, :sent}
   defp send_message(base_url, session_id, prompt, _timeout) do
     Logger.info("[OpenCodeClient] Sending message to session #{session_id}...")
-    
+
     # OpenCode expects messages in parts format
     payload = %{
       parts: [
         %{type: "text", text: prompt}
       ]
     }
-    
+
     # Fire and forget - spawn a task to send the message
     # We return immediately since OpenCode will take minutes to complete
     url = "#{base_url}/session/#{session_id}/message"
-    
+
     # Use supervised task to prevent silent crashes and enable resource control
     Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       try do
         case Req.post(url, json: payload, receive_timeout: 600_000) do
           {:ok, %{status: code}} when code in [200, 201, 202] ->
             Logger.info("[OpenCodeClient] OpenCode task completed successfully")
+
           {:ok, %{status: code, body: body}} ->
             Logger.warning("[OpenCodeClient] OpenCode returned #{code}: #{inspect(body)}")
+
           {:error, reason} ->
             Logger.warning("[OpenCodeClient] OpenCode request ended: #{inspect(reason)}")
         end
       rescue
         e ->
           Logger.error("[OpenCodeClient] Task crashed in send_message: #{Exception.message(e)}")
-          Logger.error("[OpenCodeClient] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}")
+
+          Logger.error(
+            "[OpenCodeClient] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}"
+          )
       end
     end)
-    
+
     # Return immediately - task is running in background
     Logger.info("[OpenCodeClient] Message dispatched to OpenCode (running in background)")
     {:ok, :sent}
@@ -311,33 +342,40 @@ defmodule DashboardPhoenix.OpenCodeClient do
   @spec send_message_to_session(String.t(), String.t(), String.t()) :: {:ok, :sent}
   defp send_message_to_session(base_url, session_id, prompt) do
     Logger.info("[OpenCodeClient] Sending message to existing session #{session_id}...")
-    
+
     payload = %{
       parts: [
         %{type: "text", text: prompt}
       ]
     }
-    
+
     url = "#{base_url}/session/#{session_id}/message"
-    
+
     # Fire and forget - use supervised task to prevent silent crashes
     Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       try do
         case Req.post(url, json: payload, receive_timeout: 600_000) do
           {:ok, %{status: code}} when code in [200, 201, 202] ->
             Logger.info("[OpenCodeClient] Message sent successfully to session #{session_id}")
+
           {:ok, %{status: code, body: body}} ->
             Logger.warning("[OpenCodeClient] OpenCode returned #{code}: #{inspect(body)}")
+
           {:error, reason} ->
             Logger.warning("[OpenCodeClient] OpenCode request failed: #{format_error(reason)}")
         end
       rescue
         e ->
-          Logger.error("[OpenCodeClient] Task crashed in send_message_to_session: #{Exception.message(e)}")
-          Logger.error("[OpenCodeClient] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}")
+          Logger.error(
+            "[OpenCodeClient] Task crashed in send_message_to_session: #{Exception.message(e)}"
+          )
+
+          Logger.error(
+            "[OpenCodeClient] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}"
+          )
       end
     end)
-    
+
     {:ok, :sent}
   end
 

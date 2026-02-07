@@ -8,11 +8,36 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponentTest do
 
   # Sample test data
   @sample_tickets [
-    %{id: "COR-100", title: "Urgent issue", status: "Triage", url: "https://linear.app/fresh-clinics/issue/COR-100"},
-    %{id: "COR-101", title: "Feature request", status: "Backlog", url: "https://linear.app/fresh-clinics/issue/COR-101"},
-    %{id: "COR-102", title: "Bug fix needed", status: "Todo", url: "https://linear.app/fresh-clinics/issue/COR-102"},
-    %{id: "COR-103", title: "Ready for review", status: "In Review", url: "https://linear.app/fresh-clinics/issue/COR-103"},
-    %{id: "COR-104", title: "Another review", status: "In Review", url: "https://linear.app/fresh-clinics/issue/COR-104"}
+    %{
+      id: "COR-100",
+      title: "Urgent issue",
+      status: "Triage",
+      url: "https://linear.app/fresh-clinics/issue/COR-100"
+    },
+    %{
+      id: "COR-101",
+      title: "Feature request",
+      status: "Backlog",
+      url: "https://linear.app/fresh-clinics/issue/COR-101"
+    },
+    %{
+      id: "COR-102",
+      title: "Bug fix needed",
+      status: "Todo",
+      url: "https://linear.app/fresh-clinics/issue/COR-102"
+    },
+    %{
+      id: "COR-103",
+      title: "Ready for review",
+      status: "In Review",
+      url: "https://linear.app/fresh-clinics/issue/COR-103"
+    },
+    %{
+      id: "COR-104",
+      title: "Another review",
+      status: "In Review",
+      url: "https://linear.app/fresh-clinics/issue/COR-104"
+    }
   ]
 
   describe "smart component - initial state" do
@@ -115,7 +140,12 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponentTest do
           tickets_in_progress: %{},
           linear_data: %{
             tickets: [
-              %{id: "COR-100", title: "Triage ticket", status: "Triage", url: "https://example.com"}
+              %{
+                id: "COR-100",
+                title: "Triage ticket",
+                status: "Triage",
+                url: "https://example.com"
+              }
             ],
             last_updated: DateTime.utc_now(),
             error: nil

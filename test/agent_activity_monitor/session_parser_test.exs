@@ -7,7 +7,7 @@ defmodule AgentActivityMonitor.SessionParserTest do
     test "parses valid JSON" do
       line = ~s|{"type": "session", "id": "abc123"}|
       result = SessionParser.parse_jsonl_line(line)
-      
+
       assert result == %{"type" => "session", "id" => "abc123"}
     end
 
@@ -83,9 +83,10 @@ defmodule AgentActivityMonitor.SessionParserTest do
           "type" => "message",
           "message" => %{
             "role" => "assistant",
-            "content" => Enum.map(1..20, fn i -> 
-              %{"type" => "toolCall", "name" => "Tool#{i}", "arguments" => %{}}
-            end)
+            "content" =>
+              Enum.map(1..20, fn i ->
+                %{"type" => "toolCall", "name" => "Tool#{i}", "arguments" => %{}}
+              end)
           }
         }
       ]
@@ -114,16 +115,26 @@ defmodule AgentActivityMonitor.SessionParserTest do
 
   describe "extract_files_from_tool_call/1" do
     test "extracts path from Read tool" do
-      assert SessionParser.extract_files_from_tool_call(%{name: "Read", arguments: %{"path" => "/file.ex"}}) == ["/file.ex"]
+      assert SessionParser.extract_files_from_tool_call(%{
+               name: "Read",
+               arguments: %{"path" => "/file.ex"}
+             }) == ["/file.ex"]
     end
 
     test "extracts file_path alternative" do
-      assert SessionParser.extract_files_from_tool_call(%{name: "read", arguments: %{"file_path" => "/file.ex"}}) == ["/file.ex"]
+      assert SessionParser.extract_files_from_tool_call(%{
+               name: "read",
+               arguments: %{"file_path" => "/file.ex"}
+             }) == ["/file.ex"]
     end
 
     test "extracts files from exec command" do
-      result = SessionParser.extract_files_from_tool_call(%{name: "exec", arguments: %{"command" => "cat ~/file.ex ./test.ts"}})
-      
+      result =
+        SessionParser.extract_files_from_tool_call(%{
+          name: "exec",
+          arguments: %{"command" => "cat ~/file.ex ./test.ts"}
+        })
+
       assert "~/file.ex" in result
       assert "./test.ts" in result
     end
@@ -145,6 +156,7 @@ defmodule AgentActivityMonitor.SessionParserTest do
           "content" => [%{"type" => "toolCall", "name" => "Read"}]
         }
       }
+
       assert SessionParser.determine_status(message, [%{}]) == "executing"
     end
 
@@ -168,7 +180,7 @@ defmodule AgentActivityMonitor.SessionParserTest do
     end
 
     test "parses millisecond Unix timestamp" do
-      result = SessionParser.parse_timestamp(1705315800000)
+      result = SessionParser.parse_timestamp(1_705_315_800_000)
       assert %DateTime{} = result
     end
 
@@ -206,8 +218,8 @@ defmodule AgentActivityMonitor.SessionParserTest do
       {"type": "session", "id": "file-test", "cwd": "/tmp"}
       {"type": "model_change", "modelId": "claude-sonnet"}
       """
-      
-      path = Path.join(System.tmp_dir!(), "test_session_#{:rand.uniform(100000)}.jsonl")
+
+      path = Path.join(System.tmp_dir!(), "test_session_#{:rand.uniform(100_000)}.jsonl")
       File.write!(path, content)
 
       {:ok, result} = SessionParser.parse_file(path)

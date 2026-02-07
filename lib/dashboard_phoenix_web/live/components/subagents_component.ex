@@ -12,50 +12,58 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
   @impl true
   def update(assigns, socket) do
     # Pre-calculate filtered sessions and counts to improve template performance
-    sub_agent_sessions = Enum.reject(assigns.agent_sessions, fn s -> 
-      Map.get(s, :session_key) == "agent:main:main" 
-    end)
+    sub_agent_sessions =
+      Enum.reject(assigns.agent_sessions, fn s ->
+        Map.get(s, :session_key) == "agent:main:main"
+      end)
 
     # Get toggle states (with defaults for backward compatibility)
     show_running = Map.get(assigns, :show_running, true)
     show_idle = Map.get(assigns, :show_idle, true)
     show_completed = Map.get(assigns, :show_completed, true)
 
-    visible_sessions = sub_agent_sessions
-    |> Enum.reject(fn s -> MapSet.member?(assigns.dismissed_sessions, s.id) end)
-    |> Enum.filter(fn s ->
-      status = s.status
-      cond do
-        status in [Status.running(), Status.active()] -> show_running
-        status == Status.idle() -> show_idle
-        status == Status.completed() -> show_completed
-        true -> true  # Show unknown statuses
-      end
-    end)
-    |> Enum.map(fn session ->
-      # Pre-calculate recent actions to avoid template computation
-      recent_actions = session
-      |> Map.get(:recent_actions, [])
-      |> Enum.take(-3)
-      
-      Map.put(session, :limited_recent_actions, recent_actions)
-    end)
+    visible_sessions =
+      sub_agent_sessions
+      |> Enum.reject(fn s -> MapSet.member?(assigns.dismissed_sessions, s.id) end)
+      |> Enum.filter(fn s ->
+        status = s.status
+
+        cond do
+          status in [Status.running(), Status.active()] -> show_running
+          status == Status.idle() -> show_idle
+          status == Status.completed() -> show_completed
+          # Show unknown statuses
+          true -> true
+        end
+      end)
+      |> Enum.map(fn session ->
+        # Pre-calculate recent actions to avoid template computation
+        recent_actions =
+          session
+          |> Map.get(:recent_actions, [])
+          |> Enum.take(-3)
+
+        Map.put(session, :limited_recent_actions, recent_actions)
+      end)
 
     # Count both "running" (< 7 mins) and "idle" (7-12 mins) as active
     # since "idle" just means a brief pause, not that the agent completed
-    running_count = Enum.count(sub_agent_sessions, fn s -> s.status in [Status.running(), Status.idle()] end)
+    running_count =
+      Enum.count(sub_agent_sessions, fn s -> s.status in [Status.running(), Status.idle()] end)
+
     completed_count = Enum.count(visible_sessions, fn s -> s.status == Status.completed() end)
     sub_agent_sessions_count = length(sub_agent_sessions)
 
-    updated_assigns = assigns
-    |> Map.put(:sub_agent_sessions, sub_agent_sessions)
-    |> Map.put(:visible_sessions, visible_sessions)
-    |> Map.put(:running_count, running_count)
-    |> Map.put(:completed_count, completed_count)
-    |> Map.put(:sub_agent_sessions_count, sub_agent_sessions_count)
-    |> Map.put_new(:sessions_loading, false)
-    |> Map.put_new(:show_running, true)
-    |> Map.put_new(:show_idle, true)
+    updated_assigns =
+      assigns
+      |> Map.put(:sub_agent_sessions, sub_agent_sessions)
+      |> Map.put(:visible_sessions, visible_sessions)
+      |> Map.put(:running_count, running_count)
+      |> Map.put(:completed_count, completed_count)
+      |> Map.put(:sub_agent_sessions_count, sub_agent_sessions_count)
+      |> Map.put_new(:sessions_loading, false)
+      |> Map.put_new(:show_running, true)
+      |> Map.put_new(:show_idle, true)
 
     {:ok, assign(socket, updated_assigns)}
   end
@@ -91,10 +99,12 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
     formatted = Float.round(n / 1_000_000, 1)
     if formatted == Float.round(formatted), do: "#{round(formatted)}M", else: "#{formatted}M"
   end
+
   defp format_tokens(n) when is_integer(n) and n >= 1_000 do
-    formatted = Float.round(n / 1_000, 1) 
+    formatted = Float.round(n / 1_000, 1)
     if formatted == Float.round(formatted), do: "#{round(formatted)}K", else: "#{formatted}K"
   end
+
   defp format_tokens(n) when is_integer(n), do: "#{n}"
   defp format_tokens(_), do: "0"
 
@@ -102,6 +112,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
   defp agent_type_from_model("anthropic/" <> _), do: {:claude, "Claude", "🤖"}
   defp agent_type_from_model("google/" <> _), do: {:gemini, "Gemini", "✨"}
   defp agent_type_from_model("openai/" <> _), do: {:openai, "OpenAI", "🔥"}
+
   defp agent_type_from_model(model) when is_binary(model) do
     cond do
       String.contains?(model, "claude") -> {:claude, "Claude", "🤖"}
@@ -111,6 +122,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
       true -> {:unknown, "Unknown", "⚡"}
     end
   end
+
   defp agent_type_from_model(_), do: {:unknown, "Unknown", "⚡"}
 
   defp agent_type_badge_class(:claude), do: "bg-purple-500/20 text-purple-400"
@@ -120,13 +132,17 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
   defp agent_type_badge_class(_), do: "bg-base-content/10 text-base-content/60"
 
   # Extract session start timestamp for live duration display
-  defp session_start_timestamp(%{updated_at: updated_at, runtime: runtime}) when is_binary(runtime) do
+  defp session_start_timestamp(%{updated_at: updated_at, runtime: runtime})
+       when is_binary(runtime) do
     # Parse runtime like "2m 34s" to seconds
     seconds = parse_runtime_to_seconds(runtime)
-    updated_at - (seconds * 1000)  # Convert to milliseconds and subtract
+    # Convert to milliseconds and subtract
+    updated_at - seconds * 1000
   end
+
   defp session_start_timestamp(%{created_at: created_at}), do: created_at
-  defp session_start_timestamp(%{updated_at: updated_at}), do: updated_at - 60_000  # Default to 1 min ago
+  # Default to 1 min ago
+  defp session_start_timestamp(%{updated_at: updated_at}), do: updated_at - 60_000
   defp session_start_timestamp(_), do: System.system_time(:millisecond)
 
   # Parse runtime strings like "2m 34s" into total seconds
@@ -138,15 +154,20 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
       cond do
         String.ends_with?(part, "h") ->
           acc + (String.trim_trailing(part, "h") |> String.to_integer() |> Kernel.*(3600))
+
         String.ends_with?(part, "m") ->
           acc + (String.trim_trailing(part, "m") |> String.to_integer() |> Kernel.*(60))
+
         String.ends_with?(part, "s") ->
           acc + (String.trim_trailing(part, "s") |> String.to_integer())
-        true -> acc
+
+        true ->
+          acc
       end
     end)
   rescue
-    _ -> 60  # Default to 60 seconds if parsing fails
+    # Default to 60 seconds if parsing fails
+    _ -> 60
   end
 
   @impl true
@@ -155,7 +176,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
 
     ~H"""
     <div class="panel-work overflow-hidden" id="subagents">
-      <div 
+      <div
         class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
         {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
@@ -167,39 +188,49 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
-          <span class={"panel-chevron " <> if(@subagents_collapsed, do: "collapsed", else: "")}>▼</span>
+          <span class={"panel-chevron " <> if(@subagents_collapsed, do: "collapsed", else: "")}>
+            ▼
+          </span>
           <span class="panel-icon">🤖</span>
           <span class="text-panel-label text-accent">Sub-Agents</span>
           <%= if @sessions_loading do %>
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading sub-agents</span>
           <% else %>
-            <span class="text-xs font-mono text-base-content/50"><%= @sub_agent_sessions_count %></span>
+            <span class="text-xs font-mono text-base-content/50">{@sub_agent_sessions_count}</span>
             <%= if @running_count > 0 do %>
               <span class="status-beacon text-warning" aria-hidden="true"></span>
               <span class="px-1.5 py-0.5bg-warning/20 text-warning text-xs" role="status">
-                <%= @running_count %> active
+                {@running_count} active
               </span>
             <% end %>
           <% end %>
         </div>
         <%= if @completed_count > 0 do %>
-          <button 
-            phx-click="clear_completed" 
+          <button
+            phx-click="clear_completed"
             {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
-            class="text-xs px-2 py-0.5bg-base-content/10 text-base-content/50 hover:bg-accent/20 hover:text-accent transition-colors uppercase tracking-wider" 
+            class="text-xs px-2 py-0.5bg-base-content/10 text-base-content/50 hover:bg-accent/20 hover:text-accent transition-colors uppercase tracking-wider"
             onclick="event.stopPropagation()"
             aria-label={"Clear " <> to_string(@completed_count) <> " completed sub-agent sessions"}
           >
-            Clear Completed (<%= @completed_count %>)
+            Clear Completed ({@completed_count})
           </button>
         <% end %>
       </div>
       
-      <!-- Toggle filters moved to main AGENTS panel -->
-      
-      <div id="subagents-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}>
-        <div class="px-4 pb-4 space-y-3 max-h-[450px] overflow-y-auto" role="region" aria-live="polite" aria-label="Sub-agent sessions list">
+    <!-- Toggle filters moved to main AGENTS panel -->
+
+      <div
+        id="subagents-panel-content"
+        class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}
+      >
+        <div
+          class="px-4 pb-4 space-y-3 max-h-[450px] overflow-y-auto"
+          role="region"
+          aria-live="polite"
+          aria-label="Sub-agent sessions list"
+        >
           <%= if @sessions_loading do %>
             <div class="flex items-center justify-center py-4 space-x-2">
               <span class="throbber-small"></span>
@@ -207,135 +238,155 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
             </div>
           <% else %>
             <%= if @visible_sessions == [] do %>
-              <div class="text-xs text-base-content/40 py-4 text-center font-mono">No active sub-agents</div>
+              <div class="text-xs text-base-content/40 py-4 text-center font-mono">
+                No active sub-agents
+              </div>
             <% end %>
-          <%= for session <- @visible_sessions do %>
-            <% status = Map.get(session, :status, "unknown") %>
-            <% {agent_type, agent_name, agent_icon} = agent_type_from_model(Map.get(session, :model)) %>
-            <% task = Map.get(session, :task_summary) %>
-            <% current_action = Map.get(session, :current_action) %>
-            <% recent_actions = Map.get(session, :recent_actions, []) %>
-            <% limited_recent_actions = Map.get(session, :limited_recent_actions, []) %>
-            <% start_time = session_start_timestamp(session) %>
-            
-            <div class={"border text-xs font-mono transition-all " <> 
+            <%= for session <- @visible_sessions do %>
+              <% status = Map.get(session, :status, "unknown") %>
+              <% {agent_type, agent_name, agent_icon} =
+                agent_type_from_model(Map.get(session, :model)) %>
+              <% task = Map.get(session, :task_summary) %>
+              <% current_action = Map.get(session, :current_action) %>
+              <% recent_actions = Map.get(session, :recent_actions, []) %>
+              <% limited_recent_actions = Map.get(session, :limited_recent_actions, []) %>
+              <% start_time = session_start_timestamp(session) %>
+
+              <div class={"border text-xs font-mono transition-all " <> 
               if(status == Status.running(), 
                 do: "panel-work bg-warning/10 border-warning/40 shadow-lg", 
                 else: if(status == Status.completed(), do: "panel-status bg-success/10 border-success/30", else: "panel-status"))}>
-              
-              <!-- Header Row: Status, Label, Agent Type, Duration -->
-              <div class="flex flex-wrap items-start justify-between gap-3 px-4 py-3 border-b border-accent/20">
-                <div class="flex items-start space-x-2 min-w-0 flex-1">
-                  <%= if status == Status.running() do %>
-                    <span class="throbber-small flex-shrink-0 mt-0.5"></span>
-                  <% else %>
-                    <span class={"flex-shrink-0 mt-0.5 " <> if(status == Status.completed(), do: "text-success", else: "text-info")}>
-                      <%= if status == Status.completed(), do: "✓", else: "○" %>
-                    </span>
-                  <% end %>
-                  <span class="text-white font-medium break-words" title={Map.get(session, :label) || Map.get(session, :id)}>
-                    <%= Map.get(session, :label) || String.slice(Map.get(session, :id, ""), 0, 8) %>
-                  </span>
-                </div>
                 
-                <div class="flex items-center space-x-2 flex-shrink-0">
-                  <!-- Agent Type Badge -->
-                  <span class={"px-1.5 py-0.5text-xs " <> agent_type_badge_class(agent_type)} title={Map.get(session, :model)}>
-                    <%= agent_icon %> <%= agent_name %>
-                  </span>
-                  
-                  <!-- Live Duration (for running) or Static (for completed) -->
-                  <%= if status == Status.running() do %>
-                    <span 
-                      class="px-1.5 py-0.5bg-warning/20 text-warning text-xs tabular-nums"
-                      id={"duration-#{session.id}"}
-                      phx-hook="LiveDuration"
-                      data-start-time={start_time}
-                    >
-                      <%= Map.get(session, :runtime) || "..." %>
-                    </span>
-                  <% else %>
-                    <%= if Map.get(session, :runtime) do %>
-                      <span class="px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs tabular-nums">
-                        <%= session.runtime %>
+    <!-- Header Row: Status, Label, Agent Type, Duration -->
+                <div class="flex flex-wrap items-start justify-between gap-3 px-4 py-3 border-b border-accent/20">
+                  <div class="flex items-start space-x-2 min-w-0 flex-1">
+                    <%= if status == Status.running() do %>
+                      <span class="throbber-small flex-shrink-0 mt-0.5"></span>
+                    <% else %>
+                      <span class={"flex-shrink-0 mt-0.5 " <> if(status == Status.completed(), do: "text-success", else: "text-info")}>
+                        {if status == Status.completed(), do: "✓", else: "○"}
                       </span>
                     <% end %>
-                  <% end %>
-                  
-                  <!-- Status Badge -->
-                  <span class={status_badge(status)}><%= status %></span>
-                </div>
-              </div>
-              
-              <!-- Task Description -->
-              <%= if task do %>
-                <div class="px-4 py-3 border-b border-accent/10">
-                  <div class="text-ui-caption text-base-content/60 mb-0.5">Task</div>
-                  <div class="text-ui-body text-base-content/90 leading-relaxed" title={task}>
-                    <%= task %>
+                    <span
+                      class="text-white font-medium break-words"
+                      title={Map.get(session, :label) || Map.get(session, :id)}
+                    >
+                      {Map.get(session, :label) || String.slice(Map.get(session, :id, ""), 0, 8)}
+                    </span>
                   </div>
-                </div>
-              <% end %>
-              
-              <!-- Live Work Status (for running agents) -->
-              <%= if status == Status.running() do %>
-                <div class="px-4 py-3">
-                  <%= if current_action do %>
-                    <div class="flex items-center space-x-2 mb-1">
-                      <span class="text-xs text-warning/70">▶ Now:</span>
-                      <span class="text-warning text-xs truncate" title={current_action}>
-                        <%= current_action %>
+
+                  <div class="flex items-center space-x-2 flex-shrink-0">
+                    <!-- Agent Type Badge -->
+                    <span
+                      class={"px-1.5 py-0.5text-xs " <> agent_type_badge_class(agent_type)}
+                      title={Map.get(session, :model)}
+                    >
+                      {agent_icon} {agent_name}
+                    </span>
+                    
+    <!-- Live Duration (for running) or Static (for completed) -->
+                    <%= if status == Status.running() do %>
+                      <span
+                        class="px-1.5 py-0.5bg-warning/20 text-warning text-xs tabular-nums"
+                        id={"duration-#{session.id}"}
+                        phx-hook="LiveDuration"
+                        data-start-time={start_time}
+                      >
+                        {Map.get(session, :runtime) || "..."}
                       </span>
-                    </div>
-                  <% end %>
-                  
-                  <%= if limited_recent_actions != [] do %>
-                    <div class="text-xs text-base-content/40 space-y-0.5">
-                      <%= for action <- limited_recent_actions do %>
-                        <div class="truncate" title={action}>✓ <%= action %></div>
+                    <% else %>
+                      <%= if Map.get(session, :runtime) do %>
+                        <span class="px-1.5 py-0.5bg-base-content/10 text-base-content/60 text-xs tabular-nums">
+                          {session.runtime}
+                        </span>
                       <% end %>
-                    </div>
-                  <% end %>
-                  
-                  <%= if current_action == nil && recent_actions == [] do %>
-                    <div class="text-xs text-base-content/40 italic">Initializing...</div>
-                  <% end %>
-                </div>
-              <% end %>
-              
-              <!-- Result snippet for completed agents -->
-              <%= if status == Status.completed() && Map.get(session, :result_snippet) do %>
-                <div class="px-4 py-3">
-                  <div class="text-xs text-success/70 mb-0.5">Result</div>
-                  <div class="text-base-content/70 text-xs truncate" title={session.result_snippet}>
-                    <%= session.result_snippet %>
+                    <% end %>
+                    
+    <!-- Status Badge -->
+                    <span class={status_badge(status)}>{status}</span>
                   </div>
                 </div>
-              <% end %>
-              
-              <!-- Footer: Tokens & Cost (if available) -->
-              <%= if (Map.get(session, :tokens_in, 0) > 0 || Map.get(session, :tokens_out, 0) > 0) do %>
-                <div class="px-4 py-2 panel-data border-t border-accent/10 flex items-center justify-between">
-                  <div class="flex items-center space-x-3 text-ui-micro text-base-content/60">
-                    <div class="flex items-center space-x-1">
-                      <span class="status-marker text-info opacity-60" aria-hidden="true"></span>
-                      <span class="text-tabular"><span class="sr-only">Input tokens: </span>↓ <%= format_tokens(session.tokens_in) %></span>
-                    </div>
-                    <div class="flex items-center space-x-1">
-                      <span class="status-marker text-secondary opacity-60" aria-hidden="true"></span>
-                      <span class="text-tabular"><span class="sr-only">Output tokens: </span>↑ <%= format_tokens(session.tokens_out) %></span>
+                
+    <!-- Task Description -->
+                <%= if task do %>
+                  <div class="px-4 py-3 border-b border-accent/10">
+                    <div class="text-ui-caption text-base-content/60 mb-0.5">Task</div>
+                    <div class="text-ui-body text-base-content/90 leading-relaxed" title={task}>
+                      {task}
                     </div>
                   </div>
-                  <%= if Map.get(session, :cost, 0) > 0 do %>
-                    <div class="flex items-center space-x-1">
-                      <span class="status-marker text-success" aria-hidden="true"></span>
-                      <span class="text-ui-value text-success"><span class="sr-only">Cost: </span>$<%= Float.round(session.cost, 4) %></span>
+                <% end %>
+                
+    <!-- Live Work Status (for running agents) -->
+                <%= if status == Status.running() do %>
+                  <div class="px-4 py-3">
+                    <%= if current_action do %>
+                      <div class="flex items-center space-x-2 mb-1">
+                        <span class="text-xs text-warning/70">▶ Now:</span>
+                        <span class="text-warning text-xs truncate" title={current_action}>
+                          {current_action}
+                        </span>
+                      </div>
+                    <% end %>
+
+                    <%= if limited_recent_actions != [] do %>
+                      <div class="text-xs text-base-content/40 space-y-0.5">
+                        <%= for action <- limited_recent_actions do %>
+                          <div class="truncate" title={action}>✓ {action}</div>
+                        <% end %>
+                      </div>
+                    <% end %>
+
+                    <%= if current_action == nil && recent_actions == [] do %>
+                      <div class="text-xs text-base-content/40 italic">Initializing...</div>
+                    <% end %>
+                  </div>
+                <% end %>
+                
+    <!-- Result snippet for completed agents -->
+                <%= if status == Status.completed() && Map.get(session, :result_snippet) do %>
+                  <div class="px-4 py-3">
+                    <div class="text-xs text-success/70 mb-0.5">Result</div>
+                    <div class="text-base-content/70 text-xs truncate" title={session.result_snippet}>
+                      {session.result_snippet}
                     </div>
-                  <% end %>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
+                  </div>
+                <% end %>
+                
+    <!-- Footer: Tokens & Cost (if available) -->
+                <%= if (Map.get(session, :tokens_in, 0) > 0 || Map.get(session, :tokens_out, 0) > 0) do %>
+                  <div class="px-4 py-2 panel-data border-t border-accent/10 flex items-center justify-between">
+                    <div class="flex items-center space-x-3 text-ui-micro text-base-content/60">
+                      <div class="flex items-center space-x-1">
+                        <span class="status-marker text-info opacity-60" aria-hidden="true"></span>
+                        <span class="text-tabular">
+                          <span class="sr-only">Input tokens: </span>↓ {format_tokens(
+                            session.tokens_in
+                          )}
+                        </span>
+                      </div>
+                      <div class="flex items-center space-x-1">
+                        <span class="status-marker text-secondary opacity-60" aria-hidden="true">
+                        </span>
+                        <span class="text-tabular">
+                          <span class="sr-only">Output tokens: </span>↑ {format_tokens(
+                            session.tokens_out
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <%= if Map.get(session, :cost, 0) > 0 do %>
+                      <div class="flex items-center space-x-1">
+                        <span class="status-marker text-success" aria-hidden="true"></span>
+                        <span class="text-ui-value text-success">
+                          <span class="sr-only">Cost: </span>${Float.round(session.cost, 4)}
+                        </span>
+                      </div>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
           <% end %>
         </div>
       </div>

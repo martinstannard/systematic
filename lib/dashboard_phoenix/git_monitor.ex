@@ -49,21 +49,23 @@ defmodule DashboardPhoenix.GitMonitor do
     # Start polling after a short delay
     Process.send_after(self(), :poll, 2_000)
 
-    {:ok, %{
-      branch_heads: %{},
-      last_updated: nil,
-      error: nil,
-      poll_in_flight: false
-    }}
+    {:ok,
+     %{
+       branch_heads: %{},
+       last_updated: nil,
+       error: nil,
+       poll_in_flight: false
+     }}
   end
 
   @impl true
   def handle_call(:get_state, _from, state) do
-    {:reply, %{
-      branch_heads: state.branch_heads,
-      last_updated: state.last_updated,
-      error: state.error
-    }, state}
+    {:reply,
+     %{
+       branch_heads: state.branch_heads,
+       last_updated: state.last_updated,
+       error: state.error
+     }, state}
   end
 
   @impl true
@@ -107,12 +109,14 @@ defmodule DashboardPhoenix.GitMonitor do
     # Schedule next poll
     Process.send_after(self(), :poll, @poll_interval_ms)
 
-    {:noreply, %{state |
-      branch_heads: new_heads,
-      last_updated: DateTime.utc_now(),
-      error: nil,
-      poll_in_flight: false
-    }}
+    {:noreply,
+     %{
+       state
+       | branch_heads: new_heads,
+         last_updated: DateTime.utc_now(),
+         error: nil,
+         poll_in_flight: false
+     }}
   end
 
   def handle_info({:poll_complete, {:error, reason}}, state) do
@@ -129,11 +133,12 @@ defmodule DashboardPhoenix.GitMonitor do
       prev_head = Map.get(prev_heads, base_branch)
       new_heads = Map.put(prev_heads, base_branch, current_head)
 
-      commits = if prev_head && prev_head != current_head do
-        detect_new_commits(prev_head, current_head, base_branch)
-      else
-        []
-      end
+      commits =
+        if prev_head && prev_head != current_head do
+          detect_new_commits(prev_head, current_head, base_branch)
+        else
+          []
+        end
 
       {:ok, new_heads, commits}
     else
@@ -146,7 +151,9 @@ defmodule DashboardPhoenix.GitMonitor do
            cd: repo_path(),
            timeout: @cli_timeout_ms
          ) do
-      {:ok, _} -> {:ok, "main"}
+      {:ok, _} ->
+        {:ok, "main"}
+
       _ ->
         case CommandRunner.run("git", ["rev-parse", "--verify", "master"],
                cd: repo_path(),
@@ -180,7 +187,8 @@ defmodule DashboardPhoenix.GitMonitor do
       {:ok, output} ->
         output
         |> String.split("\n", trim: true)
-        |> Enum.reverse()  # Chronological order
+        # Chronological order
+        |> Enum.reverse()
         |> Enum.map(&parse_commit_line(&1, branch))
         |> Enum.reject(&is_nil/1)
 
@@ -225,7 +233,8 @@ defmodule DashboardPhoenix.GitMonitor do
   defp log_commit_event(commit) do
     if commit.is_merge do
       # Merge commit
-      ActivityLog.log_event(:git_merge,
+      ActivityLog.log_event(
+        :git_merge,
         "Merge on #{commit.branch}: #{commit.message}",
         %{
           hash: commit.short_hash,
@@ -238,7 +247,8 @@ defmodule DashboardPhoenix.GitMonitor do
       )
     else
       # Regular commit
-      ActivityLog.log_event(:git_commit,
+      ActivityLog.log_event(
+        :git_commit,
         "Commit on #{commit.branch}: #{commit.message}",
         %{
           hash: commit.short_hash,

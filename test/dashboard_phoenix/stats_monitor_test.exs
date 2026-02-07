@@ -37,7 +37,8 @@ defmodule DashboardPhoenix.StatsMonitorTest do
 
       assert result.sessions == 10
       assert result.messages == 100
-      assert result.days == 0  # Missing, should default
+      # Missing, should default
+      assert result.days == 0
       assert result.total_cost == "N/A"
     end
 
@@ -85,9 +86,12 @@ defmodule DashboardPhoenix.StatsMonitorTest do
 
       assert result.sessions == 50
       assert result.messages == 500
-      assert result.input_tokens == "1.5M"  # 1M + 500K
-      assert result.output_tokens == "300.0K"  # 200K + 100K
-      assert result.cache_read == "750.0K"  # 500K + 250K
+      # 1M + 500K
+      assert result.input_tokens == "1.5M"
+      # 200K + 100K
+      assert result.output_tokens == "300.0K"
+      # 500K + 250K
+      assert result.cache_read == "750.0K"
       assert "claude-sonnet" in result.models
       assert "claude-opus" in result.models
     end
@@ -200,7 +204,8 @@ defmodule DashboardPhoenix.StatsMonitorTest do
       {:noreply, new_state} = StatsMonitor.handle_info(:poll, state)
 
       # Should have scheduled next poll
-      assert_receive :poll, 6000  # Default poll interval is 5000ms
+      # Default poll interval is 5000ms
+      assert_receive :poll, 6000
       assert is_map(new_state.stats)
     end
   end
@@ -223,7 +228,9 @@ defmodule DashboardPhoenix.StatsMonitorTest do
 
     total_input = models |> Map.values() |> Enum.map(&(&1["inputTokens"] || 0)) |> Enum.sum()
     total_output = models |> Map.values() |> Enum.map(&(&1["outputTokens"] || 0)) |> Enum.sum()
-    total_cache = models |> Map.values() |> Enum.map(&(&1["cacheReadInputTokens"] || 0)) |> Enum.sum()
+
+    total_cache =
+      models |> Map.values() |> Enum.map(&(&1["cacheReadInputTokens"] || 0)) |> Enum.sum()
 
     %{
       sessions: data["totalSessions"] || 0,

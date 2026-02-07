@@ -47,8 +47,12 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
   describe "AgentCardComponent agent_type_info/1" do
     test "identifies Claude agents" do
       assert {:claude, "Claude", "🟣"} = AgentCardComponent.agent_type_info("claude")
-      assert {:claude, "Claude", "🟣"} = AgentCardComponent.agent_type_info("anthropic/claude-sonnet")
-      assert {:claude, "Claude", "🟣"} = AgentCardComponent.agent_type_info("anthropic/claude-opus-4-5")
+
+      assert {:claude, "Claude", "🟣"} =
+               AgentCardComponent.agent_type_info("anthropic/claude-sonnet")
+
+      assert {:claude, "Claude", "🟣"} =
+               AgentCardComponent.agent_type_info("anthropic/claude-opus-4-5")
     end
 
     test "identifies OpenCode agents" do
@@ -119,7 +123,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "🟣"  # Claude icon
+      # Claude icon
+      assert html =~ "🟣"
       assert html =~ "Test Claude Agent"
       assert html =~ "Working on feature"
       assert html =~ "running"
@@ -137,10 +142,12 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "🔷"  # OpenCode icon
+      # OpenCode icon
+      assert html =~ "🔷"
       assert html =~ "my-project"
       assert html =~ "Implementing tests"
-      assert html =~ "running"  # "active" normalizes to "running"
+      # "active" normalizes to "running"
+      assert html =~ "running"
     end
 
     test "renders Sub-agent card with correct icon" do
@@ -153,7 +160,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "🤖"  # Sub-agent icon
+      # Sub-agent icon
+      assert html =~ "🤖"
       assert html =~ "PR Review Agent"
     end
 
@@ -167,9 +175,12 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "bg-green-500"  # Green state indicator
-      assert html =~ "text-green-400"  # Green badge text
-      assert html =~ "animate-pulse"  # Running animation
+      # Green state indicator
+      assert html =~ "bg-green-500"
+      # Green badge text
+      assert html =~ "text-green-400"
+      # Running animation
+      assert html =~ "animate-pulse"
     end
 
     test "shows blue state indicator for completed agents" do
@@ -183,9 +194,12 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "bg-blue-500"  # Blue state indicator
-      assert html =~ "text-blue-400"  # Blue badge text
-      refute html =~ "animate-pulse"  # No animation for completed
+      # Blue state indicator
+      assert html =~ "bg-blue-500"
+      # Blue badge text
+      assert html =~ "text-blue-400"
+      # No animation for completed
+      refute html =~ "animate-pulse"
     end
 
     test "shows red state indicator for failed agents" do
@@ -198,8 +212,10 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "bg-red-500"  # Red state indicator
-      assert html =~ "text-red-400"  # Red badge text
+      # Red state indicator
+      assert html =~ "bg-red-500"
+      # Red badge text
+      assert html =~ "text-red-400"
     end
 
     test "shows gray state indicator for idle agents" do
@@ -212,8 +228,10 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "bg-gray-500"  # Gray state indicator
-      assert html =~ "text-gray-400"  # Gray badge text
+      # Gray state indicator
+      assert html =~ "bg-gray-500"
+      # Gray badge text
+      assert html =~ "text-gray-400"
     end
 
     test "includes LiveDuration hook for running agents" do
@@ -244,7 +262,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
       refute html =~ "phx-hook=\"LiveDuration\""
-      assert html =~ "5m 12s"  # Static duration
+      # Static duration
+      assert html =~ "5m 12s"
     end
 
     test "handles agents with minimal data" do
@@ -255,7 +274,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "⚡"  # Unknown agent type icon
+      # Unknown agent type icon
+      assert html =~ "⚡"
       assert html =~ "idle"
       refute html =~ "phx-hook=\"LiveDuration\""
     end
@@ -361,7 +381,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "🟣"  # Claude icon detected from model
+      # Claude icon detected from model
+      assert html =~ "🟣"
     end
 
     test "sets correct card border for running state" do
@@ -429,7 +450,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "✨"  # Gemini icon
+      # Gemini icon
+      assert html =~ "✨"
       assert html =~ "Gemini Agent"
     end
 
@@ -443,7 +465,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
-      assert html =~ "🔥"  # OpenAI icon
+      # OpenAI icon
+      assert html =~ "🔥"
       assert html =~ "GPT Agent"
     end
   end
@@ -547,12 +570,14 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
     test "computes start_time from created_at" do
       now = System.system_time(:millisecond)
+
       agent = %{
         id: "with-created",
         type: "claude",
         name: "Agent",
         status: "running",
-        created_at: now - 120_000  # 2 minutes ago
+        # 2 minutes ago
+        created_at: now - 120_000
       }
 
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
@@ -562,6 +587,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
 
     test "computes start_time from updated_at and runtime" do
       now = System.system_time(:millisecond)
+
       agent = %{
         id: "with-updated",
         type: "claude",
@@ -574,7 +600,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponentTest do
       html = render_component(AgentCardComponent, id: "test-card", agent: agent)
 
       # Should have data-start-time = updated_at - 150 seconds (2m 30s)
-      expected_start = now - (150 * 1000)
+      expected_start = now - 150 * 1000
       assert html =~ "data-start-time=\"#{expected_start}\""
     end
   end

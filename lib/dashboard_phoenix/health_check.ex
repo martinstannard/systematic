@@ -1,7 +1,7 @@
 defmodule DashboardPhoenix.HealthCheck do
   @moduledoc """
   Periodic health check that pings the dashboard endpoint.
-  
+
   Broadcasts health status updates via PubSub for UI components to display.
   """
   use GenServer
@@ -43,10 +43,10 @@ defmodule DashboardPhoenix.HealthCheck do
       last_check: nil,
       last_error: nil
     }
-    
+
     # Schedule first check after a short delay
     Process.send_after(self(), :check, 1_000)
-    
+
     {:ok, state}
   end
 
@@ -66,10 +66,10 @@ defmodule DashboardPhoenix.HealthCheck do
   def handle_info(:check, state) do
     new_state = perform_check(state)
     broadcast(new_state)
-    
+
     # Schedule next check
     Process.send_after(self(), :check, @check_interval)
-    
+
     {:noreply, new_state}
   end
 
@@ -77,11 +77,11 @@ defmodule DashboardPhoenix.HealthCheck do
 
   defp perform_check(state) do
     now = DateTime.utc_now()
-    
+
     case do_health_check() do
       :ok ->
         %{state | status: :healthy, last_check: now, last_error: nil}
-      
+
       {:error, reason} ->
         Logger.warning("Health check failed: #{inspect(reason)}")
         %{state | status: :unhealthy, last_check: now, last_error: reason}
@@ -89,14 +89,18 @@ defmodule DashboardPhoenix.HealthCheck do
   end
 
   defp do_health_check do
-    case :httpc.request(:get, {@health_url |> String.to_charlist(), []}, 
-           [{:timeout, @timeout}, {:connect_timeout, @timeout}], []) do
+    case :httpc.request(
+           :get,
+           {@health_url |> String.to_charlist(), []},
+           [{:timeout, @timeout}, {:connect_timeout, @timeout}],
+           []
+         ) do
       {:ok, {{_, status_code, _}, _headers, _body}} when status_code in 200..299 ->
         :ok
-      
+
       {:ok, {{_, status_code, reason}, _headers, _body}} ->
         {:error, "HTTP #{status_code}: #{reason}"}
-      
+
       {:error, reason} ->
         {:error, reason}
     end

@@ -1,6 +1,6 @@
 defmodule DashboardPhoenix.CommandRunnerTest do
   use ExUnit.Case, async: false
-  
+
   alias DashboardPhoenix.CommandRunner
 
   setup do
@@ -32,7 +32,7 @@ defmodule DashboardPhoenix.CommandRunnerTest do
       # First command should work
       result = CommandRunner.run("echo", ["test1"])
       assert {:ok, _} = result
-      
+
       # We can't easily test rate limiting exhaustion in a unit test
       # without making many calls, so we'll test that it's enabled
       assert result != {:error, :rate_limited}
@@ -54,12 +54,12 @@ defmodule DashboardPhoenix.CommandRunnerTest do
     test "retries on retryable failures when enabled" do
       # Create a script that fails first time but succeeds second time
       script_path = "/tmp/test_retry_#{:rand.uniform(10000)}"
-      
+
       # Create a script that tracks attempts and fails on first try
       script_content = """
       #!/bin/bash
       ATTEMPT_FILE="/tmp/attempt_count_#{:rand.uniform(10000)}"
-      
+
       if [ ! -f "$ATTEMPT_FILE" ]; then
           echo "1" > "$ATTEMPT_FILE"
           echo "timeout error" >&2
@@ -72,10 +72,10 @@ defmodule DashboardPhoenix.CommandRunnerTest do
           exit 0
       fi
       """
-      
+
       File.write!(script_path, script_content)
       File.chmod!(script_path, 0o755)
-      
+
       try do
         # Should succeed after retry
         result = CommandRunner.run("bash", [script_path], retry: true, initial_delay_ms: 10)
@@ -88,30 +88,37 @@ defmodule DashboardPhoenix.CommandRunnerTest do
 
     test "does not retry non-retryable failures" do
       # Permission denied is not retryable
-      result = CommandRunner.run("bash", ["-c", "echo 'permission denied' >&2; exit 1"], 
-                                retry: true, initial_delay_ms: 10)
+      result =
+        CommandRunner.run("bash", ["-c", "echo 'permission denied' >&2; exit 1"],
+          retry: true,
+          initial_delay_ms: 10
+        )
+
       assert {:error, {:exit, 1, _}} = result
     end
 
     test "respects max attempts" do
       # Create a script that always fails
       script_path = "/tmp/test_always_fail_#{:rand.uniform(10000)}"
-      
+
       script_content = """
       #!/bin/bash
       echo "attempt" >> "/tmp/attempts_#{:rand.uniform(10000)}"
       echo "network error" >&2
       exit 1
       """
-      
+
       File.write!(script_path, script_content)
       File.chmod!(script_path, 0o755)
-      
+
       try do
-        result = CommandRunner.run("bash", [script_path], 
-                                  retry: true, 
-                                  max_attempts: 2, 
-                                  initial_delay_ms: 10)
+        result =
+          CommandRunner.run("bash", [script_path],
+            retry: true,
+            max_attempts: 2,
+            initial_delay_ms: 10
+          )
+
         assert {:error, {:exit, 1, _}} = result
       after
         File.rm(script_path)
@@ -156,7 +163,7 @@ defmodule DashboardPhoenix.CommandRunnerTest do
       test_dir = "/tmp/command_runner_test_#{:rand.uniform(10000)}"
       File.mkdir_p!(test_dir)
       File.write!(Path.join(test_dir, "test.txt"), "content")
-      
+
       try do
         result = CommandRunner.run("cat", ["test.txt"], cd: test_dir)
         assert {:ok, output} = result
@@ -167,7 +174,9 @@ defmodule DashboardPhoenix.CommandRunnerTest do
     end
 
     test "handles environment variables" do
-      result = CommandRunner.run("bash", ["-c", "echo $TEST_VAR"], env: [{"TEST_VAR", "test_value"}])
+      result =
+        CommandRunner.run("bash", ["-c", "echo $TEST_VAR"], env: [{"TEST_VAR", "test_value"}])
+
       assert {:ok, output} = result
       assert String.trim(output) == "test_value"
     end

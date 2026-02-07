@@ -1,6 +1,6 @@
 defmodule DashboardPhoenix.WorkSpawnerTest do
   use ExUnit.Case, async: true
-  
+
   alias DashboardPhoenix.WorkSpawner
 
   describe "format_spawn_error/2" do

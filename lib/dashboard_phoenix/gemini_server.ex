@@ -146,7 +146,9 @@ defmodule DashboardPhoenix.GeminiServer do
 
         {:error, {:exit, code, error}} ->
           Logger.error("[GeminiServer] Gemini CLI check failed (exit #{code}): #{error}")
-          {:reply, {:error, "Gemini CLI check failed (exit #{code}): #{String.trim(error)}"}, state}
+
+          {:reply, {:error, "Gemini CLI check failed (exit #{code}): #{String.trim(error)}"},
+           state}
 
         {:error, reason} ->
           Logger.error("[GeminiServer] Gemini CLI check error: #{inspect(reason)}")
@@ -254,7 +256,10 @@ defmodule DashboardPhoenix.GeminiServer do
           {:noreply, new_state}
 
         {:error, reason} ->
-          Logger.warning("[GeminiServer] Auto-start failed: #{inspect(reason)}, will retry on demand")
+          Logger.warning(
+            "[GeminiServer] Auto-start failed: #{inspect(reason)}, will retry on demand"
+          )
+
           {:noreply, state}
       end
     else
@@ -325,8 +330,12 @@ defmodule DashboardPhoenix.GeminiServer do
     path = gemini_bin()
 
     cond do
-      File.exists?(path) -> path
-      File.exists?("/usr/local/bin/gemini") -> "/usr/local/bin/gemini"
+      File.exists?(path) ->
+        path
+
+      File.exists?("/usr/local/bin/gemini") ->
+        "/usr/local/bin/gemini"
+
       true ->
         case CommandRunner.run("which", ["gemini"], timeout: 5_000, stderr_to_stdout: true) do
           {:ok, output} -> String.trim(output)
@@ -341,7 +350,8 @@ defmodule DashboardPhoenix.GeminiServer do
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:gemini_output, "\n> #{prompt}\n\n"})
 
     case CommandRunner.run(gemini_path, [prompt],
-           timeout: 600_000,  # 10 minutes for coding work
+           # 10 minutes for coding work
+           timeout: 600_000,
            cd: cwd,
            stderr_to_stdout: true,
            env: [{"NO_COLOR", "1"}, {"TERM", "dumb"}]

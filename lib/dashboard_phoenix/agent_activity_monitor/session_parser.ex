@@ -1,7 +1,7 @@
 defmodule DashboardPhoenix.AgentActivityMonitor.SessionParser do
   @moduledoc """
   Deprecated: Use `AgentActivityMonitor.SessionParser` directly.
-  
+
   This module exists only for backward compatibility. All functionality
   has been moved to the portable `AgentActivityMonitor.SessionParser` module.
   """
@@ -16,10 +16,12 @@ defmodule DashboardPhoenix.AgentActivityMonitor.SessionParser do
   defdelegate parse_jsonl_line(line), to: AgentActivityMonitor.SessionParser
 
   @deprecated "Use AgentActivityMonitor.SessionParser instead"
-  defdelegate extract_agent_activity(events, filename, max_actions \\ 10), to: AgentActivityMonitor.SessionParser
+  defdelegate extract_agent_activity(events, filename, max_actions \\ 10),
+    to: AgentActivityMonitor.SessionParser
 
   @deprecated "Use AgentActivityMonitor.SessionParser instead"
-  defdelegate extract_tool_calls(events, max_actions \\ 10), to: AgentActivityMonitor.SessionParser
+  defdelegate extract_tool_calls(events, max_actions \\ 10),
+    to: AgentActivityMonitor.SessionParser
 
   @deprecated "Use AgentActivityMonitor.SessionParser instead"
   defdelegate extract_files_from_tool_call(tool_call), to: AgentActivityMonitor.SessionParser

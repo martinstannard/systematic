@@ -2,15 +2,15 @@ defmodule DashboardPhoenix.PRMonitor do
   @moduledoc """
   Monitors GitHub Pull Requests by polling the GitHub CLI.
   Fetches open PRs with CI status, review status, and associated Linear tickets.
-  
+
   ## Performance Optimizations (Ticket #71)
-  
+
   - Uses ETS for fast data reads (no GenServer.call blocking)
   - GenServer only manages lifecycle and periodic polling
   - All public getters read directly from ETS
-  
+
   ## Performance Optimizations (Ticket #73)
-  
+
   - Increased poll interval from 60s to 120s
   - Exponential backoff on failures (up to 10 minutes)
   - CLI result caching to avoid redundant calls
@@ -21,14 +21,20 @@ defmodule DashboardPhoenix.PRMonitor do
 
   alias DashboardPhoenix.{CLITools, CLICache}
 
-  @poll_interval_ms 120_000  # 120 seconds (Ticket #73: increased from 60s)
-  @max_poll_interval_ms 600_000  # 10 minutes max backoff
+  # 120 seconds (Ticket #73: increased from 60s)
+  @poll_interval_ms 120_000
+  # 10 minutes max backoff
+  @max_poll_interval_ms 600_000
   @topic "pr_updates"
-  @linear_workspace "fresh-clinics"  # Workspace slug for Linear URLs
-  @repos ["Fresh-Clinics/core-platform"]  # Repos to monitor
-  @cli_timeout_ms 60_000  # GitHub API can be slow
-  @cache_ttl_ms 90_000  # Cache CLI results for 90 seconds
-  
+  # Workspace slug for Linear URLs
+  @linear_workspace "fresh-clinics"
+  # Repos to monitor
+  @repos ["Fresh-Clinics/core-platform"]
+  # GitHub API can be slow
+  @cli_timeout_ms 60_000
+  # Cache CLI results for 90 seconds
+  @cache_ttl_ms 90_000
+
   # ETS table name for fast reads
   @ets_table :pr_monitor_data
 
@@ -62,35 +68,45 @@ defmodule DashboardPhoenix.PRMonitor do
   def init(_opts) do
     # Create ETS table for fast reads (Ticket #71)
     :ets.new(@ets_table, [:named_table, :public, :set, read_concurrency: true])
-    
+
     # Initialize ETS with empty data
     :ets.insert(@ets_table, {:prs, %{prs: [], last_updated: nil, error: nil}})
-    
+
     # Check tool availability on startup
-    initial_error = case CLITools.check_tool("gh", "GitHub CLI") do
-      {:ok, _path} ->
-        Logger.info("PRMonitor initialized - GitHub CLI available")
-        nil
-      
-      {:error, {reason, _name}} ->
-        message = case reason do
-          :not_found -> "GitHub CLI (gh) command not found in PATH. Install from https://cli.github.com/"
-          :not_executable -> "GitHub CLI (gh) found but not executable"
-          _ -> "GitHub CLI (gh) unavailable: #{reason}"
-        end
-        Logger.warning("PRMonitor starting with missing tools: #{message}")
-        message
-    end
-    
+    initial_error =
+      case CLITools.check_tool("gh", "GitHub CLI") do
+        {:ok, _path} ->
+          Logger.info("PRMonitor initialized - GitHub CLI available")
+          nil
+
+        {:error, {reason, _name}} ->
+          message =
+            case reason do
+              :not_found ->
+                "GitHub CLI (gh) command not found in PATH. Install from https://cli.github.com/"
+
+              :not_executable ->
+                "GitHub CLI (gh) found but not executable"
+
+              _ ->
+                "GitHub CLI (gh) unavailable: #{reason}"
+            end
+
+          Logger.warning("PRMonitor starting with missing tools: #{message}")
+          message
+      end
+
     # Start polling after a short delay
     Process.send_after(self(), :poll, 1_000)
-    {:ok, %{
-      prs: [], 
-      last_updated: nil, 
-      error: initial_error,
-      consecutive_failures: 0,
-      current_interval: @poll_interval_ms
-    }}
+
+    {:ok,
+     %{
+       prs: [],
+       last_updated: nil,
+       error: initial_error,
+       consecutive_failures: 0,
+       current_interval: @poll_interval_ms
+     }}
   end
 
   @impl true
@@ -103,51 +119,63 @@ defmodule DashboardPhoenix.PRMonitor do
   def handle_info(:poll, state) do
     # Fetch async to avoid blocking GenServer calls
     parent = self()
+
     Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       new_state = fetch_all_prs(state)
       send(parent, {:poll_complete, new_state})
     end)
+
     {:noreply, state}
   end
 
   def handle_info({:poll_complete, new_state}, state) do
     # Update ETS (Ticket #71)
-    :ets.insert(@ets_table, {:prs, %{
-      prs: new_state.prs,
-      last_updated: new_state.last_updated,
-      error: new_state.error
-    }})
-    
+    :ets.insert(
+      @ets_table,
+      {:prs,
+       %{
+         prs: new_state.prs,
+         last_updated: new_state.last_updated,
+         error: new_state.error
+       }}
+    )
+
     # Broadcast update to subscribers
     Phoenix.PubSub.broadcast(
       DashboardPhoenix.PubSub,
       @topic,
-      {:pr_update, %{
-        prs: new_state.prs,
-        last_updated: new_state.last_updated,
-        error: new_state.error
-      }}
+      {:pr_update,
+       %{
+         prs: new_state.prs,
+         last_updated: new_state.last_updated,
+         error: new_state.error
+       }}
     )
-    
+
     # Calculate next poll interval with exponential backoff (Ticket #73)
-    {next_interval, consecutive_failures} = if is_nil(new_state.error) do
-      # Success - reset to base interval
-      {@poll_interval_ms, 0}
-    else
-      # Failure - exponential backoff (double interval, cap at max)
-      failures = Map.get(state, :consecutive_failures, 0) + 1
-      backoff = min(@poll_interval_ms * :math.pow(2, failures), @max_poll_interval_ms) |> trunc()
-      Logger.info("PRMonitor: Failure ##{failures}, backing off to #{div(backoff, 1000)}s")
-      {backoff, failures}
-    end
-    
+    {next_interval, consecutive_failures} =
+      if is_nil(new_state.error) do
+        # Success - reset to base interval
+        {@poll_interval_ms, 0}
+      else
+        # Failure - exponential backoff (double interval, cap at max)
+        failures = Map.get(state, :consecutive_failures, 0) + 1
+
+        backoff =
+          min(@poll_interval_ms * :math.pow(2, failures), @max_poll_interval_ms) |> trunc()
+
+        Logger.info("PRMonitor: Failure ##{failures}, backing off to #{div(backoff, 1000)}s")
+        {backoff, failures}
+      end
+
     # Schedule next poll
     Process.send_after(self(), :poll, next_interval)
-    
-    {:noreply, Map.merge(new_state, %{
-      consecutive_failures: consecutive_failures,
-      current_interval: next_interval
-    })}
+
+    {:noreply,
+     Map.merge(new_state, %{
+       consecutive_failures: consecutive_failures,
+       current_interval: next_interval
+     })}
   end
 
   # Private functions
@@ -163,11 +191,7 @@ defmodule DashboardPhoenix.PRMonitor do
       end)
       |> sort_prs()
 
-    %{state |
-      prs: results,
-      last_updated: DateTime.utc_now(),
-      error: nil
-    }
+    %{state | prs: results, last_updated: DateTime.utc_now(), error: nil}
   rescue
     e ->
       Logger.error("Failed to fetch PRs: #{inspect(e)}")
@@ -176,36 +200,43 @@ defmodule DashboardPhoenix.PRMonitor do
 
   defp fetch_prs_for_repo(repo) do
     args = [
-      "pr", "list",
-      "--repo", repo,
-      "--json", "number,title,state,headRefName,url,statusCheckRollup,reviews,createdAt,author,mergeable",
-      "--state", "open"
+      "pr",
+      "list",
+      "--repo",
+      repo,
+      "--json",
+      "number,title,state,headRefName,url,statusCheckRollup,reviews,createdAt,author,mergeable",
+      "--state",
+      "open"
     ]
-    
+
     cache_key = "gh:pr:list:#{repo}"
-    
+
     # Use CLI cache to avoid redundant calls (Ticket #73)
     case CLICache.get_or_fetch(cache_key, @cache_ttl_ms, fn ->
-      CLITools.run_json_if_available("gh", args, timeout: @cli_timeout_ms, friendly_name: "GitHub CLI")
-    end) do
+           CLITools.run_json_if_available("gh", args,
+             timeout: @cli_timeout_ms,
+             friendly_name: "GitHub CLI"
+           )
+         end) do
       {:ok, prs} when is_list(prs) ->
         {:ok, Enum.map(prs, &parse_pr(&1, repo))}
-        
+
       {:ok, _} ->
         {:error, :unexpected_format}
-      
+
       {:error, {:tool_not_available, message}} ->
         Logger.info("GitHub CLI not available for repo #{repo}: #{message}")
         {:error, message}
-        
+
       {:error, :timeout} ->
         Logger.warning("GitHub CLI timeout for repo #{repo}")
         {:error, :timeout}
-        
+
       {:error, {:exit, _code, error}} ->
         Logger.warning("GitHub CLI error for repo #{repo}: #{error}")
         {:error, error}
-        
+
       {:error, reason} ->
         Logger.warning("GitHub CLI error for repo #{repo}: #{inspect(reason)}")
         {:error, reason}
@@ -215,19 +246,19 @@ defmodule DashboardPhoenix.PRMonitor do
   defp parse_pr(pr_data, repo) do
     title = Map.get(pr_data, "title", "")
     branch = Map.get(pr_data, "headRefName", "")
-    
+
     # Parse Linear ticket IDs from title and branch
     ticket_ids = extract_ticket_ids("#{title} #{branch}")
-    
+
     # Parse CI status from statusCheckRollup
     ci_status = parse_ci_status(Map.get(pr_data, "statusCheckRollup"))
-    
+
     # Parse review status from reviews
     review_status = parse_review_status(Map.get(pr_data, "reviews", []))
-    
+
     # Check for merge conflicts
     has_conflicts = Map.get(pr_data, "mergeable") == "CONFLICTING"
-    
+
     %{
       number: Map.get(pr_data, "number"),
       title: title,
@@ -255,17 +286,20 @@ defmodule DashboardPhoenix.PRMonitor do
   # Parse CI status from statusCheckRollup
   defp parse_ci_status(nil), do: :unknown
   defp parse_ci_status([]), do: :unknown
+
   defp parse_ci_status(checks) when is_list(checks) do
-    statuses = Enum.map(checks, fn check ->
-      case Map.get(check, "conclusion") do
-        "SUCCESS" -> :success
-        "FAILURE" -> :failure
-        "NEUTRAL" -> :neutral
-        nil -> :pending  # In progress
-        _ -> :unknown
-      end
-    end)
-    
+    statuses =
+      Enum.map(checks, fn check ->
+        case Map.get(check, "conclusion") do
+          "SUCCESS" -> :success
+          "FAILURE" -> :failure
+          "NEUTRAL" -> :neutral
+          # In progress
+          nil -> :pending
+          _ -> :unknown
+        end
+      end)
+
     cond do
       Enum.any?(statuses, &(&1 == :failure)) -> :failure
       Enum.any?(statuses, &(&1 == :pending)) -> :pending
@@ -273,14 +307,16 @@ defmodule DashboardPhoenix.PRMonitor do
       true -> :unknown
     end
   end
+
   defp parse_ci_status(_), do: :unknown
 
   # Parse review status from reviews array
   defp parse_review_status(nil), do: :pending
   defp parse_review_status([]), do: :pending
+
   defp parse_review_status(reviews) when is_list(reviews) do
     # Get latest review state per author
-    latest_by_author = 
+    latest_by_author =
       reviews
       |> Enum.group_by(&get_in(&1, ["author", "login"]))
       |> Enum.map(fn {_author, author_reviews} ->
@@ -288,7 +324,7 @@ defmodule DashboardPhoenix.PRMonitor do
         List.last(author_reviews)
       end)
       |> Enum.map(&Map.get(&1, "state"))
-    
+
     cond do
       Enum.any?(latest_by_author, &(&1 == "CHANGES_REQUESTED")) -> :changes_requested
       Enum.any?(latest_by_author, &(&1 == "APPROVED")) -> :approved
@@ -296,16 +332,19 @@ defmodule DashboardPhoenix.PRMonitor do
       true -> :pending
     end
   end
+
   defp parse_review_status(_), do: :pending
 
   # Parse ISO8601 datetime string
   defp parse_datetime(nil), do: nil
+
   defp parse_datetime(datetime_str) when is_binary(datetime_str) do
     case DateTime.from_iso8601(datetime_str) do
       {:ok, dt, _offset} -> dt
       _ -> nil
     end
   end
+
   defp parse_datetime(_), do: nil
 
   # Build Linear ticket URL
@@ -315,11 +354,15 @@ defmodule DashboardPhoenix.PRMonitor do
 
   defp sort_prs(prs) do
     # Sort by created_at descending (newest first)
-    Enum.sort_by(prs, fn pr ->
-      case pr.created_at do
-        %DateTime{} = dt -> {0, DateTime.to_unix(dt)}
-        _ -> {1, 0}
-      end
-    end, :desc)
+    Enum.sort_by(
+      prs,
+      fn pr ->
+        case pr.created_at do
+          %DateTime{} = dt -> {0, DateTime.to_unix(dt)}
+          _ -> {1, 0}
+        end
+      end,
+      :desc
+    )
   end
 end

@@ -1,13 +1,13 @@
 defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   @moduledoc """
   Unified card component for displaying all agent types in the Work Panel.
-  
+
   Supports:
   - Claude sub-agents (🟣)
   - OpenCode sessions (🔷)
   - Gemini CLI (✨)
   - Any other agent type with consistent styling
-  
+
   Features:
   - Agent icon based on type
   - Task/session name
@@ -30,8 +30,10 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   Extracts a short model name for display (e.g., "opus", "sonnet", "gemini").
   """
   def short_model_name(nil), do: nil
+
   def short_model_name(model) when is_binary(model) do
     model_lower = String.downcase(model)
+
     cond do
       String.contains?(model_lower, "opus") -> "opus"
       String.contains?(model_lower, "sonnet") -> "sonnet"
@@ -45,6 +47,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
       true -> nil
     end
   end
+
   def short_model_name(_), do: nil
 
   @doc """
@@ -58,6 +61,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   def agent_type_info("anthropic/" <> _), do: {:claude, "Claude", "🟣"}
   def agent_type_info("google/" <> _), do: {:gemini, "Gemini", "✨"}
   def agent_type_info("openai/" <> _), do: {:openai, "OpenAI", "🔥"}
+
   def agent_type_info(model) when is_binary(model) do
     cond do
       String.contains?(model, "claude") -> {:claude, "Claude", "🟣"}
@@ -67,6 +71,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
       true -> {:unknown, "Agent", "⚡"}
     end
   end
+
   def agent_type_info(_), do: {:unknown, "Agent", "⚡"}
 
   @doc """
@@ -91,69 +96,75 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   def update(assigns, socket) do
     # Extract and normalize agent info (handle nil gracefully)
     agent = Map.get(assigns, :agent) || %{}
-    agent_type_key = Map.get(assigns, :type) || Map.get(agent, :type, nil) || Map.get(agent, :model, nil)
+
+    agent_type_key =
+      Map.get(assigns, :type) || Map.get(agent, :type, nil) || Map.get(agent, :model, nil)
+
     {type_atom, type_name, icon} = agent_type_info(agent_type_key)
-    
+
     # Determine state
     status = Map.get(agent, :status) || Map.get(agent, :state) || Status.idle()
     state = normalize_state(status)
-    
+
     # Get display name
-    name = Map.get(agent, :name) || 
-           Map.get(agent, :label) || 
-           Map.get(agent, :slug) || 
-           Map.get(agent, :title) ||
-           Map.get(agent, :id) ||
-           "Unknown"
-    
+    name =
+      Map.get(agent, :name) ||
+        Map.get(agent, :label) ||
+        Map.get(agent, :slug) ||
+        Map.get(agent, :title) ||
+        Map.get(agent, :id) ||
+        "Unknown"
+
     # Get task description
-    task = Map.get(agent, :task) ||
-           Map.get(agent, :task_summary) ||
-           Map.get(agent, :description) ||
-           Map.get(agent, :title)
-    
+    task =
+      Map.get(agent, :task) ||
+        Map.get(agent, :task_summary) ||
+        Map.get(agent, :description) ||
+        Map.get(agent, :title)
+
     # Duration handling
     start_time = compute_start_time(agent)
     runtime = Map.get(agent, :runtime)
-    
+
     # Model name for display
     model = Map.get(agent, :model)
     model_short = short_model_name(model)
-    
+
     # Token usage and cost
     tokens_in = Map.get(agent, :tokens_in, 0)
     tokens_out = Map.get(agent, :tokens_out, 0)
     cost = Map.get(agent, :cost, 0)
-    
+
     # Recent actions for expanded view
     recent_actions = Map.get(agent, :recent_actions, []) |> Enum.take(-5)
     current_action = Map.get(agent, :current_action)
     result_snippet = Map.get(agent, :result_snippet)
-    
+
     # Expanded state - preserve if already set, otherwise default to false
     expanded = Map.get(socket.assigns, :expanded, false)
-    
-    socket = socket
-    |> assign(assigns)
-    |> assign(:type_atom, type_atom)
-    |> assign(:type_name, type_name)
-    |> assign(:icon, icon)
-    |> assign(:state, state)
-    |> assign(:name, name)
-    |> assign(:task, task)
-    |> assign(:start_time, start_time)
-    |> assign(:runtime, runtime)
-    |> assign(:model, model)
-    |> assign(:model_short, model_short)
-    |> assign(:agent_id, Map.get(agent, :id, "unknown"))
-    |> assign(:tokens_in, tokens_in)
-    |> assign(:tokens_out, tokens_out)
-    |> assign(:cost, cost)
-    |> assign(:recent_actions, recent_actions)
-    |> assign(:current_action, current_action)
-    |> assign(:result_snippet, result_snippet)
-    |> assign(:expanded, expanded)
-    
+
+    socket =
+      socket
+      |> assign(assigns)
+      |> assign(:type_atom, type_atom)
+      |> assign(:type_name, type_name)
+      |> assign(:icon, icon)
+      |> assign(:state, state)
+      |> assign(:name, name)
+      |> assign(:task, task)
+      |> assign(:start_time, start_time)
+      |> assign(:runtime, runtime)
+      |> assign(:model, model)
+      |> assign(:model_short, model_short)
+      |> assign(:agent_id, Map.get(agent, :id, "unknown"))
+      |> assign(:tokens_in, tokens_in)
+      |> assign(:tokens_out, tokens_out)
+      |> assign(:cost, cost)
+      |> assign(:recent_actions, recent_actions)
+      |> assign(:current_action, current_action)
+      |> assign(:result_snippet, result_snippet)
+      |> assign(:expanded, expanded)
+
     {:ok, socket}
   end
 
@@ -164,13 +175,18 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
 
   # Compute start time for live duration updates
   defp compute_start_time(%{created_at: created_at}) when is_integer(created_at), do: created_at
-  defp compute_start_time(%{updated_at: updated_at, runtime: runtime}) when is_integer(updated_at) and is_binary(runtime) do
+
+  defp compute_start_time(%{updated_at: updated_at, runtime: runtime})
+       when is_integer(updated_at) and is_binary(runtime) do
     seconds = parse_runtime_to_seconds(runtime)
-    updated_at - (seconds * 1000)
+    updated_at - seconds * 1000
   end
+
   defp compute_start_time(%{updated_at: updated_at}) when is_integer(updated_at) do
-    updated_at - 60_000  # Default to 1 min ago
+    # Default to 1 min ago
+    updated_at - 60_000
   end
+
   defp compute_start_time(%{start_time: start_time}) when is_integer(start_time), do: start_time
   defp compute_start_time(_), do: System.system_time(:millisecond)
 
@@ -182,11 +198,15 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
       cond do
         String.ends_with?(part, "h") ->
           acc + (String.trim_trailing(part, "h") |> String.to_integer() |> Kernel.*(3600))
+
         String.ends_with?(part, "m") ->
           acc + (String.trim_trailing(part, "m") |> String.to_integer() |> Kernel.*(60))
+
         String.ends_with?(part, "s") ->
           acc + (String.trim_trailing(part, "s") |> String.to_integer())
-        true -> acc
+
+        true ->
+          acc
       end
     end)
   rescue
@@ -232,27 +252,29 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     formatted = Float.round(n / 1_000_000, 1)
     if formatted == Float.round(formatted), do: "#{round(formatted)}M", else: "#{formatted}M"
   end
+
   defp format_tokens(n) when is_integer(n) and n >= 1_000 do
-    formatted = Float.round(n / 1_000, 1) 
+    formatted = Float.round(n / 1_000, 1)
     if formatted == Float.round(formatted), do: "#{round(formatted)}K", else: "#{formatted}K"
   end
+
   defp format_tokens(n) when is_integer(n), do: "#{n}"
   defp format_tokens(_), do: "0"
 
   # Check if we have expandable details
   defp has_details?(assigns) do
-    (assigns.tokens_in > 0 or assigns.tokens_out > 0) or
-    assigns.cost > 0 or
-    assigns.current_action != nil or
-    assigns.recent_actions != [] or
-    assigns.result_snippet != nil or
-    assigns.model != nil
+    assigns.tokens_in > 0 or assigns.tokens_out > 0 or
+      assigns.cost > 0 or
+      assigns.current_action != nil or
+      assigns.recent_actions != [] or
+      assigns.result_snippet != nil or
+      assigns.model != nil
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div 
+    <div
       class={"agent-card panel-status border transition-all cursor-pointer " <> card_border_class(@state)}
       id={"agent-card-#{@agent_id}"}
       data-agent-type={@type_atom}
@@ -271,23 +293,24 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
         <!-- Line 1: Icon + Name (full width) -->
         <div class="flex items-center gap-2 w-full min-w-0">
           <!-- State Indicator Dot -->
-          <span 
+          <span
             class={"w-2.5 h-2.5 rounded-full flex-shrink-0 " <> state_indicator_class(@state) <> if(@state == :running, do: " animate-pulse", else: "")}
             aria-hidden="true"
             title={state_text(@state)}
-          ></span>
-          
-          <!-- Agent Icon -->
-          <span class="agent-card-icon" aria-hidden="true"><%= @icon %></span>
-          
-          <!-- Agent Name - now gets full width -->
-          <span class="agent-card-name flex-1" title={@name}>
-            <%= @name %>
+          >
           </span>
           
-          <!-- Expand chevron indicator -->
+    <!-- Agent Icon -->
+          <span class="agent-card-icon" aria-hidden="true">{@icon}</span>
+          
+    <!-- Agent Name - now gets full width -->
+          <span class="agent-card-name flex-1" title={@name}>
+            {@name}
+          </span>
+          
+    <!-- Expand chevron indicator -->
           <%= if has_details?(assigns) do %>
-            <span 
+            <span
               class={"text-xs text-base-content/60 transition-transform duration-200 flex-shrink-0 " <> if(@expanded, do: "rotate-180", else: "")}
               aria-hidden="true"
             >
@@ -296,40 +319,43 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
           <% end %>
         </div>
         
-        <!-- Line 2: Model, Duration, State badges -->
+    <!-- Line 2: Model, Duration, State badges -->
         <div class="agent-card-badges w-full justify-start">
           <%= if @state == :running do %>
-            <span 
+            <span
               class={"px-2 py-1 text-xs font-mono tabular-nums rounded " <> duration_badge_class(@state)}
               id={"card-duration-#{@agent_id}"}
               phx-hook="LiveDuration"
               data-start-time={@start_time}
               data-model={@model_short}
             >
-              <%= if @model_short do %><%= @model_short %> • <% end %><%= @runtime || "0s" %>
+              <%= if @model_short do %>
+                {@model_short} •
+              <% end %>
+              {@runtime || "0s"}
             </span>
           <% else %>
             <%= if @runtime || @model_short do %>
               <span class={"px-2 py-1 text-xs font-mono tabular-nums rounded " <> duration_badge_class(@state)}>
                 <%= if @model_short && @runtime do %>
-                  <%= @model_short %> • <%= @runtime %>
+                  {@model_short} • {@runtime}
                 <% else %>
-                  <%= @model_short || @runtime %>
+                  {@model_short || @runtime}
                 <% end %>
               </span>
             <% end %>
           <% end %>
-          
+
           <span class={"px-2 py-1 text-xs font-semibold uppercase tracking-wide rounded " <> state_badge_class(@state)}>
-            <%= state_text(@state) %>
+            {state_text(@state)}
           </span>
         </div>
       </div>
       
-      <!-- Task Description (always visible) -->
+    <!-- Task Description (always visible) -->
       <%= if @task do %>
         <div class="agent-card-task" title={@task}>
-          <%= @task %>
+          {@task}
         </div>
       <% else %>
         <div class="agent-card-task text-base-content/40 italic">
@@ -337,8 +363,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
         </div>
       <% end %>
       
-      <!-- Expandable Details Section -->
-      <div 
+    <!-- Expandable Details Section -->
+      <div
         class={"agent-card-details overflow-hidden transition-all duration-300 ease-in-out " <> 
           if(@expanded, do: "max-h-[400px] opacity-100 mt-3", else: "max-h-0 opacity-0")}
         aria-hidden={not @expanded}
@@ -348,54 +374,73 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
           <%= if @state == :running && @current_action do %>
             <div class="text-sm">
               <div class="text-xs text-green-400/70 mb-1 font-medium">▶ Current Action</div>
-              <div class="text-green-400 font-mono text-xs truncate bg-green-500/10 px-2 py-1 rounded" title={@current_action}>
-                <%= @current_action %>
+              <div
+                class="text-green-400 font-mono text-xs truncate bg-green-500/10 px-2 py-1 rounded"
+                title={@current_action}
+              >
+                {@current_action}
               </div>
             </div>
           <% end %>
           
-          <!-- Recent Actions -->
+    <!-- Recent Actions -->
           <%= if @recent_actions != [] do %>
             <div class="text-sm">
               <div class="text-xs text-base-content/50 mb-1 font-medium">Recent Activity</div>
               <div class="space-y-1 max-h-[100px] overflow-y-auto">
                 <%= for action <- @recent_actions do %>
-                  <div class="text-xs text-base-content/60 font-mono truncate flex items-center gap-1" title={action}>
+                  <div
+                    class="text-xs text-base-content/60 font-mono truncate flex items-center gap-1"
+                    title={action}
+                  >
                     <span class="text-success/50">✓</span>
-                    <%= action %>
+                    {action}
                   </div>
                 <% end %>
               </div>
             </div>
           <% end %>
           
-          <!-- Result Snippet (for completed agents) -->
+    <!-- Result Snippet (for completed agents) -->
           <%= if @state == :completed && @result_snippet do %>
             <div class="text-sm">
               <div class="text-xs text-blue-400/70 mb-1 font-medium">Result</div>
-              <div class="text-base-content/70 text-xs bg-blue-500/10 px-2 py-1 rounded line-clamp-3" title={@result_snippet}>
-                <%= @result_snippet %>
+              <div
+                class="text-base-content/70 text-xs bg-blue-500/10 px-2 py-1 rounded line-clamp-3"
+                title={@result_snippet}
+              >
+                {@result_snippet}
               </div>
             </div>
           <% end %>
           
-          <!-- Token Usage & Cost Stats -->
+    <!-- Token Usage & Cost Stats -->
           <%= if @tokens_in > 0 || @tokens_out > 0 || @cost > 0 do %>
-            <div class="flex items-center justify-between text-xs bg-base-content/5 px-2 py-1.5 rounded" role="group" aria-label="Token usage and cost">
+            <div
+              class="flex items-center justify-between text-xs bg-base-content/5 px-2 py-1.5 rounded"
+              role="group"
+              aria-label="Token usage and cost"
+            >
               <div class="flex items-center gap-3">
                 <%= if @tokens_in > 0 do %>
                   <div class="flex items-center gap-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-info/60" aria-hidden="true"></span>
-                    <span class="text-base-content/60 font-mono tabular-nums" aria-label={"Input tokens: " <> format_tokens(@tokens_in)}>
-                      <span aria-hidden="true">↓</span> <%= format_tokens(@tokens_in) %>
+                    <span
+                      class="text-base-content/60 font-mono tabular-nums"
+                      aria-label={"Input tokens: " <> format_tokens(@tokens_in)}
+                    >
+                      <span aria-hidden="true">↓</span> {format_tokens(@tokens_in)}
                     </span>
                   </div>
                 <% end %>
                 <%= if @tokens_out > 0 do %>
                   <div class="flex items-center gap-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-secondary/60" aria-hidden="true"></span>
-                    <span class="text-base-content/60 font-mono tabular-nums" aria-label={"Output tokens: " <> format_tokens(@tokens_out)}>
-                      <span aria-hidden="true">↑</span> <%= format_tokens(@tokens_out) %>
+                    <span
+                      class="text-base-content/60 font-mono tabular-nums"
+                      aria-label={"Output tokens: " <> format_tokens(@tokens_out)}
+                    >
+                      <span aria-hidden="true">↑</span> {format_tokens(@tokens_out)}
                     </span>
                   </div>
                 <% end %>
@@ -403,17 +448,22 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
               <%= if @cost > 0 do %>
                 <div class="flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-success" aria-hidden="true"></span>
-                  <span class="text-success font-mono tabular-nums" aria-label={"Cost: $" <> to_string(Float.round(@cost, 4))}>$<%= Float.round(@cost, 4) %></span>
+                  <span
+                    class="text-success font-mono tabular-nums"
+                    aria-label={"Cost: $" <> to_string(Float.round(@cost, 4))}
+                  >
+                    ${Float.round(@cost, 4)}
+                  </span>
                 </div>
               <% end %>
             </div>
           <% end %>
           
-          <!-- Model Info (if not already shown in header) -->
+    <!-- Model Info (if not already shown in header) -->
           <%= if @model && !@model_short do %>
             <div class="text-xs text-base-content/50">
               <span class="font-medium">Model:</span>
-              <span class="font-mono ml-1"><%= @model %></span>
+              <span class="font-mono ml-1">{@model}</span>
             </div>
           <% end %>
         </div>

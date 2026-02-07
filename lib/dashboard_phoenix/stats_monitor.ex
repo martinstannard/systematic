@@ -1,15 +1,15 @@
 defmodule DashboardPhoenix.StatsMonitor do
   @moduledoc """
   Fetches usage stats from OpenCode and Claude Code.
-  
+
   ## Performance Optimizations (Ticket #71)
-  
+
   - Uses ETS for fast data reads (no GenServer.call blocking)
   - GenServer only manages lifecycle and periodic polling
   - All public getters read directly from ETS
-  
+
   ## Performance Optimizations (Ticket #73)
-  
+
   - Increased poll interval from 5s to 15s
   - CLI result caching to avoid redundant calls
   """
@@ -21,9 +21,10 @@ defmodule DashboardPhoenix.StatsMonitor do
 
   # 15 seconds (Ticket #73: increased from 5s)
   @poll_interval 15_000
-  @cache_ttl_ms 10_000  # Cache CLI results for 10 seconds
+  # Cache CLI results for 10 seconds
+  @cache_ttl_ms 10_000
   @persistence_file "stats_state.json"
-  
+
   # ETS table name for fast reads
   @ets_table :stats_monitor_data
 
@@ -44,7 +45,7 @@ defmodule DashboardPhoenix.StatsMonitor do
   def refresh do
     GenServer.cast(__MODULE__, :refresh)
   end
-  
+
   defp default_stats do
     %{
       opencode: %{
@@ -78,10 +79,10 @@ defmodule DashboardPhoenix.StatsMonitor do
   def init(_) do
     # Create ETS table for fast reads (Ticket #71)
     :ets.new(@ets_table, [:named_table, :public, :set, read_concurrency: true])
-    
+
     # Initialize ETS with default stats
     :ets.insert(@ets_table, {:stats, default_stats()})
-    
+
     schedule_poll()
 
     persisted_state = StatePersistence.load(@persistence_file, %{stats: default_stats()})
@@ -96,7 +97,7 @@ defmodule DashboardPhoenix.StatsMonitor do
         fresh_stats ->
           fresh_stats
       end
-    
+
     # Update ETS with initial stats
     :ets.insert(@ets_table, {:stats, stats})
 
@@ -119,7 +120,7 @@ defmodule DashboardPhoenix.StatsMonitor do
 
     # Update ETS (Ticket #71)
     :ets.insert(@ets_table, {:stats, final_stats})
-    
+
     broadcast_stats(final_stats)
     {:noreply, %{state | stats: final_stats}}
   end
@@ -143,7 +144,7 @@ defmodule DashboardPhoenix.StatsMonitor do
 
     # Update ETS (Ticket #71)
     :ets.insert(@ets_table, {:stats, final_stats})
-    
+
     schedule_poll()
     {:noreply, %{state | stats: final_stats}}
   end
@@ -167,14 +168,14 @@ defmodule DashboardPhoenix.StatsMonitor do
   defp fetch_opencode_stats do
     # Use CLI cache to avoid redundant calls (Ticket #73)
     cache_key = "opencode:stats"
-    
+
     case CLICache.get_or_fetch(cache_key, @cache_ttl_ms, fn ->
-      CLITools.run_if_available("opencode", ["stats"],
-        timeout: 10_000,
-        stderr_to_stdout: true,
-        friendly_name: "OpenCode"
-      )
-    end) do
+           CLITools.run_if_available("opencode", ["stats"],
+             timeout: 10_000,
+             stderr_to_stdout: true,
+             friendly_name: "OpenCode"
+           )
+         end) do
       {:ok, output} -> parse_opencode_stats(output)
       {:error, {:tool_not_available, message}} -> %{error: message}
       {:error, :timeout} -> %{error: "Timeout fetching stats"}
@@ -202,11 +203,16 @@ defmodule DashboardPhoenix.StatsMonitor do
     case File.read(stats_file) do
       {:ok, content} ->
         case Jason.decode(content) do
-          {:ok, data} -> 
+          {:ok, data} ->
             parse_claude_stats(data)
+
           {:error, %Jason.DecodeError{} = e} ->
-            Logger.warning("StatsMonitor: Failed to decode Claude stats JSON: #{Exception.message(e)}")
+            Logger.warning(
+              "StatsMonitor: Failed to decode Claude stats JSON: #{Exception.message(e)}"
+            )
+
             %{error: "Invalid JSON: #{Exception.message(e)}"}
+
           {:error, reason} ->
             Logger.warning("StatsMonitor: JSON decode error for Claude stats: #{inspect(reason)}")
             %{error: "JSON decode error: #{inspect(reason)}"}
@@ -215,11 +221,16 @@ defmodule DashboardPhoenix.StatsMonitor do
       {:error, :enoent} ->
         Logger.debug("StatsMonitor: Claude stats file #{stats_file} does not exist")
         %{error: "Stats file not found"}
+
       {:error, :eacces} ->
         Logger.warning("StatsMonitor: Permission denied reading Claude stats file #{stats_file}")
         %{error: "Permission denied"}
+
       {:error, reason} ->
-        Logger.warning("StatsMonitor: Failed to read Claude stats file #{stats_file}: #{inspect(reason)}")
+        Logger.warning(
+          "StatsMonitor: Failed to read Claude stats file #{stats_file}: #{inspect(reason)}"
+        )
+
         %{error: "Failed to read file: #{inspect(reason)}"}
     end
   rescue

@@ -56,9 +56,12 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
       assert html =~ "🤖 Claude"
       assert html =~ "running"
       assert html =~ "1 active"
-      assert html =~ "1.5K"  # tokens_in formatted
-      assert html =~ "800"   # tokens_out
-      assert html =~ "$0.025" # cost
+      # tokens_in formatted
+      assert html =~ "1.5K"
+      # tokens_out
+      assert html =~ "800"
+      # cost
+      assert html =~ "$0.025"
     end
 
     test "renders completed sub-agent sessions" do
@@ -92,10 +95,14 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
       assert html =~ "Task completed successfully"
       assert html =~ "✨ Gemini"
       assert html =~ "completed"
-      assert html =~ "3K"    # tokens_in formatted
-      assert html =~ "1.2K"  # tokens_out formatted
-      assert html =~ "$0.045" # cost
-      refute html =~ "1 active" # no running sessions, so no "X active" badge
+      # tokens_in formatted
+      assert html =~ "3K"
+      # tokens_out formatted
+      assert html =~ "1.2K"
+      # cost
+      assert html =~ "$0.045"
+      # no running sessions, so no "X active" badge
+      refute html =~ "1 active"
       assert html =~ "Clear Completed (1)"
     end
 
@@ -128,7 +135,8 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
 
       refute html =~ "Main Agent"
       assert html =~ "Sub Agent"
-      assert html =~ "1"  # count should be 1, not 2
+      # count should be 1, not 2
+      assert html =~ "1"
     end
 
     test "filters out dismissed sessions" do
@@ -219,8 +227,10 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
 
       assert html =~ "🤖"
       assert html =~ "Sub-Agents"
-      assert html =~ "max-h-0"  # collapsed state CSS class
-      assert html =~ "panel-chevron collapsed"  # collapsed arrow
+      # collapsed state CSS class
+      assert html =~ "max-h-0"
+      # collapsed arrow
+      assert html =~ "panel-chevron collapsed"
     end
 
     test "handles different agent types and models" do
@@ -260,9 +270,12 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
       assert html =~ "🤖 Claude"
       assert html =~ "✨ Gemini"
       assert html =~ "💻 OpenCode"
-      assert html =~ "bg-purple-500/20"  # Claude badge class
-      assert html =~ "bg-green-500/20"   # Gemini badge class
-      assert html =~ "bg-blue-500/20"    # OpenCode badge class
+      # Claude badge class
+      assert html =~ "bg-purple-500/20"
+      # Gemini badge class
+      assert html =~ "bg-green-500/20"
+      # OpenCode badge class
+      assert html =~ "bg-blue-500/20"
     end
 
     test "formats token counts correctly" do
@@ -273,8 +286,10 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
           status: "completed",
           model: "anthropic/claude-opus-4-5",
           label: "Large Tokens",
-          tokens_in: 2_500_000,  # Should format as 2.5M
-          tokens_out: 45_000     # Should format as 45K
+          # Should format as 2.5M
+          tokens_in: 2_500_000,
+          # Should format as 45K
+          tokens_out: 45_000
         },
         %{
           id: "small-tokens",
@@ -282,8 +297,10 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
           status: "completed",
           model: "anthropic/claude-opus-4-5",
           label: "Small Tokens",
-          tokens_in: 850,        # Should format as 850
-          tokens_out: 1_200      # Should format as 1.2K
+          # Should format as 850
+          tokens_in: 850,
+          # Should format as 1.2K
+          tokens_out: 1_200
         }
       ]
 
@@ -310,28 +327,32 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
         %{
           id: "running-session",
           session_key: "agent:sub:running",
-          status: "running",  # < 1 min since last activity
+          # < 1 min since last activity
+          status: "running",
           model: "anthropic/claude-opus-4-5",
           label: "Running Session"
         },
         %{
           id: "idle-session-1",
           session_key: "agent:sub:idle1",
-          status: "idle",  # 1-5 mins since last activity (still actively working)
+          # 1-5 mins since last activity (still actively working)
+          status: "idle",
           model: "anthropic/claude-opus-4-5",
           label: "Idle Session 1"
         },
         %{
           id: "idle-session-2",
           session_key: "agent:sub:idle2",
-          status: "idle",  # 1-5 mins since last activity (still actively working)
+          # 1-5 mins since last activity (still actively working)
+          status: "idle",
           model: "anthropic/claude-opus-4-5",
           label: "Idle Session 2"
         },
         %{
           id: "completed-session",
           session_key: "agent:sub:completed",
-          status: "completed",  # > 5 mins since last activity
+          # > 5 mins since last activity
+          status: "completed",
           model: "anthropic/claude-opus-4-5",
           label: "Completed Session"
         }
@@ -380,9 +401,12 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
 
       assert html =~ "🤖"
       assert html =~ "Sub-Agents"
-      assert html =~ "minimal-"  # truncated ID used as label
-      assert html =~ "⚡ Unknown"  # unknown agent type
-      assert html =~ "Initializing..."  # no current action
+      # truncated ID used as label
+      assert html =~ "minimal-"
+      # unknown agent type
+      assert html =~ "⚡ Unknown"
+      # no current action
+      assert html =~ "Initializing..."
     end
   end
 
@@ -410,6 +434,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponentTest do
       # Verify the component renders correctly with events
       assert html =~ "phx-click=\"toggle_panel\""
       assert html =~ "Test Session"
+
       # phx-target won't be present in test context since assigns[:myself] is nil, which is expected
     end
 

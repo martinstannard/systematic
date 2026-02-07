@@ -27,67 +27,85 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
             <a href="/" class="header-logo-link" aria-label="SYSTEMATIC Dashboard Home">
               <h1 class="header-logo">SYSTEMATIC</h1>
             </a>
-            <span 
-              class={health_indicator_class(@health_status)} 
-              title={health_tooltip(@health_status, @health_last_check)} 
+            <span
+              class={health_indicator_class(@health_status)}
+              title={health_tooltip(@health_status, @health_last_check)}
               role="status"
               aria-label={"System status: " <> health_status_label(@health_status)}
             >
-              <span class="sr-only"><%= health_text(@health_status) %></span>
+              <span class="sr-only">{health_text(@health_status)}</span>
             </span>
           </div>
           
-          <!-- Breadcrumb (desktop only) -->
+    <!-- Breadcrumb (desktop only) -->
           <nav class="header-breadcrumb hidden sm:flex" aria-label="Breadcrumb">
             <span class="breadcrumb-separator" aria-hidden="true">/</span>
             <span class="breadcrumb-current">Dashboard</span>
           </nav>
         </div>
-
-        <!-- Right: Stats + Agent Badge + Theme Toggle -->
+        
+    <!-- Right: Stats + Agent Badge + Theme Toggle -->
         <div class="header-right">
           <!-- Stats pill (desktop) -->
           <div class="header-stats" aria-live="polite" aria-label="Dashboard statistics">
             <div class="stat-item">
               <span class="stat-label">Agents</span>
-              <span class="stat-value stat-value-success"><%= @agent_sessions_count %></span>
+              <span class="stat-value stat-value-success">{@agent_sessions_count}</span>
             </div>
             <div class="stat-divider" aria-hidden="true"></div>
             <div class="stat-item">
               <span class="stat-label">Events</span>
-              <span class="stat-value stat-value-primary"><%= @agent_progress_count %></span>
+              <span class="stat-value stat-value-primary">{@agent_progress_count}</span>
             </div>
             <%= if @coding_agent_pref == :opencode do %>
               <div class="stat-divider" aria-hidden="true"></div>
               <div class="stat-item">
                 <span class="stat-label">ACP</span>
                 <%= if @opencode_server_status.running do %>
-                  <span class="stat-status stat-status-online" title="OpenCode Server Online" aria-label="Online">●</span>
+                  <span
+                    class="stat-status stat-status-online"
+                    title="OpenCode Server Online"
+                    aria-label="Online"
+                  >
+                    ●
+                  </span>
                 <% else %>
-                  <span class="stat-status stat-status-offline" title="OpenCode Server Offline" aria-label="Offline">○</span>
+                  <span
+                    class="stat-status stat-status-offline"
+                    title="OpenCode Server Offline"
+                    aria-label="Offline"
+                  >
+                    ○
+                  </span>
                 <% end %>
               </div>
             <% end %>
           </div>
-
-          <!-- Mobile: Compact stats -->
+          
+    <!-- Mobile: Compact stats -->
           <div class="flex sm:hidden items-center gap-2" aria-live="polite">
-            <span class="text-xs font-bold font-mono tabular-nums text-green-500"><%= @agent_sessions_count %></span>
+            <span class="text-xs font-bold font-mono tabular-nums text-green-500">
+              {@agent_sessions_count}
+            </span>
             <span class="text-gray-300 dark:text-gray-600">/</span>
-            <span class="text-xs font-bold font-mono tabular-nums text-blue-500"><%= @agent_progress_count %></span>
+            <span class="text-xs font-bold font-mono tabular-nums text-blue-500">
+              {@agent_progress_count}
+            </span>
           </div>
-
-          <!-- Agent Badge -->
-          <span 
+          
+    <!-- Agent Badge -->
+          <span
             class={agent_badge_class(@coding_agent_pref)}
             title={"Active coding agent: " <> coding_agent_text(@coding_agent_pref)}
             aria-label={"Active coding agent: " <> coding_agent_text(@coding_agent_pref)}
           >
-            <span class="agent-badge-icon" aria-hidden="true"><%= coding_agent_icon(@coding_agent_pref) %></span>
-            <span class="agent-badge-text"><%= coding_agent_text(@coding_agent_pref) %></span>
+            <span class="agent-badge-icon" aria-hidden="true">
+              {coding_agent_icon(@coding_agent_pref)}
+            </span>
+            <span class="agent-badge-text">{coding_agent_text(@coding_agent_pref)}</span>
           </span>
-
-          <!-- Theme Toggle -->
+          
+    <!-- Theme Toggle -->
           <button
             id="theme-toggle"
             phx-hook="ThemeToggle"
@@ -96,11 +114,34 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
             aria-label="Toggle between light and dark theme"
             aria-pressed="false"
           >
-            <svg class="sun-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            <svg
+              class="sun-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+              />
             </svg>
-            <svg class="moon-icon" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            <svg
+              class="moon-icon"
+              style="display: none;"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+              />
             </svg>
           </button>
         </div>
@@ -149,18 +190,21 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
     time_ago = format_time_ago(last_check)
     "Healthy — last check #{time_ago}"
   end
+
   defp health_tooltip(:unhealthy, last_check) do
     time_str = format_time(last_check)
     "Health check failed at #{time_str}"
   end
+
   defp health_tooltip(:checking, _), do: "Checking..."
   defp health_tooltip(_, _), do: "No health data"
 
   defp format_time_ago(nil), do: "never"
+
   defp format_time_ago(datetime) do
     now = DateTime.utc_now()
     diff_seconds = DateTime.diff(now, datetime)
-    
+
     cond do
       diff_seconds < 60 -> "#{diff_seconds}s ago"
       diff_seconds < 3600 -> "#{div(diff_seconds, 60)}m ago"
@@ -170,6 +214,7 @@ defmodule DashboardPhoenixWeb.Live.Components.HeaderComponent do
   end
 
   defp format_time(nil), do: "unknown"
+
   defp format_time(datetime) do
     Calendar.strftime(datetime, "%H:%M:%S")
   end

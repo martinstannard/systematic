@@ -8,13 +8,13 @@
         Enter your authentication token to continue
       </p>
     </div>
-    
+
     <%= if @error do %>
       <div class="bg-red-900/50 border border-red-500 text-red-300 px-4 py-3relative" role="alert">
-        <span class="block sm:inline"><%= @error %></span>
+        <span class="block sm:inline">{@error}</span>
       </div>
     <% end %>
-    
+
     <.form for={%{}} action={~p"/login"} method="post" class="mt-8 space-y-6">
       <div>
         <label for="token" class="sr-only">Authentication Token</label>
@@ -38,11 +38,10 @@
         </button>
       </div>
     </.form>
-    
+
     <p class="mt-4 text-center text-xs text-gray-500">
       You can also authenticate via URL: <code class="text-gray-400">/?token=xxx</code>
-      <br />
-      or header: <code class="text-gray-400">Authorization: Bearer xxx</code>
+      <br /> or header: <code class="text-gray-400">Authorization: Bearer xxx</code>
     </p>
   </div>
 </div>

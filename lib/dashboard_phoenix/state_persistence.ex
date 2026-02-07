@@ -29,21 +29,36 @@ defmodule DashboardPhoenix.StatePersistence do
                 end
 
               {:error, %Jason.DecodeError{} = e} ->
-                Logger.warning("StatePersistence: Failed to decode JSON from #{path}: #{Exception.message(e)}")
+                Logger.warning(
+                  "StatePersistence: Failed to decode JSON from #{path}: #{Exception.message(e)}"
+                )
+
                 default_state
+
               {:error, reason} ->
-                Logger.warning("StatePersistence: JSON decode error from #{path}: #{inspect(reason)}")
+                Logger.warning(
+                  "StatePersistence: JSON decode error from #{path}: #{inspect(reason)}"
+                )
+
                 default_state
             end
 
           {:error, :enoent} ->
-            Logger.debug("StatePersistence: State file #{path} does not exist, using default state")
+            Logger.debug(
+              "StatePersistence: State file #{path} does not exist, using default state"
+            )
+
             default_state
+
           {:error, :eacces} ->
             Logger.warning("StatePersistence: Permission denied reading state file #{path}")
             default_state
+
           {:error, reason} ->
-            Logger.warning("StatePersistence: Failed to read state from #{path}: #{inspect(reason)}")
+            Logger.warning(
+              "StatePersistence: Failed to read state from #{path}: #{inspect(reason)}"
+            )
+
             default_state
         end
       else
@@ -80,9 +95,14 @@ defmodule DashboardPhoenix.StatePersistence do
 
   defp ensure_directory(path) do
     case File.mkdir_p(Path.dirname(path)) do
-      :ok -> :ok
+      :ok ->
+        :ok
+
       {:error, reason} ->
-        Logger.error("StatePersistence: Failed to create directory for #{path}: #{inspect(reason)}")
+        Logger.error(
+          "StatePersistence: Failed to create directory for #{path}: #{inspect(reason)}"
+        )
+
         {:error, {:mkdir, reason}}
     end
   end
@@ -91,9 +111,14 @@ defmodule DashboardPhoenix.StatePersistence do
     case Jason.encode(state) do
       {:ok, content} ->
         {:ok, content}
+
       {:error, %Jason.EncodeError{} = e} ->
-        Logger.error("StatePersistence: Failed to encode state as JSON for #{filename}: #{Exception.message(e)}")
+        Logger.error(
+          "StatePersistence: Failed to encode state as JSON for #{filename}: #{Exception.message(e)}"
+        )
+
         {:error, {:json_encode, e}}
+
       {:error, reason} ->
         Logger.error("StatePersistence: JSON encode error for #{filename}: #{inspect(reason)}")
         {:error, {:json_encode, reason}}
@@ -107,11 +132,16 @@ defmodule DashboardPhoenix.StatePersistence do
           :ok ->
             Logger.debug("StatePersistence: Successfully saved state to #{filename}")
             :ok
+
           {:error, reason} ->
-            Logger.error("StatePersistence: Failed to rename #{tmp_path} to #{path}: #{inspect(reason)}")
+            Logger.error(
+              "StatePersistence: Failed to rename #{tmp_path} to #{path}: #{inspect(reason)}"
+            )
+
             File.rm(tmp_path)
             {:error, {:rename, reason}}
         end
+
       {:error, reason} ->
         Logger.error("StatePersistence: Failed to write to #{tmp_path}: #{inspect(reason)}")
         {:error, {:write, reason}}

@@ -50,8 +50,15 @@ defmodule DashboardPhoenix.ProcessMonitor do
     ProcessParser.contains_patterns?(line, @interesting_patterns)
   end
 
-  defp transform_to_dashboard_process(%{pid: pid, cpu: cpu, stat: stat, time: time, 
-                                        command: command, rss: rss, start: start}) do
+  defp transform_to_dashboard_process(%{
+         pid: pid,
+         cpu: cpu,
+         stat: stat,
+         time: time,
+         command: command,
+         rss: rss,
+         start: start
+       }) do
     %{
       name: ProcessParser.generate_name(pid),
       pid: pid,
@@ -117,12 +124,14 @@ defmodule DashboardPhoenix.ProcessMonitor do
     busy = Enum.count(processes, &(&1.status == Status.busy()))
     idle = Enum.count(processes, &(&1.status == Status.idle()))
     stopped = Enum.count(processes, &(&1.status in Status.inactive_statuses()))
-    
+
     %{
-      running: busy + idle,  # Total active
+      # Total active
+      running: busy + idle,
       busy: busy,
       idle: idle,
-      completed: 0,  # We can't detect completed from ps
+      # We can't detect completed from ps
+      completed: 0,
       failed: stopped,
       total: length(processes)
     }

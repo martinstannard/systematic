@@ -2,16 +2,16 @@ defmodule DashboardPhoenix.SessionBridge do
   @moduledoc """
   Bridges sub-agent progress to the dashboard.
   Tails JSONL progress files written by sub-agents.
-  
+
   ## Performance Optimizations (Ticket #70)
-  
+
   - Caches parsed sessions.json with mtime checking
   - Batches file stat calls during directory scans
   - Caches transcript details per session, re-parses only on mtime change
   - Single-pass file stat collection for cleanup operations
-  
+
   ## Performance Optimizations (Ticket #71)
-  
+
   - Uses ETS for fast data reads (no GenServer.call blocking)
   - GenServer only manages lifecycle and periodic polling
   - All public getters read directly from ETS
@@ -23,18 +23,27 @@ defmodule DashboardPhoenix.SessionBridge do
   alias DashboardPhoenix.ActivityLog
   alias DashboardPhoenix.Status
   alias DashboardPhoenix.PubSub.Topics
-  
-  @base_poll_interval 5000   # Start at 5s 
-  @max_poll_interval 10000   # Back off to 10s when idle
-  @backoff_increment 250     # Increase by 250ms each idle poll
+
+  # Start at 5s 
+  @base_poll_interval 5000
+  # Back off to 10s when idle
+  @max_poll_interval 10000
+  # Increase by 250ms each idle poll
+  @backoff_increment 250
   @max_progress_events 100
-  @max_transcript_offsets 50  # Limit transcript_offsets map size
-  @max_transcript_details_cache 100  # Limit cached transcript details
-  @max_sessions 50  # Limit stored sessions
-  @transcript_cleanup_interval 300_000  # Clean up old transcripts every 5 minutes
-  @directory_scan_cache_ttl 5000  # Cache directory listings for 5 seconds
-  @gc_interval 300_000  # Trigger GC every 5 minutes
-  
+  # Limit transcript_offsets map size
+  @max_transcript_offsets 50
+  # Limit cached transcript details
+  @max_transcript_details_cache 100
+  # Limit stored sessions
+  @max_sessions 50
+  # Clean up old transcripts every 5 minutes
+  @transcript_cleanup_interval 300_000
+  # Cache directory listings for 5 seconds
+  @directory_scan_cache_ttl 5000
+  # Trigger GC every 5 minutes
+  @gc_interval 300_000
+
   # ETS table name for fast reads
   @ets_table :session_bridge_data
 
@@ -75,16 +84,19 @@ defmodule DashboardPhoenix.SessionBridge do
   """
   def get_state_metrics do
     case :ets.lookup(@ets_table, :metrics) do
-      [{:metrics, metrics}] -> metrics
-      [] -> %{
-        sessions_count: 0,
-        progress_events: 0,
-        transcript_offsets_count: 0,
-        last_cleanup: 0,
-        progress_offset: 0,
-        current_poll_interval: @base_poll_interval,
-        memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
-      }
+      [{:metrics, metrics}] ->
+        metrics
+
+      [] ->
+        %{
+          sessions_count: 0,
+          progress_events: 0,
+          transcript_offsets_count: 0,
+          last_cleanup: 0,
+          progress_offset: 0,
+          current_poll_interval: @base_poll_interval,
+          memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
+        }
     end
   end
 
@@ -99,47 +111,61 @@ defmodule DashboardPhoenix.SessionBridge do
     # Create ETS table for fast reads (Ticket #71)
     # Use :named_table so we can access by name, :public for reads from any process
     :ets.new(@ets_table, [:named_table, :public, :set, read_concurrency: true])
-    
+
     # Initialize ETS with empty data
     now = System.system_time(:millisecond)
     :ets.insert(@ets_table, {:sessions, []})
     :ets.insert(@ets_table, {:progress, []})
-    :ets.insert(@ets_table, {:metrics, %{
-      sessions_count: 0,
-      progress_events: 0,
-      transcript_offsets_count: 0,
-      last_cleanup: now,
-      progress_offset: 0,
-      current_poll_interval: @base_poll_interval,
-      memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
-    }})
-    
+
+    :ets.insert(
+      @ets_table,
+      {:metrics,
+       %{
+         sessions_count: 0,
+         progress_events: 0,
+         transcript_offsets_count: 0,
+         last_cleanup: now,
+         progress_offset: 0,
+         current_poll_interval: @base_poll_interval,
+         memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
+       }}
+    )
+
     # Ensure progress file exists (don't overwrite sessions - it's managed by OpenClaw)
     FileUtils.ensure_exists(Paths.progress_file())
-    
+
     schedule_poll(@base_poll_interval)
     schedule_transcript_cleanup()
     schedule_gc()
-    {:ok, %{
-      sessions: [],
-      progress: [],
-      progress_offset: 0,
-      last_session_mtime: nil,
-      transcript_offsets: %{},  # Track read positions per transcript file
-      last_transcript_poll: 0,
-      current_poll_interval: @base_poll_interval,  # Adaptive polling interval
-      last_cleanup: System.system_time(:millisecond),
-      # Performance caches (Ticket #70)
-      sessions_cache: %{parsed: nil, mtime: nil},  # Cached parsed sessions.json
-      transcript_details_cache: %{},  # %{session_id => %{mtime: _, size: _, details: _}}
-      directory_scan_cache: %{files: nil, timestamp: 0},  # Cache directory listings
-      # Track previous session statuses to detect completions
-      previous_session_statuses: %{},  # %{session_id => status}
-      # Track known session IDs to detect new subagent spawns
-      known_subagent_ids: MapSet.new(),
-      # Track start times for duration calculation
-      subagent_start_times: %{}  # %{session_id => start_timestamp_ms}
-    }}
+
+    {:ok,
+     %{
+       sessions: [],
+       progress: [],
+       progress_offset: 0,
+       last_session_mtime: nil,
+       # Track read positions per transcript file
+       transcript_offsets: %{},
+       last_transcript_poll: 0,
+       # Adaptive polling interval
+       current_poll_interval: @base_poll_interval,
+       last_cleanup: System.system_time(:millisecond),
+       # Performance caches (Ticket #70)
+       # Cached parsed sessions.json
+       sessions_cache: %{parsed: nil, mtime: nil},
+       # %{session_id => %{mtime: _, size: _, details: _}}
+       transcript_details_cache: %{},
+       # Cache directory listings
+       directory_scan_cache: %{files: nil, timestamp: 0},
+       # Track previous session statuses to detect completions
+       # %{session_id => status}
+       previous_session_statuses: %{},
+       # Track known session IDs to detect new subagent spawns
+       known_subagent_ids: MapSet.new(),
+       # Track start times for duration calculation
+       # %{session_id => start_timestamp_ms}
+       subagent_start_times: %{}
+     }}
   end
 
   @impl true
@@ -148,35 +174,37 @@ defmodule DashboardPhoenix.SessionBridge do
     old_progress_offset = state.progress_offset
     old_session_mtime = state.last_session_mtime
     old_transcript_offsets = state.transcript_offsets
-    
+
     # Refresh sessions cache first (used by transcript polling)
     state = refresh_sessions_cache(state)
-    
-    new_state = state
-    |> poll_progress()
-    |> poll_transcripts()
-    |> poll_sessions()
-    
+
+    new_state =
+      state
+      |> poll_progress()
+      |> poll_transcripts()
+      |> poll_sessions()
+
     # Check if any changes occurred
-    changes_detected = 
+    changes_detected =
       new_state.progress_offset != old_progress_offset ||
-      new_state.last_session_mtime != old_session_mtime ||
-      new_state.transcript_offsets != old_transcript_offsets
-    
+        new_state.last_session_mtime != old_session_mtime ||
+        new_state.transcript_offsets != old_transcript_offsets
+
     # Adaptive polling: fast when active, back off when idle
-    new_interval = if changes_detected do
-      # Reset to fast polling when changes detected
-      @base_poll_interval
-    else
-      # Gradually back off, capped at max interval
-      min(new_state.current_poll_interval + @backoff_increment, @max_poll_interval)
-    end
-    
+    new_interval =
+      if changes_detected do
+        # Reset to fast polling when changes detected
+        @base_poll_interval
+      else
+        # Gradually back off, capped at max interval
+        min(new_state.current_poll_interval + @backoff_increment, @max_poll_interval)
+      end
+
     new_state = %{new_state | current_poll_interval: new_interval}
-    
+
     # Update ETS with current data (Ticket #71)
     update_ets(new_state)
-    
+
     schedule_poll(new_interval)
     {:noreply, new_state}
   end
@@ -193,11 +221,11 @@ defmodule DashboardPhoenix.SessionBridge do
   def handle_info(:gc_trigger, state) do
     # Enforce cache size limits before GC
     new_state = enforce_cache_limits(state)
-    
+
     # Trigger garbage collection
     alias DashboardPhoenix.MemoryUtils
     MemoryUtils.trigger_gc(__MODULE__)
-    
+
     # Log telemetry periodically
     MemoryUtils.log_telemetry(__MODULE__, %{
       sessions: length(new_state.sessions),
@@ -205,7 +233,7 @@ defmodule DashboardPhoenix.SessionBridge do
       transcript_offsets: map_size(new_state.transcript_offsets),
       transcript_details_cache: map_size(new_state.transcript_details_cache)
     })
-    
+
     schedule_gc()
     {:noreply, new_state}
   end
@@ -214,15 +242,20 @@ defmodule DashboardPhoenix.SessionBridge do
   defp update_ets(state) do
     :ets.insert(@ets_table, {:sessions, state.sessions})
     :ets.insert(@ets_table, {:progress, state.progress})
-    :ets.insert(@ets_table, {:metrics, %{
-      sessions_count: length(state.sessions),
-      progress_events: length(state.progress),
-      transcript_offsets_count: map_size(state.transcript_offsets),
-      last_cleanup: state.last_cleanup,
-      progress_offset: state.progress_offset,
-      current_poll_interval: state.current_poll_interval,
-      memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
-    }})
+
+    :ets.insert(
+      @ets_table,
+      {:metrics,
+       %{
+         sessions_count: length(state.sessions),
+         progress_events: length(state.progress),
+         transcript_offsets_count: map_size(state.transcript_offsets),
+         last_cleanup: state.last_cleanup,
+         progress_offset: state.progress_offset,
+         current_poll_interval: state.current_poll_interval,
+         memory_usage_mb: :erlang.memory(:total) / (1024 * 1024)
+       }}
+    )
   end
 
   defp schedule_poll(interval) do
@@ -240,26 +273,23 @@ defmodule DashboardPhoenix.SessionBridge do
   # Enforce cache size limits to prevent memory growth (Ticket #79)
   defp enforce_cache_limits(state) do
     # Limit transcript_details_cache using LRU eviction
-    transcript_cache = if map_size(state.transcript_details_cache) > @max_transcript_details_cache do
-      state.transcript_details_cache
-      |> Enum.sort_by(fn {_id, data} -> data.mtime end, :desc)
-      |> Enum.take(@max_transcript_details_cache)
-      |> Map.new()
-    else
-      state.transcript_details_cache
-    end
-    
+    transcript_cache =
+      if map_size(state.transcript_details_cache) > @max_transcript_details_cache do
+        state.transcript_details_cache
+        |> Enum.sort_by(fn {_id, data} -> data.mtime end, :desc)
+        |> Enum.take(@max_transcript_details_cache)
+        |> Map.new()
+      else
+        state.transcript_details_cache
+      end
+
     # Limit sessions list
     sessions = Enum.take(state.sessions, @max_sessions)
-    
+
     # Limit progress events
     progress = Enum.take(state.progress, -@max_progress_events)
-    
-    %{state | 
-      transcript_details_cache: transcript_cache,
-      sessions: sessions,
-      progress: progress
-    }
+
+    %{state | transcript_details_cache: transcript_cache, sessions: sessions, progress: progress}
   end
 
   # Refresh sessions.json cache if mtime changed
@@ -271,12 +301,15 @@ defmodule DashboardPhoenix.SessionBridge do
             case Jason.decode(content) do
               {:ok, sessions_map} when is_map(sessions_map) ->
                 %{state | sessions_cache: %{parsed: sessions_map, mtime: mtime}}
+
               _ ->
                 state
             end
+
           _ ->
             state
         end
+
       _ ->
         state
     end
@@ -286,60 +319,83 @@ defmodule DashboardPhoenix.SessionBridge do
   # Optimized: Single pass file stat collection, reuse cached directory scan
   defp cleanup_old_transcript_offsets(state) do
     dir = transcripts_dir()
-    cutoff = System.system_time(:second) - 3600  # Keep files from last hour
-    
+    # Keep files from last hour
+    cutoff = System.system_time(:second) - 3600
+
     {files, new_state} = get_cached_directory_files(state, dir)
-    
+
     if files != [] do
       # Single pass: collect stats for all relevant files at once
-      jsonl_files = files
-      |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
-      |> Enum.reject(&(&1 == "sessions.json"))
-      
+      jsonl_files =
+        files
+        |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
+        |> Enum.reject(&(&1 == "sessions.json"))
+
       # Batch stat all files once
-      file_stats = jsonl_files
-      |> Enum.map(fn file ->
-        path = Path.join(dir, file)
-        case File.stat(path) do
-          {:ok, %{mtime: mtime}} ->
-            epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-            {file, epoch}
-          _ -> 
-            nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
-      |> Map.new()
-      
+      file_stats =
+        jsonl_files
+        |> Enum.map(fn file ->
+          path = Path.join(dir, file)
+
+          case File.stat(path) do
+            {:ok, %{mtime: mtime}} ->
+              epoch =
+                mtime
+                |> NaiveDateTime.from_erl!()
+                |> DateTime.from_naive!("Etc/UTC")
+                |> DateTime.to_unix()
+
+              {file, epoch}
+
+            _ ->
+              nil
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
+        |> Map.new()
+
       # Filter to recent files using pre-collected stats
-      active_files = file_stats
-      |> Enum.filter(fn {_file, epoch} -> epoch > cutoff end)
-      |> Enum.map(fn {file, _epoch} -> file end)
-      |> MapSet.new()
-      
+      active_files =
+        file_stats
+        |> Enum.filter(fn {_file, epoch} -> epoch > cutoff end)
+        |> Enum.map(fn {file, _epoch} -> file end)
+        |> MapSet.new()
+
       # Clean up transcript_offsets - keep only recent files and limit size
       # Sort by pre-collected epoch (descending) to keep most recent
-      cleaned_offsets = new_state.transcript_offsets
-      |> Enum.filter(fn {filename, _offset} -> MapSet.member?(active_files, filename) end)
-      |> Enum.sort_by(fn {filename, _offset} -> 
-        Map.get(file_stats, filename, 0)
-      end, :desc)
-      |> Enum.take(@max_transcript_offsets)
-      |> Map.new()
-      
+      cleaned_offsets =
+        new_state.transcript_offsets
+        |> Enum.filter(fn {filename, _offset} -> MapSet.member?(active_files, filename) end)
+        |> Enum.sort_by(
+          fn {filename, _offset} ->
+            Map.get(file_stats, filename, 0)
+          end,
+          :desc
+        )
+        |> Enum.take(@max_transcript_offsets)
+        |> Map.new()
+
       # Log cleanup stats and telemetry
       old_count = map_size(new_state.transcript_offsets)
       new_count = map_size(cleaned_offsets)
+
       if old_count > new_count do
         require Logger
         Logger.info("SessionBridge: Cleaned up transcript offsets: #{old_count} -> #{new_count}")
       end
-      
+
       # Log periodic telemetry (every cleanup cycle)
       require Logger
-      Logger.info("SessionBridge telemetry: transcript_offsets=#{new_count}/#{@max_transcript_offsets}, progress_events=#{length(new_state.progress)}/#{@max_progress_events}, sessions=#{length(new_state.sessions)}")
-      
-      %{new_state | transcript_offsets: cleaned_offsets, last_cleanup: System.system_time(:millisecond)}
+
+      Logger.info(
+        "SessionBridge telemetry: transcript_offsets=#{new_count}/#{@max_transcript_offsets}, progress_events=#{length(new_state.progress)}/#{@max_progress_events}, sessions=#{length(new_state.sessions)}"
+      )
+
+      %{
+        new_state
+        | transcript_offsets: cleaned_offsets,
+          last_cleanup: System.system_time(:millisecond)
+      }
     else
       # Directory scan failed or no files
       new_state
@@ -355,9 +411,9 @@ defmodule DashboardPhoenix.SessionBridge do
             :file.position(file, state.progress_offset)
             new_lines = IO.read(file, :eof)
             File.close(file)
-            
+
             new_events = parse_progress_lines(new_lines)
-            
+
             if new_events != [] do
               # Keep last 100 events
               updated_progress = (state.progress ++ new_events) |> Enum.take(-100)
@@ -366,9 +422,11 @@ defmodule DashboardPhoenix.SessionBridge do
             else
               %{state | progress_offset: size}
             end
+
           {:error, _} ->
             state
         end
+
       _ ->
         state
     end
@@ -410,6 +468,7 @@ defmodule DashboardPhoenix.SessionBridge do
       true -> "sub-agent"
     end
   end
+
   defp detect_agent_type(_), do: "unknown"
 
   # Poll recent transcripts for tool calls (Live Progress)
@@ -417,6 +476,7 @@ defmodule DashboardPhoenix.SessionBridge do
     now = System.system_time(:millisecond)
     # Use adaptive polling interval for transcripts to reduce overhead
     min_interval = max(state.current_poll_interval, @base_poll_interval)
+
     if now - state.last_transcript_poll < min_interval do
       state
     else
@@ -428,8 +488,8 @@ defmodule DashboardPhoenix.SessionBridge do
   defp get_cached_directory_files(state, dir) do
     now = System.system_time(:millisecond)
     cache = state.directory_scan_cache
-    
-    if cache.files && (now - cache.timestamp) < @directory_scan_cache_ttl do
+
+    if cache.files && now - cache.timestamp < @directory_scan_cache_ttl do
       # Use cached files
       {cache.files, state}
     else
@@ -439,6 +499,7 @@ defmodule DashboardPhoenix.SessionBridge do
           new_cache = %{files: files, timestamp: now}
           new_state = %{state | directory_scan_cache: new_cache}
           {files, new_state}
+
         {:error, _} ->
           {[], state}
       end
@@ -448,47 +509,69 @@ defmodule DashboardPhoenix.SessionBridge do
   # Optimized: Single-pass directory scan with batched stat calls + directory caching
   defp do_poll_transcripts(state) do
     dir = transcripts_dir()
-    
+
     {files, new_state} = get_cached_directory_files(state, dir)
-    
+
     if files != [] do
-      cutoff = System.system_time(:second) - 600  # Last 10 minutes
-      
+      # Last 10 minutes
+      cutoff = System.system_time(:second) - 600
+
       # Single pass: filter to jsonl files and batch stat
-      jsonl_files = files
-      |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
-      |> Enum.reject(&(&1 == "sessions.json"))
-        
+      jsonl_files =
+        files
+        |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
+        |> Enum.reject(&(&1 == "sessions.json"))
+
       # Batch stat all candidate files once
-      recent_files = jsonl_files
-      |> Enum.map(fn file ->
-        path = Path.join(dir, file)
-        case File.stat(path) do
-          {:ok, %{mtime: mtime, size: size}} ->
-            epoch = mtime |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
-            if epoch > cutoff, do: {path, file, size}, else: nil
-          _ -> nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.sort_by(fn {_, _, size} -> size end, :desc)
-      |> Enum.take(5)  # Top 5 most recent/active
-      
+      recent_files =
+        jsonl_files
+        |> Enum.map(fn file ->
+          path = Path.join(dir, file)
+
+          case File.stat(path) do
+            {:ok, %{mtime: mtime, size: size}} ->
+              epoch =
+                mtime
+                |> NaiveDateTime.from_erl!()
+                |> DateTime.from_naive!("Etc/UTC")
+                |> DateTime.to_unix()
+
+              if epoch > cutoff, do: {path, file, size}, else: nil
+
+            _ ->
+              nil
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.sort_by(fn {_, _, size} -> size end, :desc)
+        # Top 5 most recent/active
+        |> Enum.take(5)
+
       # Extract new tool calls from each file, using cached sessions for labels
-      {new_events, new_offsets} = 
-        Enum.reduce(recent_files, {[], new_state.transcript_offsets}, fn {path, file, _size}, {events_acc, offsets_acc} ->
+      {new_events, new_offsets} =
+        Enum.reduce(recent_files, {[], new_state.transcript_offsets}, fn {path, file, _size},
+                                                                         {events_acc, offsets_acc} ->
           offset = Map.get(offsets_acc, file, 0)
-          {new_events, new_offset} = extract_tool_calls_from_transcript(path, file, offset, new_state.sessions_cache.parsed)
+
+          {new_events, new_offset} =
+            extract_tool_calls_from_transcript(
+              path,
+              file,
+              offset,
+              new_state.sessions_cache.parsed
+            )
+
           {events_acc ++ new_events, Map.put(offsets_acc, file, new_offset)}
         end)
-      
+
       if new_events != [] do
         # Merge and deduplicate by timestamp
-        updated_progress = (new_state.progress ++ new_events)
-        |> Enum.uniq_by(& &1.ts)
-        |> Enum.sort_by(& &1.ts)
-        |> Enum.take(-@max_progress_events)
-        
+        updated_progress =
+          (new_state.progress ++ new_events)
+          |> Enum.uniq_by(& &1.ts)
+          |> Enum.sort_by(& &1.ts)
+          |> Enum.take(-@max_progress_events)
+
         broadcast_progress(new_events)
         %{new_state | progress: updated_progress, transcript_offsets: new_offsets}
       else
@@ -509,26 +592,33 @@ defmodule DashboardPhoenix.SessionBridge do
             :file.position(file, offset)
             content = IO.read(file, :eof)
             File.close(file)
-            
+
             # Extract session label using cached sessions map (no file read!)
             # Optimize: avoid string allocation by using binary pattern matching
-            session_id = case filename do
-              <<session::binary-size(byte_size(filename) - 6), ".jsonl">> -> session
-              _ -> filename  # fallback for non-.jsonl files
-            end
+            session_id =
+              case filename do
+                <<session::binary-size(byte_size(filename) - 6), ".jsonl">> -> session
+                # fallback for non-.jsonl files
+                _ -> filename
+              end
+
             {agent_label, agent_type} = get_session_info_from_cache(session_id, sessions_map)
-            
+
             # Parse all lines, collecting tool calls and results
             lines = String.split(content, "\n", trim: true)
-            {tool_calls, tool_results} = parse_tool_calls_and_results(lines, agent_label, agent_type)
-            
+
+            {tool_calls, tool_results} =
+              parse_tool_calls_and_results(lines, agent_label, agent_type)
+
             # Merge results into their corresponding tool calls
             events = merge_tool_results(tool_calls, tool_results)
-            
+
             {events, size}
+
           _ ->
             {[], offset}
         end
+
       _ ->
         {[], offset}
     end
@@ -538,32 +628,44 @@ defmodule DashboardPhoenix.SessionBridge do
   defp parse_tool_calls_and_results(lines, agent_label, agent_type) do
     Enum.reduce(lines, {[], %{}}, fn line, {calls_acc, results_acc} ->
       case Jason.decode(line) do
-        {:ok, %{"type" => "message", "message" => %{"role" => "assistant", "content" => content}, "timestamp" => ts}} 
-          when is_list(content) ->
-          new_calls = content
-          |> Enum.filter(& is_map(&1) and &1["type"] == "toolCall")
-          |> Enum.map(fn tc ->
-            args = tc["arguments"] || %{}
-            target = args["path"] || args["file_path"] || args["command"] || args["query"] || ""
-            %{
-              ts: ts,
-              tool_call_id: tc["id"],
-              agent: agent_label,
-              agent_type: agent_type,
-              action: tc["name"] || "unknown",
-              target: truncate_target(target),
-              status: Status.running(),
-              output: "",
-              output_summary: "",
-              details: ""
-            }
-          end)
+        {:ok,
+         %{
+           "type" => "message",
+           "message" => %{"role" => "assistant", "content" => content},
+           "timestamp" => ts
+         }}
+        when is_list(content) ->
+          new_calls =
+            content
+            |> Enum.filter(&(is_map(&1) and &1["type"] == "toolCall"))
+            |> Enum.map(fn tc ->
+              args = tc["arguments"] || %{}
+              target = args["path"] || args["file_path"] || args["command"] || args["query"] || ""
+
+              %{
+                ts: ts,
+                tool_call_id: tc["id"],
+                agent: agent_label,
+                agent_type: agent_type,
+                action: tc["name"] || "unknown",
+                target: truncate_target(target),
+                status: Status.running(),
+                output: "",
+                output_summary: "",
+                details: ""
+              }
+            end)
+
           {calls_acc ++ new_calls, results_acc}
-        
-        {:ok, %{"type" => "message", "message" => %{"role" => "toolResult", "toolCallId" => tool_call_id} = msg}} ->
+
+        {:ok,
+         %{
+           "type" => "message",
+           "message" => %{"role" => "toolResult", "toolCallId" => tool_call_id} = msg
+         }} ->
           result = extract_tool_result(msg)
           {calls_acc, Map.put(results_acc, tool_call_id, result)}
-        
+
         _ ->
           {calls_acc, results_acc}
       end
@@ -576,19 +678,20 @@ defmodule DashboardPhoenix.SessionBridge do
     details = msg["details"] || %{}
     is_error = msg["isError"] || false
     tool_name = msg["toolName"] || ""
-    
+
     # Get the text content
-    text = case content do
-      [%{"type" => "text", "text" => t} | _] -> t
-      _ -> ""
-    end
-    
+    text =
+      case content do
+        [%{"type" => "text", "text" => t} | _] -> t
+        _ -> ""
+      end
+
     # Use aggregated if available (for exec commands), otherwise use text
     output = details["aggregated"] || text || ""
-    
+
     # Create a summary based on tool type
     summary = create_output_summary(tool_name, output, details, is_error)
-    
+
     %{
       output: truncate_output(output),
       output_summary: summary,
@@ -601,24 +704,32 @@ defmodule DashboardPhoenix.SessionBridge do
   # Create a short summary for the UI
   defp create_output_summary(tool_name, output, details, is_error) do
     cond do
-      is_error -> "❌ Error"
+      is_error ->
+        "❌ Error"
+
       tool_name == "exec" ->
         exit_code = details["exitCode"]
         duration = details["durationMs"]
         lines = output |> String.split("\n") |> length()
         status = if exit_code == 0, do: "✓", else: "✗ exit #{exit_code}"
         "#{status} #{lines} lines" <> if(duration, do: " (#{duration}ms)", else: "")
+
       tool_name == "Read" ->
         lines = output |> String.split("\n") |> length()
         "📄 #{lines} lines"
+
       tool_name == "Write" ->
         "✓ written"
+
       tool_name == "Edit" ->
         "✓ edited"
+
       tool_name == "sessions_spawn" ->
         if String.contains?(output, "accepted"), do: "✓ spawned", else: "pending"
+
       String.length(output) > 0 ->
         "✓ #{String.length(output)} chars"
+
       true ->
         "✓ done"
     end
@@ -632,15 +743,17 @@ defmodule DashboardPhoenix.SessionBridge do
       output
     end
   end
+
   defp truncate_output(_), do: ""
 
   # Merge tool results back into their corresponding tool calls
   defp merge_tool_results(tool_calls, tool_results) do
     Enum.map(tool_calls, fn call ->
       case Map.get(tool_results, call.tool_call_id) do
-        nil -> 
+        nil ->
           # No result yet - still running
           Map.delete(call, :tool_call_id)
+
         result ->
           call
           |> Map.merge(%{
@@ -654,34 +767,40 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   # Optimized: Use pre-parsed sessions map instead of re-reading file
-  defp get_session_info_from_cache(session_id, nil), do: {String.slice(session_id, 0, 8), "sub-agent"}
+  defp get_session_info_from_cache(session_id, nil),
+    do: {String.slice(session_id, 0, 8), "sub-agent"}
+
   defp get_session_info_from_cache(session_id, sessions_map) when is_map(sessions_map) do
     sessions_map
     |> Enum.find(fn {_key, val} -> val["sessionId"] == session_id end)
     |> case do
-      {key, val} -> 
-        label = cond do
-          # Has explicit label
-          val["label"] && val["label"] != "" -> val["label"]
-          # Main session
-          String.contains?(key, ":main:main") -> "main"
-          # Cron job - extract name from key
-          String.contains?(key, ":cron:") -> "cron"
-          # Subagent without label
-          String.contains?(key, ":subagent:") -> "subagent"
-          # Fallback
-          true -> String.slice(session_id, 0, 8)
-        end
-        
-        type = cond do
-          val["agent_type"] -> val["agent_type"]
-          String.contains?(key, ":main:main") -> "Claude"
-          String.contains?(key, ":subagent:") -> "sub-agent"
-          true -> "sub-agent"
-        end
-        
+      {key, val} ->
+        label =
+          cond do
+            # Has explicit label
+            val["label"] && val["label"] != "" -> val["label"]
+            # Main session
+            String.contains?(key, ":main:main") -> "main"
+            # Cron job - extract name from key
+            String.contains?(key, ":cron:") -> "cron"
+            # Subagent without label
+            String.contains?(key, ":subagent:") -> "subagent"
+            # Fallback
+            true -> String.slice(session_id, 0, 8)
+          end
+
+        type =
+          cond do
+            val["agent_type"] -> val["agent_type"]
+            String.contains?(key, ":main:main") -> "Claude"
+            String.contains?(key, ":subagent:") -> "sub-agent"
+            true -> "sub-agent"
+          end
+
         {label, type}
-      nil -> {String.slice(session_id, 0, 8), "sub-agent"}
+
+      nil ->
+        {String.slice(session_id, 0, 8), "sub-agent"}
     end
   end
 
@@ -692,6 +811,7 @@ defmodule DashboardPhoenix.SessionBridge do
       target
     end
   end
+
   defp truncate_target(_), do: ""
 
   # Poll the OpenClaw sessions.json file
@@ -701,79 +821,89 @@ defmodule DashboardPhoenix.SessionBridge do
       {:ok, %{mtime: mtime}} when mtime != state.last_session_mtime ->
         # Use cached parsed sessions (already refreshed at start of poll cycle)
         sessions_map = state.sessions_cache.parsed
-        
+
         if sessions_map && is_map(sessions_map) do
           # OpenClaw format: %{"session:key" => %{...session data...}}
-          {normalized, new_details_cache} = 
+          {normalized, new_details_cache} =
             sessions_map
-            |> Enum.map(fn {key, data} -> normalize_session(key, data, state.transcript_details_cache) end)
+            |> Enum.map(fn {key, data} ->
+              normalize_session(key, data, state.transcript_details_cache)
+            end)
             |> Enum.filter(fn {session, _cache_entry} -> filter_relevant_session(session) end)
             |> Enum.map(fn {session, cache_entry} -> {session, cache_entry} end)
             |> Enum.sort_by(fn {session, _} -> session.updated_at end, :desc)
             |> Enum.take(20)
-            |> Enum.reduce({[], state.transcript_details_cache}, fn {session, cache_entry}, {sessions_acc, cache_acc} ->
-              new_cache = if cache_entry, do: Map.put(cache_acc, session.id, cache_entry), else: cache_acc
+            |> Enum.reduce({[], state.transcript_details_cache}, fn {session, cache_entry},
+                                                                    {sessions_acc, cache_acc} ->
+              new_cache =
+                if cache_entry, do: Map.put(cache_acc, session.id, cache_entry), else: cache_acc
+
               {[session | sessions_acc], new_cache}
             end)
-          
+
           normalized = Enum.reverse(normalized)
-          
+
           # Get all current subagent sessions
-          subagent_sessions = normalized
-          |> Enum.filter(fn s -> String.contains?(s.session_key, "subagent") end)
-          
-          new_statuses = subagent_sessions
-          |> Enum.map(fn s -> {s.id, s.status} end)
-          |> Map.new()
-          
-          current_subagent_ids = subagent_sessions
-          |> Enum.map(fn s -> s.id end)
-          |> MapSet.new()
-          
+          subagent_sessions =
+            normalized
+            |> Enum.filter(fn s -> String.contains?(s.session_key, "subagent") end)
+
+          new_statuses =
+            subagent_sessions
+            |> Enum.map(fn s -> {s.id, s.status} end)
+            |> Map.new()
+
+          current_subagent_ids =
+            subagent_sessions
+            |> Enum.map(fn s -> s.id end)
+            |> MapSet.new()
+
           # Detect new subagent spawns (sessions we haven't seen before)
           new_subagent_ids = MapSet.difference(current_subagent_ids, state.known_subagent_ids)
-          
+
           # Track start times for new subagents
           now_ms = System.system_time(:millisecond)
-          new_start_times = Enum.reduce(new_subagent_ids, state.subagent_start_times, fn id, acc ->
-            session = Enum.find(subagent_sessions, fn s -> s.id == id end)
-            # Use the session's update time as approximate start, or now
-            start_time = if session, do: session.updated_at, else: now_ms
-            Map.put(acc, id, start_time)
-          end)
-          
+
+          new_start_times =
+            Enum.reduce(new_subagent_ids, state.subagent_start_times, fn id, acc ->
+              session = Enum.find(subagent_sessions, fn s -> s.id == id end)
+              # Use the session's update time as approximate start, or now
+              start_time = if session, do: session.updated_at, else: now_ms
+              Map.put(acc, id, start_time)
+            end)
+
           # Log subagent_started for new subagents
           Enum.each(new_subagent_ids, fn session_id ->
             session = Enum.find(subagent_sessions, fn s -> s.id == session_id end)
             label = if session, do: session.label, else: String.slice(session_id, 0, 8)
             task = if session, do: session.task_summary, else: nil
-            
+
             ActivityLog.log_event(:subagent_started, "Sub-agent spawned: #{label}", %{
               session_id: session_id,
               label: label,
               task: task
             })
           end)
-          
+
           # Log subagent_completed or subagent_failed for sessions that transitioned to completed
           Enum.each(new_statuses, fn {session_id, new_status} ->
             old_status = Map.get(state.previous_session_statuses, session_id)
-            
+
             if old_status in [Status.running(), Status.idle()] && new_status == Status.completed() do
               # Find session details for the log message
               session = Enum.find(normalized, fn s -> s.id == session_id end)
               label = if session, do: session.label, else: String.slice(session_id, 0, 8)
               task = if session, do: session.task_summary, else: nil
               result = if session, do: session.result_snippet, else: nil
-              
+
               # Calculate duration
               start_time = Map.get(new_start_times, session_id, now_ms)
               duration_ms = now_ms - start_time
               duration_str = format_duration(duration_ms)
-              
+
               # Detect failure indicators in result or task
               failed = detect_failure(result, session)
-              
+
               if failed do
                 ActivityLog.log_event(:subagent_failed, "Sub-agent failed: #{label}", %{
                   session_id: session_id,
@@ -795,19 +925,22 @@ defmodule DashboardPhoenix.SessionBridge do
               end
             end
           end)
-          
+
           broadcast_sessions(normalized)
-          %{state | 
-            sessions: normalized, 
-            last_session_mtime: mtime, 
-            transcript_details_cache: new_details_cache,
-            previous_session_statuses: new_statuses,
-            known_subagent_ids: current_subagent_ids,
-            subagent_start_times: new_start_times
+
+          %{
+            state
+            | sessions: normalized,
+              last_session_mtime: mtime,
+              transcript_details_cache: new_details_cache,
+              previous_session_statuses: new_statuses,
+              known_subagent_ids: current_subagent_ids,
+              subagent_start_times: new_start_times
           }
         else
           state
         end
+
       _ ->
         state
     end
@@ -824,31 +957,39 @@ defmodule DashboardPhoenix.SessionBridge do
     updated_at = s["updatedAt"] || 0
     now = System.system_time(:millisecond)
     age_ms = now - updated_at
-    
+
     # Determine status based on recent activity and session state
     # Note: Agents waiting for API responses may not update their transcript
     # for several minutes, so we use a longer window for "running"
     aborted = s["abortedLastRun"] == true
-    
-    status = cond do
-      aborted -> Status.completed()           # Explicitly aborted
-      age_ms < 420_000 -> Status.running()    # Active in last 7 mins = running
-      age_ms < 720_000 -> Status.idle()       # 7-12 mins = idle (may still be working)
-      true -> Status.completed()              # > 12 mins = completed
-    end
+
+    status =
+      cond do
+        # Explicitly aborted
+        aborted -> Status.completed()
+        # Active in last 7 mins = running
+        age_ms < 420_000 -> Status.running()
+        # 7-12 mins = idle (may still be working)
+        age_ms < 720_000 -> Status.idle()
+        # > 12 mins = completed
+        true -> Status.completed()
+      end
 
     session_id = s["sessionId"] || key
-    
+
     # Extract details from transcript with caching
-    {details, cache_entry} = extract_transcript_details_cached(session_id, status, transcript_cache)
-    
-    {task_summary, result_snippet, runtime, tokens_in, tokens_out, cost, time_info, current_action, recent_actions} = details
+    {details, cache_entry} =
+      extract_transcript_details_cached(session_id, status, transcript_cache)
+
+    {task_summary, result_snippet, runtime, tokens_in, tokens_out, cost, time_info,
+     current_action, recent_actions} = details
 
     session = %{
       id: session_id,
       session_key: key,
       label: s["label"] || extract_label(key),
-      agent_type: s["agent_type"] || (if String.contains?(key, "subagent"), do: "sub-agent", else: "Claude"),
+      agent_type:
+        s["agent_type"] || if(String.contains?(key, "subagent"), do: "sub-agent", else: "Claude"),
       status: status,
       channel: s["channel"] || "unknown",
       model: s["model"] || default_model(key),
@@ -864,22 +1005,25 @@ defmodule DashboardPhoenix.SessionBridge do
       tokens_in: tokens_in,
       tokens_out: tokens_out,
       cost: cost,
-      completed_at: time_info,  # For completed: completion time, for running: start time
-      current_action: current_action,  # What's happening right now (for running)
-      recent_actions: recent_actions   # Last few tool calls (for running)
+      # For completed: completion time, for running: start time
+      completed_at: time_info,
+      # What's happening right now (for running)
+      current_action: current_action,
+      # Last few tool calls (for running)
+      recent_actions: recent_actions
     }
-    
+
     {session, cache_entry}
   end
 
   # Optimized: Cache transcript details per session, only re-parse when file changes
   defp extract_transcript_details_cached(session_id, status, transcript_cache) do
     transcript_path = Path.join(transcripts_dir(), "#{session_id}.jsonl")
-    
+
     case File.stat(transcript_path) do
       {:ok, %{mtime: mtime, size: size}} ->
         cached = Map.get(transcript_cache, session_id)
-        
+
         # Check if cache is still valid (same mtime and size)
         # Optimized: Trust cache even for running sessions if file hasn't changed (Ticket #77)
         if cached && cached.mtime == mtime && cached.size == size do
@@ -891,7 +1035,7 @@ defmodule DashboardPhoenix.SessionBridge do
           cache_entry = %{mtime: mtime, size: size, details: details}
           {details, cache_entry}
         end
-        
+
       {:error, _} ->
         # File doesn't exist
         {{nil, nil, nil, 0, 0, 0, nil, nil, []}, nil}
@@ -902,128 +1046,148 @@ defmodule DashboardPhoenix.SessionBridge do
   defp do_extract_transcript_details(transcript_path, size, status) do
     # Limit parsing depth for large transcripts (Ticket #77)
     # If file is > 2MB, only read head and tail to save CPU/Memory
-    content = if size > 2_000_000 do
-      read_transcript_smart(transcript_path, size)
-    else
-      case File.read(transcript_path) do
-        {:ok, c} -> c
-        _ -> ""
+    content =
+      if size > 2_000_000 do
+        read_transcript_smart(transcript_path, size)
+      else
+        case File.read(transcript_path) do
+          {:ok, c} -> c
+          _ -> ""
+        end
       end
-    end
 
     lines = :binary.split(content, "\n", [:global, :trim])
-    
+
     # Parse all lines
-    parsed = Enum.map(lines, fn line ->
-      case Jason.decode(line) do
-        {:ok, data} -> data
-        _ -> nil
-      end
-    end) |> Enum.reject(&is_nil/1)
-    
-    # Find first user message (task)
-    task_summary = parsed
-    |> Enum.find(fn entry ->
-      entry["type"] == "message" && 
-      get_in(entry, ["message", "role"]) == "user"
-    end)
-    |> case do
-      nil -> nil
-      entry -> 
-        get_in(entry, ["message", "content"])
-        |> extract_text_content()
-        |> truncate_text(150)
-    end
-    
-    # Find last assistant text message (result) - only for completed sessions
-    result_snippet = if status == Status.completed() do
-      parsed
-      |> Enum.filter(fn entry ->
-        entry["type"] == "message" && 
-        get_in(entry, ["message", "role"]) == "assistant"
+    parsed =
+      Enum.map(lines, fn line ->
+        case Jason.decode(line) do
+          {:ok, data} -> data
+          _ -> nil
+        end
       end)
-      |> List.last()
+      |> Enum.reject(&is_nil/1)
+
+    # Find first user message (task)
+    task_summary =
+      parsed
+      |> Enum.find(fn entry ->
+        entry["type"] == "message" &&
+          get_in(entry, ["message", "role"]) == "user"
+      end)
       |> case do
-        nil -> nil
+        nil ->
+          nil
+
         entry ->
           get_in(entry, ["message", "content"])
           |> extract_text_content()
-          |> truncate_text(100)
+          |> truncate_text(150)
       end
-    else
-      nil
-    end
-    
+
+    # Find last assistant text message (result) - only for completed sessions
+    result_snippet =
+      if status == Status.completed() do
+        parsed
+        |> Enum.filter(fn entry ->
+          entry["type"] == "message" &&
+            get_in(entry, ["message", "role"]) == "assistant"
+        end)
+        |> List.last()
+        |> case do
+          nil ->
+            nil
+
+          entry ->
+            get_in(entry, ["message", "content"])
+            |> extract_text_content()
+            |> truncate_text(100)
+        end
+      else
+        nil
+      end
+
     # Calculate runtime from first and last timestamps
-    timestamps = parsed
-    |> Enum.map(fn entry -> entry["timestamp"] end)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.map(&parse_timestamp/1)
-    |> Enum.reject(&is_nil/1)
-    
-    {start_time, end_time} = case timestamps do
-      [] -> {nil, nil}
-      [single] -> {single, single}
-      list -> {List.first(list), List.last(list)}
-    end
-    
+    timestamps =
+      parsed
+      |> Enum.map(fn entry -> entry["timestamp"] end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&parse_timestamp/1)
+      |> Enum.reject(&is_nil/1)
+
+    {start_time, end_time} =
+      case timestamps do
+        [] -> {nil, nil}
+        [single] -> {single, single}
+        list -> {List.first(list), List.last(list)}
+      end
+
     # For running sessions, calculate elapsed time from start to now
     # For completed sessions, calculate total runtime
-    runtime = cond do
-      status in [Status.running(), Status.idle()] && start_time ->
-        diff_ms = DateTime.diff(DateTime.utc_now(), start_time, :millisecond)
-        format_runtime(diff_ms)
-      start_time && end_time ->
-        diff_ms = DateTime.diff(end_time, start_time, :millisecond)
-        format_runtime(diff_ms)
-      true ->
-        nil
-    end
-    
+    runtime =
+      cond do
+        status in [Status.running(), Status.idle()] && start_time ->
+          diff_ms = DateTime.diff(DateTime.utc_now(), start_time, :millisecond)
+          format_runtime(diff_ms)
+
+        start_time && end_time ->
+          diff_ms = DateTime.diff(end_time, start_time, :millisecond)
+          format_runtime(diff_ms)
+
+        true ->
+          nil
+      end
+
     # Time info: for completed = completion time, for running = start time
-    time_info = cond do
-      status == Status.completed() && end_time ->
-        Calendar.strftime(end_time, "%H:%M:%S")
-      status in [Status.running(), Status.idle()] && start_time ->
-        Calendar.strftime(start_time, "%H:%M:%S")
-      true ->
-        nil
-    end
-    
+    time_info =
+      cond do
+        status == Status.completed() && end_time ->
+          Calendar.strftime(end_time, "%H:%M:%S")
+
+        status in [Status.running(), Status.idle()] && start_time ->
+          Calendar.strftime(start_time, "%H:%M:%S")
+
+        true ->
+          nil
+      end
+
     # Sum up token usage from all assistant messages
-    {tokens_in, tokens_out, total_cost} = parsed
-    |> Enum.filter(fn entry ->
-      entry["type"] == "message" && 
-      get_in(entry, ["message", "role"]) == "assistant" &&
-      get_in(entry, ["message", "usage"]) != nil
-    end)
-    |> Enum.reduce({0, 0, 0.0}, fn entry, {in_acc, out_acc, cost_acc} ->
-      usage = get_in(entry, ["message", "usage"]) || %{}
-      input = (usage["input"] || 0) + (usage["cacheRead"] || 0)
-      output = usage["output"] || 0
-      cost = get_in(usage, ["cost", "total"]) || 0
-      {in_acc + input, out_acc + output, cost_acc + cost}
-    end)
-    
+    {tokens_in, tokens_out, total_cost} =
+      parsed
+      |> Enum.filter(fn entry ->
+        entry["type"] == "message" &&
+          get_in(entry, ["message", "role"]) == "assistant" &&
+          get_in(entry, ["message", "usage"]) != nil
+      end)
+      |> Enum.reduce({0, 0, 0.0}, fn entry, {in_acc, out_acc, cost_acc} ->
+        usage = get_in(entry, ["message", "usage"]) || %{}
+        input = (usage["input"] || 0) + (usage["cacheRead"] || 0)
+        output = usage["output"] || 0
+        cost = get_in(usage, ["cost", "total"]) || 0
+        {in_acc + input, out_acc + output, cost_acc + cost}
+      end)
+
     # For running sessions, extract current action and recent tool calls
-    {current_action, recent_actions} = if status in [Status.running(), Status.idle()] do
-      extract_running_session_status(parsed)
-    else
-      {nil, []}
-    end
-    
-    {task_summary, result_snippet, runtime, tokens_in, tokens_out, total_cost, time_info, current_action, recent_actions}
+    {current_action, recent_actions} =
+      if status in [Status.running(), Status.idle()] do
+        extract_running_session_status(parsed)
+      else
+        {nil, []}
+      end
+
+    {task_summary, result_snippet, runtime, tokens_in, tokens_out, total_cost, time_info,
+     current_action, recent_actions}
   end
 
   # Read head and tail of large files
   defp read_transcript_smart(path, size) do
     # Read first 10KB
     head = read_part(path, 0, 10_000)
-    
+
     # Read last 100KB
     tail_len = 100_000
     tail_offset = max(0, size - tail_len)
-    
+
     if tail_offset > 10_000 do
       tail = read_part(path, tail_offset, tail_len)
       head <> "\n" <> tail
@@ -1039,62 +1203,73 @@ defmodule DashboardPhoenix.SessionBridge do
     case File.open(path, [:read, :binary]) do
       {:ok, file} ->
         :file.position(file, offset)
-        data = case IO.read(file, length) do
-          d when is_binary(d) -> d
-          _ -> ""
-        end
+
+        data =
+          case IO.read(file, length) do
+            d when is_binary(d) -> d
+            _ -> ""
+          end
+
         File.close(file)
         data
-      _ -> ""
+
+      _ ->
+        ""
     end
   end
-  
+
   # Extract current action and recent tool calls for running sessions
   defp extract_running_session_status(parsed) do
     # Get all tool calls from assistant messages
-    tool_calls = parsed
-    |> Enum.flat_map(fn entry ->
-      if entry["type"] == "message" && get_in(entry, ["message", "role"]) == "assistant" do
-        content = get_in(entry, ["message", "content"]) || []
-        content
-        |> Enum.filter(fn item -> is_map(item) && item["type"] == "toolCall" end)
-        |> Enum.map(fn tc ->
-          args = tc["arguments"] || %{}
-          target = args["path"] || args["file_path"] || args["command"] || args["query"] || ""
-          %{
-            id: tc["id"],
-            name: tc["name"] || "unknown",
-            target: truncate_target(target)
-          }
-        end)
-      else
-        []
-      end
-    end)
-    
+    tool_calls =
+      parsed
+      |> Enum.flat_map(fn entry ->
+        if entry["type"] == "message" && get_in(entry, ["message", "role"]) == "assistant" do
+          content = get_in(entry, ["message", "content"]) || []
+
+          content
+          |> Enum.filter(fn item -> is_map(item) && item["type"] == "toolCall" end)
+          |> Enum.map(fn tc ->
+            args = tc["arguments"] || %{}
+            target = args["path"] || args["file_path"] || args["command"] || args["query"] || ""
+
+            %{
+              id: tc["id"],
+              name: tc["name"] || "unknown",
+              target: truncate_target(target)
+            }
+          end)
+        else
+          []
+        end
+      end)
+
     # Get all tool results
-    tool_results = parsed
-    |> Enum.filter(fn entry ->
-      entry["type"] == "message" && get_in(entry, ["message", "role"]) == "toolResult"
-    end)
-    |> Enum.map(fn entry -> get_in(entry, ["message", "toolCallId"]) end)
-    |> MapSet.new()
-    
+    tool_results =
+      parsed
+      |> Enum.filter(fn entry ->
+        entry["type"] == "message" && get_in(entry, ["message", "role"]) == "toolResult"
+      end)
+      |> Enum.map(fn entry -> get_in(entry, ["message", "toolCallId"]) end)
+      |> MapSet.new()
+
     # Find tool calls without results (currently running)
     pending_calls = Enum.reject(tool_calls, fn tc -> MapSet.member?(tool_results, tc.id) end)
-    
+
     # Current action is the last pending tool call
-    current_action = case List.last(pending_calls) do
-      nil -> nil
-      tc -> "#{tc.name}: #{tc.target}"
-    end
-    
+    current_action =
+      case List.last(pending_calls) do
+        nil -> nil
+        tc -> "#{tc.name}: #{tc.target}"
+      end
+
     # Recent actions are the last 5 completed tool calls
-    recent_actions = tool_calls
-    |> Enum.filter(fn tc -> MapSet.member?(tool_results, tc.id) end)
-    |> Enum.take(-5)
-    |> Enum.map(fn tc -> "#{tc.name}: #{tc.target}" end)
-    
+    recent_actions =
+      tool_calls
+      |> Enum.filter(fn tc -> MapSet.member?(tool_results, tc.id) end)
+      |> Enum.take(-5)
+      |> Enum.map(fn tc -> "#{tc.name}: #{tc.target}" end)
+
     {current_action, recent_actions}
   end
 
@@ -1104,18 +1279,22 @@ defmodule DashboardPhoenix.SessionBridge do
     |> Enum.map(fn item -> item["text"] || "" end)
     |> Enum.join(" ")
   end
+
   defp extract_text_content(content) when is_binary(content), do: content
   defp extract_text_content(_), do: ""
 
   defp truncate_text(nil, _), do: nil
+
   defp truncate_text(text, max_len) when is_binary(text) do
     text = String.replace(text, ~r/\s+/, " ") |> String.trim()
+
     if String.length(text) > max_len do
       String.slice(text, 0, max_len - 3) <> "..."
     else
       text
     end
   end
+
   defp truncate_text(_, _), do: nil
 
   defp parse_timestamp(ts) when is_binary(ts) do
@@ -1124,21 +1303,25 @@ defmodule DashboardPhoenix.SessionBridge do
       _ -> nil
     end
   end
+
   defp parse_timestamp(ts) when is_integer(ts) do
     case DateTime.from_unix(ts, :millisecond) do
       {:ok, dt} -> dt
       _ -> nil
     end
   end
+
   defp parse_timestamp(_), do: nil
 
   defp format_runtime(ms) when ms < 1000, do: "<1s"
   defp format_runtime(ms) when ms < 60_000, do: "#{div(ms, 1000)}s"
+
   defp format_runtime(ms) when ms < 3_600_000 do
     mins = div(ms, 60_000)
     secs = div(rem(ms, 60_000), 1000)
     "#{mins}m #{secs}s"
   end
+
   defp format_runtime(ms) do
     hours = div(ms, 3_600_000)
     mins = div(rem(ms, 3_600_000), 60_000)
@@ -1172,19 +1355,26 @@ defmodule DashboardPhoenix.SessionBridge do
   end
 
   defp broadcast_sessions(sessions) do
-    Phoenix.PubSub.broadcast(DashboardPhoenix.PubSub, Topics.agent_updates(), {:sessions, sessions})
+    Phoenix.PubSub.broadcast(
+      DashboardPhoenix.PubSub,
+      Topics.agent_updates(),
+      {:sessions, sessions}
+    )
   end
 
   # Helper to format duration for activity log
   defp format_duration(ms) when ms < 1000, do: "<1s"
+
   defp format_duration(ms) when ms < 60_000 do
     "#{div(ms, 1000)}s"
   end
+
   defp format_duration(ms) when ms < 3_600_000 do
     mins = div(ms, 60_000)
     secs = div(rem(ms, 60_000), 1000)
     "#{mins}m #{secs}s"
   end
+
   defp format_duration(ms) do
     hours = div(ms, 3_600_000)
     mins = div(rem(ms, 3_600_000), 60_000)
@@ -1194,7 +1384,7 @@ defmodule DashboardPhoenix.SessionBridge do
   # Detect if a subagent session failed based on result text or session details
   defp detect_failure(result, session) do
     result_text = result || ""
-    
+
     # Look for common failure indicators in the result
     failure_patterns = [
       ~r/\bfailed\b/i,
@@ -1204,19 +1394,22 @@ defmodule DashboardPhoenix.SessionBridge do
       ~r/\bcould not compile\b/i,
       ~r/\bexited with\s+[1-9]\d*\b/i,
       ~r/\bexit code\s+[1-9]\d*\b/i,
-      ~r/\b\*\*\s*\(.*Error\)\b/i  # Elixir exception pattern
+      # Elixir exception pattern
+      ~r/\b\*\*\s*\(.*Error\)\b/i
     ]
-    
-    result_has_failure = Enum.any?(failure_patterns, fn pattern ->
-      Regex.match?(pattern, result_text)
-    end)
-    
+
+    result_has_failure =
+      Enum.any?(failure_patterns, fn pattern ->
+        Regex.match?(pattern, result_text)
+      end)
+
     # Also check the task summary for failure hints (e.g., "fix" tasks that didn't complete)
     task_text = if session, do: session.task_summary || "", else: ""
-    
+
     # If the task was to fix something and the result mentions failure, that's a failure
     is_fix_task = String.contains?(String.downcase(task_text), ["fix", "debug", "resolve"])
-    
-    result_has_failure || (is_fix_task && Regex.match?(~r/\bunresolved\b|\bstill broken\b/i, result_text))
+
+    result_has_failure ||
+      (is_fix_task && Regex.match?(~r/\bunresolved\b|\bstill broken\b/i, result_text))
   end
 end

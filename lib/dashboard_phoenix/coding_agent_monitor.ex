@@ -51,11 +51,15 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
   """
   @spec list_agents() :: [map()]
   def list_agents do
-    case CLITools.run_if_available("ps", ["aux"], timeout: @cli_timeout_ms, friendly_name: "ps command") do
+    case CLITools.run_if_available("ps", ["aux"],
+           timeout: @cli_timeout_ms,
+           friendly_name: "ps command"
+         ) do
       {:ok, output} ->
         output
         |> String.split("\n", trim: true)
-        |> Enum.drop(1)  # Skip header
+        # Skip header
+        |> Enum.drop(1)
         |> Enum.map(&parse_process_line/1)
         |> Enum.filter(&is_coding_agent?/1)
         |> Enum.map(&enrich_agent/1)
@@ -107,8 +111,10 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
 
   @spec kill_agent(integer()) :: :ok | {:error, binary()}
   def kill_agent(pid) when is_integer(pid) do
-    case CLITools.run_if_available("kill", ["-15", to_string(pid)], 
-         timeout: 5_000, friendly_name: "kill command") do
+    case CLITools.run_if_available("kill", ["-15", to_string(pid)],
+           timeout: 5_000,
+           friendly_name: "kill command"
+         ) do
       {:ok, _} -> :ok
       {:error, {:tool_not_available, message}} -> {:error, message}
       {:error, {:exit, _code, error}} -> {:error, error}
@@ -118,7 +124,7 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
 
   defp parse_process_line(line) do
     parts = String.split(line, ~r/\s+/, parts: 11)
-    
+
     case parts do
       [user, pid, cpu, mem, _vsz, _rss, _tty, stat, start, time | cmd_parts] ->
         %{
@@ -131,12 +137,14 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
           time: time,
           command: Enum.join(cmd_parts, " ")
         }
+
       _ ->
         nil
     end
   end
 
   defp is_coding_agent?(nil), do: false
+
   defp is_coding_agent?(%{command: cmd}) do
     cmd_lower = String.downcase(cmd)
     Enum.any?(@agent_patterns, &String.contains?(cmd_lower, &1))
@@ -145,7 +153,7 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
   defp enrich_agent(proc) do
     agent_type = detect_agent_type(proc.command)
     working_dir = get_working_dir(proc.pid)
-    
+
     %{
       pid: proc.pid,
       type: agent_type,
@@ -162,6 +170,7 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
 
   defp detect_agent_type(cmd) do
     cmd_lower = String.downcase(cmd)
+
     cond do
       String.contains?(cmd_lower, "opencode") -> "OpenCode"
       String.contains?(cmd_lower, "claude") -> "Claude Code"
@@ -176,6 +185,7 @@ defmodule DashboardPhoenix.CodingAgentMonitor do
   end
 
   defp extract_project_name(nil), do: nil
+
   defp extract_project_name(path) do
     path |> Path.basename()
   end

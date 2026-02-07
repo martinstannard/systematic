@@ -240,6 +240,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
       StatsMonitor.subscribe()
       ResourceTracker.subscribe()
+
       # AgentActivityMonitor.subscribe() removed - redundant, activity rebuilt from sessions+progress
       AgentPreferences.subscribe()
       LinearMonitor.subscribe()
@@ -419,38 +420,45 @@ defmodule DashboardPhoenixWeb.HomeLive do
   end
 
   def handle_info({:work_river_component, :open_context, item}, socket) do
-    socket = assign(socket, 
-      show_work_context_modal: true,
-      selected_work_item: item
-    )
+    socket =
+      assign(socket,
+        show_work_context_modal: true,
+        selected_work_item: item
+      )
+
     {:noreply, socket}
   end
 
   def handle_info({:work_river_component, :start_work, {item_id, item_type}}, socket) do
     # Extract the actual identifier from the item_id (e.g., "linear-COR-123" -> "COR-123")
-    actual_id = case item_type do
-      "linear" -> String.replace_prefix(item_id, "linear-", "")
-      "chainlink" -> 
-        case String.replace_prefix(item_id, "chainlink-", "") |> Integer.parse() do
-          {id, ""} -> id
-          _ -> nil
-        end
-      _ -> item_id
-    end
-    
+    actual_id =
+      case item_type do
+        "linear" ->
+          String.replace_prefix(item_id, "linear-", "")
+
+        "chainlink" ->
+          case String.replace_prefix(item_id, "chainlink-", "") |> Integer.parse() do
+            {id, ""} -> id
+            _ -> nil
+          end
+
+        _ ->
+          item_id
+      end
+
     case item_type do
       "linear" when is_binary(actual_id) ->
         # Trigger the existing work on ticket flow
         send(self(), {:linear_component, :work_on_ticket, actual_id})
-      
+
       "chainlink" when is_integer(actual_id) ->
         # Trigger the existing chainlink work flow
         send(self(), {:chainlink_component, :work_on_issue, actual_id})
-      
+
       _ ->
         nil
     end
-    
+
     {:noreply, socket}
   end
 
@@ -468,24 +476,25 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:work_context_modal, :start_work, item}, socket) do
     # Close modal and trigger work start
     socket = assign(socket, show_work_context_modal: false, selected_work_item: nil)
-    
+
     case item.type do
       :linear ->
         send(self(), {:linear_component, :work_on_ticket, item.identifier})
-      
+
       :chainlink ->
         issue_id = item.source_data.id
         send(self(), {:chainlink_component, :work_on_issue, issue_id})
-      
-      _ -> nil
+
+      _ ->
+        nil
     end
-    
+
     {:noreply, socket}
   end
 
   def handle_info({:work_context_modal, :create_pr, session}, socket) do
     socket = assign(socket, show_work_context_modal: false, selected_work_item: nil)
-    
+
     pr_prompt = """
     The work looks complete. Please create a Pull Request with:
     1. A clear, descriptive title
@@ -494,24 +503,24 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
     Use `gh pr create` to create the PR.
     """
-    
+
     # Determine the type of session and send appropriate message
     cond do
       Map.get(session, :slug) ->
         # OpenCode session
         ClientFactory.opencode_client().send_message(session.id, pr_prompt)
-      
+
       true ->
         # Claude sub-agent - send via main session
         ClientFactory.openclaw_client().send_message(pr_prompt, channel: "webchat")
     end
-    
+
     {:noreply, put_flash(socket, :info, "PR creation requested")}
   end
 
   def handle_info({:work_context_modal, :fix_issues, pr}, socket) do
     socket = assign(socket, show_work_context_modal: false, selected_work_item: nil)
-    
+
     # Use existing fix_pr_issues flow
     params = %{
       "url" => pr.url,
@@ -521,22 +530,22 @@ defmodule DashboardPhoenixWeb.HomeLive do
       "has-conflicts" => to_string(Map.get(pr, :has_conflicts, false)),
       "ci-failing" => to_string(Map.get(pr, :ci_status) == "failure")
     }
-    
+
     send(self(), {:prs_component, :fix_pr_issues, params})
     {:noreply, socket}
   end
 
   def handle_info({:work_context_modal, :merge_pr, pr}, socket) do
     socket = assign(socket, show_work_context_modal: false, selected_work_item: nil)
-    
+
     merge_prompt = """
     Please merge PR ##{pr.number} in #{pr.repo}.
-    
+
     Use: `gh pr merge #{pr.number} --repo #{pr.repo} --squash --delete-branch`
-    
+
     After merging, confirm the merge was successful.
     """
-    
+
     case ClientFactory.openclaw_client().spawn_subagent(merge_prompt,
            name: "pr-merge-#{pr.number}",
            thinking: "low",
@@ -544,7 +553,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
          ) do
       {:ok, _} ->
         {:noreply, put_flash(socket, :info, "Merge sub-agent spawned for PR ##{pr.number}")}
-      
+
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, "Failed to spawn merge agent: #{inspect(reason)}")}
     end
@@ -593,11 +602,17 @@ defmodule DashboardPhoenixWeb.HomeLive do
         socket.assigns.agent_progress
       )
 
-    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
-    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
+    tickets_in_progress =
+      WorkProgressBuilder.build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
+
+    prs_in_progress =
+      WorkProgressBuilder.build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
 
     chainlink_work_in_progress =
-      WorkProgressBuilder.build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
+      WorkProgressBuilder.build_chainlink_work_in_progress(
+        sessions,
+        socket.assigns.chainlink_work_in_progress
+      )
 
     # Count only running agents (not all sessions)
     agent_sessions_count = Enum.count(sessions, fn s -> s.status == Status.running() end)
@@ -889,23 +904,31 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
     # Execute the command asynchronously
     parent = self()
+
     Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
       try do
-        case System.cmd("chainlink", ["create", title, "-p", priority] ++ 
-          if(description != "", do: ["-d", description], else: []),
-          stderr_to_stdout: true) do
+        case System.cmd(
+               "chainlink",
+               ["create", title, "-p", priority] ++
+                 if(description != "", do: ["-d", description], else: []), stderr_to_stdout: true) do
           {output, 0} ->
             send(parent, {:chainlink_creation_complete, :success, output})
-            ChainlinkMonitor.refresh()  # Refresh the issues list
+            # Refresh the issues list
+            ChainlinkMonitor.refresh()
+
           {output, _exit_code} ->
             send(parent, {:chainlink_creation_complete, :error, output})
         end
       rescue
         e ->
-          send(parent, {:chainlink_creation_complete, :error, "Failed to execute chainlink command: #{inspect(e)}"})
+          send(
+            parent,
+            {:chainlink_creation_complete, :error,
+             "Failed to execute chainlink command: #{inspect(e)}"}
+          )
       end
     end)
-    
+
     {:noreply, socket}
   end
 
@@ -913,29 +936,32 @@ defmodule DashboardPhoenixWeb.HomeLive do
     case result do
       :success ->
         # Notify the component that creation succeeded
-        send_update(ChainlinkComponent, 
-          id: "chainlink-issues", 
-          creation_complete: %{success: true})
-        
+        send_update(ChainlinkComponent,
+          id: "chainlink-issues",
+          creation_complete: %{success: true}
+        )
+
         # Extract issue ID from output if possible
-        issue_id = case Regex.run(~r/Issue #(\d+) created/, output) do
-          [_, id] -> id
-          _ -> "new issue"
-        end
-        
+        issue_id =
+          case Regex.run(~r/Issue #(\d+) created/, output) do
+            [_, id] -> id
+            _ -> "new issue"
+          end
+
         ActivityLog.log_event(:issue_created, "Chainlink issue #{issue_id} created", %{
           issue_id: issue_id,
           output: output
         })
-        
+
         {:noreply, put_flash(socket, :info, "Issue #{issue_id} created successfully")}
-        
+
       :error ->
         # Notify the component that creation failed
-        send_update(ChainlinkComponent, 
-          id: "chainlink-issues", 
-          creation_complete: %{success: false})
-        
+        send_update(ChainlinkComponent,
+          id: "chainlink-issues",
+          creation_complete: %{success: false}
+        )
+
         {:noreply, put_flash(socket, :error, "Failed to create issue: #{output}")}
     end
   end
@@ -1241,11 +1267,17 @@ defmodule DashboardPhoenixWeb.HomeLive do
     main_activity_count = Enum.count(progress, &(&1.agent == "main"))
 
     # Rebuild work-in-progress maps now that we have sessions
-    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
-    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
+    tickets_in_progress =
+      WorkProgressBuilder.build_tickets_in_progress(socket.assigns.opencode_sessions, sessions)
+
+    prs_in_progress =
+      WorkProgressBuilder.build_prs_in_progress(socket.assigns.opencode_sessions, sessions)
 
     chainlink_work_in_progress =
-      WorkProgressBuilder.build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
+      WorkProgressBuilder.build_chainlink_work_in_progress(
+        sessions,
+        socket.assigns.chainlink_work_in_progress
+      )
 
     # Rebuild graph data if coding agents are loaded
     graph_data =
@@ -1450,8 +1482,11 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle OpenCode status loaded result
   def handle_info({:opencode_status_loaded, status, sessions}, socket) do
     # Rebuild work-in-progress maps with OpenCode sessions
-    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+    tickets_in_progress =
+      WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+
+    prs_in_progress =
+      WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
 
     {:noreply,
      assign(socket,
@@ -1785,8 +1820,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
 
   def handle_info({:opencode_component, :refresh}, socket) do
     sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+
+    tickets_in_progress =
+      WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+
+    prs_in_progress =
+      WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
 
     {:noreply,
      assign(socket,
@@ -1827,8 +1866,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
     case ClientFactory.opencode_client().delete_session(session_id) do
       :ok ->
         sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-        tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-        prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+
+        tickets_in_progress =
+          WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+
+        prs_in_progress =
+          WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
 
         socket =
           socket
@@ -2154,8 +2197,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle OpenCode server status updates
   def handle_info({:opencode_status, status}, socket) do
     sessions = fetch_opencode_sessions(status)
-    tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-    prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+
+    tickets_in_progress =
+      WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+
+    prs_in_progress =
+      WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
 
     {:noreply,
      assign(socket,
@@ -2191,8 +2238,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
     result =
       if socket.assigns.opencode_server_status.running do
         sessions = fetch_opencode_sessions(socket.assigns.opencode_server_status)
-        tickets_in_progress = WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
-        prs_in_progress = WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+
+        tickets_in_progress =
+          WorkProgressBuilder.build_tickets_in_progress(sessions, socket.assigns.agent_sessions)
+
+        prs_in_progress =
+          WorkProgressBuilder.build_prs_in_progress(sessions, socket.assigns.agent_sessions)
+
         opencode_sessions_count = length(sessions)
 
         assign(socket,
@@ -2575,7 +2627,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     {:noreply, assign(socket, active_tab: tab)}
   end
 
-  @spec handle_super_review_request(String.t(), Phoenix.LiveView.Socket.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
+  @spec handle_super_review_request(String.t(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   defp handle_super_review_request(ticket_id, socket) do
     review_prompt = """
     🔍 **Super Review Request for #{ticket_id}**

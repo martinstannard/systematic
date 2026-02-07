@@ -26,7 +26,11 @@ defmodule DashboardPhoenix.PanelStatus do
   end
 
   # Chainlink issues panel status
-  def status_classes(:chainlink, %{error: error, loading: loading, issues: issues, work_in_progress: wip}, _opts) do
+  def status_classes(
+        :chainlink,
+        %{error: error, loading: loading, issues: issues, work_in_progress: wip},
+        _opts
+      ) do
     cond do
       error != nil -> "panel-status-error"
       loading -> "panel-status-loading"
@@ -38,7 +42,11 @@ defmodule DashboardPhoenix.PanelStatus do
   end
 
   # GitHub PRs panel status
-  def status_classes(:github_prs, %{error: error, loading: loading, prs: prs, verifications: verifications}, _opts) do
+  def status_classes(
+        :github_prs,
+        %{error: error, loading: loading, prs: prs, verifications: verifications},
+        _opts
+      ) do
     cond do
       error != nil -> "panel-status-error"
       loading -> "panel-status-loading"
@@ -89,7 +97,7 @@ defmodule DashboardPhoenix.PanelStatus do
   def status_classes(:subagents, %{sessions: sessions}, _opts) do
     failed_count = count_failed_sessions(sessions)
     active_count = count_active_sessions(sessions)
-    
+
     cond do
       failed_count > 0 -> "panel-status-error"
       active_count > 3 -> "panel-status-warning"
@@ -102,7 +110,7 @@ defmodule DashboardPhoenix.PanelStatus do
   def status_classes(:system_processes, %{agents: agents, processes: processes}, _opts) do
     failed_agents = count_failed_agents(agents)
     high_memory_processes = count_high_memory_processes(processes)
-    
+
     cond do
       failed_agents > 0 -> "panel-status-error"
       high_memory_processes > 2 -> "panel-status-warning"
@@ -114,9 +122,14 @@ defmodule DashboardPhoenix.PanelStatus do
   # Usage stats panel status
   def status_classes(:usage_stats, %{opencode: opencode_stats, claude: claude_stats}, _opts) do
     cond do
-      is_high_usage?(opencode_stats) or is_high_usage?(claude_stats) -> "panel-status-warning"
-      has_recent_usage?(opencode_stats) or has_recent_usage?(claude_stats) -> "panel-status-working"
-      true -> "panel-status-idle"
+      is_high_usage?(opencode_stats) or is_high_usage?(claude_stats) ->
+        "panel-status-warning"
+
+      has_recent_usage?(opencode_stats) or has_recent_usage?(claude_stats) ->
+        "panel-status-working"
+
+      true ->
+        "panel-status-idle"
     end
   end
 
@@ -158,9 +171,9 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp has_overdue_tickets?(tickets) when is_list(tickets) do
     Enum.any?(tickets, fn ticket ->
-      ticket.status in [Status.todo(), Status.in_progress()] and 
-      is_overdue?(ticket.due_date) and
-      ticket.priority in ["High", "Urgent"]
+      ticket.status in [Status.todo(), Status.in_progress()] and
+        is_overdue?(ticket.due_date) and
+        ticket.priority in ["High", "Urgent"]
     end)
   end
 
@@ -169,7 +182,7 @@ defmodule DashboardPhoenix.PanelStatus do
   defp has_high_priority_tickets?(tickets) when is_list(tickets) do
     Enum.any?(tickets, fn ticket ->
       ticket.priority in ["High", "Urgent"] and
-      ticket.status in [Status.todo(), Status.in_progress()]
+        ticket.status in [Status.todo(), Status.in_progress()]
     end)
   end
 
@@ -213,7 +226,8 @@ defmodule DashboardPhoenix.PanelStatus do
       ci_status = Map.get(pr, :ci_status)
       has_conflicts = Map.get(pr, :has_conflicts, false)
       # Check for conflicts via either mergeable=false or has_conflicts=true
-      has_conflicts or mergeable == false or ci_status in [Status.failure(), Status.error(), :failure, :error]
+      has_conflicts or mergeable == false or
+        ci_status in [Status.failure(), Status.error(), :failure, :error]
     end)
   end
 
@@ -222,11 +236,14 @@ defmodule DashboardPhoenix.PanelStatus do
   defp has_ready_to_merge_prs?(prs) when is_list(prs) do
     Enum.any?(prs, fn pr ->
       # Use Map.get for defensive access - handle PRs without all fields
-      mergeable = Map.get(pr, :mergeable, true) # default true if not present
+      # default true if not present
+      mergeable = Map.get(pr, :mergeable, true)
       ci_status = Map.get(pr, :ci_status)
       approved = Map.get(pr, :approved, false)
       review_status = Map.get(pr, :review_status)
-      mergeable == true and ci_status in [Status.success(), :success] and (approved == true or review_status == :approved)
+
+      mergeable == true and ci_status in [Status.success(), :success] and
+        (approved == true or review_status == :approved)
     end)
   end
 
@@ -242,7 +259,7 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp has_stale_branches?(branches) when is_list(branches) do
     thirty_days_ago = DateTime.utc_now() |> DateTime.add(-30 * 24 * 60 * 60, :second)
-    
+
     Enum.any?(branches, fn branch ->
       case parse_date(branch.last_commit_date) do
         {:ok, date} -> DateTime.compare(date, thirty_days_ago) == :lt
@@ -255,7 +272,7 @@ defmodule DashboardPhoenix.PanelStatus do
 
   defp has_recent_branches?(branches) when is_list(branches) do
     seven_days_ago = DateTime.utc_now() |> DateTime.add(-7 * 24 * 60 * 60, :second)
-    
+
     Enum.any?(branches, fn branch ->
       case parse_date(branch.last_commit_date) do
         {:ok, date} -> DateTime.compare(date, seven_days_ago) == :gt
@@ -265,15 +282,17 @@ defmodule DashboardPhoenix.PanelStatus do
   end
 
   defp has_recent_branches?(_), do: false
-  
+
   # Parse date that can be either a DateTime struct or an ISO 8601 string
   defp parse_date(%DateTime{} = date), do: {:ok, date}
+
   defp parse_date(date_string) when is_binary(date_string) do
     case DateTime.from_iso8601(date_string) do
       {:ok, date, _offset} -> {:ok, date}
       error -> error
     end
   end
+
   defp parse_date(_), do: :error
 
   defp has_error_sessions?(sessions) when is_list(sessions) do
@@ -293,7 +312,12 @@ defmodule DashboardPhoenix.PanelStatus do
   defp has_active_sessions?(_), do: false
 
   defp has_error_output?(output) when is_binary(output) do
-    String.contains?(String.downcase(output), [Status.error(), Status.failed(), "exception", "crash"])
+    String.contains?(String.downcase(output), [
+      Status.error(),
+      Status.failed(),
+      "exception",
+      "crash"
+    ])
   end
 
   defp has_error_output?(_), do: false

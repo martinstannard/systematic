@@ -5,39 +5,41 @@ defmodule DashboardPhoenix.ProcessParserTest do
 
   describe "parse_process_line/1" do
     test "parses valid ps aux output line" do
-      line = "martin   12345  15.2  4.8  123456  98765 pts/0   R+   10:30   0:05 opencode session start"
-      
+      line =
+        "martin   12345  15.2  4.8  123456  98765 pts/0   R+   10:30   0:05 opencode session start"
+
       result = ProcessParser.parse_process_line(line)
-      
+
       assert %{
-        user: "martin",
-        pid: "12345",
-        cpu: 15.2,
-        mem: 4.8,
-        vsz: "123456",
-        rss: "98765", 
-        tty: "pts/0",
-        stat: "R+",
-        start: "10:30",
-        time: "0:05",
-        command: "opencode session start"
-      } = result
+               user: "martin",
+               pid: "12345",
+               cpu: 15.2,
+               mem: 4.8,
+               vsz: "123456",
+               rss: "98765",
+               tty: "pts/0",
+               stat: "R+",
+               start: "10:30",
+               time: "0:05",
+               command: "opencode session start"
+             } = result
     end
 
     test "parses line with command containing spaces" do
-      line = "root     1001   0.1  0.2   4568   2048  ?      S    09:45   0:00 /usr/bin/systemd --user"
-      
+      line =
+        "root     1001   0.1  0.2   4568   2048  ?      S    09:45   0:00 /usr/bin/systemd --user"
+
       result = ProcessParser.parse_process_line(line)
-      
+
       assert result.command == "/usr/bin/systemd --user"
       assert result.pid == "1001"
     end
 
     test "returns nil for invalid line with too few parts" do
       line = "invalid line"
-      
+
       result = ProcessParser.parse_process_line(line)
-      
+
       assert result == nil
     end
 
@@ -48,9 +50,9 @@ defmodule DashboardPhoenix.ProcessParserTest do
 
     test "handles non-numeric CPU and memory values" do
       line = "martin   12345  N/A  N/A  123456  98765 pts/0   R+   10:30   0:05 opencode"
-      
+
       result = ProcessParser.parse_process_line(line)
-      
+
       assert result.cpu == 0.0
       assert result.mem == 0.0
     end
@@ -138,7 +140,7 @@ defmodule DashboardPhoenix.ProcessParserTest do
     test "generates consistent names for same PID" do
       name1 = ProcessParser.generate_name("1234")
       name2 = ProcessParser.generate_name("1234")
-      
+
       assert name1 == name2
       assert String.contains?(name1, "-")
     end
@@ -146,7 +148,7 @@ defmodule DashboardPhoenix.ProcessParserTest do
     test "generates different names for different PIDs" do
       name1 = ProcessParser.generate_name("1234")
       name2 = ProcessParser.generate_name("5678")
-      
+
       assert name1 != name2
     end
 
@@ -160,14 +162,14 @@ defmodule DashboardPhoenix.ProcessParserTest do
     test "truncates long commands" do
       long_command = String.duplicate("a", 100)
       result = ProcessParser.truncate_command(long_command, 50)
-      
+
       assert String.length(result) <= 50
     end
 
     test "removes long flags" do
       command = "opencode --session-token=very_long_token_value session start"
       result = ProcessParser.truncate_command(command)
-      
+
       refute String.contains?(result, "--session-token=")
       assert String.contains?(result, "opencode")
       assert String.contains?(result, "session start")
@@ -176,7 +178,7 @@ defmodule DashboardPhoenix.ProcessParserTest do
     test "normalizes whitespace" do
       command = "opencode    session     start"
       result = ProcessParser.truncate_command(command)
-      
+
       assert result == "opencode session start"
     end
 
@@ -235,7 +237,7 @@ defmodule DashboardPhoenix.ProcessParserTest do
   describe "list_processes/1" do
     # Note: These tests would require mocking CommandRunner.run/3
     # For integration testing, we'd test with actual ps output
-    
+
     test "accepts filter function option" do
       # This would require mocking in a full test suite
       # For now, we just verify the function exists and accepts options

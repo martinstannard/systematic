@@ -45,36 +45,39 @@ defmodule DashboardPhoenix.CLIToolsTest do
 
   describe "check_tools/1" do
     test "returns all_available?: true when all tools exist" do
-      result = CLITools.check_tools([
-        {"ls", "List"},
-        {"cat", "Cat"}
-      ])
-      
+      result =
+        CLITools.check_tools([
+          {"ls", "List"},
+          {"cat", "Cat"}
+        ])
+
       assert result.all_available? == true
       assert length(result.available) == 2
       assert Enum.empty?(result.missing)
     end
 
     test "returns all_available?: false when some tools missing" do
-      result = CLITools.check_tools([
-        {"ls", "List"},
-        {"nonexistent_tool_xyz", "Missing Tool"}
-      ])
-      
+      result =
+        CLITools.check_tools([
+          {"ls", "List"},
+          {"nonexistent_tool_xyz", "Missing Tool"}
+        ])
+
       assert result.all_available? == false
       assert length(result.available) == 1
       assert length(result.missing) == 1
-      
+
       # Check the missing tool is properly identified
       assert [{"Missing Tool", :not_found}] = result.missing
     end
 
     test "returns all_available?: false when all tools missing" do
-      result = CLITools.check_tools([
-        {"nonexistent_tool_a", "Tool A"},
-        {"nonexistent_tool_b", "Tool B"}
-      ])
-      
+      result =
+        CLITools.check_tools([
+          {"nonexistent_tool_a", "Tool A"},
+          {"nonexistent_tool_b", "Tool B"}
+        ])
+
       assert result.all_available? == false
       assert Enum.empty?(result.available)
       assert length(result.missing) == 2
@@ -101,6 +104,7 @@ defmodule DashboardPhoenix.CLIToolsTest do
         available: [{"linear", "/usr/bin/linear"}],
         missing: [{"gh", :not_found}]
       }
+
       message = CLITools.format_status_message(status)
       assert message =~ "Some CLI tools missing"
       assert message =~ "linear"
@@ -115,11 +119,12 @@ defmodule DashboardPhoenix.CLIToolsTest do
     end
 
     test "returns error when tool doesn't exist" do
-      result = CLITools.run_if_available("nonexistent_cmd_xyz", ["arg"], 
-        friendly_name: "My Tool",
-        timeout: 5_000
-      )
-      
+      result =
+        CLITools.run_if_available("nonexistent_cmd_xyz", ["arg"],
+          friendly_name: "My Tool",
+          timeout: 5_000
+        )
+
       assert {:error, {:tool_not_available, message}} = result
       assert message =~ "My Tool"
       assert message =~ "not found"
@@ -128,11 +133,12 @@ defmodule DashboardPhoenix.CLIToolsTest do
 
   describe "run_json_if_available/3" do
     test "returns error when tool doesn't exist" do
-      result = CLITools.run_json_if_available("nonexistent_cmd_xyz", ["arg"],
-        friendly_name: "JSON Tool",
-        timeout: 5_000
-      )
-      
+      result =
+        CLITools.run_json_if_available("nonexistent_cmd_xyz", ["arg"],
+          friendly_name: "JSON Tool",
+          timeout: 5_000
+        )
+
       assert {:error, {:tool_not_available, message}} = result
       assert message =~ "JSON Tool"
     end
@@ -142,9 +148,9 @@ defmodule DashboardPhoenix.CLIToolsTest do
     test "creates ETS table if it doesn't exist" do
       # Table should already exist from setup, but calling again should be safe
       CLITools.ensure_cache_table()
-      
+
       # Should be able to insert and lookup
-      :ets.insert(:cli_tools_cache, {:test_key, :test_value, 99999999999})
+      :ets.insert(:cli_tools_cache, {:test_key, :test_value, 99_999_999_999})
       assert [{:test_key, :test_value, _}] = :ets.lookup(:cli_tools_cache, :test_key)
     end
   end

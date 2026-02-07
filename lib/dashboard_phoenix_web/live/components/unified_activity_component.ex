@@ -104,20 +104,28 @@ defmodule DashboardPhoenixWeb.Live.Components.UnifiedActivityComponent do
           aria-label="Toggle Activity panel"
           onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
         >
-          <span class={"panel-chevron " <> if(@collapsed, do: "collapsed", else: "")} aria-hidden="true">▼</span>
+          <span
+            class={"panel-chevron " <> if(@collapsed, do: "collapsed", else: "")}
+            aria-hidden="true"
+          >
+            ▼
+          </span>
           <span class="panel-icon" aria-hidden="true">📊</span>
           <span class="text-panel-label text-secondary">Activity</span>
           <%= if @sessions_loading do %>
             <span class="status-activity-ring text-secondary" aria-hidden="true"></span>
             <span class="sr-only">Loading activity</span>
           <% else %>
-            <span class="text-xs font-mono text-base-content/50 text-tabular" aria-label={"#{length(@activity_events)} milestones, #{@agent_progress_count} actions"}>
-              <%= length(@activity_events) %> / <%= @agent_progress_count %>
+            <span
+              class="text-xs font-mono text-base-content/50 text-tabular"
+              aria-label={"#{length(@activity_events)} milestones, #{@agent_progress_count} actions"}
+            >
+              {length(@activity_events)} / {@agent_progress_count}
             </span>
           <% end %>
         </div>
-
-        <!-- Detail level controls -->
+        
+    <!-- Detail level controls -->
         <div class="flex items-center space-x-1">
           <button
             phx-click="set_detail_level"
@@ -159,10 +167,19 @@ defmodule DashboardPhoenixWeb.Live.Components.UnifiedActivityComponent do
           </button>
         </div>
       </div>
-
-      <!-- Content -->
-      <div id="unified-activity-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[600px]")}>
-        <div class="px-3 pb-3 overflow-y-auto max-h-[580px] space-y-0.5" id="unified-activity-feed" role="log" aria-live="polite" aria-label="Activity log">
+      
+    <!-- Content -->
+      <div
+        id="unified-activity-content"
+        class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@collapsed, do: "max-h-0", else: "max-h-[600px]")}
+      >
+        <div
+          class="px-3 pb-3 overflow-y-auto max-h-[580px] space-y-0.5"
+          id="unified-activity-feed"
+          role="log"
+          aria-live="polite"
+          aria-label="Activity log"
+        >
           <%= if @sessions_loading do %>
             <div class="flex items-center justify-center py-4 space-x-2">
               <span class="throbber-small"></span>
@@ -174,7 +191,7 @@ defmodule DashboardPhoenixWeb.Live.Components.UnifiedActivityComponent do
                 No activity yet
               </div>
             <% else %>
-              <%= render_unified_feed(assigns) %>
+              {render_unified_feed(assigns)}
             <% end %>
           <% end %>
         </div>
@@ -240,15 +257,15 @@ defmodule DashboardPhoenixWeb.Live.Components.UnifiedActivityComponent do
       onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
     >
       <div class="flex items-center space-x-2 text-xs">
-        <span class={event_icon_class(@event.type) <> " text-base"}><%= event_icon(@event.type) %></span>
+        <span class={event_icon_class(@event.type) <> " text-base"}>{event_icon(@event.type)}</span>
         <span class="text-cyan-400/70 w-14 flex-shrink-0 font-mono">
-          <%= format_time(@event.timestamp) %>
+          {format_time(@event.timestamp)}
         </span>
         <span class={event_type_class(@event.type) <> " font-bold w-28 flex-shrink-0"}>
-          <%= event_type_label(@event.type) %>
+          {event_type_label(@event.type)}
         </span>
         <span class="text-base-content/90 truncate flex-1 font-medium">
-          <%= @event.message %>
+          {@event.message}
         </span>
       </div>
 
@@ -256,8 +273,8 @@ defmodule DashboardPhoenixWeb.Live.Components.UnifiedActivityComponent do
         <div class="mt-2 pl-8 text-xs text-base-content/60 font-mono bg-base-content/5 p-2 rounded">
           <%= for {key, value} <- @event.details do %>
             <div class="flex space-x-2">
-              <span class="text-base-content/40"><%= key %>:</span>
-              <span class="text-base-content/70"><%= format_value(value) %></span>
+              <span class="text-base-content/40">{key}:</span>
+              <span class="text-base-content/70">{format_value(value)}</span>
             </div>
           <% end %>
         </div>
@@ -272,13 +289,19 @@ defmodule DashboardPhoenixWeb.Live.Components.UnifiedActivityComponent do
   defp granular_row(assigns) do
     ~H"""
     <div class="py-0.5 pl-2 flex items-start space-x-1 text-xs opacity-75 hover:opacity-100 transition-opacity">
-      <span class="text-base-content/30 w-12 flex-shrink-0 font-mono"><%= format_granular_time(@action.ts) %></span>
-      <span class={"flex-shrink-0 px-1 rounded-[2px] text-[9px] uppercase font-bold " <> type_color(Map.get(@action, :agent_type))}>
-        <%= Map.get(@action, :agent_type) || "???" %>
+      <span class="text-base-content/30 w-12 flex-shrink-0 font-mono">
+        {format_granular_time(@action.ts)}
       </span>
-      <span class={agent_color(@action.agent) <> " w-[140px] flex-shrink-0 truncate text-[10px]"}><%= @action.agent %></span>
-      <span class={action_color(@action.action) <> " font-semibold w-8 flex-shrink-0 text-[10px]"}><%= @action.action %></span>
-      <span class="text-base-content/50 truncate flex-1 text-[10px]"><%= @action.target %></span>
+      <span class={"flex-shrink-0 px-1 rounded-[2px] text-[9px] uppercase font-bold " <> type_color(Map.get(@action, :agent_type))}>
+        {Map.get(@action, :agent_type) || "???"}
+      </span>
+      <span class={agent_color(@action.agent) <> " w-[140px] flex-shrink-0 truncate text-[10px]"}>
+        {@action.agent}
+      </span>
+      <span class={action_color(@action.action) <> " font-semibold w-8 flex-shrink-0 text-[10px]"}>
+        {@action.action}
+      </span>
+      <span class="text-base-content/50 truncate flex-1 text-[10px]">{@action.target}</span>
     </div>
     """
   end

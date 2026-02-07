@@ -1,12 +1,12 @@
 defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   @moduledoc """
   Agents Panel showing all coding agents in a single view.
-  
+
   Uses AgentCardComponent for consistent display of:
   - Claude sub-agents (🟣)
   - OpenCode sessions (🔷)
   - Gemini CLI (✨)
-  
+
   Each card shows:
   - Agent icon and type indicator
   - Task/session name
@@ -15,7 +15,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   - **Expandable details** with recent messages, token usage, cost, etc.
   """
   use DashboardPhoenixWeb, :live_component
-  
+
   alias DashboardPhoenix.Status
   alias DashboardPhoenix.Models
   alias DashboardPhoenixWeb.Live.Components.AgentCardComponent
@@ -27,38 +27,41 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     opencode_loading = Map.get(assigns, :opencode_loading, false)
     gemini_loading = Map.get(assigns, :gemini_loading, false)
     any_loading = sessions_loading or opencode_loading or gemini_loading
-    
+
     # Build unified agent list for cards with full details
     agents = build_agent_list(assigns)
-    
+
     # Count active agents for header
-    active_count = Enum.count(agents, fn a -> 
-      Map.get(a, :status) in [Status.running(), Status.active(), Status.idle()]
-    end)
-    
+    active_count =
+      Enum.count(agents, fn a ->
+        Map.get(a, :status) in [Status.running(), Status.active(), Status.idle()]
+      end)
+
     # Count by type for summary
-    type_counts = agents
-    |> Enum.group_by(& &1.type)
-    |> Enum.map(fn {type, list} -> {type, length(list)} end)
-    |> Enum.into(%{})
-    
+    type_counts =
+      agents
+      |> Enum.group_by(& &1.type)
+      |> Enum.map(fn {type, list} -> {type, length(list)} end)
+      |> Enum.into(%{})
+
     # Get recent spawn failures from WorkRegistry
     failed_spawns = build_failed_spawns(assigns)
-    
-    updated_assigns = assigns
-    |> Map.put(:agents, agents)
-    |> Map.put(:active_count, active_count)
-    |> Map.put(:type_counts, type_counts)
-    |> Map.put(:failed_spawns, failed_spawns)
-    |> Map.put(:any_loading, any_loading)
+
+    updated_assigns =
+      assigns
+      |> Map.put(:agents, agents)
+      |> Map.put(:active_count, active_count)
+      |> Map.put(:type_counts, type_counts)
+      |> Map.put(:failed_spawns, failed_spawns)
+      |> Map.put(:any_loading, any_loading)
 
     {:ok, assign(socket, updated_assigns)}
   end
-  
+
   # Build list of recent failed spawn attempts from WorkRegistry
   defp build_failed_spawns(_assigns) do
     # Get failed entries directly from registry
-    failed_entries = 
+    failed_entries =
       try do
         DashboardPhoenix.WorkRegistry.recent_failures(5)
       rescue
@@ -66,7 +69,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       catch
         :exit, _ -> []
       end
-    
+
     # Map failed entries to display format
     failed_entries
     |> Enum.map(fn entry ->
@@ -87,31 +90,36 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     claude_agents = build_claude_agents(assigns)
     opencode_agents = build_opencode_agents(assigns)
     gemini_agent = build_gemini_agent(assigns)
-    
+
     # Get toggle states
     show_running = Map.get(assigns, :show_running, true)
-    show_idle = Map.get(assigns, :show_idle, true)  
+    show_idle = Map.get(assigns, :show_idle, true)
     show_completed = Map.get(assigns, :show_completed, false)
-    
+
     # Combine and filter by state
     (claude_agents ++ opencode_agents ++ gemini_agent)
     |> Enum.filter(fn a ->
       status = Map.get(a, :status, Status.idle())
+
       cond do
         status in [Status.running(), Status.active()] -> show_running
         status == Status.idle() -> show_idle
         status in [Status.completed(), Status.done()] -> show_completed
-        true -> true  # Show other statuses by default
+        # Show other statuses by default
+        true -> true
       end
     end)
-    |> Enum.sort_by(fn a -> 
+    |> Enum.sort_by(fn a ->
       status = Map.get(a, :status, Status.idle())
-      priority = cond do
-        status == Status.running() -> 0
-        status == Status.active() -> 0
-        status == Status.idle() -> 1
-        true -> 2
-      end
+
+      priority =
+        cond do
+          status == Status.running() -> 0
+          status == Status.active() -> 0
+          status == Status.idle() -> 1
+          true -> 2
+        end
+
       {priority, Map.get(a, :name, "")}
     end)
   end
@@ -120,27 +128,29 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     show_completed = Map.get(assigns, :show_completed, true)
     dismissed_sessions = Map.get(assigns, :dismissed_sessions, MapSet.new())
     chainlink_work = Map.get(assigns, :chainlink_work_in_progress, %{})
-    
+
     assigns.agent_sessions
     |> Enum.reject(fn s -> Map.get(s, :session_key) == "agent:main:main" end)
     |> Enum.filter(fn s -> s.status in [Status.running(), Status.idle(), Status.completed()] end)
     |> Enum.reject(fn s -> MapSet.member?(dismissed_sessions, Map.get(s, :id)) end)
     |> Enum.filter(fn s -> show_completed or s.status != Status.completed() end)
-    |> Enum.take(10)  # Show more agents now that they're expandable
+    # Show more agents now that they're expandable
+    |> Enum.take(10)
     |> Enum.map(fn s ->
       # Get recent actions (limit to last 5)
-      recent_actions = s
-      |> Map.get(:recent_actions, [])
-      |> Enum.take(-5)
-      
+      recent_actions =
+        s
+        |> Map.get(:recent_actions, [])
+        |> Enum.take(-5)
+
       # Try to find stored work info for this session (by matching label to ticket-N pattern)
       label = Map.get(s, :label, "")
       stored_work = find_stored_work_info(label, chainlink_work)
-      
+
       # Use stored agent_type/model if available, otherwise fall back to session data
       agent_type = Map.get(stored_work, :agent_type) || "claude"
       model = Map.get(s, :model) || Map.get(stored_work, :model)
-      
+
       %{
         id: Map.get(s, :id, "claude-#{:erlang.phash2(s)}"),
         type: agent_type,
@@ -161,9 +171,10 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       }
     end)
   end
-  
+
   # Find stored work info by matching session label to chainlink ticket patterns
-  defp find_stored_work_info(label, chainlink_work) when is_binary(label) and is_map(chainlink_work) do
+  defp find_stored_work_info(label, chainlink_work)
+       when is_binary(label) and is_map(chainlink_work) do
     # Match "ticket-N" pattern in label to find the issue ID
     case Regex.run(~r/ticket-(\d+)/, label) do
       [_, issue_id_str] ->
@@ -171,26 +182,31 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
           {issue_id, ""} -> Map.get(chainlink_work, issue_id, %{})
           _ -> %{}
         end
-      _ -> %{}
+
+      _ ->
+        %{}
     end
   end
+
   defp find_stored_work_info(_, _), do: %{}
 
   defp build_opencode_agents(assigns) do
     show_completed = Map.get(assigns, :show_completed, false)
-    
+
     assigns.opencode_sessions
-    |> Enum.filter(fn s -> 
+    |> Enum.filter(fn s ->
       # Filter out stale (completed) sessions unless show_completed is true
       show_completed or s.status != Status.completed()
     end)
-    |> Enum.take(10)  # Show more agents now that they're expandable
+    # Show more agents now that they're expandable
+    |> Enum.take(10)
     |> Enum.map(fn s ->
       # OpenCode sessions may have different field names
-      recent_actions = s
-      |> Map.get(:recent_actions, [])
-      |> Enum.take(-5)
-      
+      recent_actions =
+        s
+        |> Map.get(:recent_actions, [])
+        |> Enum.take(-5)
+
       %{
         id: Map.get(s, :id, "opencode-#{s.slug}"),
         type: "opencode",
@@ -214,48 +230,52 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   defp build_gemini_agent(assigns) do
     status = assigns.gemini_server_status
     show_completed = Map.get(assigns, :show_completed, false)
-    
+
     if status.running do
       busy = Map.get(status, :busy, false)
-      
+
       # Extract last few lines as recent activity
-      recent_output = if assigns.gemini_output != "" do
-        assigns.gemini_output
-        |> String.split("\n")
-        |> Enum.filter(&(String.trim(&1) != ""))
-        |> Enum.take(-5)
-      else
-        []
-      end
-      
+      recent_output =
+        if assigns.gemini_output != "" do
+          assigns.gemini_output
+          |> String.split("\n")
+          |> Enum.filter(&(String.trim(&1) != ""))
+          |> Enum.take(-5)
+        else
+          []
+        end
+
       # Don't show Gemini if it's idle and has no recent output (stale)
       # unless show_completed is true
       if not busy and recent_output == [] and not show_completed do
         []
       else
-        last_activity = if recent_output != [] do
-          List.last(recent_output) |> String.slice(0, 100)
-        else
-          nil
-        end
-        
-        [%{
-          id: "gemini-cli",
-          type: "gemini",
-          model: Models.gemini_2_flash(),
-          name: "Gemini CLI",
-          task: last_activity,
-          status: if(busy, do: Status.running(), else: Status.idle()),
-          runtime: nil,
-          start_time: nil,
-          # Extended details for expansion
-          tokens_in: 0,
-          tokens_out: 0,
-          cost: 0,
-          current_action: if(busy, do: last_activity, else: nil),
-          recent_actions: recent_output,
-          result_snippet: nil
-        }]
+        last_activity =
+          if recent_output != [] do
+            List.last(recent_output) |> String.slice(0, 100)
+          else
+            nil
+          end
+
+        [
+          %{
+            id: "gemini-cli",
+            type: "gemini",
+            model: Models.gemini_2_flash(),
+            name: "Gemini CLI",
+            task: last_activity,
+            status: if(busy, do: Status.running(), else: Status.idle()),
+            runtime: nil,
+            start_time: nil,
+            # Extended details for expansion
+            tokens_in: 0,
+            tokens_out: 0,
+            cost: 0,
+            current_action: if(busy, do: last_activity, else: nil),
+            recent_actions: recent_output,
+            result_snippet: nil
+          }
+        ]
       end
     else
       []
@@ -278,20 +298,21 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   def handle_event("dismiss_failure", %{"id" => work_id}, socket) do
     # Remove the failed entry from WorkRegistry
     DashboardPhoenix.WorkRegistry.remove(work_id)
-    
+
     # Update local state by filtering out the dismissed failure
     updated_failures = Enum.reject(socket.assigns.failed_spawns, fn f -> f.id == work_id end)
     {:noreply, assign(socket, failed_spawns: updated_failures)}
   end
 
   # Helper functions for template rendering
-  
+
   defp agent_icon(:claude), do: "🟣"
   defp agent_icon(:opencode), do: "🔷"
   defp agent_icon(:gemini), do: "✨"
   defp agent_icon(_), do: "⚪"
-  
+
   defp truncate_text(nil, _), do: ""
+
   defp truncate_text(text, max_len) when is_binary(text) do
     if String.length(text) > max_len do
       String.slice(text, 0, max_len) <> "..."
@@ -299,10 +320,12 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       text
     end
   end
+
   defp truncate_text(text, max_len), do: truncate_text(inspect(text), max_len)
-  
+
   # Parse error message to extract the human-readable part
   defp parse_error_message(nil), do: "Unknown error"
+
   defp parse_error_message(reason) when is_binary(reason) do
     # Error format: "[error_type] message | details"
     # Extract just the message part for display
@@ -311,20 +334,23 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       _ -> reason
     end
   end
+
   defp parse_error_message(reason), do: inspect(reason)
-  
+
   # Format timestamp as relative time (e.g., "2m ago", "1h ago")
   defp format_relative_time(nil), do: "just now"
+
   defp format_relative_time(timestamp) when is_binary(timestamp) do
     case DateTime.from_iso8601(timestamp) do
       {:ok, dt, _} -> format_relative_time(dt)
       _ -> timestamp
     end
   end
+
   defp format_relative_time(%DateTime{} = dt) do
     now = DateTime.utc_now()
     diff_seconds = DateTime.diff(now, dt, :second)
-    
+
     cond do
       diff_seconds < 60 -> "just now"
       diff_seconds < 3600 -> "#{div(diff_seconds, 60)}m ago"
@@ -332,6 +358,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       true -> "#{div(diff_seconds, 86400)}d ago"
     end
   end
+
   defp format_relative_time(_), do: "unknown"
 
   @impl true
@@ -350,49 +377,53 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
-          <span class={"panel-chevron " <> if(@work_panel_collapsed, do: "collapsed", else: "")}>▼</span>
+          <span class={"panel-chevron " <> if(@work_panel_collapsed, do: "collapsed", else: "")}>
+            ▼
+          </span>
           <span class="panel-icon">⚡</span>
           <span class="text-panel-label text-accent">Agents</span>
           <%= if @any_loading do %>
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading agents</span>
           <% else %>
-            <span class="text-xs font-mono text-base-content/50"><%= length(@agents) %></span>
+            <span class="text-xs font-mono text-base-content/50">{length(@agents)}</span>
             <%= if @active_count > 0 do %>
               <span class="status-beacon text-success"></span>
               <span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
-                <%= @active_count %> active
+                {@active_count} active
               </span>
             <% end %>
           <% end %>
         </div>
         
-        <!-- Agent load from WorkRegistry -->
+    <!-- Agent load from WorkRegistry -->
         <div class="flex items-center gap-3 text-xs">
           <% reg = Map.get(assigns, :work_registry_counts, %{claude: 0, opencode: 0, gemini: 0}) %>
           <span class={"flex items-center gap-1 " <> if(Map.get(reg, :claude, 0) > 0, do: "text-purple-400", else: "text-base-content/40")}>
             <span>🟣</span>
-            <span class="font-mono"><%= Map.get(reg, :claude, 0) %></span>
+            <span class="font-mono">{Map.get(reg, :claude, 0)}</span>
           </span>
           <span class={"flex items-center gap-1 " <> if(Map.get(reg, :opencode, 0) > 0, do: "text-blue-400", else: "text-base-content/40")}>
             <span>🔷</span>
-            <span class="font-mono"><%= Map.get(reg, :opencode, 0) %></span>
+            <span class="font-mono">{Map.get(reg, :opencode, 0)}</span>
           </span>
           <span class={"flex items-center gap-1 " <> if(Map.get(reg, :gemini, 0) > 0, do: "text-amber-400", else: "text-base-content/40")}>
             <span>✨</span>
-            <span class="font-mono"><%= Map.get(reg, :gemini, 0) %></span>
+            <span class="font-mono">{Map.get(reg, :gemini, 0)}</span>
           </span>
         </div>
       </div>
-
-      <!-- Agent State Toggle Filters -->
+      
+    <!-- Agent State Toggle Filters -->
       <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-12")}>
         <div class="px-3 py-2 border-b border-accent/10 bg-base-100/5">
-          <div class="flex items-center space-x-1 text-xs"
-               id="agent-toggle-container"
-               phx-hook="AgentToggleState">
+          <div
+            class="flex items-center space-x-1 text-xs"
+            id="agent-toggle-container"
+            phx-hook="AgentToggleState"
+          >
             <span class="text-base-content/60 mr-2">Show:</span>
-            <button 
+            <button
               class={"btn btn-xs " <> if(Map.get(assigns, :show_running, true), do: "btn-warning", else: "btn-outline")}
               phx-click="toggle_agent_state"
               phx-value-state="running"
@@ -400,7 +431,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
             >
               ⚡ Running
             </button>
-            <button 
+            <button
               class={"btn btn-xs " <> if(Map.get(assigns, :show_idle, true), do: "btn-info", else: "btn-outline")}
               phx-click="toggle_agent_state"
               phx-value-state="idle"
@@ -408,7 +439,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
             >
               ⏸ Idle
             </button>
-            <button 
+            <button
               class={"btn btn-xs " <> if(Map.get(assigns, :show_completed, false), do: "btn-success", else: "btn-outline")}
               phx-click="toggle_agent_state"
               phx-value-state="completed"
@@ -419,8 +450,11 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
           </div>
         </div>
       </div>
-      
-      <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[1000px]")}>
+
+      <div
+        id="work-panel-content"
+        class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[1000px]")}
+      >
         <div class="px-4 pb-4">
           <%= if @any_loading do %>
             <div class="flex items-center justify-center py-6 space-x-2">
@@ -429,79 +463,84 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
             </div>
           <% else %>
             <!-- Failed Spawns Section -->
-          <%= if length(@failed_spawns) > 0 do %>
-            <div class="mb-4">
-              <div class="flex items-center gap-2 mb-2">
-                <span class="text-red-400 text-sm">⚠️</span>
-                <span class="text-xs font-medium text-red-400">Recent Failures (<%= length(@failed_spawns) %>)</span>
-              </div>
-              <div class="space-y-2">
-                <%= for failure <- @failed_spawns do %>
-                  <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
-                    <div class="flex items-start justify-between gap-2">
-                      <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1">
-                          <span class="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-mono">
-                            <%= agent_icon(failure.agent_type) %> <%= failure.agent_type %>
-                          </span>
-                          <%= if failure.ticket_id do %>
-                            <span class="text-xs text-base-content/50">#<%= failure.ticket_id %></span>
-                          <% end %>
-                          <%= if failure.model do %>
-                            <span class="text-xs text-base-content/40"><%= failure.model %></span>
-                          <% end %>
+            <%= if length(@failed_spawns) > 0 do %>
+              <div class="mb-4">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-red-400 text-sm">⚠️</span>
+                  <span class="text-xs font-medium text-red-400">
+                    Recent Failures ({length(@failed_spawns)})
+                  </span>
+                </div>
+                <div class="space-y-2">
+                  <%= for failure <- @failed_spawns do %>
+                    <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-mono">
+                              {agent_icon(failure.agent_type)} {failure.agent_type}
+                            </span>
+                            <%= if failure.ticket_id do %>
+                              <span class="text-xs text-base-content/50">#{failure.ticket_id}</span>
+                            <% end %>
+                            <%= if failure.model do %>
+                              <span class="text-xs text-base-content/40">{failure.model}</span>
+                            <% end %>
+                          </div>
+                          <div
+                            class="text-xs text-base-content/70 truncate"
+                            title={failure.description}
+                          >
+                            {truncate_text(failure.description, 60)}
+                          </div>
+                          <div class="text-xs text-red-300 mt-1 font-mono break-words">
+                            {parse_error_message(failure.failure_reason)}
+                          </div>
                         </div>
-                        <div class="text-xs text-base-content/70 truncate" title={failure.description}>
-                          <%= truncate_text(failure.description, 60) %>
-                        </div>
-                        <div class="text-xs text-red-300 mt-1 font-mono break-words">
-                          <%= parse_error_message(failure.failure_reason) %>
+                        <div class="text-xs text-base-content/40 whitespace-nowrap">
+                          {format_relative_time(failure.failed_at)}
                         </div>
                       </div>
-                      <div class="text-xs text-base-content/40 whitespace-nowrap">
-                        <%= format_relative_time(failure.failed_at) %>
+                      <!-- Retry button -->
+                      <div class="mt-2 flex justify-end">
+                        <button
+                          class="text-xs px-2 py-1 bg-base-300/50 hover:bg-base-300 rounded text-base-content/70 hover:text-base-content transition-colors"
+                          phx-click="dismiss_failure"
+                          phx-value-id={failure.id}
+                          phx-target={@myself}
+                        >
+                          Dismiss
+                        </button>
                       </div>
                     </div>
-                    <!-- Retry button -->
-                    <div class="mt-2 flex justify-end">
-                      <button 
-                        class="text-xs px-2 py-1 bg-base-300/50 hover:bg-base-300 rounded text-base-content/70 hover:text-base-content transition-colors"
-                        phx-click="dismiss_failure"
-                        phx-value-id={failure.id}
-                        phx-target={@myself}
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                <% end %>
-              </div>
-            </div>
-          <% end %>
-
-          <%= if @agents == [] and length(@failed_spawns) == 0 do %>
-            <div class="text-xs text-base-content/40 py-8 text-center font-mono">
-              No active agents
-            </div>
-          <% else %>
-            <%= if @agents != [] do %>
-              <!-- Hint about expandable cards -->
-              <div class="text-xs text-base-content/40 mb-3 text-center">
-                Click cards to expand details
-              </div>
-              
-              <div class="agent-cards-grid">
-                <%= for agent <- @agents do %>
-                  <.live_component 
-                    module={AgentCardComponent}
-                    id={"agent-card-#{agent.id}"}
-                    agent={agent}
-                    type={Map.get(agent, :type)}
-                  />
-                <% end %>
+                  <% end %>
+                </div>
               </div>
             <% end %>
-          <% end %>
+
+            <%= if @agents == [] and length(@failed_spawns) == 0 do %>
+              <div class="text-xs text-base-content/40 py-8 text-center font-mono">
+                No active agents
+              </div>
+            <% else %>
+              <%= if @agents != [] do %>
+                <!-- Hint about expandable cards -->
+                <div class="text-xs text-base-content/40 mb-3 text-center">
+                  Click cards to expand details
+                </div>
+
+                <div class="agent-cards-grid">
+                  <%= for agent <- @agents do %>
+                    <.live_component
+                      module={AgentCardComponent}
+                      id={"agent-card-#{agent.id}"}
+                      agent={agent}
+                      type={Map.get(agent, :type)}
+                    />
+                  <% end %>
+                </div>
+              <% end %>
+            <% end %>
           <% end %>
         </div>
       </div>

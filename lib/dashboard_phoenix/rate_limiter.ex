@@ -1,12 +1,12 @@
 defmodule DashboardPhoenix.RateLimiter do
   @moduledoc """
   Rate limiter using token bucket algorithm for external API calls.
-  
+
   Prevents rate limit exhaustion by limiting the number of requests
   per time window per command type.
-  
+
   ## Usage
-  
+
       # Check if a command can run
       case RateLimiter.acquire("gh") do
         :ok -> 
@@ -20,17 +20,22 @@ defmodule DashboardPhoenix.RateLimiter do
       # Wait for permission (blocks until token available)
       RateLimiter.acquire_wait("linear")
   """
-  
+
   use GenServer
   require Logger
 
   # Rate limits per command type (requests per minute)
   @rate_limits %{
-    "gh" => 30,        # GitHub CLI - 30 requests per minute
-    "linear" => 40,    # Linear CLI - 40 requests per minute  
-    "git" => 100,      # Git commands - higher limit
-    "ps" => 60,        # ps command used by monitors
-    :default => 20     # Default for unknown commands
+    # GitHub CLI - 30 requests per minute
+    "gh" => 30,
+    # Linear CLI - 40 requests per minute  
+    "linear" => 40,
+    # Git commands - higher limit
+    "git" => 100,
+    # ps command used by monitors
+    "ps" => 60,
+    # Default for unknown commands
+    :default => 20
   }
 
   # Bucket size (max burst) - usually same as rate limit
@@ -42,7 +47,8 @@ defmodule DashboardPhoenix.RateLimiter do
     :default => 20
   }
 
-  @refill_interval_ms 1_000  # Refill tokens every 1 second
+  # Refill tokens every 1 second
+  @refill_interval_ms 1_000
 
   defstruct [:buckets, :last_refill]
 
@@ -64,11 +70,13 @@ defmodule DashboardPhoenix.RateLimiter do
   """
   def acquire_wait(command, max_wait_ms \\ 30_000) do
     case acquire(command) do
-      :ok -> 
+      :ok ->
         :ok
+
       {:error, :rate_limited} ->
         # Wait and retry
         wait_time = min(1000, max_wait_ms)
+
         if max_wait_ms > 0 do
           Process.sleep(wait_time)
           acquire_wait(command, max_wait_ms - wait_time)
@@ -98,7 +106,7 @@ defmodule DashboardPhoenix.RateLimiter do
   @impl true
   def init(_opts) do
     # Initialize buckets with full tokens
-    buckets = 
+    buckets =
       @rate_limits
       |> Enum.into(%{}, fn {command, limit} ->
         bucket_size = Map.get(@bucket_sizes, command, limit)
@@ -121,13 +129,13 @@ defmodule DashboardPhoenix.RateLimiter do
   def handle_call({:acquire, command}, _from, state) do
     bucket_key = get_bucket_key(command)
     bucket = Map.get(state.buckets, bucket_key)
-    
+
     if bucket.tokens > 0 do
       # Token available, consume it
       updated_bucket = %{bucket | tokens: bucket.tokens - 1}
       updated_buckets = Map.put(state.buckets, bucket_key, updated_bucket)
       new_state = %{state | buckets: updated_buckets}
-      
+
       # Removed noisy debug log for token acquisition
       {:reply, :ok, new_state}
     else
@@ -145,17 +153,14 @@ defmodule DashboardPhoenix.RateLimiter do
   @impl true
   def handle_call(:reset, _from, state) do
     # Reset all buckets to full tokens for test isolation
-    buckets = 
+    buckets =
       @rate_limits
       |> Enum.into(%{}, fn {command, limit} ->
         bucket_size = Map.get(@bucket_sizes, command, limit)
         {command, %{tokens: bucket_size, max_tokens: bucket_size}}
       end)
 
-    new_state = %{state | 
-      buckets: buckets,
-      last_refill: System.monotonic_time(:millisecond)
-    }
+    new_state = %{state | buckets: buckets, last_refill: System.monotonic_time(:millisecond)}
 
     {:reply, :ok, new_state}
   end
@@ -164,30 +169,27 @@ defmodule DashboardPhoenix.RateLimiter do
   def handle_info(:refill, state) do
     now = System.monotonic_time(:millisecond)
     elapsed_ms = now - state.last_refill
-    
+
     # Calculate how many tokens to add based on elapsed time
     # Each bucket gets rate_limit / 60 tokens per second
-    updated_buckets = 
+    updated_buckets =
       Enum.into(state.buckets, %{}, fn {command, bucket} ->
         rate_per_minute = Map.get(@rate_limits, command, @rate_limits[:default])
         tokens_per_second = rate_per_minute / 60.0
-        new_tokens = (elapsed_ms / 1000.0) * tokens_per_second
-        
+        new_tokens = elapsed_ms / 1000.0 * tokens_per_second
+
         # Add tokens but don't exceed max
         updated_tokens = min(bucket.max_tokens, bucket.tokens + new_tokens)
         updated_bucket = %{bucket | tokens: updated_tokens}
-        
+
         {command, updated_bucket}
       end)
 
-    new_state = %{state | 
-      buckets: updated_buckets,
-      last_refill: now
-    }
+    new_state = %{state | buckets: updated_buckets, last_refill: now}
 
     # Schedule next refill
     Process.send_after(self(), :refill, @refill_interval_ms)
-    
+
     {:noreply, new_state}
   end
 
@@ -195,11 +197,13 @@ defmodule DashboardPhoenix.RateLimiter do
   defp get_bucket_key(command) when is_binary(command) do
     # Normalize: try full path first, then basename (for /path/to/linear -> "linear")
     basename = Path.basename(command)
+
     cond do
       Map.has_key?(@rate_limits, command) -> command
       Map.has_key?(@rate_limits, basename) -> basename
       true -> :default
     end
   end
+
   defp get_bucket_key(_), do: :default
 end

@@ -69,6 +69,7 @@ defmodule DashboardPhoenix.ProcessCwd do
   # Linux: Read the /proc/<pid>/cwd symlink directly
   defp get_cwd_linux(pid) do
     proc_path = "/proc/#{pid}/cwd"
+
     case File.read_link(proc_path) do
       {:ok, cwd} -> {:ok, cwd}
       {:error, _} -> {:error, :not_found}
@@ -82,7 +83,9 @@ defmodule DashboardPhoenix.ProcessCwd do
   # p<pid>
   # n<cwd>
   defp get_cwd_macos(pid) do
-    case System.cmd("lsof", ["-a", "-p", to_string(pid), "-d", "cwd", "-Fn"], stderr_to_stdout: true) do
+    case System.cmd("lsof", ["-a", "-p", to_string(pid), "-d", "cwd", "-Fn"],
+           stderr_to_stdout: true
+         ) do
       {output, 0} ->
         # Parse the lsof output - look for line starting with 'n'
         case parse_lsof_output(output) do

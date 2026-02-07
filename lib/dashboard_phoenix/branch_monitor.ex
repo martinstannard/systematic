@@ -70,8 +70,14 @@ defmodule DashboardPhoenix.BranchMonitor do
     Process.send_after(self(), :poll, 1_000)
 
     {:ok,
-     %{branches: [], worktrees: %{}, last_updated: nil, error: initial_error, main_head: nil,
-       poll_in_flight: false}}
+     %{
+       branches: [],
+       worktrees: %{},
+       last_updated: nil,
+       error: initial_error,
+       main_head: nil,
+       poll_in_flight: false
+     }}
   end
 
   @impl true
@@ -135,14 +141,15 @@ defmodule DashboardPhoenix.BranchMonitor do
   def handle_info({:poll_complete, new_state, captured_main_head}, state) do
     # Only apply results if the main_head we captured matches current state
     # This prevents stale poll results from overwriting newer data
-    final_state = if captured_main_head == state.main_head do
-      new_state
-    else
-      # State changed while poll was running (another poll completed first)
-      # Keep new branch data but don't re-detect commits (already detected)
-      Logger.debug("BranchMonitor: Discarding stale poll result, main_head changed")
-      %{new_state | main_head: state.main_head}
-    end
+    final_state =
+      if captured_main_head == state.main_head do
+        new_state
+      else
+        # State changed while poll was running (another poll completed first)
+        # Keep new branch data but don't re-detect commits (already detected)
+        Logger.debug("BranchMonitor: Discarding stale poll result, main_head changed")
+        %{new_state | main_head: state.main_head}
+      end
 
     # Broadcast update to subscribers
     Phoenix.PubSub.broadcast(
@@ -181,6 +188,7 @@ defmodule DashboardPhoenix.BranchMonitor do
 
     # Detect new commits on main (use Map.get for backwards compatibility with old state)
     prev_head = Map.get(state, :main_head)
+
     if prev_head && current_head && prev_head != current_head do
       detect_and_log_new_commits(prev_head, current_head, base_branch)
     end

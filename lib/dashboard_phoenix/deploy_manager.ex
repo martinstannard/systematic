@@ -372,6 +372,7 @@ defmodule DashboardPhoenix.DeployManager do
         # Handle cases where the command doesn't exist or can't be executed
         Logger.error("[DeployManager] Command execution failed: #{inspect(e)}")
         {"Command execution failed: #{inspect(e.original)}", 127}
+
       e ->
         Logger.error("[DeployManager] Unexpected error running command: #{inspect(e)}")
         {"Unexpected error: #{Exception.message(e)}", 1}

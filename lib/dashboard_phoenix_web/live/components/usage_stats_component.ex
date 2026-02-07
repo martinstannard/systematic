@@ -30,9 +30,9 @@ defmodule DashboardPhoenixWeb.Live.Components.UsageStatsComponent do
           <span class="status-activity-ring text-secondary" aria-hidden="true"></span>
           <span class="sr-only">Loading statistics</span>
         <% else %>
-          <button 
-            phx-click="refresh_stats" 
-            phx-target={@myself} 
+          <button
+            phx-click="refresh_stats"
+            phx-target={@myself}
             class="btn-interactive-icon !min-w-[32px] !min-h-[32px] text-sm text-base-content/60 hover:text-secondary hover:bg-secondary/10"
             aria-label="Refresh usage statistics"
             title="Refresh"
@@ -49,19 +49,25 @@ defmodule DashboardPhoenixWeb.Live.Components.UsageStatsComponent do
       <% else %>
         <div class="grid grid-cols-2 gap-4" aria-live="polite">
           <div>
-            <div class="text-ui-label text-base-content/60 mb-2" id="opencode-stats-label">OpenCode</div>
+            <div class="text-ui-label text-base-content/60 mb-2" id="opencode-stats-label">
+              OpenCode
+            </div>
             <div class="flex items-center space-x-2" aria-labelledby="opencode-stats-label">
-              <span class="text-ui-value text-white"><%= @usage_stats.opencode[:sessions] || 0 %></span>
+              <span class="text-ui-value text-white">{@usage_stats.opencode[:sessions] || 0}</span>
               <span class="text-ui-caption text-base-content/60" aria-label="sessions">sess</span>
-              <span class="text-ui-value text-success" aria-label="cost"><%= @usage_stats.opencode[:total_cost] || "$0" %></span>
+              <span class="text-ui-value text-success" aria-label="cost">
+                {@usage_stats.opencode[:total_cost] || "$0"}
+              </span>
             </div>
           </div>
           <div>
             <div class="text-ui-label text-base-content/60 mb-2" id="claude-stats-label">Claude</div>
             <div class="flex items-center space-x-2" aria-labelledby="claude-stats-label">
-              <span class="text-ui-value text-white"><%= @usage_stats.claude[:sessions] || 0 %></span>
+              <span class="text-ui-value text-white">{@usage_stats.claude[:sessions] || 0}</span>
               <span class="text-ui-caption text-base-content/60" aria-label="sessions">sess</span>
-              <span class="text-ui-value text-success" aria-label="cost"><%= @usage_stats.claude[:cost] || "$0" %></span>
+              <span class="text-ui-value text-success" aria-label="cost">
+                {@usage_stats.claude[:cost] || "$0"}
+              </span>
             </div>
           </div>
         </div>

@@ -12,7 +12,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
 
     test "parses millisecond timestamp" do
       # Timestamp for 2024-01-15T10:30:00Z
-      ts = 1705315800000
+      ts = 1_705_315_800_000
       result = parse_timestamp(ts)
       assert %DateTime{} = result
     end
@@ -110,6 +110,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
           "content" => [%{"type" => "toolCall", "name" => "Read"}]
         }
       }
+
       assert determine_status(message, [%{name: "Read"}]) == "executing"
     end
 
@@ -225,7 +226,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
     test "portable module exports expected client API functions" do
       # Ensure module is loaded before checking exports
       Code.ensure_loaded!(AgentActivityMonitor)
-      
+
       # Test the portable AgentActivityMonitor module
       assert function_exported?(AgentActivityMonitor, :start_link, 1)
       assert function_exported?(AgentActivityMonitor, :minimal_config, 1)
@@ -241,9 +242,9 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
 
     test "Server.init returns expected state structure" do
       # Use a minimal config for testing with a temp directory
-      sessions_dir = System.tmp_dir!() |> Path.join("test_sessions_#{:rand.uniform(100000)}")
+      sessions_dir = System.tmp_dir!() |> Path.join("test_sessions_#{:rand.uniform(100_000)}")
       File.mkdir_p!(sessions_dir)
-      
+
       config = Config.minimal(sessions_dir)
       {:ok, state} = Server.init(config)
 
@@ -252,16 +253,16 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
       assert state.last_poll == nil
       assert state.config == config
       assert is_atom(state.cache_table)
-      
+
       # Cleanup ETS table
       :ets.delete(state.cache_table)
       File.rm_rf!(sessions_dir)
     end
 
     test "Server.handle_call :get_activity returns sorted activities" do
-      sessions_dir = System.tmp_dir!() |> Path.join("test_sessions_#{:rand.uniform(100000)}")
+      sessions_dir = System.tmp_dir!() |> Path.join("test_sessions_#{:rand.uniform(100_000)}")
       File.mkdir_p!(sessions_dir)
-      
+
       now = DateTime.utc_now()
       old = DateTime.add(now, -3600, :second)
 
@@ -269,14 +270,14 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
         "agent-1" => %{id: "agent-1", last_activity: old},
         "agent-2" => %{id: "agent-2", last_activity: now}
       }
-      
+
       config = Config.minimal(sessions_dir)
       cache_table = :ets.new(:test_cache, [:set, :public])
-      
+
       state = %{
         config: config,
-        agents: agents, 
-        session_offsets: %{}, 
+        agents: agents,
+        session_offsets: %{},
         last_poll: nil,
         polling: false,
         last_cache_cleanup: System.system_time(:millisecond),
@@ -287,8 +288,9 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
 
       # Should be sorted by last_activity descending (newest first)
       assert length(activities) == 2
-      assert hd(activities).id == "agent-2"  # More recent first
-      
+      # More recent first
+      assert hd(activities).id == "agent-2"
+
       :ets.delete(cache_table)
       File.rm_rf!(sessions_dir)
     end
@@ -296,12 +298,14 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
 
   # Implementations mirroring the private function logic
   defp parse_timestamp(nil), do: DateTime.utc_now()
+
   defp parse_timestamp(ts) when is_binary(ts) do
     case DateTime.from_iso8601(ts) do
       {:ok, dt, _} -> dt
       _ -> DateTime.utc_now()
     end
   end
+
   defp parse_timestamp(ts) when is_integer(ts), do: DateTime.from_unix!(ts, :millisecond)
   defp parse_timestamp(_), do: DateTime.utc_now()
 
@@ -314,6 +318,7 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
       true -> []
     end
   end
+
   defp extract_files(_), do: []
 
   defp extract_from_command(command) when is_binary(command) do
@@ -321,9 +326,11 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
     |> Enum.map(fn [_, path] -> path end)
     |> Enum.take(5)
   end
+
   defp extract_from_command(_), do: []
 
   defp determine_status(nil, _), do: Status.idle()
+
   defp determine_status(message, tool_calls) do
     role = get_in(message, ["message", "role"])
     content = get_in(message, ["message", "content"]) || []
@@ -339,19 +346,22 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
   end
 
   defp format_action(nil), do: nil
+
   defp format_action(%{name: name, arguments: args, timestamp: ts}) do
-    target = cond do
-      is_map(args) and args["path"] -> truncate(args["path"], 50)
-      is_map(args) and args["file_path"] -> truncate(args["file_path"], 50)
-      is_map(args) and args["command"] -> truncate(args["command"], 50)
-      true -> nil
-    end
+    target =
+      cond do
+        is_map(args) and args["path"] -> truncate(args["path"], 50)
+        is_map(args) and args["file_path"] -> truncate(args["file_path"], 50)
+        is_map(args) and args["command"] -> truncate(args["command"], 50)
+        true -> nil
+      end
 
     %{action: name, target: target, timestamp: parse_timestamp(ts)}
   end
 
   defp detect_agent_type(command) do
     cmd_lower = String.downcase(command)
+
     cond do
       String.contains?(cmd_lower, "claude") -> :claude_code
       String.contains?(cmd_lower, "opencode") -> :opencode
@@ -376,5 +386,6 @@ defmodule DashboardPhoenix.AgentActivityMonitorTest do
       str
     end
   end
+
   defp truncate(_, _), do: ""
 end

@@ -1,16 +1,16 @@
 defmodule DashboardPhoenix.DashboardState do
   @moduledoc """
   GenServer for persisting critical dashboard UI state.
-  
+
   Persists the following state that survives restarts:
   - Panel collapse states (which panels are collapsed/expanded)
   - Dismissed sessions (sessions the user has manually dismissed)
   - Model selections (claude_model, opencode_model preferences)
-  
+
   Uses atomic writes to prevent corruption.
-  
+
   ## Async Persistence
-  
+
   Persistence is done asynchronously to avoid blocking the GenServer.
   State changes are debounced (100ms) to coalesce rapid updates into
   a single write. This improves responsiveness for UI operations like
@@ -237,6 +237,7 @@ defmodule DashboardPhoenix.DashboardState do
   @impl true
   def handle_call({:dismiss_sessions, session_ids}, _from, state) do
     new_ids = Enum.reject(session_ids, &(&1 in state.dismissed_sessions))
+
     if new_ids == [] do
       {:reply, :ok, state}
     else
@@ -268,10 +269,12 @@ defmodule DashboardPhoenix.DashboardState do
   @impl true
   def handle_call({:set_models, models}, _from, state) do
     # Normalize keys to atoms
-    normalized_models = for {k, v} <- models, into: %{} do
-      key = if is_binary(k), do: String.to_existing_atom(k), else: k
-      {key, v}
-    end
+    normalized_models =
+      for {k, v} <- models, into: %{} do
+        key = if is_binary(k), do: String.to_existing_atom(k), else: k
+        {key, v}
+      end
+
     new_models = Map.merge(state.models, normalized_models)
     new_state = %{state | models: new_models, updated_at: now()}
     new_state = schedule_persist(new_state)
@@ -305,7 +308,7 @@ defmodule DashboardPhoenix.DashboardState do
     if state.persist_timer do
       Process.cancel_timer(state.persist_timer)
     end
-    
+
     # Schedule new persist after debounce interval
     timer = Process.send_after(self(), :persist, @persist_debounce_ms)
     %{state | persist_timer: timer}
@@ -315,19 +318,22 @@ defmodule DashboardPhoenix.DashboardState do
 
   defp load_state do
     file = state_file()
-    
+
     case File.read(file) do
       {:ok, content} ->
         case Jason.decode(content) do
           {:ok, data} ->
             merge_with_defaults(data)
+
           {:error, reason} ->
             Logger.warning("[DashboardState] Failed to parse state file: #{inspect(reason)}")
             @default_state
         end
+
       {:error, :enoent} ->
         Logger.info("[DashboardState] No state file found, using defaults")
         @default_state
+
       {:error, reason} ->
         Logger.warning("[DashboardState] Failed to read state file: #{inspect(reason)}")
         @default_state
@@ -349,37 +355,41 @@ defmodule DashboardPhoenix.DashboardState do
 
   defp normalize_panel_keys(panels) when is_map(panels) do
     for {k, v} <- panels, into: %{} do
-      key = if is_binary(k) do
-        try do
-          String.to_existing_atom(k)
-        rescue
-          _ -> String.to_atom(k)
+      key =
+        if is_binary(k) do
+          try do
+            String.to_existing_atom(k)
+          rescue
+            _ -> String.to_atom(k)
+          end
+        else
+          k
         end
-      else
-        k
-      end
+
       {key, v}
     end
   end
 
   defp normalize_model_keys(models) when is_map(models) do
     for {k, v} <- models, into: %{} do
-      key = if is_binary(k) do
-        try do
-          String.to_existing_atom(k)
-        rescue
-          _ -> String.to_atom(k)
+      key =
+        if is_binary(k) do
+          try do
+            String.to_existing_atom(k)
+          rescue
+            _ -> String.to_atom(k)
+          end
+        else
+          k
         end
-      else
-        k
-      end
+
       {key, v}
     end
   end
 
   defp save_state(state) do
     file = state_file()
-    
+
     # Convert atoms to strings for JSON serialization
     data = %{
       "panels" => for({k, v} <- state.panels, into: %{}, do: {Atom.to_string(k), v}),
@@ -387,16 +397,20 @@ defmodule DashboardPhoenix.DashboardState do
       "models" => for({k, v} <- state.models, into: %{}, do: {Atom.to_string(k), v}),
       "updated_at" => state.updated_at
     }
-    
+
     case Jason.encode(data, pretty: true) do
       {:ok, json} ->
         # Ensure directory exists
         File.mkdir_p!(Path.dirname(file))
+
         case FileUtils.atomic_write(file, json) do
-          :ok -> :ok
+          :ok ->
+            :ok
+
           {:error, reason} ->
             Logger.error("[DashboardState] Failed to save state: #{inspect(reason)}")
         end
+
       {:error, reason} ->
         Logger.error("[DashboardState] Failed to encode state: #{inspect(reason)}")
     end

@@ -18,7 +18,10 @@ defmodule DashboardPhoenix.GitMonitorTest do
     # Create initial commit on main
     File.write!(Path.join(test_dir, "README.md"), "# Test\n")
     {_, 0} = System.cmd("git", ["add", "."], cd: test_dir)
-    {_, 0} = System.cmd("git", ["commit", "-m", "Initial commit"], cd: test_dir, stderr_to_stdout: true)
+
+    {_, 0} =
+      System.cmd("git", ["commit", "-m", "Initial commit"], cd: test_dir, stderr_to_stdout: true)
+
     {_, 0} = System.cmd("git", ["branch", "-M", "main"], cd: test_dir)
 
     on_exit(fn ->
@@ -39,14 +42,19 @@ defmodule DashboardPhoenix.GitMonitorTest do
       # Create a new commit
       File.write!(Path.join(test_dir, "new_file.txt"), "content")
       {_, 0} = System.cmd("git", ["add", "."], cd: test_dir)
-      {_, 0} = System.cmd("git", ["commit", "-m", "Add new file"], cd: test_dir, stderr_to_stdout: true)
+
+      {_, 0} =
+        System.cmd("git", ["commit", "-m", "Add new file"], cd: test_dir, stderr_to_stdout: true)
 
       # Get new HEAD
       {new_head, 0} = System.cmd("git", ["rev-parse", "HEAD"], cd: test_dir)
       new_head = String.trim(new_head)
 
       # Get commits between old and new HEAD
-      {output, 0} = System.cmd("git", ["log", "#{initial_head}..#{new_head}", "--format=%H||%s||%an||%P"], cd: test_dir)
+      {output, 0} =
+        System.cmd("git", ["log", "#{initial_head}..#{new_head}", "--format=%H||%s||%an||%P"],
+          cd: test_dir
+        )
 
       commits = String.split(output, "\n", trim: true)
       assert length(commits) == 1
@@ -66,36 +74,48 @@ defmodule DashboardPhoenix.GitMonitorTest do
       {_, 0} = System.cmd("git", ["checkout", "-b", "feature"], cd: test_dir)
       File.write!(Path.join(test_dir, "feature.txt"), "feature content")
       {_, 0} = System.cmd("git", ["add", "."], cd: test_dir)
-      {_, 0} = System.cmd("git", ["commit", "-m", "Add feature"], cd: test_dir, stderr_to_stdout: true)
+
+      {_, 0} =
+        System.cmd("git", ["commit", "-m", "Add feature"], cd: test_dir, stderr_to_stdout: true)
 
       # Go back to main and create a different commit
       {_, 0} = System.cmd("git", ["checkout", "main"], cd: test_dir)
       File.write!(Path.join(test_dir, "main_change.txt"), "main content")
       {_, 0} = System.cmd("git", ["add", "."], cd: test_dir)
-      {_, 0} = System.cmd("git", ["commit", "-m", "Main change"], cd: test_dir, stderr_to_stdout: true)
+
+      {_, 0} =
+        System.cmd("git", ["commit", "-m", "Main change"], cd: test_dir, stderr_to_stdout: true)
 
       # Get HEAD before merge
       {pre_merge_head, 0} = System.cmd("git", ["rev-parse", "HEAD"], cd: test_dir)
       pre_merge_head = String.trim(pre_merge_head)
 
       # Merge the feature branch (creates a merge commit)
-      {_, 0} = System.cmd("git", ["merge", "feature", "--no-ff", "-m", "Merge feature branch"], cd: test_dir, stderr_to_stdout: true)
+      {_, 0} =
+        System.cmd("git", ["merge", "feature", "--no-ff", "-m", "Merge feature branch"],
+          cd: test_dir,
+          stderr_to_stdout: true
+        )
 
       # Get new HEAD
       {new_head, 0} = System.cmd("git", ["rev-parse", "HEAD"], cd: test_dir)
       new_head = String.trim(new_head)
 
       # Get the merge commit
-      {output, 0} = System.cmd("git", ["log", "#{pre_merge_head}..#{new_head}", "--format=%H||%s||%an||%P"], cd: test_dir)
+      {output, 0} =
+        System.cmd("git", ["log", "#{pre_merge_head}..#{new_head}", "--format=%H||%s||%an||%P"],
+          cd: test_dir
+        )
 
       commits = String.split(output, "\n", trim: true)
       assert length(commits) >= 1
 
       # Find the merge commit (the one with multiple parents)
-      merge_commit = Enum.find(commits, fn line ->
-        [_hash, _message, _author, parents] = String.split(line, "||")
-        length(String.split(parents, " ", trim: true)) > 1
-      end)
+      merge_commit =
+        Enum.find(commits, fn line ->
+          [_hash, _message, _author, parents] = String.split(line, "||")
+          length(String.split(parents, " ", trim: true)) > 1
+        end)
 
       assert merge_commit != nil
       [_hash, message, _author, parents] = String.split(merge_commit, "||")
@@ -120,13 +140,14 @@ defmodule DashboardPhoenix.GitMonitorTest do
     end
 
     test "accepts git_commit event type" do
-      {:ok, event} = ActivityLog.log_event(:git_commit, "Commit on main: Add feature", %{
-        hash: "abc1234",
-        full_hash: "abc1234567890abcdef1234567890abcdef123456",
-        message: "Add feature",
-        author: "Test Author",
-        branch: "main"
-      })
+      {:ok, event} =
+        ActivityLog.log_event(:git_commit, "Commit on main: Add feature", %{
+          hash: "abc1234",
+          full_hash: "abc1234567890abcdef1234567890abcdef123456",
+          message: "Add feature",
+          author: "Test Author",
+          branch: "main"
+        })
 
       assert event.type == :git_commit
       assert event.message == "Commit on main: Add feature"
@@ -135,14 +156,15 @@ defmodule DashboardPhoenix.GitMonitorTest do
     end
 
     test "accepts git_merge event type" do
-      {:ok, event} = ActivityLog.log_event(:git_merge, "Merge on main: Merge feature branch", %{
-        hash: "def5678",
-        full_hash: "def5678901234567890abcdef1234567890abcdef",
-        message: "Merge feature branch",
-        author: "Test Author",
-        branch: "main",
-        parent_count: 2
-      })
+      {:ok, event} =
+        ActivityLog.log_event(:git_merge, "Merge on main: Merge feature branch", %{
+          hash: "def5678",
+          full_hash: "def5678901234567890abcdef1234567890abcdef",
+          message: "Merge feature branch",
+          author: "Test Author",
+          branch: "main",
+          parent_count: 2
+        })
 
       assert event.type == :git_merge
       assert event.message == "Merge on main: Merge feature branch"
@@ -159,7 +181,8 @@ defmodule DashboardPhoenix.GitMonitorTest do
 
   describe "commit parsing" do
     test "parses regular commit line correctly" do
-      line = "abc1234567890abcdef1234567890abcdef123456||Add new feature||John Doe||parent1234567890abcdef1234567890abcdef12"
+      line =
+        "abc1234567890abcdef1234567890abcdef123456||Add new feature||John Doe||parent1234567890abcdef1234567890abcdef12"
 
       [hash, message, author, parents] = String.split(line, "||")
       parent_list = String.split(parents, " ", trim: true)
@@ -171,7 +194,8 @@ defmodule DashboardPhoenix.GitMonitorTest do
     end
 
     test "parses merge commit line correctly" do
-      line = "abc1234567890abcdef1234567890abcdef123456||Merge branch 'feature'||John Doe||parent1234567890abcdef1234567890abcdef12 parent2234567890abcdef1234567890abcdef12"
+      line =
+        "abc1234567890abcdef1234567890abcdef123456||Merge branch 'feature'||John Doe||parent1234567890abcdef1234567890abcdef12 parent2234567890abcdef1234567890abcdef12"
 
       [hash, message, author, parents] = String.split(line, "||")
       parent_list = String.split(parents, " ", trim: true)

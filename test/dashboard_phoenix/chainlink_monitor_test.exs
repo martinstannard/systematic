@@ -10,7 +10,7 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
       # The monitor is started as part of the application
       # Just verify we can call its public API
       result = ChainlinkMonitor.get_issues()
-      
+
       assert is_map(result)
       assert Map.has_key?(result, :issues)
       assert Map.has_key?(result, :last_updated)
@@ -47,13 +47,15 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
     test "updates state from poll complete" do
       now = DateTime.utc_now()
       old_state = %{issues: [], last_updated: nil, error: nil}
+
       new_state = %{
         issues: [%{id: 1, title: "New Issue"}],
         last_updated: now,
         error: nil
       }
 
-      {:noreply, result_state} = ChainlinkMonitor.handle_info({:poll_complete, new_state}, old_state)
+      {:noreply, result_state} =
+        ChainlinkMonitor.handle_info({:poll_complete, new_state}, old_state)
 
       assert result_state.issues == [%{id: 1, title: "New Issue"}]
       assert result_state.last_updated == now
@@ -71,14 +73,14 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
       result = ChainlinkMonitor.parse_chainlink_output_for_test(output)
 
       assert length(result) == 2
-      
+
       [issue1, issue2] = result
       assert issue1.id == 17
       assert issue1.status == "open"
       assert issue1.title == "Add Chainlink issues panel with Work button"
       assert issue1.priority == :high
       assert issue1.due == "2026-01-31"
-      
+
       assert issue2.id == 18
       assert issue2.priority == :medium
     end
@@ -151,14 +153,14 @@ defmodule DashboardPhoenix.ChainlinkMonitorTest do
       result = ChainlinkMonitor.parse_chainlink_output_for_test(output)
 
       assert length(result) == 2
-      
+
       [issue1, issue2] = result
       assert issue1.id == 73
       assert issue1.status == "open"
       assert issue1.title == "Perf: Reduce external CLI command ove..."
       assert issue1.priority == :medium
       assert issue1.due == "2026-02-01"
-      
+
       assert issue2.id == 70
       assert issue2.status == "open"
       assert issue2.title == "Perf: Optimize SessionBridge file I/O..."

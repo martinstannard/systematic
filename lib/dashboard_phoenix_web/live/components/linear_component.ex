@@ -52,6 +52,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
       id: :linear,
       linear_data: data
     )
+
     :ok
   end
 
@@ -90,7 +91,10 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
     socket =
       socket
       |> assign(:collapsed, Map.get(assigns, :collapsed, socket.assigns[:collapsed] || false))
-      |> assign(:tickets_in_progress, Map.get(assigns, :tickets_in_progress, socket.assigns[:tickets_in_progress] || %{}))
+      |> assign(
+        :tickets_in_progress,
+        Map.get(assigns, :tickets_in_progress, socket.assigns[:tickets_in_progress] || %{})
+      )
       |> assign(:id, assigns.id)
 
     # Then handle linear_data if present (PubSub update)
@@ -250,7 +254,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
             <span class="status-activity-ring text-accent" aria-hidden="true"></span>
             <span class="sr-only">Loading tickets</span>
           <% else %>
-            <span class="text-ui-caption text-tabular text-base-content/60"><%= @tickets_count %></span>
+            <span class="text-ui-caption text-tabular text-base-content/60">{@tickets_count}</span>
           <% end %>
         </div>
         <button
@@ -287,12 +291,12 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                 aria-pressed={if(@status_filter == status, do: "true", else: "false")}
                 aria-label={"Filter tickets by #{status} status, #{count} tickets"}
               >
-                <%= status %> (<%= count %>)
+                {status} ({count})
               </button>
             <% end %>
           </div>
-
-          <!-- Ticket List -->
+          
+    <!-- Ticket List -->
           <div
             class="space-y-3 max-h-[300px] overflow-y-auto"
             role="region"
@@ -306,7 +310,7 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
               </div>
             <% else %>
               <%= if @error do %>
-                <div class="text-ui-caption text-error py-2 px-2"><%= @error %></div>
+                <div class="text-ui-caption text-error py-2 px-2">{@error}</div>
               <% end %>
               <%= if @filtered_tickets == [] and is_nil(@error) do %>
                 <div class="text-ui-caption text-base-content/60 py-4 text-center">
@@ -338,11 +342,11 @@ defmodule DashboardPhoenixWeb.Live.Components.LinearComponent do
                       target="_blank"
                       class="text-ui-value text-accent hover:underline flex-shrink-0"
                     >
-                      <%= ticket.id %>
+                      {ticket.id}
                     </a>
                   </div>
                   <span class="text-ui-body truncate w-full sm:flex-1" title={ticket.title}>
-                    <%= ticket.title %>
+                    {ticket.title}
                   </span>
                 </div>
               <% end %>

@@ -1,18 +1,18 @@
 defmodule DashboardPhoenix.Paths do
   @moduledoc """
   Centralized path resolution for the dashboard.
-  
+
   All paths are configurable via environment variables or application config,
   with sensible defaults using System.user_home!/0.
-  
+
   ## Configuration Priority
-  
+
   1. Environment variables (highest)
   2. Application config
   3. Default based on home directory (lowest)
-  
+
   ## Environment Variables
-  
+
   - `OPENCLAW_HOME` - Base directory for OpenClaw data (default: $HOME/.openclaw)
   - `OPENCLAW_SESSIONS_DIR` - Sessions directory (default: $OPENCLAW_HOME/agents/main/sessions)
   - `GEMINI_BIN` - Path to Gemini CLI binary

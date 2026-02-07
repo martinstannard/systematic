@@ -1,16 +1,16 @@
 defmodule DashboardPhoenix.AgentPreferences do
   @moduledoc """
   GenServer for managing coding agent preferences.
-  
+
   Stores user preference for which coding agent to use:
   - :opencode - OpenCode (Gemini-powered) for coding tasks
   - :claude - Claude sub-agents for when Claude is preferred
   - :gemini - Gemini CLI for direct Gemini interaction
-  
+
   Supports agent distribution modes:
   - "single" - Use the selected coding_agent exclusively
   - "round_robin" - Alternate between claude and opencode
-  
+
   Persists preferences to a JSON file for durability across restarts.
   """
   use GenServer
@@ -25,15 +25,18 @@ defmodule DashboardPhoenix.AgentPreferences do
 
   # Valid coding agents
   @valid_agents ["opencode", "claude", "gemini"]
-  
+
   # Valid agent modes
   @valid_modes ["single", "round_robin"]
 
   # Default preferences
   @default_prefs %{
-    coding_agent: "opencode",  # "opencode", "claude", or "gemini"
-    agent_mode: "round_robin",       # "single" or "round_robin"
-    last_agent: "claude",       # Last agent used in round_robin mode
+    # "opencode", "claude", or "gemini"
+    coding_agent: "opencode",
+    # "single" or "round_robin"
+    agent_mode: "round_robin",
+    # Last agent used in round_robin mode
+    last_agent: "claude",
     updated_at: nil
   }
 
@@ -83,11 +86,14 @@ defmodule DashboardPhoenix.AgentPreferences do
   @spec toggle_coding_agent() :: :ok
   def toggle_coding_agent do
     current = get_coding_agent()
-    new_agent = case current do
-      :opencode -> "claude"
-      :claude -> "gemini"
-      :gemini -> "opencode"
-    end
+
+    new_agent =
+      case current do
+        :opencode -> "claude"
+        :claude -> "gemini"
+        :gemini -> "opencode"
+      end
+
     set_coding_agent(new_agent)
   end
 
@@ -96,7 +102,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   """
   @spec valid_agents() :: [binary()]
   def valid_agents, do: @valid_agents
-  
+
   @doc """
   Get current agent mode.
   Returns "single" or "round_robin"
@@ -106,7 +112,7 @@ defmodule DashboardPhoenix.AgentPreferences do
     prefs = get_preferences()
     prefs.agent_mode
   end
-  
+
   @doc """
   Set agent mode.
   mode should be "single" or "round_robin"
@@ -115,7 +121,7 @@ defmodule DashboardPhoenix.AgentPreferences do
   def set_agent_mode(mode) when mode in @valid_modes do
     GenServer.call(__MODULE__, {:set_agent_mode, mode})
   end
-  
+
   @doc """
   Get the last agent used in round-robin mode.
   Returns "claude" or "opencode"
@@ -125,20 +131,20 @@ defmodule DashboardPhoenix.AgentPreferences do
     prefs = get_preferences()
     prefs.last_agent
   end
-  
+
   @doc """
   Get the next agent for work dispatch.
-  
+
   In single mode: returns the selected coding_agent
   In round_robin mode: alternates between claude and opencode, updating last_agent
-  
+
   Returns {:ok, agent_atom} where agent_atom is :claude or :opencode (or :gemini in single mode)
   """
   @spec next_agent() :: {:ok, :claude | :opencode | :gemini}
   def next_agent do
     GenServer.call(__MODULE__, :next_agent)
   end
-  
+
   @doc """
   Get list of valid agent modes.
   """
@@ -169,43 +175,62 @@ defmodule DashboardPhoenix.AgentPreferences do
   end
 
   @impl true
-  @spec handle_call({:set_coding_agent, binary()}, GenServer.from(), map()) :: {:reply, :ok, map()}
+  @spec handle_call({:set_coding_agent, binary()}, GenServer.from(), map()) ::
+          {:reply, :ok, map()}
   def handle_call({:set_coding_agent, agent}, _from, prefs) do
-    new_prefs = %{prefs | coding_agent: agent, updated_at: DateTime.utc_now() |> DateTime.to_iso8601()}
+    new_prefs = %{
+      prefs
+      | coding_agent: agent,
+        updated_at: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
     save_preferences(new_prefs)
     broadcast_change(new_prefs)
     Logger.info("[AgentPreferences] Coding agent set to: #{agent}")
     {:reply, :ok, new_prefs}
   end
-  
+
   @impl true
   @spec handle_call({:set_agent_mode, binary()}, GenServer.from(), map()) :: {:reply, :ok, map()}
   def handle_call({:set_agent_mode, mode}, _from, prefs) do
-    new_prefs = %{prefs | agent_mode: mode, updated_at: DateTime.utc_now() |> DateTime.to_iso8601()}
+    new_prefs = %{
+      prefs
+      | agent_mode: mode,
+        updated_at: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
     save_preferences(new_prefs)
     broadcast_change(new_prefs)
     Logger.info("[AgentPreferences] Agent mode set to: #{mode}")
     {:reply, :ok, new_prefs}
   end
-  
+
   @impl true
   @spec handle_call(:next_agent, GenServer.from(), map()) :: {:reply, {:ok, atom()}, map()}
   def handle_call(:next_agent, _from, prefs) do
     case prefs.agent_mode do
       "round_robin" ->
         # Cycle through all three agents
-        next = case prefs.last_agent do
-          "claude" -> "opencode"
-          "opencode" -> "gemini"
-          "gemini" -> "claude"
-          _ -> "claude"  # fallback
-        end
-        new_prefs = %{prefs | last_agent: next, updated_at: DateTime.utc_now() |> DateTime.to_iso8601()}
+        next =
+          case prefs.last_agent do
+            "claude" -> "opencode"
+            "opencode" -> "gemini"
+            "gemini" -> "claude"
+            # fallback
+            _ -> "claude"
+          end
+
+        new_prefs = %{
+          prefs
+          | last_agent: next,
+            updated_at: DateTime.utc_now() |> DateTime.to_iso8601()
+        }
+
         save_preferences(new_prefs)
         broadcast_change(new_prefs)
         Logger.info("[AgentPreferences] Round-robin: next agent is #{next}")
         {:reply, {:ok, String.to_atom(next)}, new_prefs}
-      
+
       "single" ->
         # Use the selected coding agent
         {:reply, {:ok, String.to_atom(prefs.coding_agent)}, prefs}
@@ -220,13 +245,16 @@ defmodule DashboardPhoenix.AgentPreferences do
         case Jason.decode(content, keys: :atoms) do
           {:ok, prefs} ->
             Map.merge(@default_prefs, prefs)
+
           {:error, _} ->
             Logger.warning("[AgentPreferences] Failed to parse prefs file, using defaults")
             @default_prefs
         end
+
       {:error, :enoent} ->
         Logger.info("[AgentPreferences] No prefs file found, using defaults")
         @default_prefs
+
       {:error, reason} ->
         Logger.warning("[AgentPreferences] Failed to read prefs file: #{inspect(reason)}")
         @default_prefs
@@ -237,10 +265,13 @@ defmodule DashboardPhoenix.AgentPreferences do
     case Jason.encode(prefs, pretty: true) do
       {:ok, json} ->
         case FileUtils.atomic_write(prefs_file(), json) do
-          :ok -> :ok
+          :ok ->
+            :ok
+
           {:error, reason} ->
             Logger.error("[AgentPreferences] Failed to save prefs: #{inspect(reason)}")
         end
+
       {:error, reason} ->
         Logger.error("[AgentPreferences] Failed to encode prefs: #{inspect(reason)}")
     end

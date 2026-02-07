@@ -99,6 +99,8 @@ defmodule DashboardPhoenix.AgentTypes do
   def valid_agent_string?(name), do: name in valid_agent_strings()
 
   # Guards
-  defguard is_valid_agent_type(type) when type in [:opencode, :claude, :gemini, :subagent, :claude_code]
+  defguard is_valid_agent_type(type)
+           when type in [:opencode, :claude, :gemini, :subagent, :claude_code]
+
   defguard is_coding_agent(type) when type in [:opencode, :claude, :gemini]
 end

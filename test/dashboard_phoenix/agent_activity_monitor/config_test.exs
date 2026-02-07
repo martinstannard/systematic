@@ -7,7 +7,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor.ConfigTest do
   describe "struct defaults" do
     test "has sensible defaults" do
       config = %Config{}
-      
+
       assert config.sessions_dir == nil
       assert config.persistence_file == "agent_activity_state.json"
       assert config.pubsub == nil
@@ -31,7 +31,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor.ConfigTest do
   describe "DashboardPhoenix.AgentActivityMonitor.dashboard_config/0" do
     test "creates config with DashboardPhoenix integration" do
       config = DashboardPhoenix.AgentActivityMonitor.dashboard_config()
-      
+
       assert config.sessions_dir != nil
       assert config.pubsub == {DashboardPhoenix.PubSub, "agent_activity"}
       assert config.task_supervisor == DashboardPhoenix.TaskSupervisor
@@ -46,7 +46,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor.ConfigTest do
   describe "minimal/1" do
     test "creates minimal config with just sessions_dir" do
       config = Config.minimal("/my/sessions")
-      
+
       assert config.sessions_dir == "/my/sessions"
       assert config.pubsub == nil
       assert config.task_supervisor == nil
@@ -60,7 +60,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor.ConfigTest do
   describe "new/2" do
     test "creates config with options merged into minimal defaults" do
       config = Config.new("/my/sessions", poll_interval_ms: 10_000, name: :my_monitor)
-      
+
       assert config.sessions_dir == "/my/sessions"
       assert config.poll_interval_ms == 10_000
       assert config.name == :my_monitor
@@ -81,7 +81,8 @@ defmodule DashboardPhoenix.AgentActivityMonitor.ConfigTest do
     end
 
     test "returns error for non-Config struct" do
-      assert {:error, "config must be a Config struct"} = Config.validate(%{sessions_dir: "/path"})
+      assert {:error, "config must be a Config struct"} =
+               Config.validate(%{sessions_dir: "/path"})
     end
   end
 
@@ -89,7 +90,7 @@ defmodule DashboardPhoenix.AgentActivityMonitor.ConfigTest do
     test "deprecated Config module delegates to portable module" do
       # The DashboardPhoenix.AgentActivityMonitor.Config module should delegate
       config = DashboardPhoenix.AgentActivityMonitor.Config.minimal("/path/to/sessions")
-      
+
       assert %Config{} = config
       assert config.sessions_dir == "/path/to/sessions"
     end

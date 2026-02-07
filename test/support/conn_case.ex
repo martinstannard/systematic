@@ -35,10 +35,10 @@ defmodule DashboardPhoenixWeb.ConnCase do
 
   setup tags do
     DashboardPhoenix.DataCase.setup_sandbox(tags)
-    
+
     # Set up mocks for each test for proper isolation
     DashboardPhoenix.TestHelpers.setup_mocks()
-    
+
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

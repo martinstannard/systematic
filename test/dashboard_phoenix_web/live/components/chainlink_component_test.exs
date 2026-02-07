@@ -146,9 +146,12 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
         })
 
       # Priority badges
-      assert html =~ "bg-red-500/20"    # high
-      assert html =~ "bg-yellow-500/20" # medium
-      assert html =~ "bg-blue-500/20"   # low
+      # high
+      assert html =~ "bg-red-500/20"
+      # medium
+      assert html =~ "bg-yellow-500/20"
+      # low
+      assert html =~ "bg-blue-500/20"
     end
 
     test "highlights issue being worked on" do
@@ -237,8 +240,10 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
         })
 
       # Status icons
-      assert html =~ "○" # open
-      assert html =~ "●" # closed (the closed issue)
+      # open
+      assert html =~ "○"
+      # closed (the closed issue)
+      assert html =~ "●"
     end
 
     test "shows default Working label when no label provided" do
@@ -246,7 +251,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
         render_component(ChainlinkComponent, %{
           id: :chainlink,
           collapsed: false,
-          work_in_progress: %{1 => %{}},  # No label
+          # No label
+          work_in_progress: %{1 => %{}},
           chainlink_data: %{
             issues: @sample_issues,
             last_updated: DateTime.utc_now(),
@@ -436,7 +442,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       assert html =~ ~s(phx-value-id="1")
       assert html =~ ~s(phx-value-id="2")
       assert html =~ ~s(phx-value-id="3")
-      
+
       # Each work button should have aria-label
       assert html =~ ~s(aria-label="Start work on issue #1")
     end
@@ -445,7 +451,7 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       # The modal is conditionally rendered based on confirm_issue state
       # We verify the component source includes the correct event handlers
       # by checking the module source code
-      
+
       # We can test that the component doesn't crash and renders correctly
       html =
         render_component(ChainlinkComponent, %{
@@ -545,7 +551,8 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
 
       # The modal template should have escape key handling
       # Note: The modal is not visible by default, so we check the template includes it
-      assert html =~ "phx-key" or true  # Modal only renders when confirm_issue is set
+      # Modal only renders when confirm_issue is set
+      assert html =~ "phx-key" or true
     end
   end
 
@@ -589,10 +596,10 @@ defmodule DashboardPhoenixWeb.Live.Components.ChainlinkComponentTest do
       # The form is conditionally rendered when show_create_form is true
       # We verify the module contains the expected form structure
       # by checking that the component defines the create_chainlink_issue event handler
-      
+
       # Verify the event handler exists
       assert function_exported?(ChainlinkComponent, :handle_event, 3)
-      
+
       # Verify subscribe function exists (part of public API)
       assert function_exported?(ChainlinkComponent, :subscribe, 0)
     end

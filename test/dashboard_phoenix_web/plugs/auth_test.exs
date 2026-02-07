@@ -136,7 +136,7 @@ defmodule DashboardPhoenixWeb.Plugs.AuthTest do
     test "authenticated user visiting login is redirected to dashboard", %{conn: conn} do
       # Authenticate first
       conn = post(conn, ~p"/login", %{token: @test_token})
-      
+
       # Try to visit login page again
       conn = get(recycle(conn), ~p"/login")
       assert redirected_to(conn) == "/"
@@ -153,7 +153,8 @@ defmodule DashboardPhoenixWeb.Plugs.AuthTest do
     test "token comparison is timing-safe", %{conn: conn} do
       # This test ensures we're using secure_compare
       # A timing attack with a similar-length token shouldn't work
-      similar_token = "test-secret-token-12346"  # Only last char different
+      # Only last char different
+      similar_token = "test-secret-token-12346"
       conn = get(conn, ~p"/?token=#{similar_token}")
       assert html_response(conn, 401) =~ "Unauthorized"
     end

@@ -1,12 +1,12 @@
 defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
   @moduledoc """
   LiveComponent for System Processes monitoring and management.
-  
+
   Manages:
   - Coding Agents panel (monitoring and killing processes)
   - System Processes panel (recent process display)
   - Process Relationships panel (graph visualization)
-  
+
   Required assigns:
   - coding_agents: list of coding agent processes
   - coding_agents_count: integer count of coding agents
@@ -24,21 +24,22 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
   def update(assigns, socket) do
     # Pre-calculate limited recent processes to avoid template computation
     limited_recent_processes = Enum.take(assigns.recent_processes, 4)
-    
-    socket = assign(socket,
-      coding_agents: assigns.coding_agents,
-      coding_agents_count: assigns.coding_agents_count,
-      coding_agents_collapsed: assigns.coding_agents_collapsed,
-      coding_agents_loading: Map.get(assigns, :coding_agents_loading, false),
-      recent_processes: assigns.recent_processes,
-      limited_recent_processes: limited_recent_processes,
-      recent_processes_count: assigns.recent_processes_count,
-      processes_loading: Map.get(assigns, :processes_loading, false),
-      system_processes_collapsed: assigns.system_processes_collapsed,
-      process_relationships_collapsed: assigns.process_relationships_collapsed,
-      graph_data: assigns.graph_data
-    )
-    
+
+    socket =
+      assign(socket,
+        coding_agents: assigns.coding_agents,
+        coding_agents_count: assigns.coding_agents_count,
+        coding_agents_collapsed: assigns.coding_agents_collapsed,
+        coding_agents_loading: Map.get(assigns, :coding_agents_loading, false),
+        recent_processes: assigns.recent_processes,
+        limited_recent_processes: limited_recent_processes,
+        recent_processes_count: assigns.recent_processes_count,
+        processes_loading: Map.get(assigns, :processes_loading, false),
+        system_processes_collapsed: assigns.system_processes_collapsed,
+        process_relationships_collapsed: assigns.process_relationships_collapsed,
+        graph_data: assigns.graph_data
+      )
+
     {:ok, socket}
   end
 
@@ -62,7 +63,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
       {:ok, validated_pid} ->
         send(self(), {:system_processes_component, :kill_process, validated_pid})
         {:noreply, socket}
-      
+
       {:error, reason} ->
         socket = put_flash(socket, :error, "Invalid PID: #{reason}")
         {:noreply, socket}
@@ -75,24 +76,26 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
       <!-- Coding Agents Panel -->
       <%= if @coding_agents_loading or @coding_agents != [] do %>
         <div class="mb-4">
-          <div 
+          <div
             class="panel-header-standard panel-header-interactive flex items-center justify-between select-none"
             phx-click="toggle_coding_agents_panel"
             phx-target={@myself}
           >
             <div class="flex items-center space-x-2">
-              <span class={"panel-chevron " <> if(@coding_agents_collapsed, do: "collapsed", else: "")}>▼</span>
+              <span class={"panel-chevron " <> if(@coding_agents_collapsed, do: "collapsed", else: "")}>
+                ▼
+              </span>
               <span class="panel-icon opacity-60">💻</span>
               <span class="text-panel-label text-base-content/60">Coding Agents</span>
               <%= if @coding_agents_loading do %>
                 <span class="status-activity-ring text-accent" aria-hidden="true"></span>
                 <span class="sr-only">Loading coding agents</span>
               <% else %>
-                <span class="text-xs font-mono text-base-content/50"><%= @coding_agents_count %></span>
+                <span class="text-xs font-mono text-base-content/50">{@coding_agents_count}</span>
               <% end %>
             </div>
           </div>
-          
+
           <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@coding_agents_collapsed, do: "max-h-0", else: "max-h-[200px]")}>
             <div class="px-4 pb-4">
               <%= if @coding_agents_loading do %>
@@ -105,11 +108,18 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
                   <%= for agent <- @coding_agents do %>
                     <div class={"px-3 py-2 text-xs font-mono rounded " <> if(agent.status == Status.running(), do: "bg-warning/10", else: "bg-white/5")}>
                       <div class="flex items-center justify-between">
-                        <span class="text-white font-bold"><%= agent.type %></span>
-                        <button phx-click="kill_process" phx-value-pid={agent.pid} phx-target={@myself} class="text-error/50 hover:text-error">✕</button>
+                        <span class="text-white font-bold">{agent.type}</span>
+                        <button
+                          phx-click="kill_process"
+                          phx-value-pid={agent.pid}
+                          phx-target={@myself}
+                          class="text-error/50 hover:text-error"
+                        >
+                          ✕
+                        </button>
                       </div>
                       <div class="text-xs text-base-content/50 mt-1">
-                        CPU: <%= agent.cpu %>% | MEM: <%= agent.memory %>%
+                        CPU: {agent.cpu}% | MEM: {agent.memory}%
                       </div>
                     </div>
                   <% end %>
@@ -119,29 +129,31 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
           </div>
         </div>
       <% end %>
-
-      <!-- System & Relationships Row -->
+      
+    <!-- System & Relationships Row -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- System Processes -->
         <div>
-          <div 
+          <div
             class="panel-header-standard panel-header-interactive flex items-center justify-between select-none mb-3"
             phx-click="toggle_system_processes_panel"
             phx-target={@myself}
           >
             <div class="flex items-center space-x-2">
-              <span class={"panel-chevron " <> if(@system_processes_collapsed, do: "collapsed", else: "")}>▼</span>
+              <span class={"panel-chevron " <> if(@system_processes_collapsed, do: "collapsed", else: "")}>
+                ▼
+              </span>
               <span class="panel-icon opacity-60">⚙️</span>
               <span class="text-panel-label text-base-content/60">System</span>
               <%= if @processes_loading do %>
                 <span class="status-activity-ring text-accent" aria-hidden="true"></span>
                 <span class="sr-only">Loading system processes</span>
               <% else %>
-                <span class="text-xs font-mono text-base-content/50"><%= @recent_processes_count %></span>
+                <span class="text-xs font-mono text-base-content/50">{@recent_processes_count}</span>
               <% end %>
             </div>
           </div>
-          
+
           <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@system_processes_collapsed, do: "max-h-0", else: "max-h-[150px]")}>
             <div class="px-4 pb-4">
               <%= if @processes_loading do %>
@@ -153,8 +165,14 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
                 <div class="grid grid-cols-2 gap-2">
                   <%= for process <- @limited_recent_processes do %>
                     <div class="px-3 py-2 bg-white/5 text-xs font-mono rounded">
-                      <div class="text-white truncate"><%= process.name %></div>
-                      <div class="text-base-content/50">CPU: <%= Map.get(process, :cpu_usage, "?") %> | MEM: <%= Map.get(process, :memory_usage, "?") %></div>
+                      <div class="text-white truncate">{process.name}</div>
+                      <div class="text-base-content/50">
+                        CPU: {Map.get(process, :cpu_usage, "?")} | MEM: {Map.get(
+                          process,
+                          :memory_usage,
+                          "?"
+                        )}
+                      </div>
                     </div>
                   <% end %>
                 </div>
@@ -162,24 +180,32 @@ defmodule DashboardPhoenixWeb.Live.Components.SystemProcessesComponent do
             </div>
           </div>
         </div>
-
-        <!-- Process Relationships -->
+        
+    <!-- Process Relationships -->
         <div>
-          <div 
+          <div
             class="panel-header-standard panel-header-interactive flex items-center justify-between select-none mb-3"
             phx-click="toggle_process_relationships_panel"
             phx-target={@myself}
           >
             <div class="flex items-center space-x-2">
-              <span class={"panel-chevron " <> if(@process_relationships_collapsed, do: "collapsed", else: "")}>▼</span>
+              <span class={"panel-chevron " <> if(@process_relationships_collapsed, do: "collapsed", else: "")}>
+                ▼
+              </span>
               <span class="panel-icon opacity-60">🔗</span>
               <span class="text-panel-label text-base-content/60">Relationships</span>
             </div>
           </div>
-          
+
           <div class={"transition-all duration-300 ease-in-out " <> if(@process_relationships_collapsed, do: "max-h-0 overflow-hidden", else: "")}>
             <div class="p-4">
-              <div id="relationship-graph" phx-hook="RelationshipGraph" phx-update="ignore" class="w-full h-[180px]"></div>
+              <div
+                id="relationship-graph"
+                phx-hook="RelationshipGraph"
+                phx-update="ignore"
+                class="w-full h-[180px]"
+              >
+              </div>
             </div>
           </div>
         </div>

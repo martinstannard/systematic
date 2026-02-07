@@ -39,7 +39,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
       {:ok, validated_prompt} ->
         send(self(), {:gemini_component, :send_prompt, validated_prompt})
         {:noreply, socket}
-      
+
       {:error, reason} ->
         socket = put_flash(socket, :error, "Invalid prompt: #{reason}")
         {:noreply, socket}
@@ -59,7 +59,7 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
   def render(assigns) do
     ~H"""
     <div class="panel-work overflow-hidden" role="region" aria-label="Gemini CLI panel">
-      <div 
+      <div
         class="panel-header-interactive flex items-center justify-between px-3 py-2 select-none"
         phx-click="toggle_panel"
         phx-target={@myself}
@@ -71,7 +71,12 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
       >
         <div class="flex items-center space-x-2">
-          <span class={"panel-chevron " <> if(@gemini_collapsed, do: "collapsed", else: "")} aria-hidden="true">▼</span>
+          <span
+            class={"panel-chevron " <> if(@gemini_collapsed, do: "collapsed", else: "")}
+            aria-hidden="true"
+          >
+            ▼
+          </span>
           <span class="panel-icon" aria-hidden="true">✨</span>
           <span class="text-panel-label text-accent">Gemini CLI</span>
           <%= if @gemini_loading do %>
@@ -85,11 +90,22 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
           <% end %>
         </div>
         <%= if @gemini_server_status.running do %>
-          <button phx-click="clear_output" phx-target={@myself} class="text-xs text-base-content/40 hover:text-accent" onclick="event.stopPropagation()" aria-label="Clear Gemini output">Clear</button>
+          <button
+            phx-click="clear_output"
+            phx-target={@myself}
+            class="text-xs text-base-content/40 hover:text-accent"
+            onclick="event.stopPropagation()"
+            aria-label="Clear Gemini output"
+          >
+            Clear
+          </button>
         <% end %>
       </div>
-      
-      <div id="gemini-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@gemini_collapsed, do: "max-h-0", else: "max-h-[400px]")}>
+
+      <div
+        id="gemini-panel-content"
+        class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@gemini_collapsed, do: "max-h-0", else: "max-h-[400px]")}
+      >
         <div class="px-3 pb-3">
           <%= if @gemini_loading do %>
             <div class="flex items-center justify-center py-4 space-x-2">
@@ -98,67 +114,84 @@ defmodule DashboardPhoenixWeb.Live.Components.GeminiComponent do
             </div>
           <% else %>
             <%= if not @gemini_server_status.running do %>
-            <div class="text-center py-4">
-              <div class="text-xs text-base-content/40 mb-2">Gemini CLI not running</div>
-              <button phx-click="start_server" phx-target={@myself} class="text-xs px-3 py-1.5bg-green-500/20 text-green-400 hover:bg-green-500/40" aria-label="Start Gemini CLI server">
-                <span aria-hidden="true">✨</span> Start Gemini
-              </button>
-            </div>
-          <% else %>
-            <!-- Status -->
-            <div class="flex items-center justify-between mb-2 text-xs font-mono">
-              <div class="flex items-center space-x-2">
-                <span class="text-base-content/50">Status:</span>
-                <%= if @gemini_server_status[:busy] do %>
-                  <span class="text-warning">Running...</span>
-                <% else %>
-                  <span class="text-green-400">Ready</span>
-                <% end %>
-                <span class="text-base-content/30">|</span>
-                <span class="text-base-content/50">Dir:</span>
-                <span class="text-blue-400 truncate max-w-[150px]" title={@gemini_server_status.cwd}><%= @gemini_server_status.cwd %></span>
+              <div class="text-center py-4">
+                <div class="text-xs text-base-content/40 mb-2">Gemini CLI not running</div>
+                <button
+                  phx-click="start_server"
+                  phx-target={@myself}
+                  class="text-xs px-3 py-1.5bg-green-500/20 text-green-400 hover:bg-green-500/40"
+                  aria-label="Start Gemini CLI server"
+                >
+                  <span aria-hidden="true">✨</span> Start Gemini
+                </button>
               </div>
-              <button phx-click="stop_server" phx-target={@myself} class="px-2 py-0.5bg-error/20 text-error hover:bg-error/40 text-xs" aria-label="Stop Gemini CLI server">
-                Stop
-              </button>
-            </div>
-            
-            <!-- Output - using data panel for terminal display -->
-            <div class="panel-data p-3 mb-2 max-h-[200px] overflow-y-auto" id="gemini-output" phx-hook="ScrollBottom">
-              <%= if @gemini_output == "" do %>
-                <div class="flex items-center space-x-2 text-base-content/50" role="status">
-                  <span class="status-marker text-info opacity-50" aria-hidden="true"></span>
-                  <span class="text-ui-caption italic">Waiting for output...</span>
+            <% else %>
+              <!-- Status -->
+              <div class="flex items-center justify-between mb-2 text-xs font-mono">
+                <div class="flex items-center space-x-2">
+                  <span class="text-base-content/50">Status:</span>
+                  <%= if @gemini_server_status[:busy] do %>
+                    <span class="text-warning">Running...</span>
+                  <% else %>
+                    <span class="text-green-400">Ready</span>
+                  <% end %>
+                  <span class="text-base-content/30">|</span>
+                  <span class="text-base-content/50">Dir:</span>
+                  <span class="text-blue-400 truncate max-w-[150px]" title={@gemini_server_status.cwd}>
+                    {@gemini_server_status.cwd}
+                  </span>
                 </div>
-              <% else %>
-                <pre class="text-ui-value text-base-content/90 whitespace-pre-wrap font-mono"><%= @gemini_output %></pre>
-              <% end %>
-            </div>
-            
-            <!-- Prompt Input - using status panel styling -->
-            <form phx-submit="send_prompt" phx-target={@myself} class="flex items-center space-x-2">
-              <label for="gemini-prompt-input" class="sr-only">Send a prompt to Gemini</label>
-              <div class="flex-1 panel-statusborder border-accent/30 focus-within:border-accent/60 transition-colors">
-                <input
-                  type="text"
-                  id="gemini-prompt-input"
-                  name="prompt"
-                  placeholder="Send a prompt to Gemini..."
-                  class="w-full bg-transparent px-3 py-1.5 text-ui-body font-mono text-base-content placeholder-base-content/50 focus:outline-none"
-                  autocomplete="off"
-                  aria-label="Prompt text for Gemini"
-                />
+                <button
+                  phx-click="stop_server"
+                  phx-target={@myself}
+                  class="px-2 py-0.5bg-error/20 text-error hover:bg-error/40 text-xs"
+                  aria-label="Stop Gemini CLI server"
+                >
+                  Stop
+                </button>
               </div>
-              <button
-                type="submit"
-                class="panel-work px-3 py-1.5border border-success/40 text-success hover:border-success/60 hover:bg-success/10 text-ui-label font-mono transition-all"
-                aria-label="Send prompt to Gemini"
+              
+    <!-- Output - using data panel for terminal display -->
+              <div
+                class="panel-data p-3 mb-2 max-h-[200px] overflow-y-auto"
+                id="gemini-output"
+                phx-hook="ScrollBottom"
               >
-                <span class="status-hex text-current scale-75 inline-block" aria-hidden="true"></span>
-                <span class="ml-1">Send</span>
-              </button>
-            </form>
-          <% end %>
+                <%= if @gemini_output == "" do %>
+                  <div class="flex items-center space-x-2 text-base-content/50" role="status">
+                    <span class="status-marker text-info opacity-50" aria-hidden="true"></span>
+                    <span class="text-ui-caption italic">Waiting for output...</span>
+                  </div>
+                <% else %>
+                  <pre class="text-ui-value text-base-content/90 whitespace-pre-wrap font-mono"><%= @gemini_output %></pre>
+                <% end %>
+              </div>
+              
+    <!-- Prompt Input - using status panel styling -->
+              <form phx-submit="send_prompt" phx-target={@myself} class="flex items-center space-x-2">
+                <label for="gemini-prompt-input" class="sr-only">Send a prompt to Gemini</label>
+                <div class="flex-1 panel-statusborder border-accent/30 focus-within:border-accent/60 transition-colors">
+                  <input
+                    type="text"
+                    id="gemini-prompt-input"
+                    name="prompt"
+                    placeholder="Send a prompt to Gemini..."
+                    class="w-full bg-transparent px-3 py-1.5 text-ui-body font-mono text-base-content placeholder-base-content/50 focus:outline-none"
+                    autocomplete="off"
+                    aria-label="Prompt text for Gemini"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  class="panel-work px-3 py-1.5border border-success/40 text-success hover:border-success/60 hover:bg-success/10 text-ui-label font-mono transition-all"
+                  aria-label="Send prompt to Gemini"
+                >
+                  <span class="status-hex text-current scale-75 inline-block" aria-hidden="true">
+                  </span>
+                  <span class="ml-1">Send</span>
+                </button>
+              </form>
+            <% end %>
           <% end %>
         </div>
       </div>

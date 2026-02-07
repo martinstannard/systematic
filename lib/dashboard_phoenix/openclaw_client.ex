@@ -48,7 +48,8 @@ defmodule DashboardPhoenix.OpenClawClient do
   - :details - Ticket description/details
   - :model - Model to use for the sub-agent (e.g., "anthropic/claude-opus-4-5")
   """
-  @spec work_on_ticket(String.t(), String.t() | nil, work_opts()) :: {:ok, work_result()} | {:error, String.t()}
+  @spec work_on_ticket(String.t(), String.t() | nil, work_opts()) ::
+          {:ok, work_result()} | {:error, String.t()}
   def work_on_ticket(ticket_id, details, opts \\ []) do
     model = Keyword.get(opts, :model, nil)
 
@@ -154,7 +155,8 @@ defmodule DashboardPhoenix.OpenClawClient do
   - :thinking - Thinking level (off|minimal|low|medium|high)
   - :post_mode - What to post back to main ("summary"|"full")
   """
-  @spec spawn_subagent(String.t(), subagent_opts()) :: {:ok, subagent_result()} | {:error, String.t()}
+  @spec spawn_subagent(String.t(), subagent_opts()) ::
+          {:ok, subagent_result()} | {:error, String.t()}
   def spawn_subagent(task_message, opts \\ []) do
     name = Keyword.get(opts, :name, "task-#{:rand.uniform(999_999)}")
     model = Keyword.get(opts, :model)
