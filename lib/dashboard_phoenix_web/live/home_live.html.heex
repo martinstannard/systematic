@@ -49,7 +49,7 @@
         %{id: "system", label: "System", badge: @coding_agents_count}
       ]}
     >
-      <%!-- Overview Tab (Work Panel, Work River, Activity) --%>
+      <%!-- Overview Tab (Work Panel, Activity) --%>
       <:tab_content tab="overview">
         <div class="flex flex-col gap-6">
           <!-- Work Panel -->
@@ -69,24 +69,6 @@
             sessions_loading={@sessions_loading}
             opencode_loading={@opencode_loading}
             gemini_loading={@gemini_loading}
-          />
-          
-<!-- Work River -->
-          <.live_component
-            module={WorkRiverComponent}
-            id="work-river"
-            work_river_collapsed={@work_river_collapsed}
-            linear_tickets={@linear_tickets}
-            chainlink_issues={@chainlink_issues}
-            tickets_in_progress={@tickets_in_progress}
-            chainlink_work_in_progress={@chainlink_work_in_progress}
-            agent_sessions={@agent_sessions}
-            opencode_sessions={@opencode_sessions}
-            show_completed={@show_completed}
-            dismissed_sessions={@dismissed_sessions}
-            work_registry_entries={@work_registry_entries}
-            github_prs={@github_prs}
-            pr_verifications={@pr_verifications}
           />
           
 <!-- Unified Activity Panel -->
@@ -136,6 +118,24 @@
               work_in_progress={@chainlink_work_in_progress}
             />
           </div>
+          
+          <!-- Work River -->
+          <.live_component
+            module={WorkRiverComponent}
+            id="work-river"
+            work_river_collapsed={@work_river_collapsed}
+            linear_tickets={@linear_tickets}
+            chainlink_issues={@chainlink_issues}
+            tickets_in_progress={@tickets_in_progress}
+            chainlink_work_in_progress={@chainlink_work_in_progress}
+            agent_sessions={@agent_sessions}
+            opencode_sessions={@opencode_sessions}
+            show_completed={@show_completed}
+            dismissed_sessions={@dismissed_sessions}
+            work_registry_entries={@work_registry_entries}
+            github_prs={@github_prs}
+            pr_verifications={@pr_verifications}
+          />
         </div>
       </:tab_content>
 
