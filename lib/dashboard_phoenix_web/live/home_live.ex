@@ -590,7 +590,8 @@ defmodule DashboardPhoenixWeb.HomeLive do
     chainlink_work_in_progress =
       WorkProgressBuilder.build_chainlink_work_in_progress(sessions, socket.assigns.chainlink_work_in_progress)
 
-    agent_sessions_count = length(sessions)
+    # Count only running agents (not all sessions)
+    agent_sessions_count = Enum.count(sessions, fn s -> s.status == Status.running() end)
 
     # Sync WorkRegistry with active sessions
     active_session_ids =
@@ -1269,7 +1270,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       |> assign(
         agent_sessions: sessions,
         agent_progress: progress,
-        agent_sessions_count: length(sessions),
+        agent_sessions_count: Enum.count(sessions, fn s -> s.status == Status.running() end),
         agent_progress_count: length(progress),
         agent_activity: activity,
         main_activity_count: main_activity_count,
