@@ -832,9 +832,9 @@ defmodule DashboardPhoenix.SessionBridge do
     
     status = cond do
       aborted -> Status.completed()           # Explicitly aborted
-      age_ms < 300_000 -> Status.running()    # Active in last 5 mins = running
-      age_ms < 600_000 -> Status.idle()       # 5-10 mins = idle (may still be working)
-      true -> Status.completed()              # > 10 mins = completed
+      age_ms < 420_000 -> Status.running()    # Active in last 7 mins = running
+      age_ms < 720_000 -> Status.idle()       # 7-12 mins = idle (may still be working)
+      true -> Status.completed()              # > 12 mins = completed
     end
 
     session_id = s["sessionId"] || key
