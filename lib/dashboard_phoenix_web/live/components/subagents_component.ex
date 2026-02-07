@@ -16,9 +16,22 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
       Map.get(s, :session_key) == "agent:main:main" 
     end)
 
+    # Get toggle states (with defaults for backward compatibility)
+    show_running = Map.get(assigns, :show_running, true)
+    show_idle = Map.get(assigns, :show_idle, true)
+    show_completed = Map.get(assigns, :show_completed, true)
+
     visible_sessions = sub_agent_sessions
     |> Enum.reject(fn s -> MapSet.member?(assigns.dismissed_sessions, s.id) end)
-    |> Enum.reject(fn s -> !assigns.show_completed && s.status == Status.completed() end)
+    |> Enum.filter(fn s ->
+      status = s.status
+      cond do
+        status in [Status.running(), Status.active()] -> show_running
+        status == Status.idle() -> show_idle
+        status == Status.completed() -> show_completed
+        true -> true  # Show unknown statuses
+      end
+    end)
     |> Enum.map(fn session ->
       # Pre-calculate recent actions to avoid template computation
       recent_actions = session
@@ -322,6 +335,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                 </div>
               <% end %>
             </div>
+          <% end %>
           <% end %>
         </div>
       </div>

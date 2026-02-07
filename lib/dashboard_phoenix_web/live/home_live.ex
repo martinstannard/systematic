@@ -887,10 +887,6 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:chainlink_component, :create_issue, form_data}, socket) do
     %{title: title, description: description, priority: priority} = form_data
 
-    # Build the chainlink create command
-    cmd = "chainlink create \"#{title}\" -p #{priority}"
-    cmd = if description != "", do: cmd <> " -d \"#{description}\"", else: cmd
-    
     # Execute the command asynchronously
     parent = self()
     Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
