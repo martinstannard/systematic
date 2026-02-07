@@ -324,6 +324,7 @@ const Hooks = {
   LiveDuration: {
     mounted() {
       this.startTime = parseInt(this.el.dataset.startTime)
+      this.modelName = this.el.dataset.model
       this.updateDuration()
       this.interval = setInterval(() => this.updateDuration(), 1000)
     },
@@ -332,6 +333,12 @@ const Hooks = {
       const newStartTime = parseInt(this.el.dataset.startTime)
       if (newStartTime !== this.startTime) {
         this.startTime = newStartTime
+      }
+      
+      // Update model name if changed
+      const newModelName = this.el.dataset.model
+      if (newModelName !== this.modelName) {
+        this.modelName = newModelName
       }
     },
     destroyed() {
@@ -351,16 +358,21 @@ const Hooks = {
       const minutes = Math.floor(seconds / 60)
       const hours = Math.floor(minutes / 60)
       
-      let formatted
+      let durationFormatted
       if (hours > 0) {
-        formatted = `${hours}h ${minutes % 60}m`
+        durationFormatted = `${hours}h ${minutes % 60}m`
       } else if (minutes > 0) {
-        formatted = `${minutes}m ${seconds % 60}s`
+        durationFormatted = `${minutes}m ${seconds % 60}s`
       } else {
-        formatted = `${seconds}s`
+        durationFormatted = `${seconds}s`
       }
       
-      this.el.textContent = formatted
+      // Combine model name and duration like the original template
+      if (this.modelName) {
+        this.el.textContent = `${this.modelName} • ${durationFormatted}`
+      } else {
+        this.el.textContent = durationFormatted
+      }
     }
   }
 }
