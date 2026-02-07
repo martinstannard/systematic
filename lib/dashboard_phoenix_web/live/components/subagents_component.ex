@@ -183,40 +183,7 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
         <% end %>
       </div>
       
-      <!-- Agent State Toggle Filters -->
-      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-12")}>
-        <div class="px-3 py-2 border-b border-accent/10 bg-base-100/5">
-          <div class="flex items-center space-x-1 text-xs"
-               id="agent-toggle-container"
-               phx-hook="AgentToggleState">
-            <span class="text-base-content/60 mr-2">Show:</span>
-            <button 
-              class={"btn btn-xs " <> if(@show_running, do: "btn-warning", else: "btn-outline")}
-              phx-click="toggle_agent_state"
-              phx-value-state="running"
-              {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
-            >
-              ⚡ Running
-            </button>
-            <button 
-              class={"btn btn-xs " <> if(@show_idle, do: "btn-info", else: "btn-outline")}
-              phx-click="toggle_agent_state"
-              phx-value-state="idle"
-              {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
-            >
-              ⏸ Idle
-            </button>
-            <button 
-              class={"btn btn-xs " <> if(@show_completed, do: "btn-success", else: "btn-outline")}
-              phx-click="toggle_agent_state"
-              phx-value-state="completed"
-              {if assigns[:myself], do: [{"phx-target", assigns[:myself]}], else: []}
-            >
-              ✅ Completed
-            </button>
-          </div>
-        </div>
-      </div>
+      <!-- Toggle filters moved to main AGENTS panel -->
       
       <div id="subagents-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}>
         <div class="px-4 pb-4 space-y-3 max-h-[450px] overflow-y-auto" role="region" aria-live="polite" aria-label="Sub-agent sessions list">
@@ -355,7 +322,6 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
                 </div>
               <% end %>
             </div>
-          <% end %>
           <% end %>
         </div>
       </div>

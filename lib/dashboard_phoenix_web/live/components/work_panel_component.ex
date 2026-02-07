@@ -88,8 +88,22 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     opencode_agents = build_opencode_agents(assigns)
     gemini_agent = build_gemini_agent(assigns)
     
-    # Combine and sort: running first, then by name
+    # Get toggle states
+    show_running = Map.get(assigns, :show_running, true)
+    show_idle = Map.get(assigns, :show_idle, true)  
+    show_completed = Map.get(assigns, :show_completed, false)
+    
+    # Combine and filter by state
     (claude_agents ++ opencode_agents ++ gemini_agent)
+    |> Enum.filter(fn a ->
+      status = Map.get(a, :status, Status.idle())
+      cond do
+        status in [Status.running(), Status.active()] -> show_running
+        status == Status.idle() -> show_idle
+        status in [Status.completed(), Status.done()] -> show_completed
+        true -> true  # Show other statuses by default
+      end
+    end)
     |> Enum.sort_by(fn a -> 
       status = Map.get(a, :status, Status.idle())
       priority = cond do
@@ -255,6 +269,12 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
   end
 
   @impl true
+  def handle_event("toggle_agent_state", %{"state" => state}, socket) do
+    send(self(), {:work_panel_component, :toggle_agent_state, state})
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("dismiss_failure", %{"id" => work_id}, socket) do
     # Remove the failed entry from WorkRegistry
     DashboardPhoenix.WorkRegistry.remove(work_id)
@@ -365,6 +385,41 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
         </div>
       </div>
 
+      <!-- Agent State Toggle Filters -->
+      <div class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-12")}>
+        <div class="px-3 py-2 border-b border-accent/10 bg-base-100/5">
+          <div class="flex items-center space-x-1 text-xs"
+               id="agent-toggle-container"
+               phx-hook="AgentToggleState">
+            <span class="text-base-content/60 mr-2">Show:</span>
+            <button 
+              class={"btn btn-xs " <> if(Map.get(assigns, :show_running, true), do: "btn-warning", else: "btn-outline")}
+              phx-click="toggle_agent_state"
+              phx-value-state="running"
+              phx-target={@myself}
+            >
+              ⚡ Running
+            </button>
+            <button 
+              class={"btn btn-xs " <> if(Map.get(assigns, :show_idle, true), do: "btn-info", else: "btn-outline")}
+              phx-click="toggle_agent_state"
+              phx-value-state="idle"
+              phx-target={@myself}
+            >
+              ⏸ Idle
+            </button>
+            <button 
+              class={"btn btn-xs " <> if(Map.get(assigns, :show_completed, false), do: "btn-success", else: "btn-outline")}
+              phx-click="toggle_agent_state"
+              phx-value-state="completed"
+              phx-target={@myself}
+            >
+              ✅ Completed
+            </button>
+          </div>
+        </div>
+      </div>
+      
       <div id="work-panel-content" class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@work_panel_collapsed, do: "max-h-0", else: "max-h-[1000px]")}>
         <div class="px-4 pb-4">
           <%= if @any_loading do %>

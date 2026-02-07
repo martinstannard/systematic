@@ -1,17 +1,1 @@
-{
-  "work-e3c6612aa2e33783": {
-    "id": "work-e3c6612aa2e33783",
-    "label": null,
-    "status": "failed",
-    "description": "Test task",
-    "started_at": "2026-02-07T12:31:54.963578Z",
-    "source": "manual",
-    "session_id": null,
-    "agent_type": "claude",
-    "model": null,
-    "updated_at": "2026-02-07T12:31:54.963832Z",
-    "failure_reason": "[connection_error] Server not reachable",
-    "failed_at": "2026-02-07T12:31:54.963829Z",
-    "ticket_id": null
-  }
-}
+{}

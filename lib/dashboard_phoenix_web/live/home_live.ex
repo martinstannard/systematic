@@ -131,7 +131,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
         dismissed_sessions: MapSet.new(persisted_state.dismissed_sessions),
         show_main_entries: true,
         progress_filter: "all",
-        show_completed: true,
+        show_completed: false,
+        show_running: true,
+        show_idle: true,
         main_activity_count: 0,
         expanded_outputs: MapSet.new(),
         # Active tab for tabbed UI navigation (Ticket #127)
@@ -401,6 +403,13 @@ defmodule DashboardPhoenixWeb.HomeLive do
   def handle_info({:work_panel_component, :toggle_panel}, socket) do
     socket = assign(socket, work_panel_collapsed: !socket.assigns.work_panel_collapsed)
     {:noreply, push_panel_state(socket)}
+  end
+
+  def handle_info({:work_panel_component, :toggle_agent_state, state}, socket) do
+    key = "show_#{state}" |> String.to_atom()
+    current_value = Map.get(socket.assigns, key, false)
+    socket = assign(socket, [{key, !current_value}])
+    {:noreply, socket}
   end
 
   # Handle Work River component events

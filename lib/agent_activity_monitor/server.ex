@@ -655,35 +655,19 @@ defmodule AgentActivityMonitor.Server do
     last_activity = agent.last_activity || now
     
     case agent.type do
-      :gemini ->
-        # Remove Gemini agents after 1 hour of inactivity
-        inactive_hours = DateTime.diff(now, last_activity, :hour)
-        inactive_hours >= 1
+      :claude_code ->
+        # Never auto-remove Claude agents - they should stay visible
+        false
         
-      :opencode ->
-        # Remove completed OpenCode sessions after 5 minutes
-        cond do
-          agent.status in ["completed", "stopped", "done"] ->
-            inactive_minutes = DateTime.diff(now, last_activity, :minute)
-            inactive_minutes >= 5
-          agent.status == "error" ->
-            # Remove errored sessions after 10 minutes
-            inactive_minutes = DateTime.diff(now, last_activity, :minute)
-            inactive_minutes >= 10
-          true ->
-            false
-        end
-        
-      :codex ->
-        # Remove dead Codex processes promptly (15 minutes of inactivity)
-        inactive_minutes = DateTime.diff(now, last_activity, :minute)
-        inactive_minutes >= 15
+      :openclaw ->
+        # Never auto-remove OpenClaw agents - they should stay visible
+        false
         
       _ ->
-        # For other agent types, use a conservative cleanup policy
-        # Remove if inactive for 2 hours
-        inactive_hours = DateTime.diff(now, last_activity, :hour)
-        inactive_hours >= 2
+        # For all non-Claude agents (Gemini, OpenCode, Codex, etc.)
+        # Remove if idle for 30+ minutes
+        inactive_minutes = DateTime.diff(now, last_activity, :minute)
+        inactive_minutes >= 30
     end
   end
 end
