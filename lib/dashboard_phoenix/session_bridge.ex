@@ -982,7 +982,7 @@ defmodule DashboardPhoenix.SessionBridge do
       extract_transcript_details_cached(session_id, status, transcript_cache)
 
     {task_summary, result_snippet, runtime, tokens_in, tokens_out, cost, time_info,
-     current_action, recent_actions, request_count, event_stream} = details
+     current_action, recent_actions, request_count, event_stream, transcript_model} = details
 
     session = %{
       id: session_id,
@@ -992,7 +992,7 @@ defmodule DashboardPhoenix.SessionBridge do
         s["agent_type"] || if(String.contains?(key, "subagent"), do: "sub-agent", else: "Claude"),
       status: status,
       channel: s["channel"] || "unknown",
-      model: s["model"] || default_model(key),
+      model: s["model"] || transcript_model || default_model(key),
       total_tokens: s["totalTokens"] || 0,
       context_tokens: s["contextTokens"] || 0,
       updated_at: updated_at,
@@ -1041,7 +1041,7 @@ defmodule DashboardPhoenix.SessionBridge do
 
       {:error, _} ->
         # File doesn't exist
-        {{nil, nil, nil, 0, 0, 0, nil, nil, [], 0, []}, nil}
+        {{nil, nil, nil, 0, 0, 0, nil, nil, [], 0, [], nil}, nil}
     end
   end
 
@@ -1181,8 +1181,17 @@ defmodule DashboardPhoenix.SessionBridge do
     # Build event stream for expanded view
     event_stream = build_event_stream(parsed, start_time)
 
+    # Find modelId from session entry (usually line 2)
+    transcript_model =
+      parsed
+      |> Enum.find(fn entry -> entry["modelId"] end)
+      |> case do
+        nil -> nil
+        entry -> entry["modelId"]
+      end
+
     {task_summary, result_snippet, runtime, tokens_in, tokens_out, total_cost, time_info,
-     current_action, recent_actions, request_count, event_stream}
+     current_action, recent_actions, request_count, event_stream, transcript_model}
   end
 
   # Read head and tail of large files
@@ -1481,14 +1490,7 @@ defmodule DashboardPhoenix.SessionBridge do
     "#{hours}h #{mins}m"
   end
 
-  defp default_model(key) do
-    cond do
-      String.contains?(key, "main:main") -> "opus"
-      String.contains?(key, "subagent") -> "sonnet"
-      String.contains?(key, "cron") -> "sonnet"
-      true -> "sonnet"
-    end
-  end
+  defp default_model(_key), do: "unknown"
 
   defp extract_label(key) do
     key
