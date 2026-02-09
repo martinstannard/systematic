@@ -97,10 +97,11 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     # Extract and normalize agent info (handle nil gracefully)
     agent = Map.get(assigns, :agent) || %{}
 
-    agent_type_key =
-      Map.get(assigns, :type) || Map.get(agent, :type, nil) || Map.get(agent, :model, nil)
+    # For icon/provider determination, prefer model over type
+    icon_key =
+      Map.get(agent, :model, nil) || Map.get(assigns, :type) || Map.get(agent, :type, nil)
 
-    {type_atom, type_name, icon} = agent_type_info(agent_type_key)
+    {type_atom, type_name, icon} = agent_type_info(icon_key)
 
     # Determine state
     status = Map.get(agent, :status) || Map.get(agent, :state) || Status.idle()
