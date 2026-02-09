@@ -47,6 +47,9 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     # Get recent spawn failures from WorkRegistry
     failed_spawns = build_failed_spawns(assigns)
 
+    # View mode: "overview" (compact) or "live_feed" (expanded)
+    agent_view_mode = Map.get(socket.assigns, :agent_view_mode, "overview")
+
     updated_assigns =
       assigns
       |> Map.put(:agents, agents)
@@ -54,6 +57,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
       |> Map.put(:type_counts, type_counts)
       |> Map.put(:failed_spawns, failed_spawns)
       |> Map.put(:any_loading, any_loading)
+      |> Map.put(:agent_view_mode, agent_view_mode)
 
     {:ok, assign(socket, updated_assigns)}
   end
@@ -167,7 +171,9 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
         cost: Map.get(s, :cost, 0),
         current_action: Map.get(s, :current_action),
         recent_actions: recent_actions,
-        result_snippet: Map.get(s, :result_snippet)
+        result_snippet: Map.get(s, :result_snippet),
+        event_stream: Map.get(s, :event_stream, []),
+        request_count: Map.get(s, :request_count, 0)
       }
     end)
   end
@@ -222,7 +228,9 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
         cost: Map.get(s, :cost, 0),
         current_action: Map.get(s, :current_action),
         recent_actions: recent_actions,
-        result_snippet: Map.get(s, :result_snippet)
+        result_snippet: Map.get(s, :result_snippet),
+        event_stream: Map.get(s, :event_stream, []),
+        request_count: Map.get(s, :request_count, 0)
       }
     end)
   end
@@ -273,13 +281,23 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
             cost: 0,
             current_action: if(busy, do: last_activity, else: nil),
             recent_actions: recent_output,
-            result_snippet: nil
+            result_snippet: nil,
+            event_stream: [],
+            request_count: 0
           }
         ]
       end
     else
       []
     end
+  end
+
+  @impl true
+  def handle_event("toggle_view_mode", _, socket) do
+    new_mode =
+      if socket.assigns.agent_view_mode == "overview", do: "live_feed", else: "overview"
+
+    {:noreply, assign(socket, agent_view_mode: new_mode)}
   end
 
   @impl true
@@ -524,9 +542,29 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
               </div>
             <% else %>
               <%= if @agents != [] do %>
-                <!-- Hint about expandable cards -->
-                <div class="text-xs text-base-content/40 mb-3 text-center">
-                  Click cards to expand details
+                <!-- View mode toggle -->
+                <div class="flex items-center justify-between mb-3">
+                  <div class="text-xs text-base-content/40">
+                    Click cards to toggle details
+                  </div>
+                  <button
+                    class="btn btn-xs btn-ghost gap-1 text-base-content/60 hover:text-base-content"
+                    phx-click="toggle_view_mode"
+                    phx-target={@myself}
+                    title={
+                      if @agent_view_mode == "overview",
+                        do: "Switch to Live Feed",
+                        else: "Switch to Overview"
+                    }
+                  >
+                    <%= if @agent_view_mode == "overview" do %>
+                      <span>📊</span>
+                      <span>Overview</span>
+                    <% else %>
+                      <span>📡</span>
+                      <span>Live Feed</span>
+                    <% end %>
+                  </button>
                 </div>
 
                 <div class="agent-cards-grid">
@@ -536,6 +574,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
                       id={"agent-card-#{agent.id}"}
                       agent={agent}
                       type={Map.get(agent, :type)}
+                      view_mode={@agent_view_mode}
                     />
                   <% end %>
                 </div>

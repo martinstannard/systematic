@@ -141,8 +141,22 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     current_action = Map.get(agent, :current_action)
     result_snippet = Map.get(agent, :result_snippet)
 
-    # Expanded state - preserve if already set, otherwise default to true (#134: expanded by default)
-    expanded = Map.get(socket.assigns, :expanded, true)
+    # Event stream for live feed view
+    event_stream = Map.get(agent, :event_stream, [])
+
+    # Compute last action summary for compact view
+    last_action = compute_last_action(state, current_action, recent_actions, event_stream)
+
+    # View mode from parent: "overview" (compact default) or "live_feed" (expanded default)
+    view_mode = Map.get(assigns, :view_mode, "overview")
+
+    # Expanded state - preserve if already set, otherwise derive from view mode
+    # In "live_feed" mode, default expanded; in "overview" mode, default collapsed
+    expanded =
+      case Map.get(socket.assigns, :expanded_set) do
+        true -> socket.assigns.expanded
+        _ -> view_mode == "live_feed"
+      end
 
     socket =
       socket
@@ -165,14 +179,19 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
       |> assign(:recent_actions, recent_actions)
       |> assign(:current_action, current_action)
       |> assign(:result_snippet, result_snippet)
+      |> assign(:event_stream, event_stream)
+      |> assign(:last_action, last_action)
+      |> assign(:view_mode, view_mode)
       |> assign(:expanded, expanded)
+      |> assign(:expanded_set, Map.get(socket.assigns, :expanded_set, false))
 
     {:ok, socket}
   end
 
   @impl true
   def handle_event("toggle_expand", _, socket) do
-    {:noreply, assign(socket, :expanded, !socket.assigns.expanded)}
+    {:noreply,
+     socket |> assign(:expanded, !socket.assigns.expanded) |> assign(:expanded_set, true)}
   end
 
   # Compute start time for live duration updates
@@ -262,6 +281,39 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
 
   defp format_tokens(n) when is_integer(n), do: "#{n}"
   defp format_tokens(_), do: "0"
+
+  # Compute a one-line last action summary for compact view
+  defp compute_last_action(state, current_action, recent_actions, event_stream) do
+    cond do
+      state == :completed ->
+        "Completed"
+
+      state == :failed ->
+        "Failed"
+
+      current_action != nil ->
+        "▶ #{current_action}"
+
+      event_stream != [] ->
+        last = List.last(event_stream)
+
+        case last.type do
+          :tool_call -> "Called #{last.name}"
+          :thinking -> "Thinking..."
+          :response -> "Responded"
+          _ -> nil
+        end
+
+      recent_actions != [] ->
+        List.last(recent_actions)
+
+      state == :running ->
+        "Working..."
+
+      true ->
+        nil
+    end
+  end
 
   # Check if we have expandable details (#134: added request_count)
   defp has_details?(assigns) do
@@ -355,6 +407,13 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
         </div>
       </div>
       
+    <!-- Last Action Summary (compact view) -->
+      <%= if @last_action && !@expanded do %>
+        <div class="text-xs text-base-content/50 font-mono truncate px-1 mt-1" title={@last_action}>
+          {@last_action}
+        </div>
+      <% end %>
+      
     <!-- Task Description (always visible) -->
       <%= if @task do %>
         <div class="agent-card-task" title={@task}>
@@ -398,6 +457,61 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
                   >
                     <span class="text-success/50">✓</span>
                     {action}
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+          
+    <!-- Event Stream (live feed) -->
+          <%= if @event_stream != [] do %>
+            <div class="text-sm">
+              <div class="text-xs text-base-content/50 mb-1 font-medium">Event Stream</div>
+              <div class="space-y-0.5 max-h-[200px] overflow-y-auto">
+                <%= for event <- @event_stream do %>
+                  <div class="text-xs font-mono flex items-center gap-2 py-0.5">
+                    <!-- Elapsed time -->
+                    <span class="text-base-content/30 w-12 text-right flex-shrink-0 tabular-nums">
+                      {event.elapsed || "—"}
+                    </span>
+                    <!-- Event icon -->
+                    <span class="flex-shrink-0">
+                      <%= case event.type do %>
+                        <% :tool_call -> %>
+                          <span class={
+                            if event.status == :error,
+                              do: "text-red-400",
+                              else:
+                                if(event.status == :running,
+                                  do: "text-yellow-400",
+                                  else: "text-green-400"
+                                )
+                          }>
+                            {if event.status == :error,
+                              do: "✗",
+                              else: if(event.status == :running, do: "⏳", else: "✓")}
+                          </span>
+                        <% :thinking -> %>
+                          <span class="text-purple-400">💭</span>
+                        <% :response -> %>
+                          <span class="text-blue-400">💬</span>
+                        <% _ -> %>
+                          <span class="text-base-content/40">•</span>
+                      <% end %>
+                    </span>
+                    <!-- Event name -->
+                    <span class={"truncate " <> if(event.status == :error, do: "text-red-400", else: "text-base-content/70")}>
+                      {event.name}
+                      <%= if event.target != "" do %>
+                        : {event.target}
+                      <% end %>
+                    </span>
+                    <!-- Duration -->
+                    <%= if event.duration_ms do %>
+                      <span class="text-base-content/30 flex-shrink-0 tabular-nums">
+                        {event.duration_ms}ms
+                      </span>
+                    <% end %>
                   </div>
                 <% end %>
               </div>

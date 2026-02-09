@@ -982,7 +982,7 @@ defmodule DashboardPhoenix.SessionBridge do
       extract_transcript_details_cached(session_id, status, transcript_cache)
 
     {task_summary, result_snippet, runtime, tokens_in, tokens_out, cost, time_info,
-     current_action, recent_actions, request_count} = details
+     current_action, recent_actions, request_count, event_stream} = details
 
     session = %{
       id: session_id,
@@ -1011,7 +1011,9 @@ defmodule DashboardPhoenix.SessionBridge do
       # What's happening right now (for running)
       current_action: current_action,
       # Last few tool calls (for running)
-      recent_actions: recent_actions
+      recent_actions: recent_actions,
+      # Full event stream for expanded view
+      event_stream: event_stream
     }
 
     {session, cache_entry}
@@ -1039,7 +1041,7 @@ defmodule DashboardPhoenix.SessionBridge do
 
       {:error, _} ->
         # File doesn't exist
-        {{nil, nil, nil, 0, 0, 0, nil, nil, [], 0}, nil}
+        {{nil, nil, nil, 0, 0, 0, nil, nil, [], 0, []}, nil}
     end
   end
 
@@ -1176,8 +1178,11 @@ defmodule DashboardPhoenix.SessionBridge do
         {nil, []}
       end
 
+    # Build event stream for expanded view
+    event_stream = build_event_stream(parsed, start_time)
+
     {task_summary, result_snippet, runtime, tokens_in, tokens_out, total_cost, time_info,
-     current_action, recent_actions, request_count}
+     current_action, recent_actions, request_count, event_stream}
   end
 
   # Read head and tail of large files
@@ -1272,6 +1277,153 @@ defmodule DashboardPhoenix.SessionBridge do
       |> Enum.map(fn tc -> "#{tc.name}: #{tc.target}" end)
 
     {current_action, recent_actions}
+  end
+
+  # Build a chronological event stream from parsed transcript entries
+  # Returns last 20 events: tool calls with timing, state transitions, thinking
+  defp build_event_stream(parsed, start_time) do
+    # Collect tool call IDs that have results
+    tool_results =
+      parsed
+      |> Enum.filter(fn entry ->
+        entry["type"] == "message" && get_in(entry, ["message", "role"]) == "toolResult"
+      end)
+      |> Enum.reduce(%{}, fn entry, acc ->
+        tool_call_id = get_in(entry, ["message", "toolCallId"])
+        details = get_in(entry, ["message", "details"]) || %{}
+        is_error = get_in(entry, ["message", "isError"]) || false
+        duration_ms = details["durationMs"]
+        exit_code = details["exitCode"]
+        tool_name = get_in(entry, ["message", "toolName"]) || ""
+
+        # Get output summary
+        content = get_in(entry, ["message", "content"]) || []
+
+        output_text =
+          case content do
+            [%{"type" => "text", "text" => t} | _] -> t
+            _ -> ""
+          end
+
+        summary = create_output_summary(tool_name, output_text, details, is_error)
+
+        Map.put(acc, tool_call_id, %{
+          summary: summary,
+          is_error: is_error,
+          duration_ms: duration_ms,
+          exit_code: exit_code
+        })
+      end)
+
+    events =
+      parsed
+      |> Enum.flat_map(fn entry ->
+        ts = entry["timestamp"]
+        elapsed = format_elapsed(ts, start_time)
+
+        case {entry["type"], get_in(entry, ["message", "role"])} do
+          {"message", "assistant"} ->
+            content = get_in(entry, ["message", "content"]) || []
+
+            # Extract tool calls
+            tool_call_events =
+              content
+              |> Enum.filter(fn item -> is_map(item) && item["type"] == "toolCall" end)
+              |> Enum.map(fn tc ->
+                tool_id = tc["id"]
+                name = tc["name"] || "unknown"
+                args = tc["arguments"] || %{}
+
+                target =
+                  args["path"] || args["file_path"] || args["command"] || args["query"] || ""
+
+                result = Map.get(tool_results, tool_id)
+
+                %{
+                  type: :tool_call,
+                  ts: ts,
+                  elapsed: elapsed,
+                  name: name,
+                  target: truncate_target(target),
+                  status:
+                    if(result, do: if(result.is_error, do: :error, else: :done), else: :running),
+                  duration_ms: if(result, do: result.duration_ms),
+                  summary: if(result, do: result.summary)
+                }
+              end)
+
+            # Check for thinking blocks
+            thinking_events =
+              content
+              |> Enum.filter(fn item -> is_map(item) && item["type"] == "thinking" end)
+              |> Enum.take(1)
+              |> Enum.map(fn _thinking ->
+                %{
+                  type: :thinking,
+                  ts: ts,
+                  elapsed: elapsed,
+                  name: "Thinking",
+                  target: "",
+                  status: :done,
+                  duration_ms: nil,
+                  summary: nil
+                }
+              end)
+
+            # Check for text responses (only if no tool calls - indicates a response)
+            text_events =
+              if tool_call_events == [] do
+                has_text =
+                  Enum.any?(content, fn item ->
+                    is_map(item) && item["type"] == "text" &&
+                      String.length(item["text"] || "") > 0
+                  end)
+
+                if has_text do
+                  [
+                    %{
+                      type: :response,
+                      ts: ts,
+                      elapsed: elapsed,
+                      name: "Response",
+                      target: "",
+                      status: :done,
+                      duration_ms: nil,
+                      summary: nil
+                    }
+                  ]
+                else
+                  []
+                end
+              else
+                []
+              end
+
+            thinking_events ++ tool_call_events ++ text_events
+
+          _ ->
+            []
+        end
+      end)
+      |> Enum.take(-20)
+
+    events
+  end
+
+  # Format elapsed time from session start
+  defp format_elapsed(nil, _start_time), do: nil
+
+  defp format_elapsed(ts, start_time) do
+    current = parse_timestamp(ts)
+
+    case {current, start_time} do
+      {%DateTime{} = c, %DateTime{} = s} ->
+        diff_ms = DateTime.diff(c, s, :millisecond)
+        format_runtime(max(diff_ms, 0))
+
+      _ ->
+        nil
+    end
   end
 
   defp extract_text_content(content) when is_list(content) do
