@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Test Issue (#129)
+- Test Issue (#128)
+- Test Issue (#127)
 - Remove stale Gemini and OpenCode agents from AGENTS panel (#132)
 - Add toggle buttons for running, idle and completed agent states, remember in localstorage (#133)
 - Remove inactive agents from AGENTS panel + fix IDLE status bug (#131)
