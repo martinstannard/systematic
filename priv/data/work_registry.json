@@ -1,1 +1,17 @@
-{}
+{
+  "work-490b536d7b8b53a9": {
+    "id": "work-490b536d7b8b53a9",
+    "label": null,
+    "status": "failed",
+    "description": "Single task",
+    "started_at": "2026-02-09T19:24:44.728882Z",
+    "source": "manual",
+    "session_id": null,
+    "updated_at": "2026-02-09T19:24:44.728986Z",
+    "model": null,
+    "agent_type": "claude",
+    "ticket_id": null,
+    "failed_at": "2026-02-09T19:24:44.728984Z",
+    "failure_reason": "Single error"
+  }
+}

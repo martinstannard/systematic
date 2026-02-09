@@ -130,9 +130,10 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     model = Map.get(agent, :model)
     model_short = short_model_name(model)
 
-    # Token usage and cost
+    # Token usage, request count, and cost (#134)
     tokens_in = Map.get(agent, :tokens_in, 0)
     tokens_out = Map.get(agent, :tokens_out, 0)
+    request_count = Map.get(agent, :request_count, 0)
     cost = Map.get(agent, :cost, 0)
 
     # Recent actions for expanded view
@@ -140,8 +141,8 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     current_action = Map.get(agent, :current_action)
     result_snippet = Map.get(agent, :result_snippet)
 
-    # Expanded state - preserve if already set, otherwise default to false
-    expanded = Map.get(socket.assigns, :expanded, false)
+    # Expanded state - preserve if already set, otherwise default to true (#134: expanded by default)
+    expanded = Map.get(socket.assigns, :expanded, true)
 
     socket =
       socket
@@ -159,6 +160,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
       |> assign(:agent_id, Map.get(agent, :id, "unknown"))
       |> assign(:tokens_in, tokens_in)
       |> assign(:tokens_out, tokens_out)
+      |> assign(:request_count, request_count)
       |> assign(:cost, cost)
       |> assign(:recent_actions, recent_actions)
       |> assign(:current_action, current_action)
@@ -261,9 +263,10 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   defp format_tokens(n) when is_integer(n), do: "#{n}"
   defp format_tokens(_), do: "0"
 
-  # Check if we have expandable details
+  # Check if we have expandable details (#134: added request_count)
   defp has_details?(assigns) do
     assigns.tokens_in > 0 or assigns.tokens_out > 0 or
+      assigns.request_count > 0 or
       assigns.cost > 0 or
       assigns.current_action != nil or
       assigns.recent_actions != [] or
@@ -414,12 +417,12 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
             </div>
           <% end %>
           
-    <!-- Token Usage & Cost Stats -->
-          <%= if @tokens_in > 0 || @tokens_out > 0 || @cost > 0 do %>
+    <!-- Token Usage, Request Count & Cost Stats (#134) -->
+          <%= if @tokens_in > 0 || @tokens_out > 0 || @request_count > 0 || @cost > 0 do %>
             <div
               class="flex items-center justify-between text-xs bg-base-content/5 px-2 py-1.5 rounded"
               role="group"
-              aria-label="Token usage and cost"
+              aria-label="Token usage, request count, and cost"
             >
               <div class="flex items-center gap-3">
                 <%= if @tokens_in > 0 do %>
@@ -441,6 +444,18 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
                       aria-label={"Output tokens: " <> format_tokens(@tokens_out)}
                     >
                       <span aria-hidden="true">↑</span> {format_tokens(@tokens_out)}
+                    </span>
+                  </div>
+                <% end %>
+                <%= if @request_count > 0 do %>
+                  <div class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-warning/60" aria-hidden="true"></span>
+                    <span
+                      class="text-base-content/60 font-mono tabular-nums"
+                      aria-label={"API requests: " <> to_string(@request_count)}
+                      title="Number of API requests made"
+                    >
+                      <span aria-hidden="true">🔄</span> {@request_count}
                     </span>
                   </div>
                 <% end %>

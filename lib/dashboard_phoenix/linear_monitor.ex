@@ -460,7 +460,10 @@ defmodule DashboardPhoenix.LinearMonitor do
              "number,url",
              "--limit",
              "1"
-           ], timeout: @cli_timeout_ms, friendly_name: "GitHub CLI") do
+           ],
+           timeout: @cli_timeout_ms,
+           friendly_name: "GitHub CLI"
+         ) do
       {:ok, [%{"url" => url} | _]} -> {:ok, url}
       {:ok, []} -> {:error, :no_pr_found}
       {:error, {:tool_not_available, _message}} -> {:error, :gh_not_available}

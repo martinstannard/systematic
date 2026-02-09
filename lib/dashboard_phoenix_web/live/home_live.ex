@@ -910,7 +910,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
         case System.cmd(
                "chainlink",
                ["create", title, "-p", priority] ++
-                 if(description != "", do: ["-d", description], else: []), stderr_to_stdout: true) do
+                 if(description != "", do: ["-d", description], else: []),
+               stderr_to_stdout: true
+             ) do
           {output, 0} ->
             send(parent, {:chainlink_creation_complete, :success, output})
             # Refresh the issues list

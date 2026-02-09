@@ -982,7 +982,7 @@ defmodule DashboardPhoenix.SessionBridge do
       extract_transcript_details_cached(session_id, status, transcript_cache)
 
     {task_summary, result_snippet, runtime, tokens_in, tokens_out, cost, time_info,
-     current_action, recent_actions} = details
+     current_action, recent_actions, request_count} = details
 
     session = %{
       id: session_id,
@@ -1005,6 +1005,7 @@ defmodule DashboardPhoenix.SessionBridge do
       tokens_in: tokens_in,
       tokens_out: tokens_out,
       cost: cost,
+      request_count: request_count,
       # For completed: completion time, for running: start time
       completed_at: time_info,
       # What's happening right now (for running)
@@ -1038,7 +1039,7 @@ defmodule DashboardPhoenix.SessionBridge do
 
       {:error, _} ->
         # File doesn't exist
-        {{nil, nil, nil, 0, 0, 0, nil, nil, []}, nil}
+        {{nil, nil, nil, 0, 0, 0, nil, nil, [], 0}, nil}
     end
   end
 
@@ -1151,20 +1152,20 @@ defmodule DashboardPhoenix.SessionBridge do
           nil
       end
 
-    # Sum up token usage from all assistant messages
-    {tokens_in, tokens_out, total_cost} =
+    # Sum up token usage from all assistant messages and count API requests (#134)
+    {tokens_in, tokens_out, total_cost, request_count} =
       parsed
       |> Enum.filter(fn entry ->
         entry["type"] == "message" &&
           get_in(entry, ["message", "role"]) == "assistant" &&
           get_in(entry, ["message", "usage"]) != nil
       end)
-      |> Enum.reduce({0, 0, 0.0}, fn entry, {in_acc, out_acc, cost_acc} ->
+      |> Enum.reduce({0, 0, 0.0, 0}, fn entry, {in_acc, out_acc, cost_acc, count_acc} ->
         usage = get_in(entry, ["message", "usage"]) || %{}
         input = (usage["input"] || 0) + (usage["cacheRead"] || 0)
         output = usage["output"] || 0
         cost = get_in(usage, ["cost", "total"]) || 0
-        {in_acc + input, out_acc + output, cost_acc + cost}
+        {in_acc + input, out_acc + output, cost_acc + cost, count_acc + 1}
       end)
 
     # For running sessions, extract current action and recent tool calls
@@ -1176,7 +1177,7 @@ defmodule DashboardPhoenix.SessionBridge do
       end
 
     {task_summary, result_snippet, runtime, tokens_in, tokens_out, total_cost, time_info,
-     current_action, recent_actions}
+     current_action, recent_actions, request_count}
   end
 
   # Read head and tail of large files

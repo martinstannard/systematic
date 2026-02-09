@@ -685,39 +685,41 @@ defmodule AgentActivityMonitor.Server do
   # Determine if an agent should be removed based on type and activity
   defp should_remove_agent?(agent, now, _config) do
     last_activity = agent.last_activity || now
-    
+
     case agent.type do
       :claude_code ->
         # Never auto-remove Claude agents - they should stay visible
         false
-        
+
       :openclaw ->
         # Never auto-remove OpenClaw agents - they should stay visible
         false
-        
+
       :gemini ->
         # Remove Gemini agents that haven't had activity for 1 hour
         inactive_hours = DateTime.diff(now, last_activity, :hour)
         inactive_hours >= 1
-        
+
       :opencode ->
         # Remove completed OpenCode sessions after 5 minutes, errored after 10 minutes
         cond do
           agent.status in ["completed", "stopped", "done"] ->
             inactive_minutes = DateTime.diff(now, last_activity, :minute)
             inactive_minutes >= 5
+
           agent.status == "error" ->
             inactive_minutes = DateTime.diff(now, last_activity, :minute)
             inactive_minutes >= 10
+
           true ->
             false
         end
-        
+
       :codex ->
         # Remove dead Codex processes promptly (15 minutes of inactivity)
         inactive_minutes = DateTime.diff(now, last_activity, :minute)
         inactive_minutes >= 15
-        
+
       _ ->
         # For other unknown agent types, use conservative cleanup (30 minutes)
         inactive_minutes = DateTime.diff(now, last_activity, :minute)
