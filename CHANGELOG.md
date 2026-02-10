@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Fix agent panel model display: extract from transcript, show unknown if missing (#136)
+- Agent panel: compact/expanded toggle with live event stream (#135)
+- Test Issue (#134)
 - Test Issue (#129)
 - Test Issue (#128)
 - Test Issue (#127)

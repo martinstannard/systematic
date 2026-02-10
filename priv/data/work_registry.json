@@ -1,17 +1,1 @@
-{
-  "work-540ffcbe9a1621de": {
-    "id": "work-540ffcbe9a1621de",
-    "label": null,
-    "status": "failed",
-    "description": "Single task",
-    "started_at": "2026-02-09T21:06:47.317378Z",
-    "source": "manual",
-    "session_id": null,
-    "updated_at": "2026-02-09T21:06:47.317475Z",
-    "model": null,
-    "agent_type": "claude",
-    "ticket_id": null,
-    "failed_at": "2026-02-09T21:06:47.317474Z",
-    "failure_reason": "Single error"
-  }
-}
+{}

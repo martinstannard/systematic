@@ -987,7 +987,7 @@ defmodule DashboardPhoenix.SessionBridge do
     session = %{
       id: session_id,
       session_key: key,
-      label: s["label"] || extract_label(key),
+      label: s["label"] || derive_label(key, task_summary),
       agent_type:
         s["agent_type"] || if(String.contains?(key, "subagent"), do: "sub-agent", else: "Claude"),
       status: status,
@@ -1492,11 +1492,27 @@ defmodule DashboardPhoenix.SessionBridge do
 
   defp default_model(_key), do: "unknown"
 
-  defp extract_label(key) do
-    key
-    |> String.split(":")
-    |> List.last()
-    |> String.slice(0, 12)
+  # Derive a human-readable label from the session key and task summary
+  # Priority: extract ticket ID or PR number from task, then fall back to truncated UUID
+  defp derive_label(key, task_summary) do
+    cond do
+      # Try to extract a ticket ID (e.g., COR-1061) from the task
+      task_summary && Regex.run(~r/([A-Z]{2,5}-\d+)/, task_summary) ->
+        [_, ticket_id] = Regex.run(~r/([A-Z]{2,5}-\d+)/, task_summary)
+        ticket_id
+
+      # Try to extract a PR number from the task
+      task_summary && Regex.run(~r/#(\d+)/, task_summary) ->
+        [_, pr_num] = Regex.run(~r/#(\d+)/, task_summary)
+        "PR ##{pr_num}"
+
+      # Fall back to truncated UUID from key
+      true ->
+        key
+        |> String.split(":")
+        |> List.last()
+        |> String.slice(0, 12)
+    end
   end
 
   defp format_age(ms) when ms < 1000, do: "just now"
