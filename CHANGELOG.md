@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- COR-1101: Fix PR review findings (rounding comment, Decimal.round mode, min=0 vs validation) (#146)
+- Test Issue (#150)
+- Test Issue (#149)
 - Always-expanded agent cards — remove expand/collapse toggle (#138)
 - COR-1066: Export staging treatment data to Google Sheet (#145)
 - Fallback DATABASE_URL from component env vars (ecto://USER:PASS@HOST/NAME) (#147)

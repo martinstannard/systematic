@@ -47,12 +47,16 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
     # Get recent spawn failures from WorkRegistry
     failed_spawns = build_failed_spawns(assigns)
 
+    # Group agents by ticket/task
+    grouped_agents = group_agents_by_ticket(agents)
+
     # View mode: "overview" (compact) or "live_feed" (expanded)
     agent_view_mode = Map.get(socket.assigns, :agent_view_mode, "overview")
 
     updated_assigns =
       assigns
       |> Map.put(:agents, agents)
+      |> Map.put(:grouped_agents, grouped_agents)
       |> Map.put(:active_count, active_count)
       |> Map.put(:type_counts, type_counts)
       |> Map.put(:failed_spawns, failed_spawns)
@@ -126,6 +130,52 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
 
       {priority, Map.get(a, :name, "")}
     end)
+  end
+
+  @doc """
+  Groups agents by their parent ticket/task label.
+  Returns a list of {group_name, agents} tuples, sorted with active groups first.
+  """
+  def group_agents_by_ticket(agents) do
+    agents
+    |> Enum.group_by(&extract_ticket_group/1)
+    |> Enum.sort_by(fn {group_name, group_agents} ->
+      # Sort groups: groups with running agents first, then by name
+      has_running =
+        Enum.any?(group_agents, fn a ->
+          Map.get(a, :status) in [Status.running(), Status.active()]
+        end)
+
+      priority = if has_running, do: 0, else: 1
+      # "Other" group always last
+      other_penalty = if group_name == "Other", do: 1, else: 0
+      {priority, other_penalty, group_name}
+    end)
+  end
+
+  # Extract a ticket/task group name from agent data
+  defp extract_ticket_group(agent) do
+    name = Map.get(agent, :name, "")
+
+    cond do
+      # Match "Chainlink #N: description" pattern
+      match = Regex.run(~r/^(Chainlink #\d+:.+)$/i, name) ->
+        Enum.at(match, 1)
+
+      # Match "#N: description" or "ticket-N" patterns
+      match = Regex.run(~r/^(#\d+[:\s].+)$/i, name) ->
+        Enum.at(match, 1)
+
+      match = Regex.run(~r/^(ticket-\d+)$/i, name) ->
+        Enum.at(match, 1)
+
+      # Match any "Label: description" with a short prefix
+      match = Regex.run(~r/^([A-Z][\w-]{0,20}\s*#?\d+[:\s].{3,})$/i, name) ->
+        Enum.at(match, 1)
+
+      true ->
+        "Other"
+    end
   end
 
   defp build_claude_agents(assigns) do
@@ -542,17 +592,39 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
               </div>
             <% else %>
               <%= if @agents != [] do %>
-                <!-- Agent cards are always expanded (#138) -->
-
-                <div class="agent-cards-grid">
-                  <%= for agent <- @agents do %>
-                    <.live_component
-                      module={AgentCardComponent}
-                      id={"agent-card-#{agent.id}"}
-                      agent={agent}
-                      type={Map.get(agent, :type)}
-                      view_mode={@agent_view_mode}
-                    />
+                <!-- Agent cards grouped by ticket/task (#141) -->
+                <div class="space-y-4">
+                  <%= for {group_name, group_agents} <- @grouped_agents do %>
+                    <div>
+                      <!-- Group header -->
+                      <div class="flex items-center gap-2 mb-2 px-1">
+                        <% group_running = Enum.count(group_agents, fn a -> Map.get(a, :status) in ["running", "active"] end) %>
+                        <%= if group_running > 0 do %>
+                          <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0"></span>
+                        <% else %>
+                          <span class="w-2 h-2 rounded-full bg-base-content/20 flex-shrink-0"></span>
+                        <% end %>
+                        <span class="text-xs font-semibold text-accent/80 uppercase tracking-wider truncate">
+                          {group_name}
+                        </span>
+                        <span class="text-xs font-mono text-base-content/40">
+                          {length(group_agents)}
+                        </span>
+                        <div class="flex-1 border-t border-accent/10"></div>
+                      </div>
+                      <!-- Agent cards in this group -->
+                      <div class="agent-cards-grid">
+                        <%= for agent <- group_agents do %>
+                          <.live_component
+                            module={AgentCardComponent}
+                            id={"agent-card-#{agent.id}"}
+                            agent={agent}
+                            type={Map.get(agent, :type)}
+                            view_mode={@agent_view_mode}
+                          />
+                        <% end %>
+                      </div>
+                    </div>
                   <% end %>
                 </div>
               <% end %>
