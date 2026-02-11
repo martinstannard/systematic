@@ -542,30 +542,7 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
               </div>
             <% else %>
               <%= if @agents != [] do %>
-                <!-- View mode toggle -->
-                <div class="flex items-center justify-between mb-3">
-                  <div class="text-xs text-base-content/40">
-                    Click cards to toggle details
-                  </div>
-                  <button
-                    class="btn btn-xs btn-ghost gap-1 text-base-content/60 hover:text-base-content"
-                    phx-click="toggle_view_mode"
-                    phx-target={@myself}
-                    title={
-                      if @agent_view_mode == "overview",
-                        do: "Switch to Live Feed",
-                        else: "Switch to Overview"
-                    }
-                  >
-                    <%= if @agent_view_mode == "overview" do %>
-                      <span>📊</span>
-                      <span>Overview</span>
-                    <% else %>
-                      <span>📡</span>
-                      <span>Live Feed</span>
-                    <% end %>
-                  </button>
-                </div>
+                <!-- Agent cards are always expanded (#138) -->
 
                 <div class="agent-cards-grid">
                   <%= for agent <- @agents do %>

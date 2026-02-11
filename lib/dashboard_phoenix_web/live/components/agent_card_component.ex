@@ -151,14 +151,6 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     # View mode from parent: "overview" (compact default) or "live_feed" (expanded default)
     view_mode = Map.get(assigns, :view_mode, "overview")
 
-    # Expanded state - preserve if already set, otherwise derive from view mode
-    # In "live_feed" mode, default expanded; in "overview" mode, default collapsed
-    expanded =
-      case Map.get(socket.assigns, :expanded_set) do
-        true -> socket.assigns.expanded
-        _ -> view_mode == "live_feed"
-      end
-
     socket =
       socket
       |> assign(assigns)
@@ -183,17 +175,12 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
       |> assign(:event_stream, event_stream)
       |> assign(:last_action, last_action)
       |> assign(:view_mode, view_mode)
-      |> assign(:expanded, expanded)
-      |> assign(:expanded_set, Map.get(socket.assigns, :expanded_set, false))
+      |> assign(:expanded, true)
 
     {:ok, socket}
   end
 
-  @impl true
-  def handle_event("toggle_expand", _, socket) do
-    {:noreply,
-     socket |> assign(:expanded, !socket.assigns.expanded) |> assign(:expanded_set, true)}
-  end
+  # toggle_expand removed - cards are always expanded (#138)
 
   # Compute start time for live duration updates
   defp compute_start_time(%{created_at: created_at}) when is_integer(created_at), do: created_at
@@ -316,33 +303,17 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
     end
   end
 
-  # Check if we have expandable details (#134: added request_count)
-  defp has_details?(assigns) do
-    assigns.tokens_in > 0 or assigns.tokens_out > 0 or
-      assigns.request_count > 0 or
-      assigns.cost > 0 or
-      assigns.current_action != nil or
-      assigns.recent_actions != [] or
-      assigns.result_snippet != nil or
-      assigns.model != nil
-  end
+  # has_details? removed - cards are always expanded (#138)
 
   @impl true
   def render(assigns) do
     ~H"""
     <div
-      class={"agent-card panel-status border transition-all cursor-pointer " <> card_border_class(@state)}
+      class={"agent-card panel-status border transition-all " <> card_border_class(@state)}
       id={"agent-card-#{@agent_id}"}
       data-agent-type={@type_atom}
       data-state={@state}
-      data-expanded={@expanded}
-      phx-click="toggle_expand"
-      phx-target={@myself}
-      role="button"
-      tabindex="0"
-      aria-expanded={to_string(@expanded)}
-      aria-label={"Agent card: #{@name}. Click to #{if @expanded, do: "collapse", else: "expand"} details."}
-      onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
+      data-expanded="true"
     >
       <!-- Card Header: Stacked layout - Name on top, details below -->
       <div class="agent-card-header flex-col items-start gap-1.5">
@@ -363,16 +334,6 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
           <span class="agent-card-name flex-1" title={@name}>
             {@name}
           </span>
-          
-    <!-- Expand chevron indicator -->
-          <%= if has_details?(assigns) do %>
-            <span
-              class={"text-xs text-base-content/60 transition-transform duration-200 flex-shrink-0 " <> if(@expanded, do: "rotate-180", else: "")}
-              aria-hidden="true"
-            >
-              ▼
-            </span>
-          <% end %>
         </div>
         
     <!-- Line 2: Model, Duration, State badges -->
@@ -408,12 +369,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
         </div>
       </div>
       
-    <!-- Last Action Summary (compact view) -->
-      <%= if @last_action && !@expanded do %>
-        <div class="text-xs text-base-content/50 font-mono truncate px-1 mt-1" title={@last_action}>
-          {@last_action}
-        </div>
-      <% end %>
+    <!-- Cards are always expanded (#138) -->
       
     <!-- Task Description (always visible) -->
       <%= if @task do %>
@@ -427,11 +383,7 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
       <% end %>
       
     <!-- Expandable Details Section -->
-      <div
-        class={"agent-card-details overflow-hidden transition-all duration-300 ease-in-out " <> 
-          if(@expanded, do: "max-h-[400px] opacity-100 mt-3", else: "max-h-0 opacity-0")}
-        aria-hidden={not @expanded}
-      >
+      <div class="agent-card-details mt-3">
         <div class="pt-3 border-t border-base-content/10 space-y-3">
           <!-- Current Action (for running agents) -->
           <%= if @state == :running && @current_action do %>
