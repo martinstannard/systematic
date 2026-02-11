@@ -45,6 +45,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.SubagentsComponent
   alias DashboardPhoenixWeb.Live.Components.GeminiComponent
   alias DashboardPhoenixWeb.Live.Components.ConfigComponent
+  alias DashboardPhoenixWeb.Live.Components.DailyCostComponent
   alias DashboardPhoenixWeb.Live.Components.DaveComponent
   alias DashboardPhoenixWeb.Live.Components.UnifiedActivityComponent
   alias DashboardPhoenixWeb.Live.Components.SystemProcessesComponent

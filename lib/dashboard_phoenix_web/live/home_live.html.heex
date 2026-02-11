@@ -52,6 +52,12 @@
       <%!-- Overview Tab (Work Panel, Activity) --%>
       <:tab_content tab="overview">
         <div class="flex flex-col gap-6">
+          <!-- Daily Cost Summary -->
+          <.live_component
+            module={DailyCostComponent}
+            id="daily-cost"
+            agent_sessions={@agent_sessions}
+          />
           <!-- Work Panel -->
           <.live_component
             module={WorkPanelComponent}
