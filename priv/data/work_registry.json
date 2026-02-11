@@ -1,1 +1,17 @@
-{}
+{
+  "work-7688b28f9e0e4629": {
+    "id": "work-7688b28f9e0e4629",
+    "label": null,
+    "status": "failed",
+    "description": "Single task",
+    "started_at": "2026-02-11T08:28:36.196961Z",
+    "source": "manual",
+    "session_id": null,
+    "agent_type": "claude",
+    "model": null,
+    "failure_reason": "Single error",
+    "failed_at": "2026-02-11T08:28:36.197063Z",
+    "ticket_id": null,
+    "updated_at": "2026-02-11T08:28:36.197064Z"
+  }
+}

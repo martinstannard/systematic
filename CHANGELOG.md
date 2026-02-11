@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Always-expanded agent cards — remove expand/collapse toggle (#138)
+- COR-1066: Export staging treatment data to Google Sheet (#145)
+- Fallback DATABASE_URL from component env vars (ecto://USER:PASS@HOST/NAME) (#147)
+- Agent card icon should reflect actual model, not agent type (#137)
+- Test Issue (#129)
+- Test Issue (#128)
+- Test Issue (#127)
 - Fix agent panel model display: extract from transcript, show unknown if missing (#136)
 - Agent panel: compact/expanded toggle with live event stream (#135)
 - Test Issue (#134)
