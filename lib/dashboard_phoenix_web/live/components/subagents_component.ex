@@ -223,10 +223,10 @@ defmodule DashboardPhoenixWeb.Live.Components.SubagentsComponent do
 
       <div
         id="subagents-panel-content"
-        class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[500px]")}
+        class={"transition-all duration-300 ease-in-out overflow-hidden " <> if(@subagents_collapsed, do: "max-h-0", else: "max-h-[2000px]")}
       >
         <div
-          class="px-4 pb-4 space-y-3 max-h-[450px] overflow-y-auto"
+          class="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[800px] overflow-y-auto"
           role="region"
           aria-live="polite"
           aria-label="Sub-agent sessions list"
