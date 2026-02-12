@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Resizable/expandable agent panel — prevent agent cards from being cut off (#148)
+- Agents panel not wrapping - agents stacked and cut off (#153)
 - Group agents by ticket/task (#141)
 - COR-1101: Fix PR review findings (rounding comment, Decimal.round mode, min=0 vs validation) (#146)
 - Test Issue (#150)

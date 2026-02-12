@@ -1,17 +1,1 @@
-{
-  "work-be89cd0dd79efe9b": {
-    "id": "work-be89cd0dd79efe9b",
-    "label": null,
-    "status": "failed",
-    "description": "Single task",
-    "started_at": "2026-02-11T13:36:31.740451Z",
-    "source": "manual",
-    "session_id": null,
-    "updated_at": "2026-02-11T13:36:31.740590Z",
-    "model": null,
-    "agent_type": "claude",
-    "failed_at": "2026-02-11T13:36:31.740588Z",
-    "failure_reason": "Single error",
-    "ticket_id": null
-  }
-}
+{}

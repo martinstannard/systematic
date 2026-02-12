@@ -594,7 +594,7 @@ body {
 
 .agent-cards-grid {
   display: grid;
-  grid-template-columns: 1fr; /* Single column — cards should use full panel width */
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
 }
 
