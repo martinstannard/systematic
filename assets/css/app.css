@@ -606,7 +606,7 @@ body {
 }
 
 .agent-card {
-  @apply flex flex-col p-4 rounded-lg;
+  @apply flex flex-col p-4;
   @apply bg-base-200/80 border;
   @apply transition-all duration-300 ease-out;
   border-color: oklch(var(--bc) / 0.08);
@@ -643,7 +643,7 @@ body {
 }
 
 .agent-card[data-state="idle"] {
-  border-color: oklch(var(--bc) / 0.06);
+  border-color: oklch(var(--wa) / 0.5);
   @apply opacity-75;
 }
 

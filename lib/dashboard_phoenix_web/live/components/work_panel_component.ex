@@ -237,7 +237,6 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
 
   defp build_gemini_agent(assigns) do
     status = assigns.gemini_server_status
-    show_completed = Map.get(assigns, :show_completed, false)
 
     if status.running do
       busy = Map.get(status, :busy, false)
@@ -253,9 +252,8 @@ defmodule DashboardPhoenixWeb.Live.Components.WorkPanelComponent do
           []
         end
 
-      # Don't show Gemini if it's idle and has no recent output (stale)
-      # unless show_completed is true
-      if not busy and recent_output == [] and not show_completed do
+      # Don't show Gemini if it's not busy and has no recent output (stale)
+      if not busy and recent_output == [] do
         []
       else
         last_activity =

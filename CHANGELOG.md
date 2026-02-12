@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Redesign Agents panel — responsive layout showing all agents with maximum info visibility (#154)
 - Resizable/expandable agent panel — prevent agent cards from being cut off (#148)
 - Test Issue (#152)
 - Test Issue (#151)
