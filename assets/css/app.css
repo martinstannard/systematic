@@ -592,88 +592,103 @@ body {
    AGENT CARDS GRID
    ===================================================== */
 
+/* Auto-fill grid: cards size themselves based on available space */
 .agent-cards-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 0.75rem;
 }
 
+/* When only 1-2 agents, don't stretch cards too wide */
+.agent-cards-grid:has(> :nth-child(1):last-child),
+.agent-cards-grid:has(> :nth-child(2):last-child) {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 480px));
+}
+
 .agent-card {
-  @apply flex flex-col min-h-[120px] p-5; /* Increased padding and min height */
-  @apply bg-base-200 border border-base-300;
-  @apply transition-colors duration-200;
+  @apply flex flex-col p-4 rounded-lg;
+  @apply bg-base-200/80 border;
+  @apply transition-all duration-300 ease-out;
+  border-color: oklch(var(--bc) / 0.08);
 }
 
 .agent-card:hover {
-  @apply bg-base-300/50;
+  @apply bg-base-300/60;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px oklch(0 0 0 / 0.2);
 }
 
-.agent-card-header {
-  @apply flex items-center justify-between gap-3 mb-3; /* Increased gaps and margin-bottom */
-}
-
-.agent-card-identity {
-  @apply flex items-center gap-3 min-w-0 flex-1; /* Increased gap between icon and name */
-}
-
-.agent-card-icon {
-  @apply text-base flex-shrink-0;
-}
-
-.agent-card-name {
-  @apply font-semibold text-sm text-gray-900 dark:text-gray-100;
-  @apply overflow-hidden text-ellipsis whitespace-nowrap;
-}
-
-.agent-card-badges {
-  @apply flex items-center gap-2 flex-shrink-0 flex-wrap; /* Increased gap between badges */
-}
-
-.agent-card-task {
-  @apply text-sm text-gray-600 dark:text-gray-400 mt-auto pt-2; /* Added top padding for more breathing room */
-  @apply line-clamp-2;
-}
-
-/* Agent card states */
+/* --- State-driven card styling --- */
 .agent-card[data-state="running"] {
-  @apply border-green-500 border-2;
+  border-color: oklch(var(--su) / 0.5);
+  box-shadow: 0 0 0 1px oklch(var(--su) / 0.15), 0 2px 8px oklch(var(--su) / 0.08);
+}
+
+.agent-card[data-state="running"]:hover {
+  box-shadow: 0 0 0 1px oklch(var(--su) / 0.25), 0 4px 16px oklch(var(--su) / 0.12);
 }
 
 .agent-card[data-state="completed"] {
-  @apply border-blue-400;
+  @apply opacity-70;
+  border-color: oklch(var(--in) / 0.25);
+}
+
+.agent-card[data-state="completed"]:hover {
+  @apply opacity-90;
 }
 
 .agent-card[data-state="failed"] {
-  @apply border-red-500 border-2;
+  border-color: oklch(var(--er) / 0.5);
+  box-shadow: 0 0 0 1px oklch(var(--er) / 0.15);
 }
 
 .agent-card[data-state="idle"] {
-  @apply border-gray-200 dark:border-gray-700;
+  border-color: oklch(var(--bc) / 0.06);
+  @apply opacity-75;
 }
 
-/* Agent card expandable states */
-.agent-card[data-expanded="true"] {
-  @apply bg-base-300/30;
+.agent-card[data-state="idle"]:hover {
+  @apply opacity-100;
 }
 
-.agent-card[data-expanded="true"]:hover {
-  @apply bg-base-300/50;
+/* --- Card inner elements --- */
+.agent-card-header {
+  @apply flex items-center justify-between gap-3 mb-2;
 }
 
-/* Agent card details section */
+.agent-card-icon {
+  @apply text-sm flex-shrink-0;
+}
+
+.agent-card-name {
+  @apply font-semibold text-sm text-base-content;
+  @apply overflow-hidden text-ellipsis whitespace-nowrap;
+  letter-spacing: -0.01em;
+}
+
+.agent-card-badges {
+  @apply flex items-center gap-1.5 flex-shrink-0 flex-wrap;
+}
+
+.agent-card-task {
+  @apply text-xs leading-relaxed mt-2;
+  color: oklch(var(--bc) / 0.55);
+  @apply line-clamp-2;
+}
+
+/* --- Details section --- */
 .agent-card-details {
   will-change: max-height, opacity;
 }
 
-/* Smooth expand animation */
 .agent-card-details.max-h-0 {
   padding-top: 0 !important;
   margin-top: 0 !important;
 }
 
-/* Agent card focus state */
 .agent-card:focus-visible {
-  @apply outline-2 outline-blue-500 outline-offset-2;
+  @apply outline-2 outline-offset-2;
+  outline-color: oklch(var(--p));
 }
 
 /* =====================================================
@@ -1129,8 +1144,7 @@ textarea:focus-visible,
   }
   
   .agent-card {
-    min-height: 100px; /* Increased minimum height for better mobile touch targets */
-    @apply p-4; /* Maintain good padding on mobile */
+    @apply p-3;
   }
   
   /* Typography adjustments */
@@ -1225,14 +1239,9 @@ textarea:focus-visible,
     @apply p-3; /* Increased mobile panel padding */
   }
   
-  /* Compact agent cards */
+  /* Compact agent cards on small screens */
   .agent-card {
     @apply p-3;
-    min-height: 70px;
-  }
-  
-  .agent-card-icon {
-    @apply text-lg;
   }
   
   .agent-card-name {
@@ -1256,7 +1265,7 @@ textarea:focus-visible,
 /* Tablet breakpoint adjustments (641px - 1024px) */
 @media (min-width: 641px) and (max-width: 1024px) {
   .agent-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
   
   /* Two-column layout for larger tablets */

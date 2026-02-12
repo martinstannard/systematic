@@ -229,13 +229,6 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   defp state_indicator_class(:idle), do: "bg-gray-500"
   defp state_indicator_class(_), do: "bg-gray-500"
 
-  # State badge styling
-  defp state_badge_class(:running), do: "bg-green-500/20 text-green-400"
-  defp state_badge_class(:completed), do: "bg-blue-500/20 text-blue-400"
-  defp state_badge_class(:failed), do: "bg-red-500/20 text-red-400"
-  defp state_badge_class(:idle), do: "bg-gray-500/20 text-gray-400"
-  defp state_badge_class(_), do: "bg-gray-500/20 text-gray-400"
-
   # State text
   defp state_text(:running), do: Status.running()
   defp state_text(:completed), do: Status.completed()
@@ -248,13 +241,6 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   defp duration_badge_class(:completed), do: "bg-blue-500/20 text-blue-400"
   defp duration_badge_class(:failed), do: "bg-red-500/20 text-red-400"
   defp duration_badge_class(_), do: "bg-base-content/10 text-base-content/60"
-
-  # Card border styling based on state
-  defp card_border_class(:running), do: "border-green-500/40"
-  defp card_border_class(:completed), do: "border-blue-500/30"
-  defp card_border_class(:failed), do: "border-red-500/30"
-  defp card_border_class(:idle), do: "border-accent/20"
-  defp card_border_class(_), do: "border-accent/20"
 
   # Format token counts
   defp format_tokens(n) when is_integer(n) and n >= 1_000_000 do
@@ -309,247 +295,125 @@ defmodule DashboardPhoenixWeb.Live.Components.AgentCardComponent do
   def render(assigns) do
     ~H"""
     <div
-      class={"agent-card panel-status border transition-all " <> card_border_class(@state)}
+      class="agent-card"
       id={"agent-card-#{@agent_id}"}
       data-agent-type={@type_atom}
       data-state={@state}
-      data-expanded="true"
     >
-      <!-- Card Header: Stacked layout - Name on top, details below -->
-      <div class="agent-card-header flex-col items-start gap-1.5">
-        <!-- Line 1: Icon + Name (full width) -->
-        <div class="flex items-center gap-2 w-full min-w-0">
-          <!-- State Indicator Dot -->
-          <span
-            class={"w-2.5 h-2.5 rounded-full flex-shrink-0 " <> state_indicator_class(@state) <> if(@state == :running, do: " animate-pulse", else: "")}
-            aria-hidden="true"
-            title={state_text(@state)}
-          >
-          </span>
-          
-    <!-- Agent Icon -->
-          <span class="agent-card-icon" aria-hidden="true">{@icon}</span>
-          
-    <!-- Agent Name - now gets full width -->
-          <span class="agent-card-name flex-1" title={@name}>
-            {@name}
-          </span>
-        </div>
-        
-    <!-- Line 2: Model, Duration, State badges -->
-        <div class="agent-card-badges w-full justify-start">
-          <%= if @state == :running do %>
-            <span
-              class={"px-2 py-1 text-xs font-mono tabular-nums rounded " <> duration_badge_class(@state)}
-              id={"card-duration-#{@agent_id}"}
-              phx-hook="LiveDuration"
-              data-start-time={@start_time}
-              data-model={@model_short}
-            >
-              <%= if @model_short do %>
-                {@model_short} •
-              <% end %>
-              {@runtime || "0s"}
-            </span>
-          <% else %>
-            <%= if @runtime || @model_short do %>
-              <span class={"px-2 py-1 text-xs font-mono tabular-nums rounded " <> duration_badge_class(@state)}>
-                <%= if @model_short && @runtime do %>
-                  {@model_short} • {@runtime}
-                <% else %>
-                  {@model_short || @runtime}
-                <% end %>
-              </span>
-            <% end %>
-          <% end %>
+      <%!-- Row 1: Status dot + Icon + Name + Model/Duration badge --%>
+      <div class="flex items-center gap-2 min-w-0">
+        <span
+          class={"w-2 h-2 rounded-full flex-shrink-0 " <> state_indicator_class(@state) <> if(@state == :running, do: " animate-pulse", else: "")}
+          title={state_text(@state)}
+        />
+        <span class="agent-card-icon" aria-hidden="true">{@icon}</span>
+        <span class="agent-card-name flex-1 min-w-0" title={@name}>{@name}</span>
 
-          <span class={"px-2 py-1 text-xs font-semibold uppercase tracking-wide rounded " <> state_badge_class(@state)}>
-            {state_text(@state)}
+        <%!-- Model + Duration pill --%>
+        <%= if @state == :running do %>
+          <span
+            class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-mono tabular-nums rounded-full bg-green-500/15 text-green-400 flex-shrink-0"
+            id={"card-duration-#{@agent_id}"}
+            phx-hook="LiveDuration"
+            data-start-time={@start_time}
+            data-model={@model_short}
+          >
+            <%= if @model_short do %><span class="opacity-70">{@model_short}</span><span class="opacity-40">·</span><% end %>
+            {@runtime || "0s"}
           </span>
-        </div>
+        <% else %>
+          <%= if @runtime || @model_short do %>
+            <span class={"inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-mono tabular-nums rounded-full flex-shrink-0 " <> duration_badge_class(@state)}>
+              <%= if @model_short && @runtime do %>
+                <span class="opacity-70">{@model_short}</span><span class="opacity-40">·</span>{@runtime}
+              <% else %>
+                {@model_short || @runtime}
+              <% end %>
+            </span>
+          <% end %>
+        <% end %>
       </div>
-      
-    <!-- Cards are always expanded (#138) -->
-      
-    <!-- Task Description (always visible) -->
-      <%= if @task do %>
-        <div class="agent-card-task" title={@task}>
-          {@task}
-        </div>
-      <% else %>
-        <div class="agent-card-task text-base-content/40 italic">
-          No active task
+
+      <%!-- Row 2: Current action or task --%>
+      <%= if @state == :running && @current_action do %>
+        <div class="mt-1.5 flex items-center gap-1.5 min-w-0">
+          <span class="text-green-400 text-[11px]">▶</span>
+          <span class="text-[12px] font-mono text-green-400/90 truncate" title={@current_action}>{@current_action}</span>
         </div>
       <% end %>
-      
-    <!-- Expandable Details Section -->
-      <div class="agent-card-details mt-3">
-        <div class="pt-3 border-t border-base-content/10 space-y-3">
-          <!-- Current Action (for running agents) -->
-          <%= if @state == :running && @current_action do %>
-            <div class="text-sm">
-              <div class="text-xs text-green-400/70 mb-1 font-medium">▶ Current Action</div>
-              <div
-                class="text-green-400 font-mono text-xs truncate bg-green-500/10 px-2 py-1 rounded"
-                title={@current_action}
-              >
-                {@current_action}
-              </div>
-            </div>
-          <% end %>
-          
-    <!-- Recent Actions -->
-          <%= if @recent_actions != [] do %>
-            <div class="text-sm">
-              <div class="text-xs text-base-content/50 mb-1 font-medium">Recent Activity</div>
-              <div class="space-y-1 max-h-[100px] overflow-y-auto">
-                <%= for action <- @recent_actions do %>
-                  <div
-                    class="text-xs text-base-content/60 font-mono truncate flex items-center gap-1"
-                    title={action}
-                  >
-                    <span class="text-success/50">✓</span>
-                    {action}
-                  </div>
+
+      <%= if @task do %>
+        <div class="agent-card-task" title={@task}>{@task}</div>
+      <% end %>
+
+      <%!-- Event stream --%>
+      <%= if @event_stream != [] do %>
+        <div class="mt-2 pt-2 border-t border-base-content/5 space-y-0.5 max-h-[160px] overflow-y-auto">
+          <%= for event <- @event_stream do %>
+            <div class="text-[11px] font-mono flex items-center gap-1.5 py-px leading-tight">
+              <span class="text-base-content/25 w-10 text-right flex-shrink-0 tabular-nums">{event.elapsed || "—"}</span>
+              <span class="flex-shrink-0">
+                <%= case event.type do %>
+                  <% :tool_call -> %>
+                    <span class={if(event.status == :error, do: "text-red-400", else: if(event.status == :running, do: "text-yellow-400", else: "text-green-400/70"))}>
+                      {if(event.status == :error, do: "✗", else: if(event.status == :running, do: "⏳", else: "✓"))}
+                    </span>
+                  <% :thinking -> %><span class="text-purple-400/70">◆</span>
+                  <% :response -> %><span class="text-blue-400/70">●</span>
+                  <% _ -> %><span class="text-base-content/30">·</span>
                 <% end %>
-              </div>
-            </div>
-          <% end %>
-          
-    <!-- Event Stream (live feed) -->
-          <%= if @event_stream != [] do %>
-            <div class="text-sm">
-              <div class="text-xs text-base-content/50 mb-1 font-medium">Event Stream</div>
-              <div class="space-y-0.5 max-h-[200px] overflow-y-auto">
-                <%= for event <- @event_stream do %>
-                  <div class="text-xs font-mono flex items-center gap-2 py-0.5">
-                    <!-- Elapsed time -->
-                    <span class="text-base-content/30 w-12 text-right flex-shrink-0 tabular-nums">
-                      {event.elapsed || "—"}
-                    </span>
-                    <!-- Event icon -->
-                    <span class="flex-shrink-0">
-                      <%= case event.type do %>
-                        <% :tool_call -> %>
-                          <span class={
-                            if event.status == :error,
-                              do: "text-red-400",
-                              else:
-                                if(event.status == :running,
-                                  do: "text-yellow-400",
-                                  else: "text-green-400"
-                                )
-                          }>
-                            {if event.status == :error,
-                              do: "✗",
-                              else: if(event.status == :running, do: "⏳", else: "✓")}
-                          </span>
-                        <% :thinking -> %>
-                          <span class="text-purple-400">💭</span>
-                        <% :response -> %>
-                          <span class="text-blue-400">💬</span>
-                        <% _ -> %>
-                          <span class="text-base-content/40">•</span>
-                      <% end %>
-                    </span>
-                    <!-- Event name -->
-                    <span class={"truncate " <> if(event.status == :error, do: "text-red-400", else: "text-base-content/70")}>
-                      {event.name}
-                      <%= if event.target != "" do %>
-                        : {event.target}
-                      <% end %>
-                    </span>
-                    <!-- Duration -->
-                    <%= if event.duration_ms do %>
-                      <span class="text-base-content/30 flex-shrink-0 tabular-nums">
-                        {event.duration_ms}ms
-                      </span>
-                    <% end %>
-                  </div>
-                <% end %>
-              </div>
-            </div>
-          <% end %>
-          
-    <!-- Result Snippet (for completed agents) -->
-          <%= if @state == :completed && @result_snippet do %>
-            <div class="text-sm">
-              <div class="text-xs text-blue-400/70 mb-1 font-medium">Result</div>
-              <div
-                class="text-base-content/70 text-xs bg-blue-500/10 px-2 py-1 rounded line-clamp-3"
-                title={@result_snippet}
-              >
-                {@result_snippet}
-              </div>
-            </div>
-          <% end %>
-          
-    <!-- Token Usage, Request Count & Cost Stats (#134) -->
-          <%= if @tokens_in > 0 || @tokens_out > 0 || @request_count > 0 || @cost > 0 do %>
-            <div
-              class="flex items-center justify-between text-xs bg-base-content/5 px-2 py-1.5 rounded"
-              role="group"
-              aria-label="Token usage, request count, and cost"
-            >
-              <div class="flex items-center gap-3">
-                <%= if @tokens_in > 0 do %>
-                  <div class="flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-info/60" aria-hidden="true"></span>
-                    <span
-                      class="text-base-content/60 font-mono tabular-nums"
-                      aria-label={"Input tokens: " <> format_tokens(@tokens_in)}
-                    >
-                      <span aria-hidden="true">↓</span> {format_tokens(@tokens_in)}
-                    </span>
-                  </div>
-                <% end %>
-                <%= if @tokens_out > 0 do %>
-                  <div class="flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-secondary/60" aria-hidden="true"></span>
-                    <span
-                      class="text-base-content/60 font-mono tabular-nums"
-                      aria-label={"Output tokens: " <> format_tokens(@tokens_out)}
-                    >
-                      <span aria-hidden="true">↑</span> {format_tokens(@tokens_out)}
-                    </span>
-                  </div>
-                <% end %>
-                <%= if @request_count > 0 do %>
-                  <div class="flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-warning/60" aria-hidden="true"></span>
-                    <span
-                      class="text-base-content/60 font-mono tabular-nums"
-                      aria-label={"API requests: " <> to_string(@request_count)}
-                      title="Number of API requests made"
-                    >
-                      <span aria-hidden="true">🔄</span> {@request_count}
-                    </span>
-                  </div>
-                <% end %>
-              </div>
-              <%= if @cost > 0 do %>
-                <div class="flex items-center gap-1">
-                  <span class="w-1.5 h-1.5 rounded-full bg-success" aria-hidden="true"></span>
-                  <span
-                    class="text-success font-mono tabular-nums"
-                    aria-label={"Cost: $" <> to_string(Float.round(@cost, 4))}
-                  >
-                    ${Float.round(@cost, 4)}
-                  </span>
-                </div>
+              </span>
+              <span class={"truncate " <> if(event.status == :error, do: "text-red-400", else: "text-base-content/55")}>
+                {event.name}<%= if event.target != "" do %>: {event.target}<% end %>
+              </span>
+              <%= if event.duration_ms do %>
+                <span class="text-base-content/25 flex-shrink-0 tabular-nums ml-auto">{event.duration_ms}ms</span>
               <% end %>
             </div>
           <% end %>
-          
-    <!-- Model Info (if not already shown in header) -->
-          <%= if @model && !@model_short do %>
-            <div class="text-xs text-base-content/50">
-              <span class="font-medium">Model:</span>
-              <span class="font-mono ml-1">{@model}</span>
+        </div>
+      <% end %>
+
+      <%!-- Recent actions (when no event stream) --%>
+      <%= if @event_stream == [] && @recent_actions != [] do %>
+        <div class="mt-2 pt-2 border-t border-base-content/5 space-y-0.5 max-h-[80px] overflow-y-auto">
+          <%= for action <- @recent_actions do %>
+            <div class="text-[11px] font-mono text-base-content/45 truncate flex items-center gap-1" title={action}>
+              <span class="text-success/40">✓</span>{action}
             </div>
           <% end %>
         </div>
-      </div>
+      <% end %>
+
+      <%!-- Result snippet for completed --%>
+      <%= if @state == :completed && @result_snippet do %>
+        <div class="mt-2 text-[11px] text-base-content/50 bg-blue-500/8 px-2 py-1 rounded line-clamp-2" title={@result_snippet}>
+          {@result_snippet}
+        </div>
+      <% end %>
+
+      <%!-- Stats bar: tokens, requests, cost --%>
+      <%= if @tokens_in > 0 || @tokens_out > 0 || @request_count > 0 || @cost > 0 do %>
+        <div class="mt-2 pt-2 border-t border-base-content/5 flex items-center gap-3 text-[11px] font-mono tabular-nums text-base-content/40">
+          <%= if @tokens_in > 0 do %>
+            <span title="Input tokens">↓{format_tokens(@tokens_in)}</span>
+          <% end %>
+          <%= if @tokens_out > 0 do %>
+            <span title="Output tokens">↑{format_tokens(@tokens_out)}</span>
+          <% end %>
+          <%= if @request_count > 0 do %>
+            <span title="API requests">{@request_count}req</span>
+          <% end %>
+          <%= if @cost > 0 do %>
+            <span class="ml-auto text-success/70" title="Cost">${Float.round(@cost, 4)}</span>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%!-- Model info fallback --%>
+      <%= if @model && !@model_short do %>
+        <div class="mt-1 text-[11px] text-base-content/35 font-mono">{@model}</div>
+      <% end %>
     </div>
     """
   end
