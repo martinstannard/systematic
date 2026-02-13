@@ -58,7 +58,9 @@ defmodule DashboardPhoenixWeb.HomeLive do
   alias DashboardPhoenixWeb.Live.Components.WorkContextModalComponent
   alias DashboardPhoenixWeb.Live.Components.TestRunnerComponent
   alias DashboardPhoenixWeb.Live.Components.TabsComponent
+  alias DashboardPhoenixWeb.Live.Components.CronHealthComponent
   alias DashboardPhoenix.ProcessMonitor
+  alias DashboardPhoenix.CronMonitor
   alias DashboardPhoenix.ActivityLog
   alias DashboardPhoenix.SessionBridge
   alias DashboardPhoenix.StatsMonitor
@@ -214,6 +216,12 @@ defmodule DashboardPhoenixWeb.HomeLive do
         process_relationships_collapsed: persisted_state.panels.process_relationships,
         chat_collapsed: persisted_state.panels.chat,
         test_runner_collapsed: persisted_state.panels.test_runner,
+        # Cron health - loaded async
+        cron_jobs: [],
+        cron_jobs_count: 0,
+        cron_loading: true,
+        cron_error: nil,
+        cron_collapsed: Map.get(persisted_state.panels, :cron_health, false),
         # Activity panel state
         activity_events: [],
         activity_collapsed: persisted_state.panels.activity,
@@ -278,6 +286,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
       send(self(), :load_branches)
       send(self(), :load_health_status)
       send(self(), :load_activity_events)
+      send(self(), :load_cron_jobs)
     end
 
     {:ok, socket}
@@ -359,6 +368,58 @@ defmodule DashboardPhoenixWeb.HomeLive do
   # Handle activity events loaded result
   def handle_info({:activity_events_loaded, events}, socket) do
     {:noreply, assign(socket, activity_events: events)}
+  end
+
+  # Handle async cron jobs loading
+  def handle_info(:load_cron_jobs, socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(DashboardPhoenix.TaskSupervisor, fn ->
+      try do
+        case CronMonitor.fetch_cron_jobs() do
+          {:ok, jobs} ->
+            send(parent, {:cron_jobs_loaded, jobs, nil})
+
+          {:error, reason} ->
+            require Logger
+            Logger.error("[HomeLive] Failed to load cron jobs: #{reason}")
+            send(parent, {:cron_jobs_loaded, [], reason})
+        end
+      rescue
+        e ->
+          require Logger
+          Logger.error("[HomeLive] Exception loading cron jobs: #{Exception.message(e)}")
+          send(parent, {:cron_jobs_loaded, [], Exception.message(e)})
+      end
+    end)
+
+    {:noreply, socket}
+  end
+
+  # Handle cron jobs loaded result
+  def handle_info({:cron_jobs_loaded, jobs, error}, socket) do
+    socket =
+      assign(socket,
+        cron_jobs: jobs,
+        cron_jobs_count: length(jobs),
+        cron_loading: false,
+        cron_error: error
+      )
+
+    {:noreply, socket}
+  end
+
+  # Handle cron health component events
+  def handle_info({:cron_health_component, :toggle_panel}, socket) do
+    socket = assign(socket, cron_collapsed: !socket.assigns.cron_collapsed)
+    DashboardState.set_panel(:cron_health, socket.assigns.cron_collapsed)
+    {:noreply, socket}
+  end
+
+  def handle_info({:cron_health_component, :refresh}, socket) do
+    socket = assign(socket, cron_loading: true)
+    send(self(), :load_cron_jobs)
+    {:noreply, socket}
   end
 
   # Handle activity panel component events
@@ -696,6 +757,7 @@ defmodule DashboardPhoenixWeb.HomeLive do
        process_relationships_collapsed: state.panels.process_relationships,
        chat_collapsed: state.panels.chat,
        test_runner_collapsed: state.panels.test_runner,
+       cron_collapsed: Map.get(state.panels, :cron_health, false),
        activity_collapsed: state.panels.activity,
        work_panel_collapsed: state.panels.work_panel,
        work_river_collapsed: Map.get(state.panels, :work_river, false),

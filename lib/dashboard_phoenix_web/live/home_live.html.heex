@@ -315,6 +315,22 @@
             />
           </div>
           
+<!-- Cron Health Panel -->
+          <div class={[
+            "panel-priority-medium p-4 sm:p-6",
+            @cron_collapsed && "panel-collapsed"
+          ]}>
+            <.live_component
+              module={CronHealthComponent}
+              id="cron-health-panel"
+              cron_jobs={@cron_jobs}
+              cron_jobs_count={@cron_jobs_count}
+              cron_loading={@cron_loading}
+              cron_collapsed={@cron_collapsed}
+              cron_error={@cron_error}
+            />
+          </div>
+          
 <!-- System Processes Panel -->
           <div class={[
             "panel-priority-medium p-4 sm:p-6",

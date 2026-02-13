@@ -48,6 +48,7 @@ defmodule DashboardPhoenix.DashboardState do
       process_relationships: false,
       chat: true,
       test_runner: false,
+      cron_health: false,
       activity: false,
       work_panel: false
     },
